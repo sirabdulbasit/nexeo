@@ -44,6 +44,9 @@ dead names; internal `brain_*` table and route names are kept deliberately for s
   `https://tai.tmcltd.com/suzi`, list the person's keys/computers and disconnect one. Apache
   `tmcai.conf` proxies `/suzi/v1/` (HTTP + WebSocket) to the gateway on 4010. The person and the tenant come from `req.user` only, agent tokens are refused, and
   the gateway's admin secret is a file it owns (`/var/www/jarvis-gateway/secrets/nexeo-admin.secret`).
+  Suzi runs on the AI backend set in Admin → Client Config → AI Provider (DEF-374): at boot, after an
+  `ai_*` Save and after a green Verify, `shareAiCredentialsWithSuzi()` posts the Vertex service
+  account to the gateway's `POST /admin/llm-credentials` (fire-and-forget, never fails Nexeo).
   Nexeo never touches the gateway's DB, and the gateway never touches Nexeo's.
 
 ### Tenancy / auth model (reviewers should attack this first)

@@ -65,6 +65,11 @@ router.post('/ai/verify', requireSuperAdmin, async (_req: Request, res: Response
   // Read fresh: the operator has almost certainly just pressed Save.
   clearAiProviderCache();
   const result = await verifyAiProvider();
+  // DEF-374: a verified backend is the one Suzi desktop should use too.
+  if (result.ok) {
+    const { shareAiCredentialsWithSuzi } = await import('../services/suzi/gatewayAdminClient');
+    void shareAiCredentialsWithSuzi();
+  }
   res.json(result);
 });
 
@@ -121,6 +126,7 @@ router.put('/', async (req: Request, res: Response) => {
   }
 
   let updated = 0;
+  let aiChanged = false;
   for (const entry of configs) {
     if (!entry.key || entry.value === undefined) continue;
     if (entry.value === MASKED) continue;
@@ -132,12 +138,20 @@ router.put('/', async (req: Request, res: Response) => {
     const isSensitive = SENSITIVE_KEYS.includes(entry.key) || entry.isSensitive === true;
     await setConfig(getTargetClient(req), entry.key, entry.value, isSensitive, entry.description);
     updated++;
+    if (entry.key.startsWith('ai_')) aiChanged = true;
   }
+  if (aiChanged) await shareAiWithSuzi();
 
   res.json({ success: true, updated });
 });
 
 // Set single config entry
+/** DEF-374: after an ai_* write, Suzi desktop follows the new backend. Fire-and-forget; never fails the Save. */
+async function shareAiWithSuzi(): Promise<void> {
+  const { shareAiCredentialsWithSuzi } = await import('../services/suzi/gatewayAdminClient');
+  void shareAiCredentialsWithSuzi();
+}
+
 /** Any ai_* write invalidates the provider cache so Save takes effect at once. */
 async function invalidateIfProviderKey(key: string): Promise<void> {
   if (!key.startsWith('ai_')) return;
@@ -159,6 +173,7 @@ router.put('/:key', async (req: Request, res: Response) => {
   const isSensitive = SENSITIVE_KEYS.includes(key) || req.body.isSensitive === true;
   await setConfig(getTargetClient(req), key, value, isSensitive, description);
   await invalidateIfProviderKey(key);
+  if (key.startsWith('ai_')) await shareAiWithSuzi();
   res.json({ success: true });
 });
 

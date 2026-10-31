@@ -138,6 +138,33 @@ export async function listDevices(owner: SuziOwner): Promise<SuziDevice[]> {
   }));
 }
 
+/**
+ * DEF-374: give Suzi the AI backend Nexeo is configured with (Admin → Client Config → AI Provider), so
+ * the desktop assistant runs on the same billed Vertex project instead of needing its own key. The
+ * service account goes to the gateway's loopback admin API, which stores it owner-only; it is never
+ * logged here. Only Vertex with a stored service account can be shared — anything else is a no-op
+ * with the reason. Never throws: Nexeo must not fail a Save, a Verify or a boot because Suzi is down.
+ */
+export async function shareAiCredentialsWithSuzi(): Promise<{ shared: boolean; reason?: string }> {
+  try {
+    const { getAiProviderConfig, clearAiProviderCache } = await import('../aiProviderConfig');
+    clearAiProviderCache();
+    const cfg = await getAiProviderConfig();
+    if (cfg.provider !== 'vertex') return { shared: false, reason: `AI provider is ${cfg.provider}, not vertex` };
+    if (!cfg.serviceAccount) return { shared: false, reason: 'no service account JSON is stored in Client Config' };
+    const data = await call('POST', '/admin/llm-credentials', {
+      provider: 'vertex', model: cfg.model, region: cfg.region, service_account: cfg.serviceAccount,
+    });
+    log.info('suzi ai credentials shared', { model: cfg.model, region: cfg.region, changed: !!data?.changed });
+    return { shared: true };
+  } catch (err) {
+    const reason = err instanceof SuziNotConfiguredError ? 'Suzi is not set up on this server'
+      : err instanceof SuziGatewayError ? err.message : 'unexpected error';
+    log.warn('suzi ai credentials not shared', { reason });
+    return { shared: false, reason };
+  }
+}
+
 /** Disconnects only a computer that belongs to this owner; the gateway enforces it too. */
 export async function disconnectDevice(owner: SuziOwner, deviceId: string): Promise<void> {
   await call('POST', '/admin/revoke', { device_id: deviceId, user_id: String(owner.userId), tenant_id: owner.clientNumber });

@@ -168,6 +168,12 @@ const server = app.listen(env.port, async () => {
     .then(({ backfillAllWhatsAppConnections }) => backfillAllWhatsAppConnections())
     .catch(err => console.error('WhatsApp connection backfill failed:', err.message));
 
+  // DEF-374: Suzi desktop runs on the AI backend configured in Client Config. Fire-and-forget:
+  // a gateway that is down must not delay or fail Nexeo's boot.
+  void import('./services/suzi/gatewayAdminClient')
+    .then(({ shareAiCredentialsWithSuzi }) => shareAiCredentialsWithSuzi())
+    .catch(() => {});
+
   // Re-run tenant bootstrap on every boot — seeds connector defaults
   // for any tenant created before this code shipped, and fills in any
   // new defaults added since the tenant was created. Idempotent.
