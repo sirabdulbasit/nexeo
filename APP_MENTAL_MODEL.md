@@ -47,6 +47,12 @@ dead names; internal `brain_*` table and route names are kept deliberately for s
   Suzi runs on the AI backend set in Admin → Client Config → AI Provider (DEF-374): at boot, after an
   `ai_*` Save and after a green Verify, `shareAiCredentialsWithSuzi()` posts the Vertex service
   account to the gateway's `POST /admin/llm-credentials` (fire-and-forget, never fails Nexeo).
+  Suzi also SPEAKS Nexeo's proactive messages (DEF-377): after every gate in `brainContactsUser`
+  passes, `tellSuzi()` posts the final body to the gateway's `POST /admin/proactive` as a
+  reminder (`metadata.source` `preactive_*`), email (`critical_bundle`) or task (open-item
+  chase/draft asks) — an allowlist: every other kind and every other Brain prompt stays silent, as do
+  `quoted_third_party` bodies and failed sends; the gateway starts a tool-less `assistant_start` turn
+  on the person's most recently used desktop, or drops it when nobody is online.
   Nexeo never touches the gateway's DB, and the gateway never touches Nexeo's.
 
 ### Tenancy / auth model (reviewers should attack this first)

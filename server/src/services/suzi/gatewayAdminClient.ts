@@ -51,6 +51,12 @@ async function readSecret(): Promise<string> {
 }
 
 async function call(method: 'GET' | 'POST', path: string, body?: unknown): Promise<any> {
+  // DEF-377: the gateway on this box is the LIVE one, and the test fixtures are the owner (user 2,
+  // TMC-0001). A test run must never reach it — a fixture would be spoken on his desktop. Only the
+  // suites that stub fetch opt in.
+  if (process.env.VITEST && process.env.SUZI_GATEWAY_IN_TESTS !== '1') {
+    throw new SuziNotConfiguredError('the live Suzi gateway is never called from a test run');
+  }
   const secret = await readSecret();
   const started = Date.now();
   let res: Response;
@@ -162,6 +168,58 @@ export async function shareAiCredentialsWithSuzi(): Promise<{ shared: boolean; r
       : err instanceof SuziGatewayError ? err.message : 'unexpected error';
     log.warn('suzi ai credentials not shared', { reason });
     return { shared: false, reason };
+  }
+}
+
+/**
+ * DEF-377 — which of Nexeo's own proactive messages Suzi should also say out loud, and as what
+ * (the Suzi protocol's assistant_start reasons). An allowlist: anything not named here — connector
+ * alerts, health alerts, digests, test pings, a person's forwarded words — stays off the voice
+ * channel, so a kind added tomorrow is silent until someone decides otherwise. Third-party words
+ * inside an allowed kind are refused by provenance in tellSuzi.
+ */
+export function suziReasonFor(kind: string, metadata?: Record<string, unknown>): 'reminder' | 'email' | 'task' | null {
+  const source = typeof metadata?.source === 'string' ? metadata.source : '';
+  if (source.startsWith('preactive_')) return 'reminder'; // meeting prep, deadline due / overdue
+  if (kind === 'critical_bundle') return 'email';
+  if (['open_item_owner_chase', 'open_item_owner_chase_prompt', 'open_item_draft_ask'].includes(kind)) return 'task';
+  // Any OTHER brain_prompt / brain_prompt_top is silent. That kind is a carrier for many producers,
+  // and several quote a person verbatim with no provenance set (sender triage: a stranger's WhatsApp;
+  // expected-reply capture: a contact's reply). Only the sources named above are Nexeo's own words.
+  return null;
+}
+
+/**
+ * DEF-377 — hand a proactive message Nexeo has just delivered to the person's live Suzi desktop,
+ * which then says it unprompted (CN-008). Only after Nexeo's own gates (opt-in, quiet hours, dedup,
+ * caps) passed. Nobody online = nothing happens; Nexeo's own delivery already stands. Never throws:
+ * a Suzi failure must not touch the WhatsApp path.
+ */
+export async function tellSuzi(
+  owner: { userId: number; clientNumber: string },
+  msg: { kind: string; body: string; urgency?: string; provenance?: string; metadata?: Record<string, unknown> },
+): Promise<{ delivered: number; reason?: string }> {
+  const reason = suziReasonFor(msg.kind, msg.metadata);
+  if (!reason) return { delivered: 0, reason: 'kind not spoken by Suzi' };
+  // Another person's words, verbatim (e.g. an unattached counterpart reply riding a brain_prompt),
+  // never become a voice turn: a tool-capable model would be reading a third party's text to him.
+  if (msg.provenance === 'quoted_third_party') return { delivered: 0, reason: "a third party's words are not spoken by Suzi" };
+  const text = msg.body.trim().slice(0, 4000);
+  if (!text) return { delivered: 0, reason: 'empty body' };
+  const priority = msg.urgency === 'high' || msg.urgency === 'emergency' ? 'urgent' : msg.urgency === 'low' ? 'low' : 'normal';
+  try {
+    const ref = typeof msg.metadata?.promptId === 'string' ? `prompt:${msg.metadata.promptId}` : msg.kind;
+    const data = await call('POST', '/admin/proactive', {
+      user_id: String(owner.userId), tenant_id: owner.clientNumber, reason, priority, text, ref: ref.slice(0, 200),
+    });
+    const delivered = Number(data?.delivered ?? 0);
+    if (delivered > 0) log.info('suzi told', { userId: owner.userId, clientNumber: owner.clientNumber, kind: msg.kind, reason });
+    return { delivered };
+  } catch (err) {
+    const why = err instanceof SuziNotConfiguredError ? 'Suzi is not set up on this server'
+      : err instanceof SuziGatewayError ? err.message : 'unexpected error';
+    log.warn('suzi not told', { kind: msg.kind, reason: why });
+    return { delivered: 0, reason: why };
   }
 }
 

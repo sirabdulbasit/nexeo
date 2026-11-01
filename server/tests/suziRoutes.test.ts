@@ -46,6 +46,7 @@ beforeEach(() => {
   writeFileSync(join(dir, 'secret'), `${SECRET}\n`);
   process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE = join(dir, 'secret');
   process.env.SUZI_GATEWAY_ADMIN_URL = 'http://127.0.0.1:4012';
+  process.env.SUZI_GATEWAY_IN_TESTS = '1'; // fetch is stubbed below
   calls = [];
   responder = () => json({});
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: any) => {
@@ -58,6 +59,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
   delete process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE;
   delete process.env.SUZI_GATEWAY_ADMIN_URL;
+  delete process.env.SUZI_GATEWAY_IN_TESTS;
   delete process.env.SUZI_GATEWAY_TIMEOUT_MS;
 });
 

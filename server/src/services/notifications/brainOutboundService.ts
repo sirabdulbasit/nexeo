@@ -1023,6 +1023,23 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
     summary: req.summary,
   }, status === 'failed' ? `send_failed: ${lastError}` : undefined);
 
+  // DEF-377 — the message reached him (sent or partial), so Suzi desktop says it too when it is
+  // online (reminders, critical emails, Task Master asks; allowlist in suziReasonFor). Not on a
+  // failed send: the queue retries those, and Suzi would repeat itself on every retry. Same DEF-320
+  // scrub as every channel (no synthetic @lid numbers read aloud). Fire-and-forget, after the
+  // ledger row, so it can never change this result.
+  if (status !== 'failed') {
+    const suziReq = req;
+    void (async () => {
+      const { scrubSyntheticIdentities } = await import('../whatsapp/displayIdentity');
+      const { tellSuzi } = await import('../suzi/gatewayAdminClient');
+      await tellSuzi({ userId: user.id, clientNumber: suziReq.clientNumber }, {
+        kind: suziReq.kind, body: await scrubSyntheticIdentities(suziReq.body ?? '', suziReq.clientNumber),
+        urgency, provenance: suziReq.provenance, metadata: suziReq.metadata,
+      });
+    })().catch(() => { /* tellSuzi never throws; an import or scrub failing must not either */ });
+  }
+
   return {
     ...result,
     channelsUsed,

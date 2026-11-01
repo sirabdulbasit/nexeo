@@ -25,6 +25,7 @@ beforeEach(() => {
   writeFileSync(join(dir, 'secret'), `${SECRET}\n`);
   process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE = join(dir, 'secret');
   process.env.SUZI_GATEWAY_ADMIN_URL = 'http://127.0.0.1:4012';
+  process.env.SUZI_GATEWAY_IN_TESTS = '1'; // fetch is stubbed below
   cfg = { provider: 'vertex', model: 'gemini-2.5-pro', region: 'us-central1', serviceAccount: SA, ready: true };
   calls = [];
   responder = () => json({ ok: true, changed: true });
@@ -35,6 +36,7 @@ afterEach(() => {
   rmSync(dir, { recursive: true, force: true });
   delete process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE;
   delete process.env.SUZI_GATEWAY_ADMIN_URL;
+  delete process.env.SUZI_GATEWAY_IN_TESTS;
 });
 
 describe('DEF-374 shareAiCredentialsWithSuzi', () => {
