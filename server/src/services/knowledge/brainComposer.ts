@@ -34,6 +34,7 @@ import { renderOwnerClockLine, formatTimeInZone, formatInZone, resolveUserTimezo
 import { actionReceiptMarker, lastBrainQuestion, answerThenAsk, actionAppliedMarker, appliedChanges, outstandingSlots, ledgerReadbackMarker } from './actionReceipt';
 import { PERSON_REFERENCE_RULE, statesPersonReferenceRule } from './personReference';
 import { renderOpenItemsHeader, OPEN_ITEMS_PAGE } from './openItemsCompleteness';
+import { resolveOpenItemByTitle } from './openItemTitleResolution';
 
 export interface OpenedPage {
   id: string;
@@ -4185,7 +4186,14 @@ ${calLines.join('\n')}`;
           // So when the id misses, resolve by title before giving up. Exact
           // match first, then a unique prefix/contains match — never a fuzzy
           // best-guess, because updating the WRONG item silently is far worse
-          // than asking. Ambiguity still falls through to the failure path.
+          // than asking. Ambiguity still falls through to the failure path —
+          // with ONE measured exception (DEF-375): multiple EXACT matches are
+          // byte-identical duplicates no question could separate, so the
+          // newest is the referent instead of the turn dying in a false
+          // "could not find" (two same-titled drafts exist in real data, and
+          // the owner's "Priority high." answer died on them ~1 run in 3).
+          // The decision lives in resolveOpenItemByTitle, testable without
+          // this dispatch.
           const lookupTitle = act.titleRef ?? act.title;
           if (!existing && lookupTitle) {
             const byTitle = await prisma.openItem.findMany({
@@ -4194,15 +4202,11 @@ ${calLines.join('\n')}`;
                 status: { notIn: ['DONE', 'CANCELLED'] },
                 title: { contains: lookupTitle.trim(), mode: 'insensitive' },
               },
-              select: { id: true, title: true, status: true, priority: true, dueDate: true },
+              select: { id: true, title: true, status: true, priority: true, dueDate: true, createdAt: true },
+              orderBy: { createdAt: 'desc' },
               take: 5,
             }).catch(() => []);
-            const exact = byTitle.filter(
-              (i: any) => i.title.trim().toLowerCase() === lookupTitle.trim().toLowerCase(),
-            );
-            // Exactly one candidate is a resolution; two is a question.
-            if (exact.length === 1) existing = exact[0];
-            else if (byTitle.length === 1) existing = byTitle[0];
+            existing = resolveOpenItemByTitle(byTitle, lookupTitle);
           }
 
           if (!existing) {

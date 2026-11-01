@@ -6343,3 +6343,101 @@ doubling was the cause after all and this entry's attribution is wrong).
 **Deployability prediction:** HEAD is deployable now by the reviewer's own verdict plus this
 turn's closure of its one diff-introduced finding. I predict the orchestrator can deploy at
 end of turn; the owed owner-visible wins ride it (DEF-149/333-1a finally reaching his replies).
+
+## Iteration 83 (continuation 2, DEF-375 — the owner's answer stops dying on duplicate titles; B04's executor death closed) — 2026-11-01
+
+**MODE: campaign suspended — only job: make HEAD deployable.** The newest review (it-83,
+DEF-371) is **SOUND, zero in-diff risks, ROLLBACK: no**, and the "2 undeployed commits" named
+by the suspension (52dce2f, afdff9e) are the Suzi/Integrations stream, each already carrying a
+manual deploy marker (D-140, D-141). Nothing blocks release — so, as last turn and with the
+same reasoning, the suspension's job resolved to the reviewer's ranked directive #1, which is
+a code fix:
+
+**Directive #1 — CLOSED (the code change).** Quoted: *"Fix the diagnosed B04 root cause —
+`update_open_item` missing its target by TITLE re-lookup (DEF-333's open class)… so the
+answer-binding update lands every time."* The root cause turned out to be one layer more
+specific than "robust matching": a DB read showed **TWO rows with the byte-identical title**
+("Define rules for Brain's responsiveness to new vs. existing contacts", 09-08 and 10-28,
+both DRAFT, both user 2). DEF-103's ladder resolves one exact match and treats two as "a
+question" — but identical titles admit no askable question, so the dispatch fell through to a
+FALSE "could not find" and the sanitizer shipped the distrust fallback. Change, by file:
+- `server/src/services/knowledge/openItemTitleResolution.ts` (NEW) — `resolveOpenItemByTitle`:
+  unique exact → it; N>1 exact (case/space variants of ONE title by construction) → NEWEST
+  `createdAt`; unique contains → it; different-titled partials → null. Pure, exported,
+  deterministic — the decision moved to where it is testable (structural-mode depth).
+- `server/src/services/knowledge/brainComposer.ts` update_open_item handler — builds through
+  the resolver; the candidate select/orderBy gained `createdAt` (without it the newest pick is
+  blind — pinned by test).
+Why this is the mechanism: the model's half of B04 already works at HEAD (DEF-366/149 put the
+binding rules on the live path — run 2 of last turn's re-measure shows the model emitting the
+right action with the right titleRef). The ONLY place the turn died was the executor's
+resolution, and only on duplicate titles. Guardrail named (governance ruling): **target
+grounding** — no authority moved, no wording touched, no enumeration added.
+
+**Tags:** `guard-destroys-the-answer` (verbatim, §3 count 8 — the mechanism: code destroyed
+an answer the model got right), inside DEF-333's `pending-prompt-eats-command` family. Not on
+the owner's open-deck list (that list holds only `whatsapp-lid-activity-rejected`, which this
+turn does not touch — a WhatsApp-channel defect outside this turn's suspended scope; said
+plainly rather than stretched).
+
+**The live check (the owner's sentence, real pipeline, post-fix):**
+- Run 1: `update_open_item` fired → lookup RESOLVED → the reply shipped the model's own
+  truthful words — *"Got it. I've set the priority to high. Is there a deadline for this?"* —
+  B04 **97**, first ≥95 in five samples (60/71/69/88/97). DB receipt: the NEWEST duplicate
+  took the write (`cmvrkjfmw0017` updatedAt 2026-11-01T02:59:20Z), the 09-08 row untouched —
+  exactly the resolver's pick.
+- Run 2: the model answered WITHOUT emitting the action ("I've marked it as high priority…",
+  actionType null, B04 91) — a decision-level rule-6 miss (claims the act without the action),
+  pre-existing, NOT this fix's scope. The executor fix cannot and does not claim it.
+So: "Priority high." now executes WHEN the model binds it — the ~1-in-3 executor death is
+closed; the residual B04 variance is decision-level and named, not hidden.
+
+**Regression guard (B02 C3 100→85): settled by citation, not a re-run.** Last turn's ×3
+measurement put B02 C3 at {100, 80, 85} on identical code — 85 is inside the measured spread.
+Judge variance, no fix owed. (The reviewer's carried finding — B02 asks one clarifying
+question twice — is real and is directive #4; not started, see below.)
+
+**Three-docs verdict said out loud:** *circling by class* — `guard-destroys-the-answer` is §3
+at count 8, so rule 5 demands structural, not an instance patch. This is structural in the
+house sense: the resolution DECISION is decomposed out of the dispatch into a pure module, the
+indistinguishable-duplicates case is closed for every caller of that path (not for one title),
+and the never-fuzzy-guess boundary is pinned by a mutation-shaped test.
+
+**What I now believe was wrong about the last attempt (continuation ask):** nothing in DEF-371
+itself — it was reliability cleanup and ruled so. What the previous TURNS got wrong about B04
+was aiming at the prompt (rules, placement, dedup) when the surviving failure was in the
+executor: the model had already started doing the right thing, and code was eating the result.
+
+**Verification (re-run after the LAST edit, exact):** `npx tsc --noEmit` clean (exit 0) ·
+`npx vitest run` **4491 passed | 0 failed** (7 expected-fail, 21 skipped, 1 todo; 377 files
+passed, 1 skipped) · `git diff --check` clean. `npm run build` NOT run — dist is the immutable
+deployed artifact (CLAUDE.md); `--noEmit` is the build check.
+
+**AIM declaration and the required divergence note:** TARGET said Self-Healing (rotation) and
+the capability cap said Self-Pruning (campaign) — but the campaign is SUSPENDED and the
+reviewer's ranked directive #1 (the highest-priority input, per this brief's own hierarchy)
+named this fix. CAPABILITY: **Thinking** — the answer-binding path. Divergence declared here,
+not discovered by the comparison.
+
+**What I did NOT do, named:** (1) directive #2 (multi-run median as harness default) — that is
+the scorer's harness under `scripts/orchestrator/**`, a forbidden path for the Builder;
+orchestrator-owned, said so. (2) directive #3 (Self-Pruning pin / DEF-360 detector) — owed the
+first unsuspended turn; starvation stands. (3) directive #4 (B02 repeated clarifying question)
+— real, named, not started: the suspension forbids a second opportunistic change this turn.
+(4) DEF-372 diagnosis — still owed. (5) No deploy (orchestrator's). (6) The staged
+`brain_change_log.md` carries ONE line not mine: the orchestrator's D-138 status flip on
+DEF-222's row — preserved intact and named here rather than silently swept.
+
+**CAPABILITY:** Thinking
+**PREDICTED:** B04's compose-fallback mode disappears (the executor death was ~1 in 3; it is
+the mode that produced 60 and 69). No overall-number claim — residual B04 variance is
+decision-level (run 2's 91 shows it) and the gauge is single-run noisy.
+**MECHANISM:** the answer-binding update lands whenever the model emits it with the title
+Brain itself used — duplicate titles resolve to the newest instead of a false not-found.
+**FALSIFIER:** any future `[update_open_item: could not find an open item matching …]` marker
+naming a title that exists verbatim in open_items for that user; or the OLDER of two
+duplicates taking a write; or B04 returning the distrust fallback with the resolver in place.
+
+**Deployability prediction:** yes — HEAD was already releasable by the reviewer's verdict;
+this turn closes its #1 directive with a deterministic, guardrail-named, mutation-tested
+executor fix and two live receipts. I predict the orchestrator can deploy at end of turn.
