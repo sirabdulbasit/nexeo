@@ -31,7 +31,7 @@ import type { RetrievalPlan } from './brainRetrievalPlanner';
 // both composer paths; the module is read-only and cheap to load.
 import { buildPushHistoryBlock } from '../selfpruning/pushHistoryBlock';
 import { renderOwnerClockLine, formatTimeInZone, formatInZone, resolveUserTimezone } from '../userTimezoneService';
-import { actionReceiptMarker, lastBrainQuestion, answerThenAsk, actionAppliedMarker, appliedChanges, outstandingSlots, ledgerReadbackMarker } from './actionReceipt';
+import { actionReceiptMarker, lastBrainQuestion, answerThenAsk, actionAppliedMarker, appliedChanges, outstandingSlots, ledgerReadbackMarker, itemOutcomeMarker } from './actionReceipt';
 import { PERSON_REFERENCE_RULE, statesPersonReferenceRule } from './personReference';
 import { renderOpenItemsHeader, OPEN_ITEMS_PAGE } from './openItemsCompleteness';
 import { resolveOpenItemByTitle } from './openItemTitleResolution';
@@ -4195,6 +4195,7 @@ ${calLines.join('\n')}`;
           // The decision lives in resolveOpenItemByTitle, testable without
           // this dispatch.
           const lookupTitle = act.titleRef ?? act.title;
+          let titleMatches: Array<{ id: string; title: string }> = [];
           if (!existing && lookupTitle) {
             const byTitle = await prisma.openItem.findMany({
               where: {
@@ -4206,16 +4207,42 @@ ${calLines.join('\n')}`;
               orderBy: { createdAt: 'desc' },
               take: 5,
             }).catch(() => []);
+            titleMatches = byTitle;
             existing = resolveOpenItemByTitle(byTitle, lookupTitle);
           }
 
           if (!existing) {
+            // DEF-379 — the failure is minted through the itemOutcome family
+            // (actionReceipt.ts: constructor + renderer in ONE module), so the
+            // sanitizer holds a curated meaning BY CONSTRUCTION and the
+            // distrust fallback ("I couldn't put together an answer I trust")
+            // can no longer replace a correctly-bound answer on this path —
+            // Codex it-83 finding #2, the measured B04 death. The payload
+            // carries only facts: nothing was changed; what he provided was
+            // heard; and when several DIFFERENT items matched, their titles —
+            // material for a real question with options instead of a dead end.
+            // Reaching here with multiple matches means the titles DIFFER:
+            // same-titled duplicates already resolved (DEF-375/DEF-378).
+            const heardParts: string[] = [];
+            if (act.priority) heardParts.push(`priority: ${String(act.priority)}`);
+            if (act.dueDateRaw) heardParts.push(`due: ${String(act.dueDateRaw)}`);
+            if (act.note != null && String(act.note).trim()) heardParts.push(`note: ${String(act.note).trim().slice(0, 60)}`);
+            if (act.title && act.titleRef) heardParts.push(`new title: ${String(act.title).slice(0, 60)}`);
+            const distinctTitles = [...new Set(titleMatches.map((i) => i.title))];
+            const why = distinctTitles.length > 1
+              ? `${titleMatches.length} different open items matched — ${distinctTitles.slice(0, 3).map((t) => `"${t}"`).join(', ')}${distinctTitles.length > 3 ? ', …' : ''}`
+              : lookupTitle
+                ? `no open item matching "${lookupTitle}" was found`
+                : 'no item reference was supplied';
             actionResult = {
               ok: false,
-              // Names what was looked for, so the voice renderer can say
-              // something the user can act on instead of an instruction to
-              // repeat themselves.
-              message: `[update_open_item: could not find an open item matching ${lookupTitle ? `"${lookupTitle}"` : 'that reference'}]`,
+              message: itemOutcomeMarker({
+                verb: 'updated',
+                ok: false,
+                title: lookupTitle,
+                why,
+                heard: heardParts.length ? heardParts.join(', ') : null,
+              }),
             };
             answer = actionResult.message;
           } else {

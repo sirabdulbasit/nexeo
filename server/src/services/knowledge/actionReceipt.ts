@@ -505,7 +505,7 @@ export function ledgerReadbackMeaning(answer: string): string | null {
 // multi-step plan path joins it into a per-step results list where no model
 // pass follows.
 
-export type ItemOutcomeVerb = 'removed' | 'closed';
+export type ItemOutcomeVerb = 'removed' | 'closed' | 'updated';
 
 const ITEM_OUTCOME_VOCAB: Record<ItemOutcomeVerb, { did: string; attempt: string }> = {
   removed: {
@@ -516,6 +516,13 @@ const ITEM_OUTCOME_VOCAB: Record<ItemOutcomeVerb, { did: string; attempt: string
     did: 'was marked done and closed just now',
     attempt: 'closing',
   },
+  // DEF-379 — update_open_item's failure joins the family, so a bound answer
+  // that misses its target gets a curated meaning BY CONSTRUCTION instead of
+  // the distrust fallback (Codex it-83 finding #2, the measured B04 death).
+  updated: {
+    did: 'was updated just now',
+    attempt: 'update',
+  },
 };
 
 export function itemOutcomeMarker(o: {
@@ -523,6 +530,10 @@ export function itemOutcomeMarker(o: {
   ok: boolean;
   title?: string | null;
   why?: string | null;
+  // DEF-379 — what the user PROVIDED on the failed turn ("priority: high"),
+  // carried as a fact so the reply can acknowledge it was heard while saying
+  // plainly it was NOT applied. Never a claim of success.
+  heard?: string | null;
 }): string {
   const title = String(o.title ?? '').trim().slice(0, 200);
   const payload: Record<string, unknown> = { verb: o.verb, ok: !!o.ok };
@@ -530,6 +541,8 @@ export function itemOutcomeMarker(o: {
   // A failure with no recorded reason still says so honestly — "no reason"
   // is the fact then, never an invented one.
   if (!o.ok) payload.why = String(o.why ?? '').trim().slice(0, 300) || 'the system recorded no reason';
+  const heard = String(o.heard ?? '').trim().slice(0, 160);
+  if (heard) payload.heard = heard;
   return systemMarker(`item_outcome: ${JSON.stringify(payload)}`);
 }
 
@@ -553,8 +566,13 @@ export function itemOutcomeMeaning(answer: string): string | null {
       ? p.why.trim()
       : null;
     if (!why) return null;
+    // DEF-379 — the heard values ride the failure fact: understood, not applied.
+    const heard = typeof p?.heard === 'string' && p.heard.trim() && p.heard.length <= 160
+      ? p.heard.trim()
+      : null;
     return `The ${vocab.attempt} of ${title ? `the open item "${title}"` : 'that item'} did not happen`
-      + ` and nothing was changed. The system's reason: ${why}`;
+      + ` and nothing was changed. The system's reason: ${why}`
+      + (heard ? ` What he provided — ${heard} — was understood but not applied.` : '');
   } catch {
     return null;
   }
