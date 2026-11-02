@@ -1614,6 +1614,14 @@ export class WebjsProvider implements IWhatsAppProvider {
     if (!client || status !== 'connected') {
       return { success: false, error: `Status: ${status || 'not initialized'}` };
     }
+    // DEF-360: the map and the flag stayed 'connected' for ~2 h over an
+    // OOM-killed Chrome. Ask the browser itself before claiming health.
+    const { probeClientHealth } = await import('./webjsHealthProbe');
+    const health = await probeClientHealth(clientNumber, client);
+    if (!health.healthy) {
+      log.warn('liveness: browser health probe failed', { clientNumber, kind: health.kind, reason: health.reason });
+      return { success: false, error: health.reason ?? 'browser health probe failed' };
+    }
     return { success: true, connectedNumber: '+' + client.info.wid.user };
   }
 
