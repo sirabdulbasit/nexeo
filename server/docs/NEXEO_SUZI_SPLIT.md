@@ -63,8 +63,45 @@ The Suzi team's terms: Nexeo owns the rules and the Action Center; Suzi is the l
 | 3 | **Connector actions** (email, invites, record changes) run server-side, with Suzi's voice-checked `confirm_action` first for anything that sends, invites or changes data | Gateway asks, Nexeo enforces | The gateway confirms its tier-2 tools. Nexeo's MCP runs HIGH/CRITICAL actions **without any approval** (DEF-384). The gateway's send tools are stubbed | Nexeo requires an approval proof on risky MCP calls (closes DEF-384) |
 | 4 | **Presentation**: figures, dashboards and reports go through Suzi's `present_report`, with a `say` line per block | Gateway/Mac | Nexeo has `fetch_kpis` and the Integrations KPI data | Data only, as tools. No wording from Nexeo |
 | 5 | **Daily-job findings** (an overdue invoice, an important email) become a short `assistant_start` turn now, or are queued for the morning brief that Suzi presents on the board | Nexeo decides and queues, gateway presents | Proactive push exists. There is no morning-brief queue | A queue of "for the morning brief" findings, plus a read tool for it |
+| 6 | **Screen tasks** ("download this from Mixamo"): a computer-use loop, Suzi does the clicking | Nexeo decides, gateway relays, Mac acts | Suzi's chat model drives the screen and claims clicks it never checked (DEF-386) | Built 11-03: operator routes plus settings, consent, limits and ledger. See the section below |
 
 **Blocker for 1–3:** Nexeo tools are still not connected to the gateway ("Waiting on Basit 3" in the gateway's STATUS: agent token, id mapping, how sends are gated; `docs/nexeo-adapter-findings.md` §4/§7).
+
+## Screen operator: Nexeo decides, Suzi clicks (DEF-386, 11-03)
+
+Asked for on 11-03 (CL-062) after Suzi said "I clicked Download" eight times on Mixamo and downloaded nothing. Suzi's turn loop used a chat model, clicked a guessed pixel and never looked again.
+
+- **Where it runs.** The loop and its decisions are in Nexeo (`server/src/services/operator/*`). Suzi's server only relays each action to the Mac. The hands are Suzi's existing tools: `screen_capture`, `click_text`, `mouse_click`, `type_text`, `hotkey`, `read_screen`. Suzi's own guard still runs on every action (it refuses password fields, asks for spoken approval on risky shortcuts, and audits everything).
+- **Model.** A setting per tenant (customer). Nexeo has no plans table yet, so "per plan" means per customer for now. The two options:
+  - `claude`: the Anthropic API with the `computer_toolset_20260801` toolset, default `claude-opus-5-5`, with server-side fallback on.
+  - `uitars`: a self-hosted UI-TARS 1.5 behind an OpenAI-compatible endpoint (`uitarsBaseUrl`).
+
+  A super admin sets the model.
+- **Loop.** Start: Suzi takes a screenshot. Each step: the model decides one or more actions, Suzi runs them, the results come back. The run ends on finish, when the user is needed (login, payment, permission, a choice the goal does not settle), on stop, or at the step limit (`maxSteps`, default 30 model steps).
+- **Honesty, enforced in code rather than in the prompt:**
+  1. A "done" with no screenshot since the last screen-changing action is refused back to the model.
+  2. A "done" after a screenshot gets a separate check that sees only the goal and the final screenshot. If the check disagrees twice, the run ends `unverified`, never `done`.
+  3. A failed action marks the rest of its batch "Not executed".
+- **Privacy and product:**
+  - No run starts without a tenant admin's recorded consent (`consent_at`, `consent_by`).
+  - `privateMode` answers `{status:"local"}`: Suzi then uses its own `operate_computer`, and no screenshot leaves the Mac.
+  - `blankApps` is passed to every `screen_capture` as `blank_apps`; Suzi blanks those windows before the pixels leave the Mac.
+  - Retention: screenshots live only in Nexeo's memory for the run and are never written. `none` is the only policy.
+  - Usage per run (steps, actions, tokens, cost) goes to `operator_runs`. Monthly task and step limits per tenant are checked at start.
+  - Admin page: `GET`/`PUT /api/v1/admin/operator`.
+- **Contract with Suzi's server** (loopback plus the gateway secret, the same trust as the day brief):
+  - `POST /api/v1/suzi/gateway/operator/start {user_id, tenant_id, goal, os?}` returns one of:
+    - `{status:"act", run_id, actions}`
+    - `{status:"local", reason:"private_mode"}`
+    - `{status:"refused", reason: disabled|no_consent|no_model|limit_reached|bad_goal}`
+  - `POST .../operator/step {user_id, tenant_id, run_id, results:[{call_id, ok, output?, image_b64?, meta?, error?}]}` returns either:
+    - `{status:"act", actions, step, max_steps, progress?}`
+    - a terminal `{status: done|unverified|needs_user|failed|step_limit|stopped, summary, question?, reason?, evidence?, verified}`
+  - `POST .../operator/stop {user_id, tenant_id, run_id}`.
+  - Each action is `{call_id, tool, args}` (run that Suzi tool) or `{call_id, wait_ms}` (pause).
+  - `meta` is the screenshot's `scale` / `origin_x` / `origin_y` / `pointer_x` / `pointer_y`. Nexeo turns image pixels into screen points with `x = origin_x + px / scale`.
+  - Nexeo sends **facts, never wording**: Suzi's model says "I'll do that on screen", reads out `progress.note` every few steps, and speaks the summary.
+- **Status:** the Nexeo half is built and tested. It is OFF for every tenant until consent is recorded and it is enabled. The Claude model cannot run yet: the Anthropic key has no credit, and the Google Cloud project has billing off. The gateway half is handed to `jarvis-gateway/docs/inbox-2026-11-03-operator.md`.
 
 ## Simplification (in progress, 11-03)
 

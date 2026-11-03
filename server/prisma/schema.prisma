@@ -3312,3 +3312,52 @@ model SelfPruneNoticeBatch {
   @@index([clientNumber, userId, state, createdAt], map: "self_prune_notice_batches_tenant_state_ix")
   @@map("self_prune_notice_batches")
 }
+
+// ─── DEF-386: the screen operator (Suzi does the clicking) ──────────────────────
+/// Per-tenant operator settings. No row = defaults (off, no consent).
+/// Screenshots are never stored: `retention` 'none' is the only policy built.
+model OperatorSettings {
+  clientNumber     String    @id @map("client_number") @db.VarChar(20)
+  enabled          Boolean   @default(false)
+  model            String    @default("claude") @db.VarChar(20) // claude | uitars
+  claudeModel      String    @default("claude-opus-5-5") @map("claude_model") @db.VarChar(60)
+  uitarsBaseUrl    String?   @map("uitars_base_url") @db.VarChar(300)
+  uitarsModel      String    @default("ui-tars-1.5-7b") @map("uitars_model") @db.VarChar(100)
+  consentAt        DateTime? @map("consent_at") @db.Timestamptz(6)
+  consentBy        Int?      @map("consent_by")
+  privateMode      Boolean   @default(false) @map("private_mode")
+  blankApps        String[]  @default([]) @map("blank_apps")
+  retention        String    @default("none") @db.VarChar(20)
+  monthlyTaskLimit Int       @default(100) @map("monthly_task_limit")
+  monthlyStepLimit Int       @default(3000) @map("monthly_step_limit")
+  maxSteps         Int       @default(30) @map("max_steps")
+  updatedBy        Int?      @map("updated_by")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@map("operator_settings")
+}
+
+/// One operator run: usage, outcome and cost. No screenshots, no typed text.
+model OperatorRun {
+  id               String    @id @default(cuid())
+  clientNumber     String    @map("client_number") @db.VarChar(20)
+  userId           Int       @map("user_id")
+  goal             String    @db.VarChar(1000)
+  model            String    @db.VarChar(100)
+  status           String    @default("running") @db.VarChar(20) // running | done | unverified | needs_user | failed | step_limit | stopped
+  steps            Int       @default(0)
+  actions          Int       @default(0)
+  inputTokens      Int       @default(0) @map("input_tokens")
+  outputTokens     Int       @default(0) @map("output_tokens")
+  cacheReadTokens  Int       @default(0) @map("cache_read_tokens")
+  cacheWriteTokens Int       @default(0) @map("cache_write_tokens")
+  costUsd          Decimal   @default(0) @map("cost_usd") @db.Decimal(10, 4)
+  verified         Boolean?
+  summary          String?   @db.VarChar(2000)
+  startedAt        DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  endedAt          DateTime? @map("ended_at") @db.Timestamptz(6)
+
+  @@index([clientNumber, startedAt], map: "operator_runs_tenant_started_idx")
+  @@index([clientNumber, userId, status], map: "operator_runs_tenant_user_status_idx")
+  @@map("operator_runs")
+}

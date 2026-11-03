@@ -50,6 +50,8 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'IntegrationRun', 'IntegrationRunChange', 'KpiDefinition', 'KpiReading',
   // DEF-368, 2026-10-31: the uploaded spreadsheet of a 'file' integration.
   'IntegrationSourceFile',
+  // DEF-386, 2026-11-03: the screen operator's per-tenant settings and run ledger.
+  'OperatorSettings', 'OperatorRun',
 ]);
 
 const READ_OPS = new Set(['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy']);

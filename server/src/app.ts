@@ -55,6 +55,7 @@ import clientConnectorRoutes from './routes/admin/clientConnectorRoutes';
 import llmSpendRoutes from './routes/admin/llmSpendRoutes';
 import orchestratorSpendRoutes from './routes/admin/orchestratorSpendRoutes';
 import delegationMatrixRoutes from './routes/admin/delegationMatrixRoutes';
+import operatorAdminRoutes from './routes/admin/operatorAdminRoutes';
 import costDashboardRoutes from './routes/admin/costDashboardRoutes';
 import riskRadarRoutes from './routes/riskRadarRoutes';
 import riskRulesRoutes from './routes/riskRulesRoutes';
@@ -218,6 +219,7 @@ v1.use('/admin', llmSpendRoutes);
 // two bills — sharing a router would invite a combined total that means nothing.
 v1.use('/admin', orchestratorSpendRoutes);
 v1.use('/admin/delegation-matrix', delegationMatrixRoutes);
+v1.use('/admin/operator', operatorAdminRoutes); // DEF-386: screen operator settings + usage
 v1.use('/admin', costDashboardRoutes);
 v1.use('/risk-radar', riskRadarRoutes);
 v1.use('/risk-rules', riskRulesRoutes);
