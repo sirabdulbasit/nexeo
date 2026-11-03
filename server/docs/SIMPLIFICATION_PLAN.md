@@ -112,7 +112,9 @@ Today's menu, against that direction:
 | Health Check | partly. It is where "reconnect this connector" lives | fold into Connectors |
 | Day Brief | no. It moves to Suzi | leaves the menu once Suzi presents the brief |
 | Action Center | no. Suzi follows up | leaves the menu once Suzi's follow-ups work (DEF-382 #2) |
-| Contacts / Wiki | no. This is knowledge, and Suzi answers from it | owner to confirm. Contact editing may still be "manage" |
+| Contacts / Wiki | no. This is knowledge, and Suzi answers from it | leaves the menu once Suzi has matured |
+
+**Owner answer, 11-03:** Day Brief, Action Center, Contacts, Wiki and Health Check **stay in the portal for now**. Ideally Suzi has them and the portal doesn't need them, so each one is removed **once Suzi has matured**. Until then nothing in this table is hidden or removed.
 
 ## C. Owner decisions (as asked)
 
