@@ -30,8 +30,15 @@ export interface DayBriefFacts {
   timezone: string;
   generatedAt: string;
   sources: { calendar: boolean; email: boolean; businessKpis: boolean };
+  /** Sources the brief could not use, and how the user can reconnect them. Facts, not wording. */
+  missing: Array<{ source: 'calendar' | 'email' | 'actions'; status: 'not_connected' | 'expired' | 'error' | 'loading'; reconnect?: string }>;
   blocks: BriefBlock[];
 }
+
+const RECONNECT = {
+  calendar: 'Nexeo web → Connectors → Google Calendar (or Outlook Calendar) → Connect',
+  email: 'Nexeo web → Connectors → Gmail (or Outlook) → Connect',
+} as const;
 
 export const ATTENTION_TIMEOUT_MS = 8000;
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
@@ -90,34 +97,51 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
   const now = opts.now ?? new Date();
   const day = localDate(now, tz);
 
+  // DEF-385 (CL-063): one source down never fails the brief. Each source is read on its own,
+  // and what could not be used is listed in `missing` with how to reconnect it.
+  const missing: DayBriefFacts['missing'] = [];
   const connectors = await prisma.userConnector.findMany({
-    where: { userId, clientNumber, status: 'connected' },
-    select: { connectorType: { select: { slug: true } } },
-  });
-  const slugs = new Set(connectors.map((c) => c.connectorType.slug));
-  const calendar = slugs.has('google_calendar') || slugs.has('outlook_calendar');
-  const email = slugs.has('gmail') || slugs.has('outlook') || slugs.has('imap_smtp');
+    where: { userId, clientNumber },
+    select: { status: true, connectorType: { select: { slug: true } } },
+  }).catch(() => [] as Array<{ status: string; connectorType: { slug: string } }>);
+  const statusOf = (slugList: string[]) => {
+    const rows = connectors.filter((c) => slugList.includes(c.connectorType.slug));
+    if (rows.some((r) => r.status === 'connected')) return 'connected';
+    return rows.some((r) => r.status === 'expired') ? 'expired' : 'not_connected';
+  };
+  const calStatus = statusOf(['google_calendar', 'outlook_calendar']);
+  const mailStatus = statusOf(['gmail', 'outlook', 'imap_smtp']);
+  let calendar = calStatus === 'connected';
+  const email = mailStatus === 'connected';
+  if (!calendar) missing.push({ source: 'calendar', status: calStatus as 'not_connected' | 'expired', reconnect: RECONNECT.calendar });
+  if (!email) missing.push({ source: 'email', status: mailStatus as 'not_connected' | 'expired', reconnect: RECONNECT.email });
 
   // A ±36 h window around now covers "today" in any zone; meetingsForDay keeps the exact day.
   const from = new Date(now.getTime() - 36 * 3600_000).toISOString();
   const to = new Date(now.getTime() + 36 * 3600_000).toISOString();
-  const calRows = calendar
-    ? await prisma.$queryRawUnsafe<Array<{ p: RawCalEvent }>>(
+  let calRows: Array<{ p: RawCalEvent }> = [];
+  if (calendar) {
+    try {
+      calRows = await prisma.$queryRawUnsafe<Array<{ p: RawCalEvent }>>(
         `SELECT raw_payload AS p FROM feed_events
           WHERE client_number = $1 AND user_id = $2
             AND source_type IN ('gcal', 'outlook_calendar')
             AND (raw_payload->>'start') >= $3 AND (raw_payload->>'start') < $4`,
         clientNumber, userId, from.slice(0, 10), to,
-      )
-    : [];
+      );
+    } catch {
+      calendar = false;
+      missing.push({ source: 'calendar', status: 'error' });
+    }
+  }
   const meetings = meetingsForDay(calRows.map((r) => r.p), day, tz);
 
   const actions = await prisma.openItem.findMany({
     where: { clientNumber, userId, status: { in: OPEN }, NOT: { type: 'email' } } as any,
-    select: { title: true, priority: true, status: true, dueDate: true },
+    select: { id: true, title: true, priority: true, status: true, dueDate: true },
     orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     take: 200,
-  });
+  }).catch(() => { missing.push({ source: 'actions', status: 'error' }); return [] as Array<{ id: string; title: string; priority: string; status: string; dueDate: Date | null }>; });
   // Emails needing a reply = the email part of My Attention, the same partition the Day Brief
   // page shows (open items of type email are a different, much smaller set).
   // Capped at ATTENTION_TIMEOUT_MS: warm, it is the Day Brief page's cached partition; cold, it can
@@ -131,7 +155,7 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
         computeBriefPartition(clientNumber, userId, 100, 100),
         new Promise<null>((r) => { const t = setTimeout(() => r(null), opts.attentionTimeoutMs ?? ATTENTION_TIMEOUT_MS); (t as any).unref?.(); }),
       ]);
-      if (!part) { emailsLoading = true; throw new Error('attention list still loading'); }
+      if (!part) { emailsLoading = true; missing.push({ source: 'email', status: 'loading' }); throw new Error('attention list still loading'); }
       attentionEmails = part.myAttention
         .filter((i) => i.itemType === 'email')
         .map((i) => ({ from: i.fromDisplay || i.from, subject: i.subject, receivedAt: i.receivedAt, critical: i.critical }));
@@ -174,6 +198,7 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
     timezone: tz,
     generatedAt: now.toISOString(),
     sources: { calendar, email, businessKpis: kpiRows.length > 0 },
+    missing,
     blocks: [
       { type: 'kpis', id: 'key_figures', title: 'Key figures', items: kpiItems },
       {

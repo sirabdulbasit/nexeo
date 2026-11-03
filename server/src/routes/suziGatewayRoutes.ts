@@ -21,6 +21,7 @@ import prisma from '../db/prisma';
 import { verifyGatewaySecret } from '../services/suzi/gatewayAdminClient';
 import { buildDayBriefFacts } from '../services/suzi/dayBriefFacts';
 import { RunBusyError, startRun, stepRun, stopRun } from '../services/operator/operatorService';
+import { applyFollowUp, listPendingActions } from '../services/suzi/suziActions';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -69,6 +70,40 @@ router.get('/day-brief', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('day brief failed', { userId, error: err?.message });
     res.status(500).json({ error: 'day brief could not be built' });
+  }
+});
+
+/**
+ * DEF-385 (CL-063) — the Action Center for Suzi.
+ *   GET  /actions?user_id&tenant_id&limit?&timezone?  → {total, overdue, actions:[{id,title,priority,status,due,overdue}]}
+ *   POST /actions/update {user_id, tenant_id, action_id, update: done|cancel|move|not_yet, due?: YYYY-MM-DD, note?}
+ *        → {ok:true, update, action} | 400 bad_update/bad_date | 404 not_found | 409 rejected
+ */
+router.get('/actions', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    res.json(await listPendingActions(who.tenantId, who.userId, {
+      limit: Number(req.query.limit) || undefined,
+      timezone: typeof req.query.timezone === 'string' ? req.query.timezone : undefined,
+    }));
+  } catch (err: any) {
+    log.warn('suzi actions list failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'actions could not be read' });
+  }
+});
+
+router.post('/actions/update', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const b = req.body ?? {};
+  try {
+    const out = await applyFollowUp(who.tenantId, who.userId, { actionId: String(b.action_id ?? ''), update: String(b.update ?? ''), due: typeof b.due === 'string' ? b.due : undefined, note: typeof b.note === 'string' ? b.note : undefined, timezone: typeof b.timezone === 'string' ? b.timezone : undefined });
+    if (out.ok) { log.info('suzi follow-up applied', { userId: who.userId, actionId: out.action.id, update: out.update }); res.json(out); return; }
+    res.status(out.error === 'not_found' ? 404 : out.error === 'rejected' ? 409 : 400).json(out);
+  } catch (err: any) {
+    log.warn('suzi follow-up failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'follow-up could not be applied' });
   }
 });
 
