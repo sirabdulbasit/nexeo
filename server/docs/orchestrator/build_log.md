@@ -6540,3 +6540,96 @@ mixed-title candidate set being auto-picked.
 **Deployability prediction:** yes — the review had zero blockers, both its code directives
 are closed with their own tests and rows, and the matrix is green. The orchestrator can
 deploy at end of turn.
+
+## Iteration 85 (DEF-380 + DEF-381 — the question asked once, and his answer decided as an act, at the selection points) — 2026-11-03
+
+**MODE: campaign suspended — only job: make HEAD deployable.** The newest review (it-84,
+DEF-378/379) is **SOUND, zero risks, ROLLBACK: no**; the one "undeployed" commit (fcceeaa
+DEF-360) is another session's work the analyst records as deployed D-145 (state file lags one
+deploy). Nothing blocks release, so — fourth turn running — the job resolved to the fired
+regression guard and the reviewer's ranked directives. Two DEFs, one commit each:
+
+**Commit 1 — `885e69d`, DEF-380 (the fired guard; it-84 directive #4a).** Guard quoted: *"B02
+C3 100→80 — Brain asks the same question twice in quick succession."* Recurred across ≥4
+samples — behaviour, not judge noise. Mechanism: decision=ask replies are
+`answerThenAsk(answer_text, question.text)` (DEF-211 — correctly keeps both), two free-text
+fields can each carry a question, and the join cannot know they duplicate; the contract's own
+worked example EMBEDDED a question inside answer_text, teaching the defect (DEF-213/223).
+Fix (model-governed, `reasoningCompose.ts` decision contract): the question is written
+EXACTLY ONCE, in the question field — ruled in the ask bullet with the Hamna failure named,
+the example rewritten to demonstrate the split, and — after a first post-fix live run STILL
+doubled — the boundary added at the SELECTION POINT, the JSON shape's field descriptions.
+That mid-turn measurement is the DEF-149 lesson observed live: the bullet alone did not bind;
+the field description did. LIVE ×3: pre-fix C3 70 doubled verbatim; post-fix both runs
+single-question (C3 80/overall 89 · C3 100/overall 98, the exact repaired shape). No code
+guard — a semantic question-dedup in code is the `detector-is-a-list-of-sentences` trap.
+
+**Commit 2 — DEF-381 (it-84 directive #1).** Quoted: *"a bare-value answer to Brain's own
+two-part question must emit the update for the provided slot AND re-ask the missing one,
+never answer with only half and never fail to emit."* Rule 1a reaches the live prompt
+(DEF-366) and the awaiting-answer block exists — but the DECISION CONTRACT, where the model
+chooses act/ask/answer, said nothing about pending-answer consumption. Fix
+(`reasoningCompose.ts`, same file, judgment text only): the act bullet binds HIS ANSWER TO
+YOUR OWN QUESTION IS AN act TURN (bare value = the answer, never a new title; half-answered
+two-part question is STILL act — apply the slot, ask ONLY the missing part); the answer
+bullet refuses the two measured escapes (wrong-enum, and promise-without-action — "'I'll mark
+it' with action=null"). The bare-value examples are rule 1a's own words, pinned cross-file
+against drift. Tag: `pending-prompt-eats-command` (PARTIAL close, composer half, said
+plainly).
+
+**Live checks, honestly read:** B02 post-fix 2/2 single-question (the guard's failure mode
+gone on both samples). B04 post-fix ×2 MIXED: run 1 still ask-deflected (83, C3 50); run 2
+bound and dispatched `update_open_item` (90) — the DEF-375 executor landing it live — but
+shipped the raw receipt *"Updated '…': priority=high."* with no deadline chase. That string
+is DEF-220's falsifier shape: LOGGED on DEF-220's row as a one-sample observation needing one
+code read (regression vs unsanitized benchmark capture), NOT diagnosed this turn per the
+suspension. Two B04 samples cannot confirm a stochastic decision improvement — the multi-run
+median (directive #2) is the only honest instrument and is harness-owned; named again, still
+owed.
+
+**Three-docs verdict said out loud:** DEF-380 *progressing* (new mechanism — one question,
+two carriers, join-blind; no existing §3 tag; nearest vocabulary
+`protection-with-two-implementations`). DEF-381 *circling by class*
+(`pending-prompt-eats-command` §3 count 4) → per rule 5 the fix is the structural move this
+pair of turns keeps proving: put the boundary AT the selection point (the enum choice and the
+field being written), not only in a rules block above it, with a cross-file pin so the two
+placements cannot drift apart.
+
+**Verification (re-run after the LAST edit, exact):** `npx tsc --noEmit` clean (exit 0) ·
+`npx vitest run` — exact counts in the commit and below, measured after this entry ·
+`git diff --check` clean. `npm run build` NOT run — dist is the immutable deployed artifact;
+`--noEmit` is the build check.
+
+**What I did NOT do, named:** (1) directive #2 (multi-run median) — `scripts/orchestrator/**`,
+harness-owned. (2) Directive #3 (Self-Pruning pin / content-aware rollup; Self-Healing
+ingestion detector) — owed the first unsuspended turn; Self-Pruning starvation at 60
+iterations stands and the AIM comparison will read this turn MISAIMED vs the Self-Pruning
+target: declared here — both fixes are Thinking, forced by the fired guard and the ranked
+directive #1, the same justified divergence the reviewer affirmed the last three turns.
+(3) B07 "overdue" accuracy (directive #4b) — last turn's evidence stands (judge lacks a
+current-date anchor; items dated May/July 2026 ARE overdue on 11-03); benchmark untouched,
+Codex arbitrates. (4) The DEF-220 falsifier-shaped sample — logged, not chased. (5) The
+owner's two open deck tags (`whatsapp-lid-activity-rejected`, `stale-contact-data`) — channel
+work outside this suspended turn's directed scope; no tag invented. (6) No deploy. Also
+flagged: DEF-380/381 numbering collides with the gateway/Suzi stream's doc-only commits
+(25a5c46, 73bb032) — the pre-existing cross-stream registry issue the analyst tracks;
+`brain_change_log.md`'s own registry is clean at these numbers.
+
+**CAPABILITY:** Thinking
+**PREDICTED:** B02's doubled-question regression mode stops (2/2 post-fix samples clean);
+B04's non-emit/deflect rate falls but is NOT claimable from two samples — median-of-3 after
+deploy is the test. No overall-number claim.
+**MECHANISM:** the two contracts now rule at the selection points — the question has one
+carrier; an answer to Brain's own question is decided as an act.
+**FALSIFIER:** a decision=ask reply carrying the same question twice; or a post-deploy B04
+median still dominated by actionType=null / ask-deflect samples.
+
+**Deployability prediction:** yes — zero blockers in the review, both directed fixes shipped
+as separate commits with tests, rows moved, matrix green. The orchestrator can deploy at end
+of turn.
+**Final matrix (after the def223-guard reword, the turn's true last edit):** `npx tsc --noEmit`
+exit 0 · `npx vitest run` **4537 passed | 0 failed** (7 expected-fail, 21 skipped, 1 todo; 384
+files passed, 1 skipped) · `git diff --check` clean. One full-suite failure occurred mid-turn
+and is worth recording: def223's gendered-example guard caught DEF-381's "When his message
+answers…" (an owner-reference false positive on a third-party-pronoun guard) — the new text
+was reworded to "the user's message"; the guard itself was NOT weakened.
