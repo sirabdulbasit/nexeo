@@ -63,11 +63,13 @@ The Suzi team's terms: Nexeo owns the rules and the Action Center; Suzi is the l
 | 3 | **Connector actions** (email, invites, record changes) run server-side, with Suzi's voice-checked `confirm_action` first for anything that sends, invites or changes data | Gateway asks, Nexeo enforces | The gateway confirms its tier-2 tools. Nexeo's MCP runs HIGH/CRITICAL actions **without any approval** (DEF-384). The gateway's send tools are stubbed | Nexeo requires an approval proof on risky MCP calls (closes DEF-384) |
 | 4 | **Presentation**: figures, dashboards and reports go through Suzi's `present_report`, with a `say` line per block | Gateway/Mac | Nexeo has `fetch_kpis` and the Integrations KPI data | Data only, as tools. No wording from Nexeo |
 | 5 | **Daily-job findings** (an overdue invoice, an important email) become a short `assistant_start` turn now, or are queued for the morning brief that Suzi presents on the board | Nexeo decides and queues, gateway presents | Proactive push exists. There is no morning-brief queue | A queue of "for the morning brief" findings, plus a read tool for it |
-| 6 | **Screen tasks** ("download this from Mixamo"): a computer-use loop, Suzi does the clicking | Nexeo decides, gateway relays, Mac acts | Suzi's chat model drives the screen and claims clicks it never checked (DEF-386) | Built 11-03: operator routes plus settings, consent, limits and ledger. See the section below |
+| 6 | **Suzi Desktop Operator (SDO), PARKED 11-03**: screen tasks ("download this from Mixamo"): a computer-use loop, Suzi does the clicking | Nexeo decides, gateway relays, Mac acts | Suzi's chat model drives the screen and claims clicks it never checked (DEF-386) | Built 11-03: operator routes plus settings, consent, limits and ledger. See the section below |
 
 **Blocker for 1–3:** Nexeo tools are still not connected to the gateway ("Waiting on Basit 3" in the gateway's STATUS: agent token, id mapping, how sends are gated; `docs/nexeo-adapter-findings.md` §4/§7).
 
-## Screen operator: Nexeo decides, Suzi clicks (DEF-386, 11-03)
+## Suzi Desktop Operator (SDO): Nexeo decides, Suzi clicks (DEF-386, 11-03): PARKED
+
+> **PARKED 2026-11-03 (owner): "name it Suzi Desktop Operator - SDO and park it, we will discuss it later".** The Nexeo half is built and deployed (D-150) and stays OFF for every tenant. Nothing more is built, and no credit is bought, until the owner reopens it. Open when it resumes: which billing pays for Claude (API credit, or Google Cloud), how consent is given (an Admin screen, or recorded on request), the monthly limits, the gateway half, then the Mixamo test. In code and routes it keeps the name "operator".
 
 Asked for on 11-03 (CL-062) after Suzi said "I clicked Download" eight times on Mixamo and downloaded nothing. Suzi's turn loop used a chat model, clicked a guessed pixel and never looked again.
 
