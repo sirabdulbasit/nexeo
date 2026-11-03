@@ -28,11 +28,8 @@ import api from '../services/api';
 
 const PROVIDERS = [
   { id: 'claude', label: 'Claude', dot: '#a855f7' },
-  { id: 'openai', label: 'OpenAI', dot: '#10b981' },
   { id: 'gemini', label: 'Gemini', dot: '#3b82f6' },
   { id: 'vertex', label: 'Vertex AI', dot: '#60a5fa' },
-  { id: 'openrouter', label: 'OpenRouter', dot: '#f97316' },
-  { id: 'custom', label: 'Custom', dot: '#94a3b8' },
 ];
 
 export default function AiProviderPanel() {

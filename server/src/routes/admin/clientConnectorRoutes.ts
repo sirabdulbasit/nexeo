@@ -13,8 +13,6 @@
  * Connector types (POC):
  *   - google_drive_org   → live. Uses an admin's Google OAuth; one FACL
  *                          folder ID configured in system_config.
- *   - onedrive_org       → placeholder (same pattern; Microsoft Graph).
- *   - dropbox_org        → placeholder (same pattern).
  */
 import { Router, Request, Response } from 'express';
 import prisma from '../../db/prisma';
@@ -51,28 +49,6 @@ const CATALOG: ConnectorDef[] = [
       { key: 'google_drive_org_user_id', label: 'Connected via admin user', required: true, help: 'Internal — set by Connect flow' },
       { key: 'google_drive_folder_id', label: 'Folder ID', required: false, help: 'From the URL drive.google.com/drive/folders/<id>' },
       { key: 'google_index_file_name', label: 'Index file name', required: false, help: 'e.g. TMC_Drive_Index.md' },
-    ],
-  },
-  {
-    slug: 'onedrive_org',
-    name: 'OneDrive',
-    icon: '📘',
-    category: 'knowledge',
-    liveInPoc: false,
-    configKeys: [
-      { key: 'onedrive_tenant_id', label: 'Azure tenant ID', required: true },
-      { key: 'onedrive_folder_path', label: 'Folder path', required: true, help: 'e.g. /Shared Documents/Org Knowledge' },
-    ],
-  },
-  {
-    slug: 'dropbox_org',
-    name: 'Dropbox',
-    icon: '🗂️',
-    category: 'knowledge',
-    liveInPoc: false,
-    configKeys: [
-      { key: 'dropbox_access_token', label: 'Access token', required: true, sensitive: true },
-      { key: 'dropbox_folder_path', label: 'Folder path', required: true, help: 'e.g. /Org Knowledge' },
     ],
   },
 ];

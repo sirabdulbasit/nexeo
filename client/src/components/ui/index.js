@@ -12,7 +12,7 @@ export { default as Field, Input, Textarea, Select } from './Field';
 export { default as Card, CardHeader, CardTitle, CardSub } from './Card';
 export { default as AppShell, Canvas, Page, PageTitle, PageSub } from './AppShell';
 export { default as Rail, RailSection, RailButton, RailLogo, RailSpacer } from './Rail';
-export { default as TopBar, TopBarTitle, TopBarSearch, TopBarUser, TopBarTenant } from './TopBar';
+export { default as TopBar, TopBarTitle, TopBarUser, TopBarTenant } from './TopBar';
 export { default as RiskBanner } from './RiskBanner';
 export { default as ListItem } from './ListItem';
 export { default as Empty } from './Empty';

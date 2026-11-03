@@ -158,9 +158,8 @@ export default function WelcomePage() {
           </ul>
         </Step>
 
-        <Step n={8} title="When you're ready for more" lead="Two pages that explain Nexeo deeper.">
+        <Step n={8} title="When you're ready for more" lead="Where to steer Nexeo.">
           <ul style={ulStyle}>
-            <li><Anchor onClick={() => navigate('/how-it-works')}>How Nexeo Works</Anchor> — full architecture: triage, criticality engine, learning loops, self-rebuild spectrum.</li>
             <li><Anchor onClick={() => navigate('/?tab=rules')}>My Rules</Anchor> — every place you steer Nexeo: standing instructions, learned preferences, patterns, risk radar, decisions, delegations.</li>
           </ul>
         </Step>

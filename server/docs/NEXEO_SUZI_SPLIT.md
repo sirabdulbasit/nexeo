@@ -1,7 +1,7 @@
 # Nexeo ↔ Suzi split: target direction
 
 Owner direction, 2026-11-02 / 11-03 (PKT). This is the target, not a description of today's code.
-For what Nexeo does today, see the function inventory (DEF-381 found by it) and `APP_MENTAL_MODEL.md`.
+For what Nexeo does today, see the function inventory (DEF-384 found by it) and `APP_MENTAL_MODEL.md`.
 
 ## Who does what
 
@@ -32,7 +32,7 @@ The model is connected to both sides:
 ## Decisions and holds
 
 - **Inbound WhatsApp replies:** in the target, Suzi's always-on server (the Jarvis gateway) writes them. **ON HOLD (owner, 11-02).** Until the hold is lifted, Nexeo Brain keeps answering WhatsApp as it does today.
-- **Suzi sending WhatsApp:** goes through Nexeo after the user's voice approval (DEF-380 (3), owner decision 11-02). This is separate from the hold above.
+- **Suzi sending WhatsApp:** goes through Nexeo after the user's voice approval (DEF-383 (3), owner decision 11-02). This is separate from the hold above.
 - **Foundations kept, though not one of the five parts:**
   - users, companies and access
   - the tool surface Suzi calls (MCP)
@@ -42,7 +42,7 @@ The model is connected to both sides:
   - wiki privacy and retention
   - wiki search
 - **Undecided:** KPIs (a part of their own, or part of Knowledge).
-- **Must be fixed before Suzi acts through Nexeo at scale:** DEF-381. MCP `tools/call` runs HIGH/CRITICAL actions with no approval step.
+- **Must be fixed before Suzi acts through Nexeo at scale:** DEF-384. MCP `tools/call` runs HIGH/CRITICAL actions with no approval step.
 
 ## Integration contract: the Suzi team's spec, 11-03 (DEF-382)
 
@@ -52,7 +52,7 @@ The Suzi team's terms: Nexeo owns the rules and the Action Center; Suzi is the l
 |---|---|---|---|---|
 | 1 | **Rules to Suzi**, carried in `welcome` or a `GET /v1/rules`, versioned so Suzi can refresh. Contents: persona and tone; delegations (who the user is, who Suzi may act for, what each delegate may ask); approval rules ("always ask before sending email", "may accept invites from my team"); quiet hours and do-not-disturb, including during meetings; language. Rules may only make Suzi **stricter**, never looser. Suzi drops its own standing-instructions block once these arrive | Nexeo serves, gateway fetches | The data is spread across `BrainConfig`, `DelegationMatrix` / `DelegationAuthorizationGrant`, standing instructions, automation level and quiet hours. Nothing combines it for Suzi | One read-only, per-user rules document with a version hash. Gateway → Nexeo access is still unwired (see blocker) |
 | 2 | **Action Center follow-ups** open an `assistant_start` turn carrying `{kind:"follow_up", action_id, due}`. The user's answer ("done", "Friday", "Rahat hasn't replied") updates the item server-side, and Suzi confirms in one sentence. No interrupting a meeting | Nexeo pushes, gateway speaks and updates | `tellSuzi` → `/admin/proactive` is live for reminders, critical emails and Task Master asks (DEF-377, not yet seen live). It sends no `action_id`/`due`. Gateway-started turns currently have **no tools**, so the answer cannot update anything | Add `follow_up` + `action_id` + `due` to `tellSuzi`. An Action Center update tool is exposed over MCP. The gateway must let the answer reach that tool |
-| 3 | **Connector actions** (email, invites, record changes) run server-side, with Suzi's voice-checked `confirm_action` first for anything that sends, invites or changes data | Gateway asks, Nexeo enforces | The gateway confirms its tier-2 tools. Nexeo's MCP runs HIGH/CRITICAL actions **without any approval** (DEF-381). The gateway's send tools are stubbed | Nexeo requires an approval proof on risky MCP calls (closes DEF-381) |
+| 3 | **Connector actions** (email, invites, record changes) run server-side, with Suzi's voice-checked `confirm_action` first for anything that sends, invites or changes data | Gateway asks, Nexeo enforces | The gateway confirms its tier-2 tools. Nexeo's MCP runs HIGH/CRITICAL actions **without any approval** (DEF-384). The gateway's send tools are stubbed | Nexeo requires an approval proof on risky MCP calls (closes DEF-384) |
 | 4 | **Presentation**: figures, dashboards and reports go through Suzi's `present_report`, with a `say` line per block | Gateway/Mac | Nexeo has `fetch_kpis` and the Integrations KPI data | Data only, as tools. No wording from Nexeo |
 | 5 | **Daily-job findings** (an overdue invoice, an important email) become a short `assistant_start` turn now, or are queued for the morning brief that Suzi presents on the board | Nexeo decides and queues, gateway presents | Proactive push exists. There is no morning-brief queue | A queue of "for the morning brief" findings, plus a read tool for it |
 

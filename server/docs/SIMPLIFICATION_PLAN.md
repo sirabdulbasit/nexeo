@@ -77,7 +77,15 @@ Raw results (scratchpad, this session): `simplify_screens_server.json`, `simplif
 - Build Pulse and Build Spend, which read state files another session is changing
 - **Routes only the Python fleet calls**, pending the owner's fleet decision: `/knowledge`, `/entities`, `/triage/archetype`, `/wiki` (agent API), `pubsubHandler`
 
-## C. Owner decisions
+## Owner answers, 2026-11-03 ~01:35 PKT
+
+- **Removal list:** APPROVED, in 4 steps (screens → server → jobs → database). Each step is its own deploy. Tables are dumped before they are dropped.
+- **Nightly build:** STOP IT, KEEP LEARNING. First move `nexeoLearnSweep` into a server daily job, then remove the 02:30 cron line.
+- **Python fleet:** RETIRE. Stop `tmcai-agents` in pm2, and remove its five routes in the server step.
+- **KPIs:** ON HOLD. The owner will explain later. Nothing KPI-related is touched.
+- **Nexeo ↔ Suzi wiring (item 4):** not asked yet; still open.
+
+## C. Owner decisions (as asked)
 
 1. **Nightly self-improvement build** (crontab 02:30, `scripts/orchestrator/nightly-iteration.sh`). It ran 78 times since 08-19, never passed its check, and cost about $1,427. Stopping it also stops:
    - the only runner of learning (`nexeoLearnSweep`: interaction distillation and memory self-activation)
@@ -89,7 +97,7 @@ Raw results (scratchpad, this session): `simplify_screens_server.json`, `simplif
    To stop the build and keep learning, the learning sweep must first move into a server job.
 2. **Python agent fleet** (`tmcai-agents`, pm2 online, idle): retire it, or keep it.
 3. **KPIs:** part of Knowledge, or a sixth part.
-4. **Nexeo ↔ Suzi wiring** (DEF-382 blocker): the agent token, the id mapping, and sends gated by approval proof (DEF-381).
+4. **Nexeo ↔ Suzi wiring** (DEF-382 blocker): the agent token, the id mapping, and sends gated by approval proof (DEF-384).
 
 ## Order, once approved
 

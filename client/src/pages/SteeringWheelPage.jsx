@@ -18,10 +18,9 @@ import ContactsPage from './ContactsPage';
 // components/steering/ActionForms.jsx and re-importable for admin/dev pages.
 import SettingsPage from './SettingsPage';
 import AdminPage from './AdminPage';
-import HowBrainWorksPage from './HowBrainWorksPage';
 import {
   AppShell, Canvas, Rail, RailLogo, RailSection, RailSpacer, RailButton,
-  TopBar, TopBarTitle, TopBarSearch, TopBarUser, TopBarTenant,
+  TopBar, TopBarTitle, TopBarUser, TopBarTenant,
 } from '../components/ui';
 import { Icon } from '../components/ui/Icon';
 import FloatingChat from '../components/FloatingChat';
@@ -47,7 +46,6 @@ const TABS = [
   { key: 'wiki',      label: 'Wiki',            icon: 'book',     group: 'knowledge', render: () => <WikiPage /> },
   { key: 'connectors',label: 'Connectors',      icon: 'external', group: 'knowledge', render: () => <ConnectorsPage /> },
   { key: 'diagnostics', label: 'Health Check',  icon: 'check',    group: 'ops',       render: () => <HealthCheckTab /> },
-  { key: 'how',       label: 'How Nexeo Works', icon: 'help',     group: 'ops',       render: () => <HowBrainWorksPage /> },
   { key: 'settings',  label: 'Settings',        icon: 'user',     group: 'ops',       render: () => <SettingsPage /> },
 ];
 const ADMIN_TAB = { key: 'admin', label: 'Admin / Client Config', icon: 'settings', group: 'ops', render: () => <AdminPage /> };
