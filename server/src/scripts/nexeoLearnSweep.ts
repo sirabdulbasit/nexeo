@@ -1,73 +1,23 @@
 /**
- * nexeoLearnSweep — the nightly's LEARN phase, as a one-shot command.
+ * nexeoLearnSweep — the LEARN pass, as a one-shot command.
  *
  * Owner, 2026-09-07: "since learning and improvement is already part of brain's
  * capability that's why i am expecting to make it part of brain's capability (nightly
  * cron) and also update score of brain's capability."
  *
- * Learn was the only capability with zero movement across the whole campaign, and the
- * reason was not the code: `proposeMemory` gated everything behind a click that was
- * never coming, and two memories sat pending from 2026-07-14 and 2026-08-07 while
- * `Active Memories` read (0). LEARN-001 fixed the creation-time rule; this drains the
- * residue and keeps draining it, so the capability stops depending on him opening a tab.
- *
- * It prints ONE line the loop can log and a human can read. It exits 0 even when it
- * activates nothing — an empty sweep is the healthy steady state, not a failure, and a
- * non-zero exit there would make the nightly look broken every night after the first.
+ * The pass itself lives in services/learning/learnSweep.ts and runs daily inside the
+ * server (owner, 2026-11-03: stop the nightly build, keep learning). This command runs
+ * the same pass by hand. It exits 0 even when it activates nothing — an empty sweep is
+ * the healthy steady state, not a failure.
  *
  *   npx ts-node src/scripts/nexeoLearnSweep.ts [--dry-run]
  */
 import prisma from '../db/prisma';
-import { sweepQualifyingMemories } from '../services/learning/learningService';
-import { distillInteractions } from '../services/learning/interactionDistiller';
+import { runLearnSweep } from '../services/learning/learnSweep';
 
 async function main(): Promise<number> {
-  const dryRun = process.argv.includes('--dry-run');
-  // DEF-348 — the GENERATION half runs first: distill undistilled interaction
-  // history into governed-memory PROPOSALS (pending_approval, human-gated),
-  // then the sweep below drains whatever the self-activating class qualifies.
-  // A distillation failure never kills the night: the per-tenant cursor is
-  // fail-closed (unadvanced on error) and the sweep still runs.
-  if (!dryRun) {
-    try {
-      const d = await distillInteractions();
-      process.stdout.write(
-        `learn-distill: ${d.scanned} interactions over ${d.groups} user-group(s) in ${d.tenants} tenant(s)`
-        + ` · proposed ${d.proposed} · dup-skipped ${d.skippedDuplicate} · below-floor ${d.belowFloor}`
-        + (d.tenantsFailed ? ` · TENANTS FAILED ${d.tenantsFailed} (cursor held, retries next run)` : '')
-        + '\n',
-      );
-    } catch (err) {
-      process.stdout.write(`learn-distill: FAILED (${err instanceof Error ? err.message.slice(0, 160) : String(err)}) — sweep continues\n`);
-    }
-  }
-  const r = await sweepQualifyingMemories({ dryRun });
-  // DEF-349 — the SURFACING half: after generation (above) and activation of
-  // the self-qualifying class (sweep), tell the owner what awaits HIS gate.
-  // One digest per user per day through the normal dispatcher; a failure here
-  // never kills the night either.
-  if (!dryRun) {
-    try {
-      const { runProposalDigest } = await import('../services/learning/proposalDigest');
-      const g = await runProposalDigest();
-      process.stdout.write(
-        `learn-digest: ${g.usersNotified} user(s) notified · ${g.duplicates} already-today`
-        + ` · ${g.skippedAllCovered} tenant(s) all-covered · ${g.skippedDisabled} disabled`
-        + (g.tenantScopeSkipped ? ` · ${g.tenantScopeSkipped} tenant-scope skipped` : '')
-        + (g.unshowable ? ` · ${g.unshowable} unshowable (blank title)` : '')
-        + (g.tenantsFailed ? ` · TENANTS FAILED ${g.tenantsFailed} (coverage unchanged, retries)` : '')
-        + '\n',
-      );
-    } catch (err) {
-      process.stdout.write(`learn-digest: FAILED (${err instanceof Error ? err.message.slice(0, 160) : String(err)}) — sweep already ran\n`);
-    }
-  }
-  const verb = dryRun ? 'would activate' : 'activated';
-  process.stdout.write(
-    `learn-sweep: scanned ${r.scanned} pending · ${verb} ${r.activated} · held ${r.held}`
-    + (r.titles.length ? ` · ${r.titles.map((t) => JSON.stringify(t)).join(', ')}` : '')
-    + '\n',
-  );
+  const lines = await runLearnSweep({ dryRun: process.argv.includes('--dry-run') });
+  for (const l of lines) process.stdout.write(l + '\n');
   return 0;
 }
 

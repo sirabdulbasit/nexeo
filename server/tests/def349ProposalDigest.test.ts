@@ -210,7 +210,7 @@ describe('DEF-349/DEF-350 — pending proposals reach the owner, and the queue i
 
   it('the nightly runs generate → activate → surface, and a digest failure cannot kill the night', () => {
     const fs = require('fs'); const path = require('path');
-    const src = fs.readFileSync(path.join(__dirname, '../src/scripts/nexeoLearnSweep.ts'), 'utf8');
+    const src = fs.readFileSync(path.join(__dirname, '../src/services/learning/learnSweep.ts'), 'utf8');
     const sweepAt = src.indexOf('sweepQualifyingMemories({ dryRun })');
     const digestAt = src.indexOf('runProposalDigest()');
     expect(digestAt).toBeGreaterThan(sweepAt);

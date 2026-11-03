@@ -533,6 +533,26 @@ const server = app.listen(env.port, async () => {
     });
   }, 60 * 1000);
 
+  // LEARN pass — daily 07:30 PKT (02:30 UTC): distill interactions, activate
+  // qualifying memories, digest what awaits the owner's gate. It used to run only
+  // inside the nightly self-improvement build; owner 2026-11-03: stop that build,
+  // keep learning (docs/SIMPLIFICATION_PLAN.md).
+  {
+    let lastLearnDay: string | null = null;
+    setInterval(() => {
+      void (async () => {
+        const { learnSweepDue, runLearnSweep } = await import('./services/learning/learnSweep');
+        const now = new Date();
+        if (!learnSweepDue(now, lastLearnDay)) return;
+        lastLearnDay = now.toISOString().slice(0, 10);
+        await protectedJob('learn_sweep', 'important', async () => {
+          const lines = await runLearnSweep();
+          for (const l of lines) console.log(`[learn] ${l}`);
+        });
+      })().catch((e) => console.warn('[learn] pass failed:', e?.message ?? e));
+    }, 60 * 1000);
+  }
+
   // MyOS wiki lint — nightly 03:00 PKT (22:00 UTC previous day) per user
   setInterval(async () => {
     const now = new Date();
