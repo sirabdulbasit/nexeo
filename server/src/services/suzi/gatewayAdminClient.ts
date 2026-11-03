@@ -50,6 +50,20 @@ async function readSecret(): Promise<string> {
   return secret;
 }
 
+/**
+ * DEF-385 — the reverse direction: is `presented` the gateway's admin secret? The gateway calls
+ * Nexeo's read-only Suzi routes with the same secret it checks on Nexeo's calls to it. Constant-time
+ * compare. Fails closed: no secret configured means nothing matches.
+ */
+export async function verifyGatewaySecret(presented: string | undefined): Promise<boolean> {
+  if (!presented) return false;
+  let secret: string;
+  try { secret = await readSecret(); } catch { return false; }
+  const { timingSafeEqual } = await import('crypto');
+  const a = Buffer.from(presented); const b = Buffer.from(secret);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 async function call(method: 'GET' | 'POST', path: string, body?: unknown): Promise<any> {
   // DEF-377: the gateway on this box is the LIVE one, and the test fixtures are the owner (user 2,
   // TMC-0001). A test run must never reach it — a fixture would be spoken on his desktop. Only the
