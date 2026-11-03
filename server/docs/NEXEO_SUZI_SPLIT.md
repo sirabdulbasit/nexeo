@@ -49,7 +49,7 @@ The model is connected to both sides:
   - health, alerts and watchdogs
   - wiki privacy and retention
   - wiki search
-- **Undecided:** KPIs (a part of their own, or part of Knowledge).
+- **KPIs (owner, 11-03):** business KPIs belong to External Systems. They are connected through the Integrations wizard (API, online sheet link, Excel upload) and mapped there. Brain's own daily scorecard stays as it is.
 - **Must be fixed before Suzi acts through Nexeo at scale:** DEF-384. MCP `tools/call` runs HIGH/CRITICAL actions with no approval step.
 
 ## Integration contract: the Suzi team's spec, 11-03 (DEF-382)

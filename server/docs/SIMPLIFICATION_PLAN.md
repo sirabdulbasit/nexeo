@@ -82,7 +82,7 @@ Raw results (scratchpad, this session): `simplify_screens_server.json`, `simplif
 - **Removal list:** APPROVED, in 4 steps (screens → server → jobs → database). Each step is its own deploy. Tables are dumped before they are dropped.
 - **Nightly build:** STOP IT, KEEP LEARNING. First move `nexeoLearnSweep` into a server daily job, then remove the 02:30 cron line.
 - **Python fleet:** RETIRE. Stop `tmcai-agents` in pm2, and remove its five routes in the server step.
-- **KPIs:** ON HOLD. The owner will explain later. Nothing KPI-related is touched.
+- **KPIs:** decided 11-03. (1) Brain's own daily scorecard (`kpi_values`, 06:00 snapshot) stays and runs as it is. (2) Business KPIs are part of **External Systems** (Connectors, part 2). They come in through the Integrations wizard (API, online sheet link, Excel upload) and are mapped there (`kpi_definitions` / `kpi_readings`). They are not a sixth part.
 - **Nexeo ↔ Suzi wiring (item 4):** not asked yet; still open.
 
 ## Progress
