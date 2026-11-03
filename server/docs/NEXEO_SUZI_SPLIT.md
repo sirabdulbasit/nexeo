@@ -23,6 +23,14 @@ For what Nexeo does today, see the function inventory (DEF-384 found by it) and 
 
 **Suzi is also a feed into Nexeo.** It sends meeting minutes, instructions it is given, and tasks. Nexeo files these into Knowledge or the Action Center like any other feed.
 
+## The Nexeo portal (web app): management only (owner, 2026-11-03)
+
+The portal is used only to **manage**. Using the knowledge, the actions and the brief happens in Suzi.
+- **Admin:** settings, creating new clients, users, and the like.
+- **User:** connectors; updating rules, delegations and standing instructions.
+
+Everything else in today's menu becomes a candidate to leave the portal: Day Brief, Action Center, Contacts, Wiki and Health Check. This is a direction, not yet a removal list. The per-screen questions are in `SIMPLIFICATION_PLAN.md` §"Portal: management only".
+
 ## The model (LLM)
 
 The model is connected to both sides:

@@ -85,6 +85,35 @@ Raw results (scratchpad, this session): `simplify_screens_server.json`, `simplif
 - **KPIs:** ON HOLD. The owner will explain later. Nothing KPI-related is touched.
 - **Nexeo ↔ Suzi wiring (item 4):** not asked yet; still open.
 
+## Progress
+
+- **Step 1 (screens):** LIVE, D-147 (client, c342e4a).
+- **Server half of step 1, plus learning moved into the server:** LIVE, D-148 (5758cce).
+- **Nightly build cron line:** REMOVED 11-03 ~12:10 PKT. The crontab backup is in /root/backups. The first server-run LEARN pass is due 11-04 07:30 PKT.
+- **Next:**
+  - step 2 (server removals, plus retiring `tmcai-agents`)
+  - step 3 (jobs and scripts)
+  - step 4 (database)
+
+## Portal: management only (owner, 2026-11-03 ~12:10 PKT)
+
+The owner's direction: the Nexeo portal is used only to manage.
+- **Admin:** settings, new clients, users.
+- **User:** connectors, rules, delegations, standing instructions.
+
+Today's menu, against that direction:
+
+| Tab | Fits "manage"? | Proposed |
+|---|---|---|
+| Connectors | yes | keep |
+| My Rules (rules, delegations, standing instructions) | yes | keep. The delegation-matrix and gate-rules editors (kept in B) belong here |
+| Settings | yes | keep. Brain automation level moves here from the hidden `/brain` page |
+| Admin / Client Config | yes | keep |
+| Health Check | partly. It is where "reconnect this connector" lives | fold into Connectors |
+| Day Brief | no. It moves to Suzi | leaves the menu once Suzi presents the brief |
+| Action Center | no. Suzi follows up | leaves the menu once Suzi's follow-ups work (DEF-382 #2) |
+| Contacts / Wiki | no. This is knowledge, and Suzi answers from it | owner to confirm. Contact editing may still be "manage" |
+
 ## C. Owner decisions (as asked)
 
 1. **Nightly self-improvement build** (crontab 02:30, `scripts/orchestrator/nightly-iteration.sh`). It ran 78 times since 08-19, never passed its check, and cost about $1,427. Stopping it also stops:
