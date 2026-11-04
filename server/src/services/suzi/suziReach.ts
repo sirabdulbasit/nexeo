@@ -46,10 +46,25 @@ export interface Reach { adopted: boolean; alive: boolean; absentMs: number }
 const NOT_ADOPTED: Reach = { adopted: false, alive: false, absentMs: 0 };
 
 /** Any device for now. Once `primary` exists (next in the charter's list), only that device counts. */
+/**
+ * Functional Charter row 15: the device in charge, as chosen for this user (the founder's M5 Mac now,
+ * later a setting in the portal). null = nobody chose, and Suzi's server uses the first paired device.
+ */
+export async function primaryDeviceOf(clientNumber: string, userId: number): Promise<string | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ device_id: string | null }>>(
+    `SELECT notification_preferences->'brain_channel'->>'suziPrimaryDevice' AS device_id FROM users WHERE id = $1 AND client_number = $2`,
+    userId, clientNumber,
+  );
+  return rows[0]?.device_id || null;
+}
+
 export async function reachFor(clientNumber: string, userId: number, now = new Date()): Promise<Reach> {
   try {
     const rows = await prisma.$queryRawUnsafe<PresenceRow[]>(
-      `SELECT state, state_since, last_frame_at, last_alive_at FROM suzi_presence WHERE client_number = $1 AND user_id = $2`,
+      // Functional Charter, "Reaching the user": once a device is in charge, only that device counts.
+      `SELECT state, state_since, last_frame_at, last_alive_at FROM suzi_presence
+        WHERE client_number = $1 AND user_id = $2
+          AND device_id = COALESCE((SELECT notification_preferences->'brain_channel'->>'suziPrimaryDevice' FROM users WHERE id = $2), device_id)`,
       clientNumber, userId,
     );
     if (!rows?.length) return NOT_ADOPTED;

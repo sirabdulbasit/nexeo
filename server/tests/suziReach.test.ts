@@ -27,7 +27,7 @@ vi.mock('../src/services/notifications/brainOutboundService', () => ({
 }));
 vi.mock('../src/services/whatsapp/displayIdentity', () => ({ scrubSyntheticIdentities: async (s: string) => s }));
 
-import { briefHandedOver, decide, isAlive, pumpHeld, reachFor, recordPresence } from '../src/services/suzi/suziReach';
+import { briefHandedOver, decide, isAlive, primaryDeviceOf, pumpHeld, reachFor, recordPresence } from '../src/services/suzi/suziReach';
 
 const now = new Date('2026-11-04T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -175,5 +175,26 @@ describe('the morning brief', () => {
     expect(await briefHandedOver('T', 2)).toBe(true);
     q.mockRejectedValueOnce(new Error('down'));
     expect(await briefHandedOver('T', 2)).toBe(false);
+  });
+});
+
+describe('the device in charge (Functional Charter row 15)', () => {
+  it('reach counts only that device once one is chosen; otherwise any', async () => {
+    q.mockReset();
+    q.mockResolvedValue([]);
+    await reachFor('T', 2);
+    expect(q.mock.calls[0][0]).toContain("device_id = COALESCE((SELECT notification_preferences->'brain_channel'->>'suziPrimaryDevice' FROM users WHERE id = $2), device_id)");
+    expect(q.mock.calls[0].slice(1)).toEqual(['T', 2]);
+  });
+  it('reads the choice inside the tenant; nobody chose is null', async () => {
+    q.mockReset();
+    q.mockResolvedValueOnce([{ device_id: 'd1' }]);
+    expect(await primaryDeviceOf('T', 2)).toBe('d1');
+    expect(q.mock.calls[0].slice(1)).toEqual([2, 'T']);
+    expect(q.mock.calls[0][0]).toContain('client_number = $2');
+    q.mockResolvedValueOnce([{ device_id: null }]);
+    expect(await primaryDeviceOf('T', 2)).toBeNull();
+    q.mockResolvedValueOnce([]);
+    expect(await primaryDeviceOf('T', 2)).toBeNull();
   });
 });

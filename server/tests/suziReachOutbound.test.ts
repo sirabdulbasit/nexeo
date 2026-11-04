@@ -8,7 +8,7 @@
  *  - quiet hours do not drop an adopted user's item: the charter's rules hold it instead;
  *  - presence alone changes nothing: until the kick-off switch is on, WhatsApp goes as before.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const state = vi.hoisted(() => ({ created: [] as any[], wa: [] as any[], artifacts: 0, adopted: false, held: [] as any[], pumped: 0, quiet: {} as any }));
 
@@ -48,7 +48,14 @@ import { brainContactsUser } from '../src/services/notifications/brainOutboundSe
 
 const send = (o: any = {}) => brainContactsUser({ userId: 2, clientNumber: 'TMC-0001', kind: 'connector_stale', summary: 'Gmail is stale', body: 'Gmail needs reconnecting', urgency: 'normal', dedupKey: null, ...o });
 
-beforeEach(() => { Object.assign(state, { created: [], wa: [], artifacts: 0, adopted: false, held: [], pumped: 0, quiet: {} }); });
+// Midday on a working day in the test user's zone (UTC). Outside office hours nothing is sent, so this
+// suite failed whenever it ran after 18:00 UTC.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-04T12:00:00Z'));
+  Object.assign(state, { created: [], wa: [], artifacts: 0, adopted: false, held: [], pumped: 0, quiet: {} });
+});
+afterEach(() => { vi.useRealTimers(); });
 
 describe('presence before the kick-off', () => {
   it('a Mac sending presence moves nothing while the switch is off', async () => {

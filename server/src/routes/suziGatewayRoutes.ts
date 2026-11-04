@@ -26,7 +26,7 @@ import { buildDayPack } from '../services/suzi/dayPack';
 import { act } from '../services/suzi/suziAct';
 import { resolveUserTimezone } from '../services/userTimezoneService';
 import { recordDesktopBatch, recordServerRound } from '../services/consumption/consumptionService';
-import { markBriefHandover, PRESENCE_STATES, pumpHeld, recordPresence } from '../services/suzi/suziReach';
+import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPresence } from '../services/suzi/suziReach';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
 
@@ -141,6 +141,13 @@ router.get('/user-time', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
   res.json({ tz: await resolveUserTimezone(who.userId) });
+});
+
+/** Functional Charter row 15: which device is in charge. Suzi's server puts the answer in `welcome`. */
+router.get('/primary-device', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  res.json({ device_id: await primaryDeviceOf(who.tenantId, who.userId) });
 });
 
 /**
