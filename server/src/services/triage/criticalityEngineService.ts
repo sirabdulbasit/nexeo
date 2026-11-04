@@ -573,12 +573,61 @@ function fusionCacheKey(clientNumber: string, userPrompt: string): string {
 /** Exported for the cache tests — the normalisation IS the cache's behaviour. */
 export const __fusionCacheInternals = { bucketHours, normalisePromptForKey };
 
+/**
+ * OPT-006 — a per-event ceiling on fusion calls.
+ *
+ * Measured 28 Oct–4 Nov 2026 (one user): 17,112 `criticality_fuse` calls for ~250 emails,
+ * ~$15 of a $43 bill. The OPT-003 prompt cache was hit 150,315 times, yet 16,104 distinct
+ * prompts were still scored live: the critical-bundle sweep rebuilds the attention list
+ * every 90 s, and any signal the key does not normalise (a knowledge snippet, a new open
+ * item, a sentiment line) makes a new prompt for the same email, scored again at once.
+ *
+ * Owner, 2026-11-04: score each email on arrival and once before the morning brief. So a
+ * fusion is remembered PER FEED EVENT, and an event is not scored live again within its
+ * TTL — 6 h while it is recent (its signals still move), 72 h once it is older than three
+ * days. The prompt cache stays underneath as the identical-inputs cache. This layer is a
+ * ceiling, by construction: at most 4 live scores a day for a recent event, 1 every 3 days
+ * for an old one, whatever the sweep cadence or the prompt drift.
+ */
+const FUSION_EVENT_KEY_VERSION = 'ev1';
+export const FUSION_EVENT_TTL_MS = { recent: 6 * 3600_000, old: 72 * 3600_000 } as const;
+const RECENT_EVENT_MS = 3 * 86_400_000;
+
+export function fusionEventKey(clientNumber: string, feedEventId: string): string {
+  return crypto.createHash('sha256')
+    .update(`${FUSION_EVENT_KEY_VERSION}|${FUSION_PROMPT_VERSION}|${clientNumber}|${feedEventId}`)
+    .digest('hex');
+}
+
+/** How long one event's fusion stands: 6 h while the event is under three days old, else 72 h. */
+export function fusionEventTtlMs(receivedAt: Date | null | undefined, now = Date.now()): number {
+  const t = receivedAt instanceof Date ? receivedAt.getTime() : NaN;
+  if (!Number.isFinite(t)) return FUSION_EVENT_TTL_MS.recent;
+  return now - t < RECENT_EVENT_MS ? FUSION_EVENT_TTL_MS.recent : FUSION_EVENT_TTL_MS.old;
+}
+
+/** Fire-and-forget: a real verdict (never the deterministic fallback) is kept for the event. */
+function rememberFusionForEvent(eventKey: string | null, clientNumber: string, result: unknown): void {
+  if (!eventKey) return;
+  void prisma.criticalityFusionCache.upsert({
+    where: { cacheKey: eventKey },
+    create: { cacheKey: eventKey, clientNumber, promptVersion: FUSION_PROMPT_VERSION, result: result as any },
+    update: { result: result as any, promptVersion: FUSION_PROMPT_VERSION, createdAt: new Date() },
+  }).catch((err: any) => log.warn('fusion event cache write failed', { error: err?.message }));
+}
+
 async function fuseAndScore(
   input: ScoreInput,
   signals: GatheredSignals,
 ): Promise<{ dimensions: CriticalityDimensions; reasons: string[]; story: string; confidence: number; substantive: boolean; substantiveWhy: string }> {
   const userMsg = buildUserPrompt(input, signals);
   const cacheKey = fusionCacheKey(input.clientNumber, userMsg);
+
+  // OPT-006: the per-event ceiling comes first. Within its TTL an event is answered from
+  // its last real verdict, whatever its prompt looks like now.
+  const eventKey = input.feedEventId ? fusionEventKey(input.clientNumber, input.feedEventId) : null;
+  const held = await fusionHeldForEvent(eventKey, input.receivedAt);
+  if (held) return held;
 
   // Cache read. Never allowed to break scoring: any failure here falls through
   // to the live call, which is the behaviour we had before the cache existed.
@@ -598,7 +647,9 @@ async function fuseAndScore(
         where: { cacheKey },
         data: { hits: { increment: 1 }, lastHitAt: new Date() },
       }).catch(() => {});
-      return cached.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
+      const hit = cached.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
+      rememberFusionForEvent(eventKey, input.clientNumber, hit);
+      return hit;
     }
   } catch (err: any) {
     log.warn('fusion cache read failed — scoring live', { error: err?.message });
@@ -650,6 +701,7 @@ async function fuseAndScore(
         createdAt: new Date(),
       },
     }).catch((err: any) => log.warn('fusion cache write failed', { error: err?.message }));
+    rememberFusionForEvent(eventKey, input.clientNumber, result);
 
     return result;
   } catch (err: any) {
@@ -677,6 +729,27 @@ async function fuseAndScore(
       substantive: false,
       substantiveWhy: 'LLM fusion unavailable — Brain cannot judge substantiveness without context',
     };
+  }
+}
+
+/** OPT-006: the event's last real verdict while its TTL holds, else null. Never throws. */
+async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date): Promise<Awaited<ReturnType<typeof fuseAndScore>> | null> {
+  if (!eventKey) return null;
+  try {
+    const ev = await prisma.criticalityFusionCache.findUnique({
+      where: { cacheKey: eventKey },
+      select: { result: true, createdAt: true, promptVersion: true },
+    });
+    if (!ev || ev.promptVersion !== FUSION_PROMPT_VERSION) return null;
+    if (Date.now() - ev.createdAt.getTime() >= fusionEventTtlMs(receivedAt)) return null;
+    void prisma.criticalityFusionCache.update({
+      where: { cacheKey: eventKey },
+      data: { hits: { increment: 1 }, lastHitAt: new Date() },
+    }).catch(() => {});
+    return ev.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
+  } catch (err: any) {
+    log.warn('fusion event cache read failed — falling through', { error: err?.message });
+    return null;
   }
 }
 

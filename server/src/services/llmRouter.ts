@@ -10,6 +10,7 @@
  *     const answer = await callLLM(systemPrompt, userMessage, { maxTokens: 512 });
  */
 import { callClaude } from './claudeService';
+import { runWithLlmFeature } from './llmBillingLabels';
 import { callGemini } from './geminiService';
 import { recordLlmSpend } from './llmSpendService';
 import createLogger from '../utils/logger';
@@ -188,9 +189,10 @@ export async function callLLM(
     // Up to 2 attempts per provider — retry ONCE on 429 with backoff.
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
+        // OPT-005: the purpose becomes the Vertex billing label `feature` on this call.
         const text = await withTimeout(
-          () => callProvider(provider, systemPrompt, userMessage, opts?.maxTokens,
-                                 opts?.thinkingBudget),
+          () => runWithLlmFeature(opts?.purpose ?? 'unknown', opts?.clientNumber,
+            () => callProvider(provider, systemPrompt, userMessage, opts?.maxTokens, opts?.thinkingBudget)),
           timeoutMs,
         );
         if (text && text.trim().length > 0) {

@@ -80,24 +80,46 @@ export async function getCompactIndexForPlanner(clientNumber: string, userId: nu
     byType.get(p.pageType)!.push(p);
   }
 
-  // Concept-layer pages (entity_person, topic) sit at the top because
-  // they pre-synthesize what Brain would otherwise assemble on every
-  // turn. Source pages follow.
-  // Concept + awareness pages first; source + lineage after.
-  const HIGH_SIGNAL = ['mind_state', 'observation', 'entity_person', 'topic', 'project', 'policy', 'decision', 'pattern', 'org_doc', 'attachment_doc', 'answer', 'gap'];
+  // OPT-007, 2026-11-04 — the planner view lists only what the planner is told to use.
+  //
+  // Measured for the one live tenant: 320,754 characters (~80k tokens, 3,333 page lines)
+  // sent on every `retrieval_plan` call — 11.8M of the 32.5M Flash input tokens billed in
+  // 8 days — for a 768-token answer. The planner's own rules say the composer's vector
+  // search matches topics, people, projects and observations by itself, and that page
+  // ids should be listed only for an obvious perfect match or an attachment_doc. So those
+  // types are no longer listed one line each; the planner is told they exist and how to
+  // reach them. What stays: the awareness page, the FACL org docs, policies, decisions,
+  // patterns (with their first line), and attachment_docs by id and title only — the
+  // STRUCTURED-QUESTION rule needs their ids.
+  const LISTED = ['mind_state', 'org_doc', 'policy', 'decision', 'pattern'];
+  const TITLE_ONLY = ['attachment_doc'];
+  const NOT_LISTED = ['topic', 'entity_person', 'project', 'observation', 'answer', 'gap'];
   const out: string[] = [];
   out.push('# Tenant Index (planner view)');
   out.push('');
   out.push(`Total pages in wiki: ${pages.length}`);
   out.push('');
 
-  for (const t of HIGH_SIGNAL) {
+  for (const t of LISTED) {
     const list = byType.get(t) ?? [];
     if (list.length === 0) continue;
     out.push(`## ${t} (${list.length})`);
     for (const p of list) {
       out.push(`- \`${p.id}\` **${p.title}** — ${firstLine(p as any)}`);
     }
+    out.push('');
+  }
+  for (const t of TITLE_ONLY) {
+    const list = byType.get(t) ?? [];
+    if (list.length === 0) continue;
+    out.push(`## ${t} (${list.length}) — id and title only`);
+    for (const p of list) out.push(`- \`${p.id}\` **${p.title}**`);
+    out.push('');
+  }
+  const unlisted = NOT_LISTED.map((t) => [t, byType.get(t)?.length ?? 0] as const).filter(([, n]) => n > 0);
+  if (unlisted.length) {
+    out.push(`## not listed individually: ${unlisted.map(([t, n]) => `${t} (${n})`).join(', ')}`);
+    out.push('The composer\'s vector search over the whole wiki finds these from the question itself. Leave `openPageIds` empty for them; put a named person, company or project in `entityTerms`.');
     out.push('');
   }
 

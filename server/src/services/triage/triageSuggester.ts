@@ -891,6 +891,8 @@ async function _doTriage(row: {
         userEmail: sameTenant ? userEmail : null,
         subject, preview,
         receivedAt: extractEventOccurredAt(row),
+        // OPT-006: the per-event fusion ceiling is keyed on this.
+        feedEventId: row.id,
         entityId: (senderEntity as any)?.id ?? null,
         senderDomain: senderDomain ?? null,
         relationshipStrength: (senderEntity as any)?.relationshipStrength ?? null,

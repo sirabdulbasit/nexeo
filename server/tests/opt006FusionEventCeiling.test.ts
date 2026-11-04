@@ -1,0 +1,77 @@
+/**
+ * OPT-006 — a per-event ceiling on `criticality_fuse` calls.
+ *
+ * 28 Oct–4 Nov 2026: 17,112 fusion calls for ~250 emails (~$15 of a $43 bill) despite the
+ * OPT-003 prompt cache, because the 90-second critical-bundle sweep re-scores any email
+ * whose prompt drifted. Owner: score each email on arrival and once before the morning brief.
+ *
+ * Pinned:
+ *  1. the TTL is 6 h for an event under three days old and 72 h after that; a missing or
+ *     invalid receivedAt counts as recent (the shorter TTL, never the longer);
+ *  2. the event key is tenant- and prompt-version-bound: another tenant or a bumped
+ *     prompt version can never read a cached verdict;
+ *  3. in fuseAndScore the event lookup comes BEFORE the prompt cache and the LLM, a real
+ *     verdict (live or prompt-cache hit) is remembered for the event, and the
+ *     deterministic fallback is not;
+ *  4. the attention-list path passes the feed event id, so the ceiling applies there.
+ */
+import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'fs';
+import path from 'path';
+import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs } from '../src/services/triage/criticalityEngineService';
+
+const now = Date.parse('2026-11-04T12:00:00Z');
+
+describe('OPT-006 the TTL', () => {
+  it('6 h while recent, 72 h once older than three days, recent when unknown', () => {
+    expect(fusionEventTtlMs(new Date(now - 2 * 3600_000), now)).toBe(FUSION_EVENT_TTL_MS.recent);
+    expect(fusionEventTtlMs(new Date(now - 2.9 * 86_400_000), now)).toBe(FUSION_EVENT_TTL_MS.recent);
+    expect(fusionEventTtlMs(new Date(now - 3.1 * 86_400_000), now)).toBe(FUSION_EVENT_TTL_MS.old);
+    expect(fusionEventTtlMs(new Date('not a date'), now)).toBe(FUSION_EVENT_TTL_MS.recent);
+    expect(fusionEventTtlMs(null, now)).toBe(FUSION_EVENT_TTL_MS.recent);
+    expect(FUSION_EVENT_TTL_MS.recent).toBe(6 * 3600_000);
+    expect(FUSION_EVENT_TTL_MS.old).toBe(72 * 3600_000);
+  });
+});
+
+describe('OPT-006 the key', () => {
+  it('differs per tenant and per event, and is a 64-hex sha256 like the prompt key', () => {
+    const a = fusionEventKey('TMC-0001', 'ev1');
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    expect(fusionEventKey('OTHER-01', 'ev1')).not.toBe(a);
+    expect(fusionEventKey('TMC-0001', 'ev2')).not.toBe(a);
+    expect(fusionEventKey('TMC-0001', 'ev1')).toBe(a);
+  });
+});
+
+describe('OPT-006 the order of operations in fuseAndScore', () => {
+  const src = readFileSync(path.join(__dirname, '../src/services/triage/criticalityEngineService.ts'), 'utf8');
+  const body = src.slice(src.indexOf('async function fuseAndScore('));
+  it('event lookup → prompt cache → LLM; remembered on live and on prompt hit; never the fallback', () => {
+    const at = (s: string) => { const i = body.indexOf(s); expect(i, s).toBeGreaterThan(-1); return i; };
+    const eventRead = at("await fusionHeldForEvent(eventKey, input.receivedAt)");
+    const promptRead = at("where: { cacheKey },");
+    const llm = at("callLLM(FUSION_PROMPT, userMsg");
+    const fallback = at("fallbackLogGate('fuseAndScore')");
+    expect(eventRead).toBeLessThan(promptRead);
+    expect(promptRead).toBeLessThan(llm);
+    // a prompt-cache hit and a live verdict are both remembered for the event…
+    expect(body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, hit)')).toBeLessThan(llm);
+    const liveRemember = body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, result)');
+    expect(liveRemember).toBeGreaterThan(llm);
+    expect(liveRemember).toBeLessThan(fallback);
+    // …and nothing after the fallback gate writes an event entry.
+    expect(body.slice(fallback)).not.toContain('rememberFusionForEvent(');
+    // the event key is bound to the prompt version, and the held verdict is TTL- and version-checked on read
+    expect(src).toContain('${FUSION_EVENT_KEY_VERSION}|${FUSION_PROMPT_VERSION}|${clientNumber}|${feedEventId}');
+    const held = src.slice(src.indexOf('async function fusionHeldForEvent('), src.indexOf('function buildUserPrompt('));
+    expect(held).toContain('where: { cacheKey: eventKey }');
+    expect(held).toContain('ev.promptVersion !== FUSION_PROMPT_VERSION');
+    expect(held).toContain('fusionEventTtlMs(receivedAt)');
+  });
+  it('the attention-list path passes the feed event id', () => {
+    const sug = readFileSync(path.join(__dirname, '../src/services/triage/triageSuggester.ts'), 'utf8');
+    const call = sug.slice(sug.indexOf('criticality = await scoreCriticality({'));
+    expect(call.slice(0, 1200)).toContain('feedEventId: row.id,');
+  });
+});

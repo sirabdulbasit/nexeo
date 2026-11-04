@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { attachBillingLabels } from './llmBillingLabels';
 
 let client: GoogleGenAI | null = null;
 let clientKey = '';
@@ -20,11 +21,11 @@ export function getGenAI(): GoogleGenAI {
   if (!client) {
     const useVertex = process.env.USE_VERTEX_AI === 'true';
     if (useVertex) {
-      client = new GoogleGenAI({
+      client = attachBillingLabels(new GoogleGenAI({
         vertexai: true,
         project: process.env.GCP_PROJECT_ID || 'tmcai-491811',
         location: process.env.GCP_LOCATION || 'us-central1',
-      });
+      }));
     } else {
       const apiKey = process.env.GEMINI_API_KEY || '';
       // DEF-336 — the credential gate lives HERE, where the mode is decided,
@@ -70,7 +71,8 @@ export async function getConfiguredGenAI(): Promise<GoogleGenAI> {
     const key = `vertex|${project}|${cfg.region}|${cfg.serviceAccount ? 'sa' : 'adc'}`;
     if (client && clientKey === key) return client;
 
-    client = new GoogleGenAI({
+    // OPT-005: every call through this client carries app / tenant / feature billing labels.
+    client = attachBillingLabels(new GoogleGenAI({
       vertexai: true,
       project,
       location: cfg.region,
@@ -79,7 +81,7 @@ export async function getConfiguredGenAI(): Promise<GoogleGenAI> {
       // (GOOGLE_APPLICATION_CREDENTIALS). Both are legitimate; neither is
       // preferred in code.
       ...(cfg.serviceAccount ? { googleAuthOptions: { credentials: cfg.serviceAccount as any } } : {}),
-    } as any);
+    } as any));
     clientKey = key;
     return client;
   } catch {

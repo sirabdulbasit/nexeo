@@ -46,14 +46,16 @@ interface SpendParams {
   feedEventId?: string | null;
 }
 
-// Gemini Flash pricing (per Feb 2026 published rates, USD per 1M tokens):
-//   Flash: $0.075 in, $0.30 out
-//   Pro:   $1.25 in, $5.00 out
-//   Claude Haiku: ~$0.25 in, $1.25 out (close enough for estimation)
+// USD per 1M tokens, AS BILLED. OPT-005, 2026-11-04: the GCP bill for 28 Oct–4 Nov priced
+// Gemini 2.5 Flash at $0.30 in / $2.50 out and 2.5 Pro at $1.25 in / $10.00 out (thinking
+// output is output). The previous table ($0.075/$0.30 Flash, $5 Pro out) under-stated Flash
+// 4–8× and Pro output 2×, which is why $5.65 of a $7.20 day looked "unexplained".
+// Not modelled: Pro input above 200k tokens bills at $2.50/M; Nexeo makes no such call.
+// MODEL_CLAUDE is claude-sonnet-4 ($3 / $15).
 const PRICE_PER_M = {
-  'gemini-flash': { in: 0.075, out: 0.30 },
-  'gemini':       { in: 1.25,  out: 5.00 },
-  'claude':       { in: 0.25,  out: 1.25 },
+  'gemini-flash': { in: 0.30, out: 2.50 },
+  'gemini':       { in: 1.25, out: 10.00 },
+  'claude':       { in: 3.00, out: 15.00 },
 } as const;
 
 export function estimatedCostUsd(p: SpendParams): number {
