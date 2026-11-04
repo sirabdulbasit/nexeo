@@ -5,7 +5,8 @@
  *  - Brain's "what did I send?" record is not written for an item that is only held;
  *  - a user with no presence row goes exactly as before;
  *  - things asked for just now, and the morning brief, are not rerouted;
- *  - quiet hours do not drop an adopted user's item: the charter's rules hold it instead.
+ *  - quiet hours do not drop an adopted user's item: the charter's rules hold it instead;
+ *  - presence alone changes nothing: until the kick-off switch is on, WhatsApp goes as before.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -49,8 +50,18 @@ const send = (o: any = {}) => brainContactsUser({ userId: 2, clientNumber: 'TMC-
 
 beforeEach(() => { Object.assign(state, { created: [], wa: [], artifacts: 0, adopted: false, held: [], pumped: 0, quiet: {} }); });
 
+describe('presence before the kick-off', () => {
+  it('a Mac sending presence moves nothing while the switch is off', async () => {
+    state.adopted = true;
+    const r = await send();
+    expect(state.held).toHaveLength(0);
+    expect(state.wa).toHaveLength(1);
+    expect(r.channelsUsed).toEqual(['text']);
+  });
+});
+
 describe('an adopted user', () => {
-  beforeEach(() => { state.adopted = true; });
+  beforeEach(() => { state.adopted = true; state.quiet = { suziReachOn: true }; });
   it('no WhatsApp: outbox, pump, one ledger row on the suzi channel', async () => {
     const r = await send();
     expect(state.wa).toHaveLength(0);
@@ -66,7 +77,7 @@ describe('an adopted user', () => {
     expect(state.artifacts).toBe(0);
   });
   it('quiet hours do not drop it; the charter holds it', async () => {
-    state.quiet = { quietStart: '00:00', quietEnd: '23:59' };
+    state.quiet = { suziReachOn: true, quietStart: '00:00', quietEnd: '23:59' };
     const r = await send();
     expect(r.sent).toBe(true);
     expect(state.held).toHaveLength(1);

@@ -120,8 +120,9 @@ export async function runDayBriefDispatch(): Promise<RunResult> {
     // Hasn't reached configured time yet today.
     if (nowMinutes < configuredMinutes) continue;
 
-    // Functional Charter: stops once Suzi's handover has worked. Before composing, so it costs nothing.
-    if (await briefHandedOver(u.clientNumber, u.id)) { result.skipped += 1; continue; }
+    // Functional Charter: stops once Suzi's handover has worked, for a user past the kick-off. Before
+    // composing, so it costs nothing.
+    if (bc.suziReachOn === true && await briefHandedOver(u.clientNumber, u.id)) { result.skipped += 1; continue; }
 
     // Already fired today's local-day? Use Redis as the source of
     // truth so a server restart between 06:00 and 08:30 doesn't

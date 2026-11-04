@@ -824,8 +824,10 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
   // ── Functional Charter: a user with Suzi ────────────────────────────
   // Their quiet hours and working hours are handled by the charter's rules, so these two gates do not
   // apply to them. Things they asked for themselves, and the brief until handover, go as before.
+  // suziReachOn is the kick-off, per user: presence is recorded from the first frame, but nothing about
+  // how Nexeo reaches them changes until both sides have shaken hands (owner, 11-04).
   const suziExempt = req.bypassOptIn === true || req.bypassRateLimit === true || SUZI_EXEMPT_KINDS.has(req.kind);
-  const suziAdopted = !suziExempt && (await (await import('../suzi/suziReach')).reachFor(user.clientNumber, user.id)).adopted;
+  const suziAdopted = !suziExempt && bc.suziReachOn === true && (await (await import('../suzi/suziReach')).reachFor(user.clientNumber, user.id)).adopted;
 
   if (suziAdopted) bypassQuiet = true;
 

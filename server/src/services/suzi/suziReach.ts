@@ -10,7 +10,9 @@
  *     spoken when quiet hours end. Only an emergency is spoken at night, as it reached him before.
  *
  * A user with no presence row has not adopted any of this: Nexeo contacts them exactly as before. So
- * does any failure reading presence, because a lost reminder is worse than a duplicate one.
+ * does any failure reading presence, because a lost reminder is worse than a duplicate one. So does a
+ * user before the kick-off (brain_channel.suziReachOn): the Mac sends presence as soon as it is
+ * announced, which is a record of its state and not a decision to move their messages.
  *
  * One delivery engine: every item goes in the outbox and `pumpHeld` moves it, whether called for a new
  * item, a user coming back, or the sweep. Each step claims its row first, so two pumps cannot both
