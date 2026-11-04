@@ -28,6 +28,10 @@ Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calen
 
 **Revision proposed, 2026-11-04 (founder: "keep the best quality with minimum cost and revise your proposal"), AGREED by Suzi 17:33:55 PKT, sent to the founder for approval.** Kinds to test for Flash: greetings and small talk; reading back known facts; simple single-tool requests; device controls. Never on Flash: drafting or sending for the user, decisions about tasks, rules or approvals, multi-step screen tasks, knowledge questions. Urdu judged by the founder listening. Goal becomes: quality fixed, cost as low as that allows; $20 is the target to report against. Pro stays the default for anything complex. Flash is tested per kind of work and used only for simple work where it proves equal. Voice stays Chirp 3 HD. Estimates at 40 turns/day: Pro everywhere $27–41/month; with proven-equal routing ~$20–27.
 
+## PROPOSED change, not agreed: Windows (owner, 2026-11-04)
+
+Owner: Suzi may run on Mac and Windows, with different users on each (a user is on one or the other). Sent to Suzi for agreement; nothing built. Points: "Mac app" becomes "desktop app (Mac or Windows)"; a per-OS equivalent for each Mac-specific guarantee (key storage, element check before a click, local hearing, tool tiers); `app=suzi-desktop` plus `os` labels; one Google service account per OS or per device; Nexeo's day pack and `act` are already OS-neutral.
+
 ## Nexeo-side work now agreed (not started)
 
 1. Small fixes: pass the device id from login into `act`; extend the strict body check to allow `ts`; add the model name to `llm_usage`; remove the fixed Karachi zone on Suzi's server; record compose spend in the ledger.
