@@ -1,0 +1,330 @@
+diff --git a/server/src/services/triage/criticalityEngineService.ts b/server/src/services/triage/criticalityEngineService.ts
+index 2ea7023..7bf9ea9 100644
+--- a/server/src/services/triage/criticalityEngineService.ts
++++ b/server/src/services/triage/criticalityEngineService.ts
+@@ -589,6 +589,10 @@ export const __fusionCacheInternals = { bucketHours, normalisePromptForKey };
+  * construction: at most 1 live score a day for a recent event, whatever the sweep cadence
+  * or the prompt drift. What stays live on every pass: the superpowers (absence, cross-source,
+  * decay), the user's calibration and the star floor, none of which go through the model.
++ *
++ * OPT-012, owner 2026-11-04: "reducing cost doesn't mean to compromise the quality". The hold
++ * stores a fingerprint of the signals that should move a judgement (`fusionMaterialFingerprint`).
++ * When they change, the email is scored again at once, whatever the TTL says.
+  */
+ const FUSION_EVENT_KEY_VERSION = 'ev1';
+ export const FUSION_EVENT_TTL_MS = { recent: 24 * 3600_000, old: 7 * 86_400_000 } as const;
+@@ -607,13 +611,36 @@ export function fusionEventTtlMs(receivedAt: Date | null | undefined, now = Date
+   return now - t < RECENT_EVENT_MS ? FUSION_EVENT_TTL_MS.recent : FUSION_EVENT_TTL_MS.old;
+ }
+ 
++/**
++ * OPT-012 — what should move this email's judgement: its sender's open items, matching standing
++ * instructions, delegation owners, stars, tone, CRM stage, and deadlines tied to this sender as they
++ * come within a day. Deliberately left out: the clock (ages, silence), knowledge snippets, and other
++ * people's deadlines, which change constantly or would re-score every email at once.
++ */
++export function fusionMaterialFingerprint(s: Pick<GatheredSignals, 'openItems' | 'deadlines' | 'instructionMatches' | 'delegationOwners' | 'importanceStars' | 'sentiment' | 'crm'>): string {
++  const senderTitles = new Set(s.openItems.map((o) => o.title));
++  const material = {
++    items: s.openItems.map((o) => `${o.id}|${o.status}|${o.priority}|${o.dueDate ?? ''}`).sort(),
++    deadlines: s.deadlines
++      .filter((d) => d.source !== 'open_item' || senderTitles.has(d.what))
++      .map((d) => `${d.what}|${d.hoursUntil <= 24 ? 'soon' : 'later'}`).sort(),
++    instructions: s.instructionMatches.map((i) => i.id).sort(),
++    owners: s.delegationOwners.map((o) => `${o.area}|${o.ownerName}`).sort(),
++    stars: s.importanceStars,
++    tone: s.sentiment.tone ?? null,
++    crm: s.crm.map((c) => c.stage).sort(),
++  };
++  return crypto.createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
++}
++
+ /** Fire-and-forget: a real verdict (never the deterministic fallback) is kept for the event. */
+-function rememberFusionForEvent(eventKey: string | null, clientNumber: string, result: unknown): void {
++function rememberFusionForEvent(eventKey: string | null, clientNumber: string, result: unknown, fp: string): void {
+   if (!eventKey) return;
++  const held = { ...(result as object), __fp: fp };
+   void prisma.criticalityFusionCache.upsert({
+     where: { cacheKey: eventKey },
+-    create: { cacheKey: eventKey, clientNumber, promptVersion: FUSION_PROMPT_VERSION, result: result as any },
+-    update: { result: result as any, promptVersion: FUSION_PROMPT_VERSION, createdAt: new Date() },
++    create: { cacheKey: eventKey, clientNumber, promptVersion: FUSION_PROMPT_VERSION, result: held as any },
++    update: { result: held as any, promptVersion: FUSION_PROMPT_VERSION, createdAt: new Date() },
+   }).catch((err: any) => log.warn('fusion event cache write failed', { error: err?.message }));
+ }
+ 
+@@ -627,7 +654,8 @@ async function fuseAndScore(
+   // OPT-006: the per-event ceiling comes first. Within its TTL an event is answered from
+   // its last real verdict, whatever its prompt looks like now.
+   const eventKey = input.feedEventId ? fusionEventKey(input.clientNumber, input.feedEventId) : null;
+-  const held = await fusionHeldForEvent(eventKey, input.receivedAt);
++  const materialFp = fusionMaterialFingerprint(signals);
++  const held = await fusionHeldForEvent(eventKey, input.receivedAt, materialFp);
+   if (held) return held;
+ 
+   // Cache read. Never allowed to break scoring: any failure here falls through
+@@ -649,7 +677,7 @@ async function fuseAndScore(
+         data: { hits: { increment: 1 }, lastHitAt: new Date() },
+       }).catch(() => {});
+       const hit = cached.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
+-      rememberFusionForEvent(eventKey, input.clientNumber, hit);
++      rememberFusionForEvent(eventKey, input.clientNumber, hit, materialFp);
+       return hit;
+     }
+   } catch (err: any) {
+@@ -702,7 +730,7 @@ async function fuseAndScore(
+         createdAt: new Date(),
+       },
+     }).catch((err: any) => log.warn('fusion cache write failed', { error: err?.message }));
+-    rememberFusionForEvent(eventKey, input.clientNumber, result);
++    rememberFusionForEvent(eventKey, input.clientNumber, result, materialFp);
+ 
+     return result;
+   } catch (err: any) {
+@@ -734,7 +762,7 @@ async function fuseAndScore(
+ }
+ 
+ /** OPT-006: the event's last real verdict while its TTL holds, else null. Never throws. */
+-async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date): Promise<Awaited<ReturnType<typeof fuseAndScore>> | null> {
++async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date, materialFp: string): Promise<Awaited<ReturnType<typeof fuseAndScore>> | null> {
+   if (!eventKey) return null;
+   try {
+     const ev = await prisma.criticalityFusionCache.findUnique({
+@@ -743,11 +771,15 @@ async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date): Pr
+     });
+     if (!ev || ev.promptVersion !== FUSION_PROMPT_VERSION) return null;
+     if (Date.now() - ev.createdAt.getTime() >= fusionEventTtlMs(receivedAt)) return null;
++    // OPT-012: something that matters changed, so judge it again. A hold from before fingerprints
++    // existed has nothing to compare: it is kept, and stamped with today's signals.
++    const { __fp, ...verdict } = ev.result as any;
++    if (__fp && __fp !== materialFp) return null;
+     void prisma.criticalityFusionCache.update({
+       where: { cacheKey: eventKey },
+-      data: { hits: { increment: 1 }, lastHitAt: new Date() },
++      data: { hits: { increment: 1 }, lastHitAt: new Date(), ...(__fp ? {} : { result: { ...verdict, __fp: materialFp } }) },
+     }).catch(() => {});
+-    return ev.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
++    return verdict as Awaited<ReturnType<typeof fuseAndScore>>;
+   } catch (err: any) {
+     log.warn('fusion event cache read failed — falling through', { error: err?.message });
+     return null;
+diff --git a/server/src/services/triage/triageReasoner.ts b/server/src/services/triage/triageReasoner.ts
+index 22237a9..c7493da 100644
+--- a/server/src/services/triage/triageReasoner.ts
++++ b/server/src/services/triage/triageReasoner.ts
+@@ -141,10 +141,28 @@ const TRIAGE_CACHE_TTL_DAYS = 14;
+  * attention window. A user's action still re-reasons at once: `invalidateReasonerCache(dedupHash)`
+  * deletes by dedup hash, and the event entry carries the same hash. A new reply in a thread is
+  * its own feed event, so it is reasoned on its own.
++ *
++ * OPT-012, owner 2026-11-04: "reducing cost doesn't mean to compromise the quality". The hold stores
++ * a fingerprint of what should move this decision (`triageMaterialFingerprint`); when that changes,
++ * the email is reasoned again at once.
+  */
+ export const TRIAGE_EVENT_TTL_MS = 7 * 86_400_000;
+ const TRIAGE_EVENT_KEY_VERSION = 'ev1';
+ 
++/** OPT-012 — the sender's open items, thread length, standing rule, usual delegate, account links, meeting state. */
++export function triageMaterialFingerprint(ctx: Pick<ReasonerContext, 'sender' | 'org' | 'meeting' | 'activeRule'>): string {
++  const material = {
++    items: ctx.sender.relatedOpenItems.map((o) => `${o.title}|${o.status}`).sort(),
++    thread: ctx.sender.threadContext.length,
++    delegate: ctx.sender.dominantDelegatee ?? null,
++    rule: ctx.activeRule?.action ?? null,
++    account: ctx.org.senderOnActiveAccount,
++    project: ctx.org.senderOnActiveProject,
++    meeting: ctx.meeting ? { start: ctx.meeting.start ?? null, conflicts: !!ctx.meeting.hasConflicts } : null,
++  };
++  return crypto.createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
++}
++
+ export function triageEventKey(ctx: Pick<ReasonerContext, 'clientNumber' | 'userId' | 'feedEventId'>): string | null {
+   if (!ctx.feedEventId) return null;
+   return crypto.createHash('sha256')
+@@ -212,12 +230,13 @@ export async function reasonAboutEvent(
+   const eventKey = triageEventKey(ctx);
+ 
+   // OPT-010: the per-email hold comes first, whatever the prompt looks like now.
+-  const held = await heldDecisionForEvent(eventKey);
++  const materialFp = triageMaterialFingerprint(ctx);
++  const held = await heldDecisionForEvent(eventKey, materialFp);
+   if (held) return held;
+ 
+   const l1 = cache.get(cacheKey);
+   if (l1 && Date.now() - l1.fetchedAt < L1_TTL_MS) {
+-    if (eventKey) void writeCache(eventKey, dedupHash, ctx, l1.decision);
++    if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...l1.decision, __fp: materialFp } as ReasonerDecision);
+     return l1.decision;
+   }
+ 
+@@ -242,7 +261,7 @@ export async function reasonAboutEvent(
+         where: { cacheKey },
+         data: { hits: { increment: 1 }, lastHitAt: new Date() },
+       }).catch(() => {});
+-      if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
++      if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision);
+       return decision;
+     }
+   } catch (err: any) {
+@@ -253,7 +272,7 @@ export async function reasonAboutEvent(
+     const decision = await llmReason(ctx, userPrompt);
+     rememberL1(cacheKey, decision);
+     void writeCache(cacheKey, dedupHash, ctx, decision);
+-    if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
++    if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision);
+     return decision;
+   } catch (err: any) {
+     // DEF-334 (2): the second of the two measured flood sites (~6,900 lines in
+@@ -274,7 +293,7 @@ export async function reasonAboutEvent(
+ }
+ 
+ /** OPT-010: this email's held decision while its TTL holds, else null. Never throws. */
+-async function heldDecisionForEvent(eventKey: string | null): Promise<ReasonerDecision | null> {
++async function heldDecisionForEvent(eventKey: string | null, materialFp: string): Promise<ReasonerDecision | null> {
+   if (!eventKey) return null;
+   try {
+     const prisma = (await import('../../db/prisma')).default;
+@@ -283,7 +302,14 @@ async function heldDecisionForEvent(eventKey: string | null): Promise<ReasonerDe
+       select: { decision: true, createdAt: true, promptVersion: true },
+     });
+     if (held && held.promptVersion === TRIAGE_PROMPT_VERSION && Date.now() - held.createdAt.getTime() < TRIAGE_EVENT_TTL_MS) {
+-      return held.decision as unknown as ReasonerDecision;
++      // OPT-012: something that matters changed, so reason again. A hold from before fingerprints
++      // existed has nothing to compare: it is kept, and stamped with today's signals.
++      const { __fp, ...decision } = held.decision as any;
++      if (__fp && __fp !== materialFp) return null;
++      if (!__fp) {
++        void prisma.triageDecisionCache.update({ where: { cacheKey: eventKey }, data: { decision: { ...decision, __fp: materialFp } } }).catch(() => {});
++      }
++      return decision as ReasonerDecision;
+     }
+   } catch (err: any) {
+     log.warn('triage event hold read failed — falling through', { error: err?.message });
+diff --git a/server/tests/opt006FusionEventCeiling.test.ts b/server/tests/opt006FusionEventCeiling.test.ts
+index 90a6697..3c9555f 100644
+--- a/server/tests/opt006FusionEventCeiling.test.ts
++++ b/server/tests/opt006FusionEventCeiling.test.ts
+@@ -18,7 +18,7 @@
+ import { describe, it, expect } from 'vitest';
+ import { readFileSync } from 'fs';
+ import path from 'path';
+-import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs } from '../src/services/triage/criticalityEngineService';
++import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs, fusionMaterialFingerprint } from '../src/services/triage/criticalityEngineService';
+ 
+ const now = Date.parse('2026-11-04T12:00:00Z');
+ 
+@@ -49,15 +49,15 @@ describe('OPT-006 the order of operations in fuseAndScore', () => {
+   const body = src.slice(src.indexOf('async function fuseAndScore('));
+   it('event lookup → prompt cache → LLM; remembered on live and on prompt hit; never the fallback', () => {
+     const at = (s: string) => { const i = body.indexOf(s); expect(i, s).toBeGreaterThan(-1); return i; };
+-    const eventRead = at("await fusionHeldForEvent(eventKey, input.receivedAt)");
++    const eventRead = at("await fusionHeldForEvent(eventKey, input.receivedAt, materialFp)");
+     const promptRead = at("where: { cacheKey },");
+     const llm = at("callLLM(FUSION_PROMPT, userMsg");
+     const fallback = at("fallbackLogGate('fuseAndScore')");
+     expect(eventRead).toBeLessThan(promptRead);
+     expect(promptRead).toBeLessThan(llm);
+     // a prompt-cache hit and a live verdict are both remembered for the event…
+-    expect(body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, hit)')).toBeLessThan(llm);
+-    const liveRemember = body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, result)');
++    expect(body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, hit, materialFp)')).toBeLessThan(llm);
++    const liveRemember = body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, result, materialFp)');
+     expect(liveRemember).toBeGreaterThan(llm);
+     expect(liveRemember).toBeLessThan(fallback);
+     // …and nothing after the fallback gate writes an event entry.
+@@ -68,6 +68,7 @@ describe('OPT-006 the order of operations in fuseAndScore', () => {
+     expect(held).toContain('where: { cacheKey: eventKey }');
+     expect(held).toContain('ev.promptVersion !== FUSION_PROMPT_VERSION');
+     expect(held).toContain('fusionEventTtlMs(receivedAt)');
++    expect(held).toContain('if (__fp && __fp !== materialFp) return null;');
+   });
+   it('the attention-list path passes the feed event id', () => {
+     const sug = readFileSync(path.join(__dirname, '../src/services/triage/triageSuggester.ts'), 'utf8');
+@@ -75,3 +76,32 @@ describe('OPT-006 the order of operations in fuseAndScore', () => {
+     expect(call.slice(0, 1200)).toContain('feedEventId: row.id,');
+   });
+ });
++
++describe('OPT-012 quality: a change that matters re-scores at once', () => {
++  const base: any = {
++    openItems: [{ id: 'i1', title: 'Contract', status: 'NEW', priority: 'high', age_days: 3, dueDate: null }],
++    deadlines: [{ source: 'open_item', what: 'Contract', at: 'x', hoursUntil: 40 }],
++    instructionMatches: [], delegationOwners: [], importanceStars: 0, crm: [],
++    sentiment: { score: 0, urgency: 0, tone: 'neutral', rationale: 'r' },
++    knowledge: [{ title: 't', pageType: 'topic', snippet: 'a' }],
++    senderTempo: { medianReplyHours: 5, currentSilenceHours: 10, typicalWindowHours: 9 },
++  };
++  const fp = (over: any) => fusionMaterialFingerprint({ ...base, ...over });
++  it('moves on what matters', () => {
++    const a = fp({});
++    expect(fp({ openItems: [{ ...base.openItems[0], status: 'IN_PROGRESS' }] })).not.toBe(a);
++    expect(fp({ openItems: [...base.openItems, { id: 'i2', title: 'New', status: 'NEW', priority: 'low', age_days: 0, dueDate: null }] })).not.toBe(a);
++    expect(fp({ importanceStars: 4 })).not.toBe(a);
++    expect(fp({ instructionMatches: [{ id: 'r1', kind: 'k', title: 't', originalText: 'o' }] })).not.toBe(a);
++    expect(fp({ deadlines: [{ ...base.deadlines[0], hoursUntil: 20 }] })).not.toBe(a); // came within a day
++    expect(fp({ sentiment: { ...base.sentiment, tone: 'hostile' } })).not.toBe(a);
++  });
++  it('does not move on the clock, on snippets, or on other senders\' deadlines', () => {
++    const a = fp({});
++    expect(fp({ openItems: [{ ...base.openItems[0], age_days: 9 }] })).toBe(a);
++    expect(fp({ deadlines: [{ ...base.deadlines[0], hoursUntil: 30 }] })).toBe(a);
++    expect(fp({ knowledge: [{ title: 'other', pageType: 'topic', snippet: 'b' }] })).toBe(a);
++    expect(fp({ senderTempo: { medianReplyHours: 5, currentSilenceHours: 99, typicalWindowHours: 9 } })).toBe(a);
++    expect(fp({ deadlines: [...base.deadlines, { source: 'open_item', what: 'Someone else item', at: 'x', hoursUntil: 2 }] })).toBe(a);
++  });
++});
+diff --git a/server/tests/opt008to010CostCuts.test.ts b/server/tests/opt008to010CostCuts.test.ts
+index 717e817..5fa621b 100644
+--- a/server/tests/opt008to010CostCuts.test.ts
++++ b/server/tests/opt008to010CostCuts.test.ts
+@@ -62,7 +62,7 @@ vi.mock('../src/db/prisma', () => ({ default: { triageDecisionCache: row } }));
+ const callLLM = vi.fn();
+ vi.mock('../src/services/llmRouter', () => ({ callLLM: (...a: any[]) => callLLM(...a) }));
+ 
+-import { reasonAboutEvent, triageEventKey, TRIAGE_EVENT_TTL_MS, __triageCacheInternals } from '../src/services/triage/triageReasoner';
++import { reasonAboutEvent, triageEventKey, triageMaterialFingerprint, TRIAGE_EVENT_TTL_MS, __triageCacheInternals } from '../src/services/triage/triageReasoner';
+ 
+ const decision = { archetype: 'reply_needed', rationale: 'r', suggestedAction: 'draft_reply', confidence: 0.9, actions: [], critical: false, noise: false, meetingIntent: false };
+ const ctx = (over: any = {}): any => ({
+@@ -109,10 +109,40 @@ describe('OPT-010 one reasoning per email', () => {
+     expect((await reasonAboutEvent('dh', ctx())).rationale).toBe('r');
+   });
+ 
++  it('OPT-012: when what matters changes, the hold is not served; the verdict never carries its fingerprint', async () => {
++    const v = __triageCacheInternals.TRIAGE_PROMPT_VERSION;
++    row.findUnique
++      .mockResolvedValueOnce({ decision: { ...decision, rationale: 'before the change', __fp: 'an-older-fingerprint' }, createdAt: new Date(), promptVersion: v })
++      .mockResolvedValueOnce({ decision, createdAt: new Date(), promptVersion: v });
++    const out = await reasonAboutEvent('dh', ctx());
++    expect(out.rationale).toBe('r');
++    await new Promise((r) => setTimeout(r, 5));
++    const held = row.upsert.mock.calls.find((c) => c[0].where.cacheKey === triageEventKey(ctx()))![0];
++    expect(held.create.decision.__fp).toBe(triageMaterialFingerprint(ctx()));
++    // An unchanged fingerprint is served, without the internal field.
++    row.findUnique.mockReset();
++    row.findUnique.mockResolvedValueOnce({ decision: { ...decision, __fp: triageMaterialFingerprint(ctx()) }, createdAt: new Date(), promptVersion: v });
++    expect(await reasonAboutEvent('dh', ctx())).toEqual(decision);
++  });
++
++  it('OPT-012: a hold from before fingerprints is kept and stamped, with no model call', async () => {
++    row.findUnique.mockResolvedValueOnce({ decision, createdAt: new Date(), promptVersion: __triageCacheInternals.TRIAGE_PROMPT_VERSION });
++    expect(await reasonAboutEvent('dh', ctx())).toEqual(decision);
++    expect(callLLM).not.toHaveBeenCalled();
++    expect(row.update.mock.calls[0][0].data.decision.__fp).toBe(triageMaterialFingerprint(ctx()));
++  });
++
++  it('OPT-012: the fingerprint moves on a new related item or thread message, not on the subject line', () => {
++    const a = triageMaterialFingerprint(ctx());
++    expect(triageMaterialFingerprint(ctx({ sender: { ...ctx().sender, relatedOpenItems: [{ title: 'x', status: 'NEW' }] } }))).not.toBe(a);
++    expect(triageMaterialFingerprint(ctx({ sender: { ...ctx().sender, threadContext: [{ from: 'them', text: 'hi' }] } }))).not.toBe(a);
++    expect(triageMaterialFingerprint(ctx())).toBe(a);
++  });
++
+   it('a live answer is held too', () => {
+     const src = read('services/triage/triageReasoner.ts');
+     const live = src.slice(src.indexOf('const decision = await llmReason(ctx, userPrompt)'), src.indexOf('return decision;', src.indexOf('const decision = await llmReason(ctx, userPrompt)')));
+-    expect(live).toContain('if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision)');
++    expect(live).toContain('if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision)');
+   });
+ 
+   it('the key is per tenant, per user and per event; an event-less call has no hold', () => {

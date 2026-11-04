@@ -1,5 +1,7 @@
 # Cost reduction, November 2026
 
+**Process (founder, 2026-11-04; charter section 8, point 6): Suzi and Nexeo agree the cost plan between themselves, each keeping its own part optimal (best quality for the least money; never lower quality to save money). When both have said AGREE, the founder gets ONE joint summary for approval. No cost work starts before his approval.**
+
 **Owner's target (2026-11-04): Nexeo under $1 a day for one user.**
 Baseline: GCP project `nexeo-tmc`, Vertex AI, 28 Oct–4 Nov 2026 (8 days), **$43.30 = $5.41/day**, no credits.
 
@@ -61,7 +63,7 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 **Owner's rule, 2026-11-04: "reducing cost doesn't mean to compromise the quality".** A saving ships only if a test shows it is no worse than today.
 
-Quality risk already live, to review: OPT-006 holds a score's model part for 24 h (7 days once the email is older than 3 days), and OPT-010 holds a triage decision for 7 days (refreshed when the user acts). Both can lag new information, such as a new deadline or open item from that sender. Proposed fix, not built: refresh early when a signal actually changes, not by the clock.
+Quality risk already live, to review: OPT-006 holds a score's model part for 24 h (7 days once the email is older than 3 days), and OPT-010 holds a triage decision for 7 days (refreshed when the user acts). Both can lag new information, such as a new deadline or open item from that sender. Proposed fix, OPT-012: drop a hold as soon as a signal that matters changes. Built and tested, NOT deployed: parked at `docs/parked/opt-012-refresh-on-change.patch` until the founder approves the joint plan.
 
 ## 3. Measurements
 

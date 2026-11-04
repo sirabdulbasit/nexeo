@@ -6,6 +6,8 @@ Item 18 as agreed: the owner creates a Mac-only service account (e.g. suzi-mac@n
 
 ## PROPOSED change, not agreed: cost cap (owner, 2026-11-04)
 
+**Process, charter section 8 point 6 (founder, 11-04): Suzi and Nexeo agree this plan between themselves, each keeping its own part optimal; when both say AGREE, the founder gets ONE joint summary for approval. No cost work starts before his approval.** Nexeo's part also carries: the live holds from OPT-006 and OPT-010 (they can lag new information) and OPT-012, the refresh-on-change fix, parked undeployed at `docs/parked/opt-012-refresh-on-change.patch` (tests pass).
+
 Owner: Nexeo and Suzi together must not exceed **$20 per month per user** (about $0.66/day), replacing the agreed $0.90/day (item 16). Nothing is built until both sides reply AGREE.
 
 Proposed split: Nexeo $7.50 ($0.25/day), Suzi's server $7.50 ($0.25/day), Mac app $5 ($0.16/day). Today's estimate: Nexeo ~$0.50, Suzi's server ~$0.40, Mac ~$0.25 = ~$1.15/day, ~$35/month. Baseline usage: ~30 emails and ~21 Suzi turns a day.
