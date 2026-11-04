@@ -16,6 +16,12 @@ Proposed split: Nexeo $7.50 ($0.25/day), Suzi's server $7.50 ($0.25/day), Mac ap
 
 Open: whether voice (Cloud TTS) counts; what happens at the cap; the usage the cap is designed for (~$0.02 per Pro turn means 100 turns a day alone would be ~$60/month on Pro).
 
+**Round 1 on cost, 2026-11-04.** Suzi: AGREE to the process. Mac app ~$0.22/day today (Chirp 3 HD voice ~$0.21), target ≤ ~$0.18/day after S1 local answers, S2 audio cache, S3 long lists on the board, S4 stop synthesis on interrupt. Suzi proposes the re-judge fix (OPT-012) goes FIRST in the summary, as "restores quality"; Nexeo agrees. Suzi proposes reaching $20 at full quality before relying on Flash.
+
+Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calendar tools; about 18 mention those topics (a rough word match); 115 used no tool; 47 used laptop tools; 12 were started by the app. So S1 would have covered about 10% of past turns, though that mix was early testing. No real Mac turn has been logged in `llm_usage` yet.
+
+**Rule (owner, 11-04): every Nexeo-Suzi message carries its date and time (PKT).**
+
 ## Nexeo-side work now agreed (not started)
 
 1. Small fixes: pass the device id from login into `act`; extend the strict body check to allow `ts`; add the model name to `llm_usage`; remove the fixed Karachi zone on Suzi's server; record compose spend in the ledger.
