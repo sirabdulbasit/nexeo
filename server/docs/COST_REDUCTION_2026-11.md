@@ -59,6 +59,10 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 **Added 11-04: the Mac app also bills to project nexeo-tmc** (~$0.25/day beyond the free tier, Suzi's figure), so the honest total is **~$1.15/day**, not ~$0.90. The $0.94 of image generation was the 3dAI character builder. Further cuts wait on the Nexeo–Suzi agreement.
 
+**Owner's rule, 2026-11-04: "reducing cost doesn't mean to compromise the quality".** A saving ships only if a test shows it is no worse than today.
+
+Quality risk already live, to review: OPT-006 holds a score's model part for 24 h (7 days once the email is older than 3 days), and OPT-010 holds a triage decision for 7 days (refreshed when the user acts). Both can lag new information, such as a new deadline or open item from that sender. Proposed fix, not built: refresh early when a signal actually changes, not by the clock.
+
 ## 3. Measurements
 
 Written per deploy in `brain_evaluation_chart.md` (D-153 onward). What to compare, per day, from `llm_spend_unified` and from the GCP bill by label:

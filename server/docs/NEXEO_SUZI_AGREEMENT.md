@@ -10,6 +10,8 @@ Owner: Nexeo and Suzi together must not exceed **$20 per month per user** (about
 
 Proposed split: Nexeo $7.50 ($0.25/day), Suzi's server $7.50 ($0.25/day), Mac app $5 ($0.16/day). Today's estimate: Nexeo ~$0.50, Suzi's server ~$0.40, Mac ~$0.25 = ~$1.15/day, ~$35/month. Baseline usage: ~30 emails and ~21 Suzi turns a day.
 
+**Owner's rule, 11-04: "reducing cost doesn't mean to compromise the quality".** Quality comes first: a saving ships only if a test shows it is no worse than today. Removing waste needs no such trade. A cheaper model or voice passes only if it matches Pro at least as well as Pro matches itself on real inputs, and the founder hears no difference in the voice. If the tests fail, the cheaper option stays off, and the founder is told the real cost rather than given a lower quality.
+
 Open: whether voice (Cloud TTS) counts; what happens at the cap; the usage the cap is designed for (~$0.02 per Pro turn means 100 turns a day alone would be ~$60/month on Pro).
 
 ## Nexeo-side work now agreed (not started)
