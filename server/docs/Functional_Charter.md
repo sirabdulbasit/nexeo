@@ -35,7 +35,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 | 16 | Privacy | Per-user access; only the user's data in the pack | — | Idle speech never leaves the computer; only voice-verified requests go out for transcription; the camera stays off unless the user says yes |
 | 17 | Language and time | Each user's zone, sent in the pack's `tz` | Replies in `reply_language`, times in the user's zone (its fixed Karachi zone gets replaced) | Preferred language; a one-reply switch; Urdu written in Urdu script |
 | 18 | Audit | Every write: who, what, when, and the device (from the verified login) | Device id from the login, never from the body | Logs every menu action and tool step locally |
-| 19 | Inbound WhatsApp | **On hold by the founder.** Nexeo's Brain keeps answering until he lifts it. | — | — |
+| 19 | WhatsApp (founder, 4 Nov 2026) | WhatsApp connects the user with Nexeo or Suzi only. The user can ask anything; Nexeo and Suzi can inform or update them. Nexeo does not read messages from others and does not message others on WhatsApp. Nexeo's Brain keeps answering the user until the founder moves that. | — | — |
 | 20 | Consumption record | Keeps the one record (see the Costing Charter, once agreed) | Reports each model round | Reports a daily usage batch |
 
 ## 3. Rules both sides follow
