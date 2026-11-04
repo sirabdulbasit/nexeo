@@ -1,8 +1,24 @@
-# Nexeo ⇄ Suzi agreement (DRAFT, nothing here is agreed yet)
+# Nexeo ⇄ Suzi agreement
+
+**AGREED by both sides, 2026-11-04**, after three rounds, apart from items 1 (owner of Suzi's server) and 19 (test account), which wait on the owner. The agreed text is `protocol/SUZI-NEXEO-CHARTER.md` in the Suzi repo; this file holds the rounds and details. A contract change still goes: proposal, both agree, then build (owner, 11-04).
+
+Item 18 as agreed: the owner creates a Mac-only service account (e.g. suzi-mac@nexeo-tmc: Vertex AI model calling and Cloud TTS only) with one key per Mac. Order: new account and keys, move the Macs, confirm who else uses vertex-sa (possibly Suzi's server), and only then rotate the vertex-sa key.
+
+## Nexeo-side work now agreed (not started)
+
+1. Small fixes: pass the device id from login into `act`; extend the strict body check to allow `ts`; add the model name to `llm_usage`; remove the fixed Karachi zone on Suzi's server; record compose spend in the ledger.
+2. `presence` frame, announced in `welcome.features`; Nexeo uses no other channel while Suzi is alive; critical items as `assistant_start`; Nexeo's own morning brief stops once the handover has worked.
+3. Knowledge route, `present_blocks` with data tools (tasks, meetings, emails), `primary` in welcome.
+4. Phase 2: `rules` + `rules_md`, people, glossary, wiki slices, changes feed, `sync` hint, `rule.propose/apply/remove` with `rules_version`, `task.create/assign/reassign/priority`, triage list.
+5. Phase 3: signing (`/v1/device-key`, RFC 8785, Suzi's server verifies), then email ops, journal, safety net. Sends stay off until signing exists and the Mac's Accessibility check for clicks is built.
+
+From the Mac: the first real `/v1/act` status code; the Accessibility check.
+
+## Earlier rounds (now settled above)
 
 Owner, 2026-11-04: *"before fix or change first agree things between Nexeo and Suzi"*.
 
-**Status, 2026-11-04.** Suzi's team sent a charter ("Suzi is the face of Nexeo; Nexeo is the record": 18 responsibilities, rules R1–R8, a status list and the contract) and said AGREE as written. The Nexeo session replied **not AGREE yet**, with 19 numbered items; everything else in the charter is agreed. The format: each side answers item by item until both say AGREE. The charter's text is held by Suzi's team and in the session transcript. Waiting on Suzi's answers and on the owner for items 15 and 16.
+**Round 1, 2026-11-04.** Suzi's team sent a charter ("Suzi is the face of Nexeo; Nexeo is the record": 18 responsibilities, rules R1–R8, a status list and the contract) and said AGREE as written. The Nexeo session replied **not AGREE yet**, with 19 numbered items; everything else in the charter is agreed. The format: each side answers item by item until both say AGREE. The charter's text is held by Suzi's team and in the session transcript. Items 15 and 16 were then agreed.
 
 The 19 items:
 1. "Nexeo" covers two systems: name Mac app, Suzi's server, Nexeo; who owns Suzi's server.
