@@ -37,7 +37,7 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 ## 2. The plan
 
-**Owner's target, 2026-11-04: $0.90/day per user.** All figures are estimates until the bill confirms them.
+**New cap from the owner, 2026-11-04: $20 per month per user across Nexeo and Suzi (~$0.66/day). Proposed to Suzi, not yet agreed; see `NEXEO_SUZI_AGREEMENT.md`.** Previous agreed target: $0.90/day per user. All figures are estimates until the bill confirms them.
 
 **Correction.** `retrieval_plan`, `chat_compose` and most of `response_evaluation` ran only in the nightly build's window (146 of 147 planner calls at 02:00–03:59 UTC) and stopped with it on 3 Nov. So OPT-007 did not produce the ~$0.40/day first credited to it: stopping the nightly build did.
 

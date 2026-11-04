@@ -4,6 +4,14 @@
 
 Item 18 as agreed: the owner creates a Mac-only service account (e.g. suzi-mac@nexeo-tmc: Vertex AI model calling and Cloud TTS only) with one key per Mac. Order: new account and keys, move the Macs, confirm who else uses vertex-sa (possibly Suzi's server), and only then rotate the vertex-sa key.
 
+## PROPOSED change, not agreed: cost cap (owner, 2026-11-04)
+
+Owner: Nexeo and Suzi together must not exceed **$20 per month per user** (about $0.66/day), replacing the agreed $0.90/day (item 16). Nothing is built until both sides reply AGREE.
+
+Proposed split: Nexeo $7.50 ($0.25/day), Suzi's server $7.50 ($0.25/day), Mac app $5 ($0.16/day). Today's estimate: Nexeo ~$0.50, Suzi's server ~$0.40, Mac ~$0.25 = ~$1.15/day, ~$35/month. Baseline usage: ~30 emails and ~21 Suzi turns a day.
+
+Open: whether voice (Cloud TTS) counts; what happens at the cap; the usage the cap is designed for (~$0.02 per Pro turn means 100 turns a day alone would be ~$60/month on Pro).
+
 ## Nexeo-side work now agreed (not started)
 
 1. Small fixes: pass the device id from login into `act`; extend the strict body check to allow `ts`; add the model name to `llm_usage`; remove the fixed Karachi zone on Suzi's server; record compose spend in the ledger.
