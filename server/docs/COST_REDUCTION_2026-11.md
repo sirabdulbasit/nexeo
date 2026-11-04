@@ -39,9 +39,9 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 | # | Change | Est. saving/day | Status |
 |---|---|---|---|
-| 1 | Prices as billed; billing labels `app` / `tenant` / `feature` on every Vertex call (OPT-005) | $0, gives real measurements | built 11-04 |
-| 2 | `criticality_fuse`: a per-event ceiling, 6 h while recent, 72 h after 3 days (OPT-006) | ~$1.50 | built 11-04 |
-| 3 | `retrieval_plan`: the planner index lists only what the planner uses (OPT-007) | ~$0.40 | built 11-04 |
+| 1 | Prices as billed; billing labels `app` / `tenant` / `feature` on every Vertex call (OPT-005) | $0, gives real measurements | LIVE 11-04 (D-153) |
+| 2 | `criticality_fuse`: a per-event ceiling, 6 h while recent, 72 h after 3 days (OPT-006) | ~$1.50 | LIVE 11-04 (D-153) |
+| 3 | `retrieval_plan`: the planner index lists only what the planner uses (OPT-007) | ~$0.40 | LIVE 11-04 (D-153) |
 | 4 | Triage on Flash, after a quality test on real emails | ~$0.45 | not started |
 | 5 | Other small Pro jobs to Flash | ~$0.35 | not started |
 | 6 | Suzi's server: caching, long-context fix, Flash for routine turns | ~$1.30 | waits on the owner's decision 2 (the file holds another session's uncommitted work) |
@@ -54,6 +54,6 @@ Then: a daily spend ceiling for background jobs (not for replies to the user).
 
 Written per deploy in `brain_evaluation_chart.md` (D-153 onward). What to compare, per day, from `llm_spend_unified` and from the GCP bill by label:
 
-- `criticality_fuse` calls/day: 2,139 before.
-- `retrieval_plan` input tokens per call: 80,270 before.
+- `criticality_fuse` calls/day: 2,139 before. After D-153 (14:01 PKT): first pass 118 calls, then 1 call in the next 10 minutes; the 6-h steady state is still to be read.
+- `retrieval_plan` input tokens per call: 80,270 before; the planner prompt is now 41,634 chars (~10k tokens).
 - Cost per Suzi conversation and the input:output ratio: measurable once the labels show in the bill (`app=nexeo` vs Suzi's own label).
