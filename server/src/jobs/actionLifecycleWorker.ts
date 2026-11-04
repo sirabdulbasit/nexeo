@@ -80,16 +80,19 @@ function ownerQuestion(item: any, plan: LifecyclePlan): string {
   return `The deadline for "${item.title}" has arrived. Is it completed? If not, tell me the delay reason and the new committed deadline.`;
 }
 
-function escalationQuestion(item: any, state: ActionLifecycleState, reason: string): string {
-  const who = item.delegateeName ?? item.delegateeEmail ?? 'the responsible person';
+export function escalationQuestion(item: any, state: ActionLifecycleState, reason: string): string {
+  // Never a placeholder standing in for a name: with no owner on record, say so.
+  const who = item.delegateeName || item.delegateeEmail || null;
   const attempts = state.unansweredAttempts;
   const commitments = state.commitmentHistory.length;
   return [
     `Intervention needed on "${item.title}".`,
-    `Owner: ${who}. Follow-up attempts without a usable response: ${attempts}. Commitments recorded: ${commitments}.`,
+    `${who ? `Owner: ${who}.` : 'No owner is recorded for this item.'} Follow-up attempts without a usable response: ${attempts}. Commitments recorded: ${commitments}.`,
     state.currentDelayReason ? `Latest delay reason: ${state.currentDelayReason}.` : null,
     `Why I'm involving you: ${reason}.`,
-    `Recommended next step: decide whether to remove the blocker, contact ${who} directly, reassign the work, or revise the deadline.`,
+    who
+      ? `Recommended next step: decide whether to remove the blocker, contact ${who} directly, reassign the work, or revise the deadline.`
+      : 'Recommended next step: decide who owns it, or close it or revise the deadline.',
   ].filter(Boolean).join(' ');
 }
 
