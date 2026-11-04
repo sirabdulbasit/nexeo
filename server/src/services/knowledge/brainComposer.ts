@@ -5961,7 +5961,7 @@ function rankChunks(
  *  - Return up to 12 pages for the composer. If more candidates existed,
  *    prepend a meta-note so the LLM can tell the user more is available.
  */
-async function rankAndTrim(
+export async function rankAndTrim(
   hits: Array<{ id: string; title: string; pageType: string; bodyMarkdown: string | null; score: number; userId: number }>,
   query: string,
   clientNumber: string,
@@ -6310,7 +6310,7 @@ function extractPersonNamesFromQuery(query: string): string[] {
   return Array.from(out).slice(0, 3);
 }
 
-function extractDistinctiveTokens(query: string): string[] {
+export function extractDistinctiveTokens(query: string): string[] {
   const tokens = new Set<string>();
   // All-caps words
   const allCaps = query.match(/\b[A-Z]{3,}\b/g) ?? [];

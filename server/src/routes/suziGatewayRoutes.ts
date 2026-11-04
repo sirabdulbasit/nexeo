@@ -27,6 +27,7 @@ import { act } from '../services/suzi/suziAct';
 import { resolveUserTimezone } from '../services/userTimezoneService';
 import { recordDesktopBatch, recordServerRound } from '../services/consumption/consumptionService';
 import { markBriefHandover, PRESENCE_STATES, pumpHeld, recordPresence } from '../services/suzi/suziReach';
+import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -116,6 +117,22 @@ router.post('/act', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('suzi act failed', { userId: who.userId, op: b.op, error: err?.message });
     res.status(500).json({ ok: false, error: 'act_failed' });
+  }
+});
+
+/** Functional Charter, contract "Knowledge": wiki excerpts as facts. Suzi's model writes the words. */
+router.get('/knowledge', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (!q) { res.status(400).json({ error: 'q is required' }); return; }
+  try {
+    const results = await searchKnowledge(who.tenantId, who.userId, q);
+    log.info('knowledge served', { userId: who.userId, clientNumber: who.tenantId, results: results.length });
+    res.json(results);
+  } catch (err: any) {
+    log.warn('knowledge failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'knowledge could not be searched' });
   }
 });
 

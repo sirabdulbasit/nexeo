@@ -58,7 +58,8 @@ export default function WikiPage() {
   const [scopeCounts, setScopeCounts] = useState({ user: 0, tenant: 0 });
   const [loading, setLoading] = useState(false);
   const [searchMode, setSearchMode] = useState('browse');
-  const [detailId, setDetailId] = useState(null);
+  // Suzi cites a page by link (Functional Charter, contract "Knowledge"): /?tab=wiki&page=<id>
+  const [detailId, setDetailId] = useState(() => new URLSearchParams(window.location.search).get('page'));
   // Archive/Delete confirmation state (inline panel per no-browser-dialogs rule).
   const [archiveFlow, setArchiveFlow] = useState(null); // { page }
   const [deleteFlow, setDeleteFlow] = useState(null);   // { page, typed }
