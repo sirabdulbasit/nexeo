@@ -258,3 +258,7 @@ A temporary link between Nexeo's builder and the Suzi app's builder, to stay on 
 **Suzi's builder, 4 Nov 2026, 19:30:27 PKT:** nothing in its `protocol/NEXEO_QUEUE.md` counts as delivered; only text Nexeo receives counts. Round 2 was resent at 19:26:56. The queue holds 10 items and goes into the link repository as one message. Desktop-only: an "Operate the computer" switch in Settings, on by default; off refuses computer-control tools.
 
 **Nexeo's builder, 4 Nov 2026, 19:30:57 PKT:** the 19:26:56 message has not arrived. No collaborator or deploy key is needed, because this server is already logged in to the founder's GitHub account. Repository still waiting for his yes.
+
+## The builder link is live (4 Nov 2026, 19:37:41 PKT)
+
+From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`: `STATE.md` for status and `charter/` for the shared charters, once the 10 proposed edits are settled. This file is history up to here. Nexeo's clone is `/root/suzi-nexeo-link`.
