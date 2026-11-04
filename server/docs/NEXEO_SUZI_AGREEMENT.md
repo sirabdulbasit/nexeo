@@ -20,7 +20,7 @@ Open: whether voice (Cloud TTS) counts; what happens at the cap; the usage the c
 
 Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calendar tools; about 18 mention those topics (a rough word match); 115 used no tool; 47 used laptop tools; 12 were started by the app. So S1 would have covered about 10% of past turns, though that mix was early testing. No real Mac turn has been logged in `llm_usage` yet.
 
-**Rule (owner, 11-04): every Nexeo-Suzi message carries its date and time (PKT).**
+**Rule (owner, 11-04): every Nexeo-Suzi message carries its date and time with seconds (PKT).**
 
 **Round 2 on cost, 2026-11-04 17:28 PKT.** Suzi's answers agreed: Mac app $5/month target, $5.50 ceiling until measured; Suzi's server $7.50; all usage costs count (founder decides); design 40 turns/day, peak 100; warn at 80%, at 100% tell the founder and keep the same quality; each part reports monthly cost, Google's bill as the check. Local answers ~10% today, 20–30% expected. Nexeo's correction: Cloud TTS is not Mac-only (`voiceService.ts`, Neural2, WhatsApp voice notes); SKU lines separate them. Project for Nexeo's voice not yet checked.
 
