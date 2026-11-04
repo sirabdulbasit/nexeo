@@ -6,7 +6,7 @@
  * whose prompt drifted. Owner: score each email on arrival and once before the morning brief.
  *
  * Pinned:
- *  1. the TTL is 6 h for an event under three days old and 72 h after that; a missing or
+ *  1. the TTL is 24 h for an event under three days old and 7 days after that; a missing or
  *     invalid receivedAt counts as recent (the shorter TTL, never the longer);
  *  2. the event key is tenant- and prompt-version-bound: another tenant or a bumped
  *     prompt version can never read a cached verdict;
@@ -23,14 +23,14 @@ import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs } from '../src/se
 const now = Date.parse('2026-11-04T12:00:00Z');
 
 describe('OPT-006 the TTL', () => {
-  it('6 h while recent, 72 h once older than three days, recent when unknown', () => {
+  it('24 h while recent, 7 days once older than three days, recent when unknown', () => {
     expect(fusionEventTtlMs(new Date(now - 2 * 3600_000), now)).toBe(FUSION_EVENT_TTL_MS.recent);
     expect(fusionEventTtlMs(new Date(now - 2.9 * 86_400_000), now)).toBe(FUSION_EVENT_TTL_MS.recent);
     expect(fusionEventTtlMs(new Date(now - 3.1 * 86_400_000), now)).toBe(FUSION_EVENT_TTL_MS.old);
     expect(fusionEventTtlMs(new Date('not a date'), now)).toBe(FUSION_EVENT_TTL_MS.recent);
     expect(fusionEventTtlMs(null, now)).toBe(FUSION_EVENT_TTL_MS.recent);
-    expect(FUSION_EVENT_TTL_MS.recent).toBe(6 * 3600_000);
-    expect(FUSION_EVENT_TTL_MS.old).toBe(72 * 3600_000);
+    expect(FUSION_EVENT_TTL_MS.recent).toBe(24 * 3600_000);
+    expect(FUSION_EVENT_TTL_MS.old).toBe(7 * 86_400_000);
   });
 });
 

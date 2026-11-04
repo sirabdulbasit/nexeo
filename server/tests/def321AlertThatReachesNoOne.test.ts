@@ -74,7 +74,7 @@ vi.mock('../src/services/notifications/brainOutboundService', () => ({
   },
 }));
 
-import { alertWhatsAppDisconnect } from '../src/services/whatsapp/connectionWatchdog';
+import { alertWhatsAppDisconnect, _resetDisconnectNoticeBody } from '../src/services/whatsapp/connectionWatchdog';
 
 const PARAMS = {
   clientNumber: 'TMC-0001',
@@ -84,6 +84,7 @@ const PARAMS = {
 };
 
 beforeEach(() => {
+  _resetDisconnectNoticeBody();
   state.emailOk = true;
   state.emailThrows = false;
   state.ownerRows = [{ id: 2 }];

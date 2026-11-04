@@ -3361,3 +3361,26 @@ model OperatorRun {
   @@index([clientNumber, userId, status], map: "operator_runs_tenant_user_status_idx")
   @@map("operator_runs")
 }
+
+// ─── Day contract, Phase 1: POST /suzi/gateway/act ──────────────────────────────
+/// One row per idempotency key: claims the key before the work runs, stores the answer for
+/// replays, and is the audit entry (its id is the audit_id returned to Suzi).
+model SuziActLog {
+  id              String    @id @default(cuid())
+  clientNumber    String    @map("client_number") @db.VarChar(20)
+  userId          Int       @map("user_id")
+  op              String    @db.VarChar(60)
+  idempotencyKey  String    @map("idempotency_key") @db.VarChar(200)
+  argsHash        String    @map("args_hash") @db.Char(64)
+  args            Json      @default("{}")
+  confirmedByUser Boolean   @default(false) @map("confirmed_by_user")
+  voiceScore      Float?    @map("voice_score")
+  status          String    @default("running") @db.VarChar(20) // running | ok | failed
+  result          Json?
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  finishedAt      DateTime? @map("finished_at") @db.Timestamptz(6)
+
+  @@unique([clientNumber, userId, idempotencyKey], map: "suzi_act_log_tenant_user_key_key")
+  @@index([clientNumber, userId, createdAt], map: "suzi_act_log_tenant_user_created_idx")
+  @@map("suzi_act_log")
+}

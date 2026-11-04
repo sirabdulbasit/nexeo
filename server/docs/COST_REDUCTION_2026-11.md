@@ -35,20 +35,25 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 **Gemini 3.1 Flash Image ($0.94):** no reference in Nexeo's or Suzi's server's source. Nexeo's image reader uses `gemini-2.5-flash`. Someone with GCP access should check the audit logs for the caller.
 
-## 2. The plan (owner approved the order, 2026-11-04: "decision 1")
+## 2. The plan
+
+**Owner's target, 2026-11-04: $0.90/day per user.** All figures are estimates until the bill confirms them.
+
+**Correction.** `retrieval_plan`, `chat_compose` and most of `response_evaluation` ran only in the nightly build's window (146 of 147 planner calls at 02:00–03:59 UTC) and stopped with it on 3 Nov. So OPT-007 did not produce the ~$0.40/day first credited to it: stopping the nightly build did.
 
 | # | Change | Est. saving/day | Status |
 |---|---|---|---|
-| 1 | Prices as billed; billing labels `app` / `tenant` / `feature` on every Vertex call (OPT-005) | $0, gives real measurements | LIVE 11-04 (D-153) |
-| 2 | `criticality_fuse`: a per-event ceiling, 6 h while recent, 72 h after 3 days (OPT-006) | ~$1.50 | LIVE 11-04 (D-153) |
-| 3 | `retrieval_plan`: the planner index lists only what the planner uses (OPT-007) | ~$0.40 | LIVE 11-04 (D-153) |
-| 4 | Triage on Flash, after a quality test on real emails | ~$0.45 | not started |
-| 5 | Other small Pro jobs to Flash | ~$0.35 | not started |
-| 6 | Suzi's server: caching, long-context fix, Flash for routine turns | ~$1.30 | waits on the owner's decision 2 (the file holds another session's uncommitted work) |
+| 1 | Prices as billed; billing labels on every Vertex call (OPT-005) | $0, gives measurements | live (D-153) |
+| 2 | Scoring: per-email ceiling, now 24 h while under 3 days old, 7 days after (OPT-006) | ~$1.50 | live (D-153), tightened in D-154 |
+| 3 | Planner index (OPT-007); nightly build stopped | ~$0.60 | live |
+| 4 | WhatsApp-down message written once per window (OPT-008) | ~$0.09, ~$1 on an outage day | D-154 |
+| 5 | Mind State once a day (OPT-009) | ~$0.06 | D-154 |
+| 6 | One triage reasoning per email (OPT-010) | ~$0.40 | D-154 |
+| 7 | Suzi's server: caching, long calls, Flash for routine turns | ~$1.30 | waits on the owner: the code holds another session's uncommitted CN-009 work |
 
-Expected after 1–6: about $1.40/day. Under $1 needs more from Suzi's side or lighter Suzi use. Suzi's cost rises with use.
+**Rejected: triage on Flash.** Tested on 30 real emails with the same prompts: action agreement Flash/Pro 17/30 against Pro/Pro 23/30, archetype 18 vs 26, noise 23 vs 28, critical 26 vs 29. Flash missed 7 of Pro's noise calls. The per-email hold saves about the same without changing the model.
 
-Then: a daily spend ceiling for background jobs (not for replies to the user).
+Expected: Nexeo ~$0.50/day, Suzi ~$0.40/day once row 7 is done, ~$0.90 in total.
 
 ## 3. Measurements
 

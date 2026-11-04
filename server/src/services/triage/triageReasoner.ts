@@ -131,6 +131,27 @@ const TRIAGE_PROMPT_VERSION = 'v1';
  *  outer edge of evidence. Same figure as the fusion cache. */
 const TRIAGE_CACHE_TTL_DAYS = 14;
 
+/**
+ * OPT-010, 2026-11-04 — one reasoning per email.
+ *
+ * 28 Oct–4 Nov: 681 Pro calls for 203 emails (2.8 each, ~$5), because the prompt embeds things
+ * that drift. Flash was tested instead on 30 real emails and failed: it agreed with Pro on the
+ * action 17/30 against Pro's own 23/30, and missed 7 of Pro's noise calls. So the model stays and
+ * the repeats go: a decision is held per feed event for as long as the event can appear in the
+ * attention window. A user's action still re-reasons at once: `invalidateReasonerCache(dedupHash)`
+ * deletes by dedup hash, and the event entry carries the same hash. A new reply in a thread is
+ * its own feed event, so it is reasoned on its own.
+ */
+export const TRIAGE_EVENT_TTL_MS = 7 * 86_400_000;
+const TRIAGE_EVENT_KEY_VERSION = 'ev1';
+
+export function triageEventKey(ctx: Pick<ReasonerContext, 'clientNumber' | 'userId' | 'feedEventId'>): string | null {
+  if (!ctx.feedEventId) return null;
+  return crypto.createHash('sha256')
+    .update(`${TRIAGE_EVENT_KEY_VERSION}\u0000${TRIAGE_PROMPT_VERSION}\u0000${ctx.clientNumber}\u0000${ctx.userId}\u0000${ctx.feedEventId}`)
+    .digest('hex');
+}
+
 /** L1, in front of the table. Saves a DB round trip when the same event is
  *  triaged repeatedly inside one process (My Attention and Brief both call
  *  through here on a single page load). Deliberately short — the durable
@@ -147,7 +168,7 @@ function buildCacheKey(ctx: ReasonerContext, userPrompt: string): string {
 }
 
 /** Exported for the cache tests — the key IS the cache's behaviour. */
-export const __triageCacheInternals = { buildCacheKey, TRIAGE_PROMPT_VERSION };
+export const __triageCacheInternals = { buildCacheKey, TRIAGE_PROMPT_VERSION, buildUserPrompt, llmReason };
 
 /**
  * Drop cached reasoning for a pattern.
@@ -188,9 +209,17 @@ export async function reasonAboutEvent(
 ): Promise<ReasonerDecision> {
   const userPrompt = buildUserPrompt(ctx);
   const cacheKey = buildCacheKey(ctx, userPrompt);
+  const eventKey = triageEventKey(ctx);
+
+  // OPT-010: the per-email hold comes first, whatever the prompt looks like now.
+  const held = await heldDecisionForEvent(eventKey);
+  if (held) return held;
 
   const l1 = cache.get(cacheKey);
-  if (l1 && Date.now() - l1.fetchedAt < L1_TTL_MS) return l1.decision;
+  if (l1 && Date.now() - l1.fetchedAt < L1_TTL_MS) {
+    if (eventKey) void writeCache(eventKey, dedupHash, ctx, l1.decision);
+    return l1.decision;
+  }
 
   // L2 read. Never allowed to break triage: any failure falls through to the
   // live call, which is exactly the behaviour before this cache existed.
@@ -213,6 +242,7 @@ export async function reasonAboutEvent(
         where: { cacheKey },
         data: { hits: { increment: 1 }, lastHitAt: new Date() },
       }).catch(() => {});
+      if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
       return decision;
     }
   } catch (err: any) {
@@ -223,6 +253,7 @@ export async function reasonAboutEvent(
     const decision = await llmReason(ctx, userPrompt);
     rememberL1(cacheKey, decision);
     void writeCache(cacheKey, dedupHash, ctx, decision);
+    if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
     return decision;
   } catch (err: any) {
     // DEF-334 (2): the second of the two measured flood sites (~6,900 lines in
@@ -240,6 +271,24 @@ export async function reasonAboutEvent(
     // into two weeks of "LLM unavailable — using deterministic fallback."
     return fallback(ctx);
   }
+}
+
+/** OPT-010: this email's held decision while its TTL holds, else null. Never throws. */
+async function heldDecisionForEvent(eventKey: string | null): Promise<ReasonerDecision | null> {
+  if (!eventKey) return null;
+  try {
+    const prisma = (await import('../../db/prisma')).default;
+    const held = await prisma.triageDecisionCache.findUnique({
+      where: { cacheKey: eventKey },
+      select: { decision: true, createdAt: true, promptVersion: true },
+    });
+    if (held && held.promptVersion === TRIAGE_PROMPT_VERSION && Date.now() - held.createdAt.getTime() < TRIAGE_EVENT_TTL_MS) {
+      return held.decision as unknown as ReasonerDecision;
+    }
+  } catch (err: any) {
+    log.warn('triage event hold read failed — falling through', { error: err?.message });
+  }
+  return null;
 }
 
 function rememberL1(key: string, decision: ReasonerDecision): void {

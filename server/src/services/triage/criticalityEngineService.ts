@@ -582,15 +582,16 @@ export const __fusionCacheInternals = { bucketHours, normalisePromptForKey };
  * every 90 s, and any signal the key does not normalise (a knowledge snippet, a new open
  * item, a sentiment line) makes a new prompt for the same email, scored again at once.
  *
- * Owner, 2026-11-04: score each email on arrival and once before the morning brief. So a
- * fusion is remembered PER FEED EVENT, and an event is not scored live again within its
- * TTL — 6 h while it is recent (its signals still move), 72 h once it is older than three
- * days. The prompt cache stays underneath as the identical-inputs cache. This layer is a
- * ceiling, by construction: at most 4 live scores a day for a recent event, 1 every 3 days
- * for an old one, whatever the sweep cadence or the prompt drift.
+ * Owner, 2026-11-04: score each email on arrival and once a day after that (target $0.90/day
+ * per user). So a fusion is remembered PER FEED EVENT, and an event is not scored live again
+ * within its TTL — 24 h while it is recent, 7 days once it is older than three days. The
+ * prompt cache stays underneath as the identical-inputs cache. This layer is a ceiling, by
+ * construction: at most 1 live score a day for a recent event, whatever the sweep cadence
+ * or the prompt drift. What stays live on every pass: the superpowers (absence, cross-source,
+ * decay), the user's calibration and the star floor, none of which go through the model.
  */
 const FUSION_EVENT_KEY_VERSION = 'ev1';
-export const FUSION_EVENT_TTL_MS = { recent: 6 * 3600_000, old: 72 * 3600_000 } as const;
+export const FUSION_EVENT_TTL_MS = { recent: 24 * 3600_000, old: 7 * 86_400_000 } as const;
 const RECENT_EVENT_MS = 3 * 86_400_000;
 
 export function fusionEventKey(clientNumber: string, feedEventId: string): string {
@@ -599,7 +600,7 @@ export function fusionEventKey(clientNumber: string, feedEventId: string): strin
     .digest('hex');
 }
 
-/** How long one event's fusion stands: 6 h while the event is under three days old, else 72 h. */
+/** How long one event's fusion stands: 24 h while the event is under three days old, else 7 days. */
 export function fusionEventTtlMs(receivedAt: Date | null | undefined, now = Date.now()): number {
   const t = receivedAt instanceof Date ? receivedAt.getTime() : NaN;
   if (!Number.isFinite(t)) return FUSION_EVENT_TTL_MS.recent;

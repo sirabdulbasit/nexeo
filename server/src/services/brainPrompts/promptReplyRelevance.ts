@@ -133,7 +133,7 @@ export async function classifyPromptReplyRelevance(input: {
     userMessage: input.inboundText.slice(0, 500),
   });
   try {
-    const result = await callLLM(SYSTEM_PROMPT, userMessage, { maxTokens: 100, timeoutMs: 8_000 });
+    const result = await callLLM(SYSTEM_PROMPT, userMessage, { maxTokens: 100, timeoutMs: 8_000, clientNumber: input.clientNumber, userId: input.userId, purpose: 'prompt_reply_relevance' });
     const verdict = parseRelevanceVerdict(result.text);
     if (!verdict) {
       log.warn('relevance classifier returned unparseable output — no mutation', {

@@ -369,7 +369,7 @@ export async function maybeAskWhoSenderIs(params: {
 export async function interpretSenderDecision(
   answer: string,
   classify: (system: string, user: string) => Promise<string> =
-    async (s, u) => (await (await import('../llmRouter')).callLLM(s, u, { timeoutMs: 8_000 })).text,
+    async (s, u) => (await (await import('../llmRouter')).callLLM(s, u, { timeoutMs: 8_000, purpose: 'sender_decision' })).text,
 ): Promise<'allow' | 'ignore' | 'unclear'> {
   const t = answer.trim().toLowerCase();
   if (/^(ignore|block|no|nahi|mat karo|ignore it|ignore him|ignore her)\b/.test(t)) return 'ignore';

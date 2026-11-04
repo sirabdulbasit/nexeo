@@ -167,12 +167,15 @@ async function narrateMeetingPrep(
   context: string,
 ): Promise<string> {
   const when = new Date(startIso);
-  const hhmm = isNaN(when.getTime()) ? startIso : when.toISOString().slice(11, 16);
+  // DEF-387 (CL-065): this gave the UTC hour and said so, for a 3 PM meeting, and Suzi read it aloud.
+  const { resolveUserTimezone, formatTimeInZone } = await import('../userTimezoneService');
+  const tz = await resolveUserTimezone(userId);
+  const hhmm = isNaN(when.getTime()) ? startIso : formatTimeInZone(tz, when);
   try {
     const { callLLM } = await import('../llmRouter');
     const r = await callLLM(
       `You are Nexeo, the user's AI assistant, sending a short WhatsApp meeting-prep note. 2-4 sentences, max 90 words, plain prose. Name the meeting and time, then the genuinely useful open threads with these attendees from the context. If the context is empty, say there are no open threads with them. No headers, no bullets, no invented facts — only what the context shows.`,
-      `Meeting: "${title}" at ${hhmm} (UTC) with ${attendees.join(', ')}.\n\nContext (open items + recent activity with these attendees):\n${context || '(nothing on file)'}`,
+      `Meeting: "${title}" at ${hhmm} (the user's local time) with ${attendees.join(', ')}.\n\nContext (open items + recent activity with these attendees):\n${context || '(nothing on file)'}`,
       { maxTokens: 160, userId, clientNumber, purpose: 'preactive_meeting_prep' },
     );
     const text = r.text.trim();

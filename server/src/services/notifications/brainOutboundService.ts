@@ -1469,7 +1469,7 @@ export async function maybeSendSuppressionDigest(
         + 'dropped — everything held is kept and he can ask to see any of it. Under 400 '
         + 'characters, no markdown, no apology.',
         facts,
-        { maxTokens: 300, timeoutMs: 12_000 },
+        { maxTokens: 300, timeoutMs: 12_000, clientNumber: user.clientNumber, userId: user.id, purpose: 'held_digest' },
       );
       body = String((r as any)?.text ?? '').trim();
       if (!body) throw new Error('empty completion');

@@ -22,6 +22,9 @@ import { verifyGatewaySecret } from '../services/suzi/gatewayAdminClient';
 import { buildDayBriefFacts } from '../services/suzi/dayBriefFacts';
 import { RunBusyError, startRun, stepRun, stopRun } from '../services/operator/operatorService';
 import { applyFollowUp, listPendingActions } from '../services/suzi/suziActions';
+import { buildDayPack } from '../services/suzi/dayPack';
+import { act } from '../services/suzi/suziAct';
+import { resolveUserTimezone } from '../services/userTimezoneService';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -70,6 +73,45 @@ router.get('/day-brief', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('day brief failed', { userId, error: err?.message });
     res.status(500).json({ error: 'day brief could not be built' });
+  }
+});
+
+/**
+ * Day contract, Phase 1 (spec 2026-11-04).
+ *   GET  /day-pack?user_id&tenant_id  → Suzi's working copy of the day, in the user's own zone
+ *   POST /act {user_id, tenant_id, op, args, idempotency_key, confirmed_by_user, voice_score}
+ *        → {ok, audit_id, item}. Idempotent per key, permission-checked, audited.
+ */
+router.get('/day-pack', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    const timezone = await resolveUserTimezone(who.userId);
+    const pack = await buildDayPack(who.tenantId, who.userId, { timezone });
+    log.info('day pack served', { userId: who.userId, clientNumber: who.tenantId, actions: pack.actions.length, emails: pack.emails.length, today: pack.calendar.today.length });
+    res.json(pack);
+  } catch (err: any) {
+    log.warn('day pack failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'day pack could not be built' });
+  }
+});
+
+router.post('/act', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const b = req.body ?? {};
+  try {
+    const timezone = await resolveUserTimezone(who.userId);
+    const out = await act(who.tenantId, who.userId, {
+      op: String(b.op ?? ''), args: b.args && typeof b.args === 'object' ? b.args : {},
+      idempotency_key: b.idempotency_key, confirmed_by_user: b.confirmed_by_user === true,
+      voice_score: typeof b.voice_score === 'number' ? b.voice_score : null, timezone,
+    });
+    log.info('suzi act', { userId: who.userId, op: b.op, ok: out.body.ok, auditId: out.body.audit_id });
+    res.status(out.status).json(out.body);
+  } catch (err: any) {
+    log.warn('suzi act failed', { userId: who.userId, op: b.op, error: err?.message });
+    res.status(500).json({ ok: false, error: 'act_failed' });
   }
 });
 

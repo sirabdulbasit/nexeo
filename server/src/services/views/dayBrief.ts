@@ -25,6 +25,7 @@
  * fresh per call. The partition cache (90s TTL on attention) is the
  * main savings for back-to-back calls.
  */
+import { formatTimeInZone } from '../userTimezoneService';
 import prisma from '../../db/prisma';
 import { getOpenItems, type OpenItemRow } from './openItems';
 import { getAttentionSurface, type AttentionRow } from './attention';
@@ -203,17 +204,18 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   parts.push(`\n## Recent emails — last 24h (${data.recentEmails.length})`);
   if (data.recentEmails.length === 0) parts.push('- (no emails in the last 24 hours)');
   else for (const e of data.recentEmails.slice(0, 5)) {
-    const t = new Date(e.receivedAt).toISOString().slice(11, 16);
-    parts.push(`- ${t} UTC · ${e.fromName ? `${e.fromName} <${e.fromEmail}>` : e.fromEmail}: ${e.subject}`);
+    // DEF-387: the user's own zone, never UTC.
+    const t = formatTimeInZone(data.localTimezone, new Date(e.receivedAt));
+    parts.push(`- ${t} · ${e.fromName ? `${e.fromName} <${e.fromEmail}>` : e.fromEmail}: ${e.subject}`);
   }
   if (data.recentEmails.length > 5) parts.push(`- … and ${data.recentEmails.length - 5} more emails`);
 
   parts.push(`\n## Recent WhatsApp — last 24h (${data.recentWhatsApp.length})`);
   if (data.recentWhatsApp.length === 0) parts.push('- (no WhatsApp messages in the last 24 hours)');
   else for (const m of data.recentWhatsApp.slice(0, 5)) {
-    const t = new Date(m.receivedAt).toISOString().slice(11, 16);
+    const t = formatTimeInZone(data.localTimezone, new Date(m.receivedAt));
     const tag = m.knownContact ? '' : ' [not in contacts]';
-    parts.push(`- ${t} UTC · ${m.fromName}${tag}: ${m.body.slice(0, 120)}`);
+    parts.push(`- ${t} · ${m.fromName}${tag}: ${m.body.slice(0, 120)}`);
   }
   if (data.recentWhatsApp.length > 5) parts.push(`- … and ${data.recentWhatsApp.length - 5} more messages`);
 

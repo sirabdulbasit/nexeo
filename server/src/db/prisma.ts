@@ -52,6 +52,8 @@ export const TENANT_SCOPED_MODELS = new Set<string>([
   'IntegrationSourceFile',
   // DEF-386, 2026-11-03: the screen operator's per-tenant settings and run ledger.
   'OperatorSettings', 'OperatorRun',
+  // Day contract, Phase 1: Suzi's write log (idempotency + audit).
+  'SuziActLog',
 ]);
 
 const READ_OPS = new Set(['findUnique', 'findUniqueOrThrow', 'findFirst', 'findFirstOrThrow', 'findMany', 'count', 'aggregate', 'groupBy']);

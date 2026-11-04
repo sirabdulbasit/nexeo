@@ -388,8 +388,17 @@ export async function alertWhatsAppDisconnect(params: {
       const facts = `Brain's WhatsApp channel for tenant ${params.clientNumber} is DOWN. `
         + `Reason: ${params.reason}. Until it is re-paired, WhatsApp messages to Brain go `
         + `unanswered and Brain cannot send WhatsApp replies or alerts. Required action: ${params.requiresAction}`;
+      // OPT-008: this function runs on every failed check, once a minute while WhatsApp is
+      // down, and `brainContactsUser` below is what dedups, so the model was asked to write
+      // the same message 60 times an hour (1,022 Pro calls on 2–3 Nov, ~$1/day during an
+      // outage). The wording is now written once per fact set per window and reused; the
+      // dedup, the audit row and the delivery below are unchanged.
+      const noticeKey = `${params.clientNumber}|${facts}`;
+      const held = disconnectNoticeBody.get(noticeKey);
       let body: string;
-      try {
+      if (held && Date.now() - held.at < DISCONNECT_NOTICE_WINDOW_MS) {
+        body = held.body;
+      } else try {
         const { callLLM } = await import('../llmRouter');
         const r = await callLLM(
           'You are Nexeo, writing ONE short message to your owner. Say plainly, in your own '
@@ -397,10 +406,11 @@ export async function alertWhatsAppDisconnect(params: {
           + 'means for him (messages to you go unanswered), and exactly what will bring it back '
           + '(keep the required action verbatim). Under 400 characters, no markdown, no apology theatre.',
           facts,
-          { maxTokens: 300, timeoutMs: 12_000 },
+          { maxTokens: 300, timeoutMs: 12_000, clientNumber: params.clientNumber, userId: ownerId, purpose: 'wa_disconnect_notice' },
         );
         body = String((r as any)?.text ?? '').trim();
         if (!body) throw new Error('empty completion');
+        disconnectNoticeBody.set(noticeKey, { body, at: Date.now() });
       } catch {
         body = facts;
       }
@@ -414,7 +424,7 @@ export async function alertWhatsAppDisconnect(params: {
         body,
         urgency: 'high',
         dedupKey: `wa-disconnect:${params.clientNumber}`,
-        dedupWindowMs: 6 * 60 * 60 * 1000,   // re-alert at most every 6h while dead
+        dedupWindowMs: DISCONNECT_NOTICE_WINDOW_MS,   // re-alert at most every 6h while dead
         metadata: { reason: params.reason, requiresAction: params.requiresAction },
       });
     } else {
@@ -426,6 +436,12 @@ export async function alertWhatsAppDisconnect(params: {
     });
   }
 }
+
+/** OPT-008: the disconnect wording, held for the same window the chokepoint dedups on. */
+const DISCONNECT_NOTICE_WINDOW_MS = 6 * 60 * 60 * 1000;
+const disconnectNoticeBody = new Map<string, { body: string; at: number }>();
+/** Tests only. */
+export function _resetDisconnectNoticeBody(): void { disconnectNoticeBody.clear(); }
 
 function escapeHtml(s: string): string {
   return String(s)

@@ -67,6 +67,21 @@ The Suzi team's terms: Nexeo owns the rules and the Action Center; Suzi is the l
 
 **Blocker for 1–3:** Nexeo tools are still not connected to the gateway ("Waiting on Basit 3" in the gateway's STATUS: agent token, id mapping, how sends are gated; `docs/nexeo-adapter-findings.md` §4/§7).
 
+## The day contract (spec, 2026-11-04)
+
+Suzi runs the user's day from a local working copy. Nexeo stays the system of record and the only writer. Agreed by the founder: email previews up to 200 characters on the device; handover at the first unlock after 05:00 plus a 07:00 refresh; an automatic journal back to Nexeo, meeting notes only on consent; the M5 Mac as primary device.
+
+**Phase 1 (built 11-04, DEF-388):**
+- On Nexeo, loopback + gateway secret: `GET /api/v1/suzi/gateway/day-pack`, `POST /api/v1/suzi/gateway/act`.
+- On Suzi's server, device credential: `GET /v1/day-pack`, `POST /v1/act`. The Mac cannot reach Nexeo's loopback routes. Tenant and user come only from the verified device.
+- `act` ops: `task.update` (done / cancel / move / not_yet / note). Idempotent per (tenant, user, key), ownership-checked, audited; `audit_id` is the `suzi_act_log` row.
+- Every time is in the user's zone with its offset. `say` in pack blocks is empty: the model writes `title` and `say`.
+- Not yet: `delta` on key figures (no history kept).
+
+**Phase 2 (not started):** rules, people, glossary, wiki slices in the pack; `GET /changes`; a WebSocket `sync` hint; `rule.propose` / `rule.apply` / `rule.remove`; `task.create` / `assign` / `reassign` / `priority` / `note`; a triage list.
+
+**Phase 3 (not started):** `email.find` / `draft` / `update_draft` / `forward` / `send` / `undo` (sends also wait on DEF-384); `POST /journal`; the safety net; `primary: true` in welcome.
+
 ## Suzi Desktop Operator (SDO): Nexeo decides, Suzi clicks (DEF-386, 11-03): PARKED
 
 > **PARKED 2026-11-03 (owner): "name it Suzi Desktop Operator - SDO and park it, we will discuss it later".** The Nexeo half is built and deployed (D-150) and stays OFF for every tenant. Nothing more is built, and no credit is bought, until the owner reopens it. Open when it resumes: which billing pays for Claude (API credit, or Google Cloud), how consent is given (an Admin screen, or recorded on request), the monthly limits, the gateway half, then the Mixamo test. In code and routes it keeps the name "operator".

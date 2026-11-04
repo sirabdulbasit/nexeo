@@ -92,6 +92,26 @@ export function meetingsForDay(events: RawCalEvent[], day: string, tz: string): 
   return out.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
 }
 
+/**
+ * Emails needing a reply = the email part of My Attention, the same partition the Day Brief
+ * page shows (open items of type email are a different, much smaller set).
+ * Capped at ATTENTION_TIMEOUT_MS: warm, it is the Day Brief page's cached partition; cold, it can
+ * take minutes, and a spoken brief must not wait on that. A timeout reports "loading", not 0.
+ */
+export async function loadAttentionEmails(clientNumber: string, userId: number, timeoutMs: number = ATTENTION_TIMEOUT_MS) {
+  try {
+    const { computeBriefPartition } = await import('../triage/briefPartitionService');
+    const part = await Promise.race([
+      computeBriefPartition(clientNumber, userId, 100, 100),
+      new Promise<null>((r) => { const t = setTimeout(() => r(null), timeoutMs); (t as any).unref?.(); }),
+    ]);
+    if (!part) return { items: [], loading: true };
+    return { items: part.myAttention.filter((i) => i.itemType === 'email'), loading: false };
+  } catch {
+    return { items: [], loading: false };
+  }
+}
+
 export async function buildDayBriefFacts(clientNumber: string, userId: number, opts: { timezone?: string; now?: Date; attentionTimeoutMs?: number } = {}): Promise<DayBriefFacts> {
   const tz = safeTimezone(opts.timezone);
   const now = opts.now ?? new Date();
@@ -142,25 +162,10 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
     orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     take: 200,
   }).catch(() => { missing.push({ source: 'actions', status: 'error' }); return [] as Array<{ id: string; title: string; priority: string; status: string; dueDate: Date | null }>; });
-  // Emails needing a reply = the email part of My Attention, the same partition the Day Brief
-  // page shows (open items of type email are a different, much smaller set).
-  // Capped at ATTENTION_TIMEOUT_MS: warm, it is the Day Brief page's cached partition; cold, it can
-  // take minutes, and a spoken brief must not wait on that. A timeout reports "loading", not 0.
-  let attentionEmails: Array<{ from: string; subject: string; receivedAt: string; critical?: boolean }> = [];
-  let emailsLoading = false;
-  if (email) {
-    try {
-      const { computeBriefPartition } = await import('../triage/briefPartitionService');
-      const part = await Promise.race([
-        computeBriefPartition(clientNumber, userId, 100, 100),
-        new Promise<null>((r) => { const t = setTimeout(() => r(null), opts.attentionTimeoutMs ?? ATTENTION_TIMEOUT_MS); (t as any).unref?.(); }),
-      ]);
-      if (!part) { emailsLoading = true; missing.push({ source: 'email', status: 'loading' }); throw new Error('attention list still loading'); }
-      attentionEmails = part.myAttention
-        .filter((i) => i.itemType === 'email')
-        .map((i) => ({ from: i.fromDisplay || i.from, subject: i.subject, receivedAt: i.receivedAt, critical: i.critical }));
-    } catch { attentionEmails = []; }
-  }
+  const attention = email ? await loadAttentionEmails(clientNumber, userId, opts.attentionTimeoutMs) : { items: [], loading: false };
+  const emailsLoading = attention.loading;
+  if (emailsLoading) missing.push({ source: 'email', status: 'loading' });
+  const attentionEmails = attention.items.map((i) => ({ from: i.fromDisplay || i.from, subject: i.subject, receivedAt: i.receivedAt, critical: i.critical }));
   const emailsNeedingReply = attentionEmails.length;
 
   const sortedActions = [...actions].sort((a, b) =>

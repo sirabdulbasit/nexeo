@@ -393,10 +393,22 @@ function renderObservationBody(obs: Observation): string {
   ].filter(Boolean).join('\n');
 }
 
+/** OPT-009: Mind State is written once a day, not on every 30-minute tick. */
+export const MIND_STATE_MIN_INTERVAL_MS = 24 * 3600_000;
+
 async function updateMindState(clientNumber: string, userId: number, obs: Observation[]): Promise<boolean> {
   // One LLM call: synthesize "what's happening right now" from the
   // analyzer output + recent tenant_log tail. Cheap (~200 tokens out).
   try {
+    // OPT-009, 2026-11-04: this overwrote one paragraph 48 times a day on Pro, for a Day Brief
+    // panel. The observations above still run every tick (no LLM); only the paragraph is daily.
+    const latest = await prisma.wikiPage.findFirst({
+      where: { clientNumber, userId, pageType: 'mind_state', status: { notIn: ['superseded', 'deleted'] } } as any,
+      select: { lastUpdatedAt: true },
+      orderBy: { lastUpdatedAt: 'desc' },
+    }).catch(() => null);
+    if (latest && Date.now() - latest.lastUpdatedAt.getTime() < MIND_STATE_MIN_INTERVAL_MS) return false;
+
     const logTail = await prisma.wikiPage.findFirst({
       where: { clientNumber, userId, pageType: 'tenant_log', title: 'Tenant Log' },
       select: { bodyMarkdown: true },
