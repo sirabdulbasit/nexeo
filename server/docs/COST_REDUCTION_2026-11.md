@@ -63,6 +63,8 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 **Owner's rule, 2026-11-04: "reducing cost doesn't mean to compromise the quality".** A saving ships only if a test shows it is no worse than today.
 
+**Closed 11-04 (D-156):** OPT-012 re-judges an email at once when something important changes; approved by the founder. The Costing Charter now holds the plan and its status.
+
 Quality risk already live, to review: OPT-006 holds a score's model part for 24 h (7 days once the email is older than 3 days), and OPT-010 holds a triage decision for 7 days (refreshed when the user acts). Both can lag new information, such as a new deadline or open item from that sender. Proposed fix, OPT-012: drop a hold as soon as a signal that matters changes. Built and tested, NOT deployed: parked at `docs/parked/opt-012-refresh-on-change.patch` until the founder approves the joint plan.
 
 ## 3. Measurements

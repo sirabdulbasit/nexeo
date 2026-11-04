@@ -204,3 +204,14 @@ Until an item is marked **AGREED**, neither side builds or changes it. Each item
 |---|---|---|
 | 8.1 | Acceptance | Suzi's team runs each phase on the real Mac and reports the frames. A probe with its own schema proves nothing (CL-064) |
 | 8.2 | Test accounts | A dedicated test user, so tests stop touching the founder's history and items |
+
+## Build status after the founder's approval (4 Nov 2026)
+
+**Rule (founder):** when both sides have built and tested their parts, they shake hands again, and only then kick off.
+
+**Live on Nexeo and Suzi's server:** the consumption record and `/v1/usage` (D-156); presence, silent cards and the reminder rules (D-157, CN-010).
+
+**The rules are off behind the kick-off switch** `brain_channel.suziReachOn`. The Mac began sending presence at 18:26:27 PKT, when it was announced. Frames are recorded; nothing else moves until the switch is turned on at kick-off.
+
+**Open with Suzi, 4 Nov 18:40 PKT:** does the Mac show `notice` as a silent card; does the Mac hold speech and cards itself while meeting notes are on; what marks the brief handover when the Mac gives its own morning brief; what happens when a user stays away for days (proposed: after 72 hours, back to WhatsApp).
+
