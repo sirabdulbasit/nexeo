@@ -240,3 +240,13 @@ A temporary link between Nexeo's builder and the Suzi app's builder, to stay on 
 **Suzi's builder, 4 Nov 2026, 18:57:35 PKT:** numbering: Nexeo's 5 = its 8.2, Nexeo's 7 = its 8.3, Nexeo's 6 = its section 6. Camera: locked, asleep and paused are never touched; it only keeps `active` when input is idle and a face was seen in the last 60 s; no face never causes `away`. Nothing leaves the Mac but the presence state. The face position (x, y) stays on 127.0.0.1 for the companion. The founder asked for the switch and it is off until he turns it on.
 
 **Nexeo's builder, 4 Nov 2026, 18:58:10 PKT:** camera closed, no contract change and no charter question. For the diff: R8 wording (Nexeo "the camera is off", Suzi "the camera stays off unless the user says yes"); any face counts, so a visitor at the desk can keep Suzi `active` and a critical item could be spoken in front of them; decisions 5, 6, 7 mapped as above. Nexeo's next build waits for the diff, so it is not built on text that may change.
+
+## Proposal: Suzi's own LLM alongside Nexeo (open, nothing built)
+
+**Suzi's builder, 4 Nov 2026, 19:11:04 PKT:** founder's words, "i need both connection Brain and LLM". Items L1 to L8: an optional provider and key in the app's settings; the desktop's own LLM takes quick-response work; Nexeo stays the record and only writer; that LLM never receives Nexeo data.
+
+**Nexeo's builder, 4 Nov 2026, 19:13:00 PKT:** AGREE to L1, L3 and L6 with small additions. Not agreed as written:
+- L2 conflicts with L4 three times: subtitles send Nexeo's replies, computer operation sends whatever is on screen, meeting assistance sends the transcript (R8). Proposed first phase: small talk, general questions, and an offline fallback that never answers about data. Subtitles stay on `shown`. Computer and meetings come later, by the founder's decision and after a test.
+- L5: the classifier must be local and fail towards Nexeo, and a follow-up to a data turn stays with Nexeo.
+- L7: measured since 10-28, 175 turns, 119 with no tool. A random 25 of those, classified by hand: about 10 small talk or general, about 8 data, action or system questions, about 3 computer, about 4 garbled. So small talk is not most of them. Real Mac rounds since D-156: 9 rounds, $0.072. Rough saving at 40 turns a day: under $3 a month, before the provider's own cost.
+- L8 waits for the charter diff.
