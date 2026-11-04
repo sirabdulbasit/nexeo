@@ -22,6 +22,10 @@ Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calen
 
 **Rule (owner, 11-04): every Nexeo-Suzi message carries its date and time (PKT).**
 
+**Round 2 on cost, 2026-11-04 17:28 PKT.** Suzi's answers agreed: Mac app $5/month target, $5.50 ceiling until measured; Suzi's server $7.50; all usage costs count (founder decides); design 40 turns/day, peak 100; warn at 80%, at 100% tell the founder and keep the same quality; each part reports monthly cost, Google's bill as the check. Local answers ~10% today, 20–30% expected. Nexeo's correction: Cloud TTS is not Mac-only (`voiceService.ts`, Neural2, WhatsApp voice notes); SKU lines separate them. Project for Nexeo's voice not yet checked.
+
+**Joint summary drafted, waiting on Suzi's check, then the founder's approval.** At 40 turns/day, 25% local: on Pro $21–38/month in total; Suzi's server on Flash (only if it passes) $15–25/month. Asks: (1) re-judge fix first, restores quality; (2) cost visibility; (3) no-loss savings; (4) tests on a test user, a few dollars. Decisions: what counts toward $20; limit behaviour; design usage. Owed to Suzi: tokens per turn, cached share and cost per turn from the first real Mac turns.
+
 ## Nexeo-side work now agreed (not started)
 
 1. Small fixes: pass the device id from login into `act`; extend the strict body check to allow `ts`; add the model name to `llm_usage`; remove the fixed Karachi zone on Suzi's server; record compose spend in the ledger.
