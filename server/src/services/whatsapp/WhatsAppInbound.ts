@@ -180,6 +180,13 @@ export async function handleInboundMessage(params: InboundParams): Promise<void>
   //
   // PM2 log line is the only persisted record — admins can grep it.
   if (!resolvedIdentity) {
+    // Owner ruling, 4 Nov 2026: messages from others are not read. Nothing below this line runs. No words in the log.
+    const { whatsappWithOthers } = await import('./othersPolicy');
+    if (!whatsappWithOthers()) {
+      log.info('Message from an unregistered number, not read', { clientNumber: params.clientNumber });
+      return;
+    }
+
     // Narrow exception (Section 33a, replaces expectedExternalReplyService's
     // 14-day text-inference matcher): a delegatee may reply to a tracked
     // delegation thread. Explicit correlation only — quoted provider id, or

@@ -17,6 +17,7 @@
 import prisma from '../../db/prisma';
 import createLogger from '../../utils/logger';
 import { ingest as ingestFeedEvent } from '../feed/feedIngestionService';
+import { whatsappWithOthers } from './othersPolicy';
 import fs from 'fs';
 import path from 'path';
 import { resolveWebjsHeadlessMode, resolveWebjsDisplayEnv, assertHeadfulDisplayAvailable } from './webjsRuntimeMode';
@@ -868,6 +869,7 @@ export async function startPairing(userId: number, clientNumber: string): Promis
       const ownWid: string = client.info?.wid?._serialized || '';
       const isSelfChat = !!ownWid && message.from === ownWid;
       if (message.fromMe && !isSelfChat) {
+        if (!whatsappWithOthers()) return; // their chats with others are not read
         // Delegate to the shared capture function (also called from
         // message_create — see above). Upsert keyed on waMessageId is
         // idempotent so double-fire across events is safe.
@@ -890,6 +892,9 @@ export async function startPairing(userId: number, clientNumber: string): Promis
         }
         return;
       }
+
+      // Owner ruling, 4 Nov 2026: messages from others are not read (see othersPolicy).
+      if (!whatsappWithOthers()) return;
 
       let phone = '';
       if (rawFrom.includes('@c.us')) phone = '+' + rawFrom.replace('@c.us', '');
@@ -1569,7 +1574,7 @@ export async function fetchSentSamplesForChat(userId: number, chatId: string, li
   if (!client) return [];
   try {
     const chat = await client.getChatById(chatId);
-    if (!chat?.fetchMessages) return [];
+    if (!chat?.fetchMessages || !whatsappWithOthers()) return [];
     const msgs = await chat.fetchMessages({ limit: Math.max(50, limit * 2) });
     return (msgs || [])
       .filter((m: any) => m.fromMe && m.body && m.body.trim())

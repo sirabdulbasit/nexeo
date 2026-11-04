@@ -179,7 +179,9 @@ export async function runDelegateeFollowupSweep(opts: { dryRun?: boolean } = {})
 
       let sentVia: 'whatsapp' | 'email' = 'email';
       let sentOk = false;
-      if (delegateePhone?.phone) {
+      // Owner ruling, 4 Nov 2026: WhatsApp is for the user only (othersPolicy). Anyone else gets the email below.
+      const { mayWhatsApp } = await import('../whatsapp/othersPolicy');
+      if (delegateePhone?.phone && await mayWhatsApp((it as any).clientNumber, delegateePhone.phone)) {
         const { sendTenantWhatsAppText } = await import('../notifications/tenantWhatsappSender');
         const r = await sendTenantWhatsAppText(
           (it as any).clientNumber,

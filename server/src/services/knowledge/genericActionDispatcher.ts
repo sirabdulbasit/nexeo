@@ -175,6 +175,8 @@ const HANDLER_REGISTRY: Record<string, Record<string, (userId: number, payload: 
         const { renderOutboundMessage } = await import('../notifications/outboundMessageTemplate');
         const substantive = normalizeWhatsAppSubstantiveMessage(String(payload.message), String(payload.recipientName));
         const body = renderOutboundMessage(substantive, { brainName, userName });
+        const { mayWhatsApp, WHATSAPP_USER_ONLY } = await import('../whatsapp/othersPolicy');
+        if (!(await mayWhatsApp(ctx.clientNumber, String(payload.recipientPhone)))) return { ok: false, message: WHATSAPP_USER_ONLY, errorCode: 'whatsapp_user_only' };
         const r = await sendTenantWhatsAppText(ctx.clientNumber, String(payload.recipientPhone), body, userId);
         if (!r.ok) return { ok: false, message: `WhatsApp send failed: ${r.error ?? 'unknown'}`, errorCode: 'wa_api' };
         return {

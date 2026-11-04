@@ -1082,6 +1082,8 @@ async function askCounterpartWhichItem(
       { brainName: cfg?.value ?? 'Nexeo', userName: owner?.name ?? '' },
     );
 
+    const { mayWhatsApp } = await import('../whatsapp/othersPolicy');
+    if (!(await mayWhatsApp(clientNumber, phone))) return false;
     const out = await sendTenantWhatsAppText(clientNumber, phone, body, ownerUserId);
     if (!out?.ok) return false;
 

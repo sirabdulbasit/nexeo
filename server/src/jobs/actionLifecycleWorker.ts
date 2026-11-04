@@ -162,8 +162,10 @@ async function contactConcernedParty(item: any, body: string): Promise<{ sent: b
     return { sent: true, channel: 'brain_prompt', receipt: r.promptId };
   }
 
+  // Owner ruling, 4 Nov 2026: WhatsApp is for the user only (othersPolicy). Otherwise it goes to the owner below.
   const phone = await resolveConcernedPhone(item);
-  if (phone) {
+  const { mayWhatsApp } = await import('../services/whatsapp/othersPolicy');
+  if (phone && await mayWhatsApp(item.clientNumber, phone)) {
     // Section 33a: register the send on its delegation thread —
     // outbound_intent BEFORE transport, receipt AFTER — so counterpart
     // replies correlate explicitly. CORRELATION EVIDENCE ONLY: no

@@ -4769,7 +4769,10 @@ ${calLines.join('\n')}`;
               ? (act as any).recipientCandidateId : undefined;
             const isFirst = await isFirstContactWith(introCandidateId);
             const fullBody = renderOutboundMessage(substantive, { brainName, userName }, { firstContact: isFirst });
-            const r = await sendTenantWhatsAppText(clientNumber, recipientPhone, fullBody, userId);
+            const { mayWhatsApp, WHATSAPP_USER_ONLY } = await import('../whatsapp/othersPolicy');
+            const r: any = (await mayWhatsApp(clientNumber, recipientPhone))
+              ? await sendTenantWhatsAppText(clientNumber, recipientPhone, fullBody, userId)
+              : { ok: false, error: WHATSAPP_USER_ONLY };
             if (r.ok) {
               if (isFirst) void markIntroduced(introCandidateId);
               actionResult = {
@@ -7757,7 +7760,10 @@ export async function dispatchPendingDirect(
         const outbound = renderOutboundMessage(substantive, {
           brainName: brainDisplayName, userName,
         }, { firstContact });
-        const r = await sendTenantWhatsAppText(clientNumber, recipientPhone, outbound, userId);
+        const { mayWhatsApp, WHATSAPP_USER_ONLY } = await import('../whatsapp/othersPolicy');
+        const r: any = (await mayWhatsApp(clientNumber, recipientPhone))
+          ? await sendTenantWhatsAppText(clientNumber, recipientPhone, outbound, userId)
+          : { ok: false, error: WHATSAPP_USER_ONLY };
         if (r.ok) {
           // Only after a confirmed send — a failed send must not consume the
           // introduction and leave the next message reading like a stranger's.
