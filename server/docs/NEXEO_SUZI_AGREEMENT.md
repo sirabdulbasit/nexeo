@@ -1,6 +1,6 @@
 # Nexeo ⇄ Suzi agreement
 
-**AGREED by both sides, 2026-11-04**, after three rounds, apart from items 1 (owner of Suzi's server) and 19 (test account), which wait on the owner. The agreed text is `protocol/SUZI-NEXEO-CHARTER.md` in the Suzi repo; this file holds the rounds and details. A contract change still goes: proposal, both agree, then build (owner, 11-04).
+**AGREED by both sides, 2026-11-04**, after three rounds, apart from items 1 (owner of Suzi's server) and 19 (test account), which wait on the owner. The agreed text is `protocol/SUZI-NEXEO-CHARTER.md` in the Suzi repo; this file holds the rounds and details. **Owner's standing rule, 11-04: any later change to this charter must be re-agreed by both sides before any development or build starts.** Steps: propose it here, both sides reply AGREE, record it with the date, update the agreed text, then build.
 
 Item 18 as agreed: the owner creates a Mac-only service account (e.g. suzi-mac@nexeo-tmc: Vertex AI model calling and Cloud TTS only) with one key per Mac. Order: new account and keys, move the Macs, confirm who else uses vertex-sa (possibly Suzi's server), and only then rotate the vertex-sa key.
 
