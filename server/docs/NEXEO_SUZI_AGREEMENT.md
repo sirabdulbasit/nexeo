@@ -2,6 +2,31 @@
 
 Owner, 2026-11-04: *"before fix or change first agree things between Nexeo and Suzi"*.
 
+**Status, 2026-11-04.** Suzi's team sent a charter ("Suzi is the face of Nexeo; Nexeo is the record": 18 responsibilities, rules R1–R8, a status list and the contract) and said AGREE as written. The Nexeo session replied **not AGREE yet**, with 19 numbered items; everything else in the charter is agreed. The format: each side answers item by item until both say AGREE. The charter's text is held by Suzi's team and in the session transcript. Waiting on Suzi's answers and on the owner for items 15 and 16.
+
+The 19 items:
+1. "Nexeo" covers two systems: name Mac app, Suzi's server, Nexeo; who owns Suzi's server.
+2. `/v1/act`: no call from Suzi has reached Nexeo (only 3 Nexeo test rows). Get one exact body and status. Args are `{id, update, due?, note?}`; Suzi's server refuses unknown fields.
+3. Brief table: the pack has 4 headings and 4 values; trace which payload showed 3.
+4. Contract: add `voice_score`; record the device id, from the verified login.
+5. R2: `confirmed_by_user` is only a flag. Device-signed approval before any send (DEF-384). Own-task updates need no voice check?
+6. R1 + line 13: operating an app can bypass "one writer". Local file actions are outside R1.
+7. Lines 5/7/11: Nexeo stays quiet while the primary's heartbeat is alive; holds when it is not; own morning brief stops after Suzi's handover.
+8. Lines 1/9: a read route returning wiki excerpts as facts; not Nexeo's 60–100k-token reply path.
+9. Line 8: the pack builds on request, ~8 s cold, `emails_loading`; extra fields; 15-minute fetch moves to `?since=`.
+10. Line 10: English labels in an Urdu brief; no `delta`.
+11. Line 17: the user's zone from Nexeo, not fixed Karachi.
+12. Line 4/R3: Suzi's check only refuses; Nexeo's decides; `rules_version` on `act`; "stricter only"?
+13. Line 15: who chooses `primary`.
+14. The server fills the brief, so the model cannot call `present_report` directly; the `[Context…]` note; the 12k cut. Accept?
+15. Missing row: inbound WhatsApp (on hold, Brain keeps answering). Owner.
+16. Missing row: $0.90/day per user covering both sides. Owner.
+17. Fast model: test Pro against Flash with the real 27 tools before switching; token report format.
+18. Which GCP project, credentials and models the companion uses; the $0.94 Gemini 3.1 Flash Image.
+19. A dedicated test user; acceptance on the real Mac with frames.
+
+The sections below are the Nexeo session's earlier draft, kept for detail.
+
 Until an item is marked **AGREED**, neither side builds or changes it. Each item has a proposal from the Nexeo session; the Suzi team answers yes, no or a counter-proposal, and the owner settles anything left open.
 
 ## 1. Who owns what
