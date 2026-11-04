@@ -90,7 +90,7 @@ THREE documents govern every Brain change. All are updated in the SAME session a
 
 ## Nexeo ⇄ Suzi charter (owner ruling, 2026-11-04)
 
-Nexeo and Suzi have agreed a charter: `server/docs/NEXEO_SUZI_AGREEMENT.md` here, agreed text in `protocol/SUZI-NEXEO-CHARTER.md` in the Suzi repo. **Any change to it must be re-agreed by both sides BEFORE any development or build starts.** That covers responsibilities, the shared rules, the contract (routes, fields, frames, tools) and behaviour both sides depend on. Propose it in the agreement file, get both sides' AGREE, record it, then build. Work already listed as agreed there needs no new agreement.
+Nexeo and Suzi hold two charters, the same on both sides: `server/docs/Functional_Charter.md` and `server/docs/Costing_Charter.md`. History: `server/docs/NEXEO_SUZI_AGREEMENT.md`. **Any change to it must be re-agreed by both sides BEFORE any development or build starts.** That covers responsibilities, the shared rules, the contract (routes, fields, frames, tools) and behaviour both sides depend on. Propose it in the agreement file, get both sides' AGREE, record it, then build. Work already listed as agreed there needs no new agreement.
 
 ## Regression discipline (survives the pipeline removal)
 
