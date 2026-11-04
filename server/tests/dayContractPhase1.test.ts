@@ -102,6 +102,13 @@ describe('emails', () => {
   });
 });
 
+describe('email previews are plain text', () => {
+  it('HTML escapes in a snippet are decoded before the cut', () => {
+    const e = toPackEmail({ feedEventId: 'f', from: 'a', subject: 's', preview: 'From &lt;vm@tmcltd.com&gt; wrote &amp; &quot;x&quot;', receivedAt: '2026-11-04T10:00:00Z' } as any, KHI);
+    expect(e.preview).toBe('From <vm@tmcltd.com> wrote & "x"');
+  });
+});
+
 describe('brief blocks', () => {
   const facts: any = {
     missing: [{ source: 'calendar', status: 'expired', reconnect: 'Nexeo web → Connectors' }, { source: 'email', status: 'loading' }],

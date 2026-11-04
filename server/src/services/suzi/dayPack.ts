@@ -143,6 +143,11 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
 
 export interface PackEmail { thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string }
 
+/** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
+function decodeEntities(t: string): string {
+  return t.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#0?39;/g, "'").replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&');
+}
+
 /** One attention item as a pack email. Never a body: the preview is cut at 200 characters. */
 export function toPackEmail(i: { threadId?: string | null; feedEventId: string; fromDisplay?: string; from: string; subject: string; preview?: string; receivedAt: string; critical?: boolean; criticality?: { band?: string } | null }, tz: string): PackEmail {
   const received = new Date(i.receivedAt);
@@ -150,7 +155,7 @@ export function toPackEmail(i: { threadId?: string | null; feedEventId: string; 
     thread_id: i.threadId ?? i.feedEventId,
     from: i.fromDisplay || i.from,
     subject: (i.subject || '(no subject)').slice(0, 200),
-    preview: String(i.preview ?? '').replace(/\s+/g, ' ').trim().slice(0, EMAIL_PREVIEW_MAX),
+    preview: decodeEntities(String(i.preview ?? '')).replace(/\s+/g, ' ').trim().slice(0, EMAIL_PREVIEW_MAX),
     received_at: isNaN(received.getTime()) ? String(i.receivedAt) : toZonedIso(received, tz),
     urgency: i.criticality?.band ?? (i.critical ? 'critical' : 'normal'),
   };

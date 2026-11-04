@@ -3,6 +3,8 @@
 Owner direction, 2026-11-02 / 11-03 (PKT). This is the target, not a description of today's code.
 For what Nexeo does today, see the function inventory (DEF-384 found by it) and `APP_MENTAL_MODEL.md`.
 
+> **Owner, 2026-11-04: "Suzi will become the face of Nexeo (Brain) and user will only use Nexeo for account management, not for day to day activities"; "keep less interactive part at Nexeo and stop using unnecessary LLM/AI".** This sharpens the portal decision below: the day-to-day pages go. Which screens and model calls stop, and when, is tracked in `SIMPLIFICATION_PLAN.md` and `COST_REDUCTION_2026-11.md`.
+
 ## Who does what
 
 **Nexeo stores the facts and does the work. It never writes the words a person reads.**
