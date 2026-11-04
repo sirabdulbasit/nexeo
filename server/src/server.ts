@@ -731,6 +731,14 @@ const server = app.listen(env.port, async () => {
       }
     });
   }, 60 * 1000);
+  // Functional Charter: what no event triggers for items held for Suzi (10 minutes gone, quiet hours
+  // ending, expiry). No model call. Does nothing while the outbox has nothing held.
+  setInterval(() => {
+    protectedJob('suzi_outbox_sweep', 'important', async () => {
+      const { sweepHeld } = await import('./services/suzi/suziReach');
+      await sweepHeld();
+    });
+  }, 5 * 60 * 1000);
 
   // 2026-05-15 — WA ingest health audit. Reconciles webjs's view of
   // each chat against feed_events + whatsapp_outbound_messages and

@@ -169,6 +169,10 @@ export interface BrainContactResult {
 
 const DEFAULT_DEDUP_WINDOW_MS = 20 * 60 * 1000;
 
+/** The charter's rules do not apply: the morning brief has its own rule (it stops at handover), the
+ *  rest are things the person or an admin asked for just now. */
+const SUZI_EXEMPT_KINDS = new Set(['day_brief', 'day_brief_manual', 'admin_test_brain']);
+
 // ─── Hard safety caps ──────────────────────────────────────────────────
 // Defensive guardrails so even a future bug or a misconfigured cron
 // can't blast a real user. All three trigger AFTER user-resolution but
@@ -219,7 +223,7 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
   const urgency: Urgency = req.urgency ?? 'normal';
   const channel = req.channel ?? 'auto';
   const dedupWindowMs = req.dedupWindowMs ?? DEFAULT_DEDUP_WINDOW_MS;
-  const bypassQuiet = req.bypassQuietHours ?? (urgency === 'emergency');
+  let bypassQuiet = req.bypassQuietHours ?? (urgency === 'emergency');
 
   // ── Tenant boundary (DEF-178, corrected by DEF-179) ────────────────
   // The caller declares which tenant it is acting for, and the QUERY is
@@ -817,6 +821,14 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
     }, `rate_limited (kind sent ${ageSec}s ago)`);
   }
 
+  // ── Functional Charter: a user with Suzi ────────────────────────────
+  // Their quiet hours and working hours are handled by the charter's rules, so these two gates do not
+  // apply to them. Things they asked for themselves, and the brief until handover, go as before.
+  const suziExempt = req.bypassOptIn === true || req.bypassRateLimit === true || SUZI_EXEMPT_KINDS.has(req.kind);
+  const suziAdopted = !suziExempt && (await (await import('../suzi/suziReach')).reachFor(user.clientNumber, user.id)).adopted;
+
+  if (suziAdopted) bypassQuiet = true;
+
   // ── Quiet hours check ───────────────────────────────────────────────
   if (!bypassQuiet && await isWithinQuietHours(bc, user.id)) {
     return await record({
@@ -873,6 +885,27 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
       });
     }
     req = { ...req, body: rendered, summary: rendered.slice(0, 120) };
+  }
+
+  // No WhatsApp while Suzi is the way to this user. It goes in the outbox and the charter's rules move
+  // it. The ledger row is what caps and dedup read, so it is written as for any other delivery.
+  if (suziAdopted) {
+    const { holdItem, pumpHeld } = await import('../suzi/suziReach');
+    const outboxId = await holdItem({
+      clientNumber: user.clientNumber, userId: user.id, kind: req.kind, summary: req.summary, body: req.body,
+      urgency, provenance: req.provenance, metadata: req.metadata,
+    });
+    const moved = await pumpHeld(user.clientNumber, user.id);
+    // Only the row caps and dedup read. Brain's record of what it told them, and the thread, are written
+    // by recordSuziDelivery when it actually reaches them: this may only be held so far.
+    const row = await prisma.brainUserMessage.create({
+      data: {
+        clientNumber: user.clientNumber, userId: user.id, kind: req.kind, channel: 'suzi', urgency,
+        summary: req.summary.slice(0, 500), waMessageIds: [], dedupKey: req.dedupKey ?? null, status: 'sent',
+        metadata: { ...(req.metadata ?? {}), suzi_outbox_id: outboxId, suzi_moved: moved } as any,
+      },
+    }).catch((err) => { log.error('audit insert failed', { err: err.message }); return null; });
+    return { sent: true, channelsUsed: ['suzi'], waMessageIds: [], recordId: row ? String(row.id) : undefined };
   }
 
   // ── Resolve target phone ────────────────────────────────────────────
@@ -1182,7 +1215,7 @@ async function isOutsideOfficeHours(userId: number, clientNumber: string, bc: an
   }
 }
 
-async function isWithinQuietHours(bc: any, userId: number): Promise<boolean> {
+export async function isWithinQuietHours(bc: any, userId: number): Promise<boolean> {
   if (!bc?.quietStart || !bc?.quietEnd) return false;
   const { resolveUserTimezone, isValidTimezone } = await import('../userTimezoneService');
   const tz = isValidTimezone(bc.timezone) ? bc.timezone : await resolveUserTimezone(userId);
@@ -1333,6 +1366,53 @@ async function record(
     waMessageIds: o.waMessageIds ?? [],
     recordId: row ? String(row.id) : undefined,
   };
+}
+
+/** An item actually reached the user through Suzi: Brain can now say it told them (DEF-108, DEF-117). */
+export async function recordSuziDelivery(i: { userId: number; clientNumber: string; kind: string; summary: string; body: string; urgency: string; how: string }): Promise<void> {
+  try {
+    const { recordArtifact } = await import('../knowledge/brainActionArtifactService');
+    await recordArtifact({
+      clientNumber: i.clientNumber, userId: i.userId, channel: 'suzi', actionType: 'notify_via_suzi', status: 'succeeded',
+      payload: { kind: i.kind, urgency: i.urgency, recipientPhone: null, titleHint: i.summary.slice(0, 120) },
+      result: { waMessageIds: [], channel: i.how }, errorMessage: null, artifactExtId: null,
+    });
+    const { appendBrainTurnToSession } = await import('../whatsapp/sessionHistoryService');
+    await appendBrainTurnToSession(i.clientNumber, i.userId, i.body);
+  } catch (err: any) {
+    log.error('delivery record failed — Brain will not remember this', { kind: i.kind, err: err?.message });
+  }
+}
+
+/**
+ * Functional Charter: a critical item the user has not been reachable for. Same send and same echo
+ * guard as the WhatsApp fallback (DEF-332): the mail's own ids ride the ledger row, so ingestion
+ * recognizes it as Nexeo's and never reads it back as a new email.
+ */
+export async function emailHeldItem(i: { userId: number; clientNumber: string; kind: string; summary: string; body: string; urgency: string; metadata?: Record<string, unknown> }): Promise<boolean> {
+  const user = await prisma.user.findFirst({ where: { id: i.userId, clientNumber: i.clientNumber, isActive: true }, select: { id: true, clientNumber: true, email: true } });
+  if (!user?.email) return false;
+  try {
+    const { sendUserEmail } = await import('../gmailService');
+    const { scrubSyntheticIdentities } = await import('../whatsapp/displayIdentity');
+    const body = await scrubSyntheticIdentities(i.body, i.clientNumber);
+    const html = `<div style="font-family: -apple-system, system-ui, sans-serif;"><div style="white-space: pre-wrap;">${escapeHtml(body)}</div></div>`;
+    const sent = await sendUserEmail(user.id, user.email, i.summary.slice(0, 200), html);
+    if (!sent.success) { log.warn('held item email failed', { userId: i.userId, kind: i.kind, error: sent.error }); return false; }
+    await record({
+      userId: i.userId, clientNumber: i.clientNumber, kind: i.kind, summary: i.summary, body: i.body,
+      user, channel: 'email', urgency: i.urgency as Urgency, status: 'sent',
+      metadata: {
+        ...(i.metadata ?? {}), suzi_held_email: true,
+        ...(sent.messageId ? { gmailMessageId: sent.messageId } : {}),
+        ...((sent as any).rfc822MessageId ? { rfc822MessageId: (sent as any).rfc822MessageId } : {}),
+      },
+    });
+    return true;
+  } catch (e: any) {
+    log.warn('held item email threw', { userId: i.userId, error: e?.message });
+    return false;
+  }
 }
 
 /** Escape HTML for the email fallback body — plain text goes into a

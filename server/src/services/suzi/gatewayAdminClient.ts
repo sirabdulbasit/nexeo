@@ -237,6 +237,27 @@ export async function tellSuzi(
   }
 }
 
+/**
+ * Functional Charter: a silent card on the user's live Suzi. No model and no voice, so it can carry
+ * another person's words. Never throws.
+ */
+export async function noticeSuzi(
+  owner: { userId: number; clientNumber: string },
+  msg: { kind: string; text: string; urgency?: string },
+): Promise<{ delivered: number; reason?: string }> {
+  const text = msg.text.trim().slice(0, 4000);
+  if (!text) return { delivered: 0, reason: 'empty body' };
+  const priority = msg.urgency === 'high' || msg.urgency === 'emergency' ? 'urgent' : msg.urgency === 'low' ? 'low' : 'normal';
+  try {
+    const data = await call('POST', '/admin/notice', { user_id: String(owner.userId), tenant_id: owner.clientNumber, priority, text, ref: msg.kind.slice(0, 200) });
+    return { delivered: Number(data?.delivered ?? 0) };
+  } catch (err) {
+    const why = err instanceof SuziGatewayError ? err.message : 'unexpected error';
+    log.warn('suzi card not shown', { kind: msg.kind, reason: why });
+    return { delivered: 0, reason: why };
+  }
+}
+
 /** Disconnects only a computer that belongs to this owner; the gateway enforces it too. */
 export async function disconnectDevice(owner: SuziOwner, deviceId: string): Promise<void> {
   await call('POST', '/admin/revoke', { device_id: deviceId, user_id: String(owner.userId), tenant_id: owner.clientNumber });

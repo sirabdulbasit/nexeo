@@ -37,7 +37,7 @@ export interface ActionArtifact {
   id: string;
   clientNumber: string;
   userId: number;
-  channel: 'web' | 'whatsapp';
+  channel: 'web' | 'whatsapp' | 'suzi';
   pendingActionId: string | null;
   previewHash: string | null;
   idempotencyKey: string | null;
@@ -56,7 +56,7 @@ export interface ActionArtifact {
 export async function recordArtifact(args: {
   clientNumber: string;
   userId: number;
-  channel: 'web' | 'whatsapp';
+  channel: 'web' | 'whatsapp' | 'suzi';
   actionType: string;
   status: ArtifactStatus;
   payload: unknown;

@@ -41,6 +41,7 @@ import prisma from '../db/prisma';
 import createLogger from '../utils/logger';
 import { brainContactsUser } from '../services/notifications/brainOutboundService';
 import { getRedis } from '../utils/redisClient';
+import { briefHandedOver } from '../services/suzi/suziReach';
 
 const log = createLogger('day-brief-dispatch');
 
@@ -118,6 +119,9 @@ export async function runDayBriefDispatch(): Promise<RunResult> {
 
     // Hasn't reached configured time yet today.
     if (nowMinutes < configuredMinutes) continue;
+
+    // Functional Charter: stops once Suzi's handover has worked. Before composing, so it costs nothing.
+    if (await briefHandedOver(u.clientNumber, u.id)) { result.skipped += 1; continue; }
 
     // Already fired today's local-day? Use Redis as the source of
     // truth so a server restart between 06:00 and 08:30 doesn't

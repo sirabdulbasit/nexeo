@@ -49,6 +49,7 @@ function describe(actionType: string): string {
   switch (actionType) {
     case 'send_email': return 'Emailed';
     case 'notify_via_whatsapp': return 'WhatsApped';
+    case 'notify_via_suzi': return 'Told through Suzi';
     case 'delegate_open_item': return 'Delegated';
     case 'add_open_item': return 'Created item';
     case 'update_open_item': return 'Updated item';

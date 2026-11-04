@@ -26,6 +26,7 @@ import { buildDayPack } from '../services/suzi/dayPack';
 import { act } from '../services/suzi/suziAct';
 import { resolveUserTimezone } from '../services/userTimezoneService';
 import { recordDesktopBatch, recordServerRound } from '../services/consumption/consumptionService';
+import { markBriefHandover, PRESENCE_STATES, pumpHeld, recordPresence } from '../services/suzi/suziReach';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -131,6 +132,40 @@ router.get('/user-time', async (req: Request, res: Response) => {
  *   POST /usage/desktop {user_id, tenant_id, day, os, app_version, idempotency_key, items, device_id}
  * Counts only, never content. Safe to resend.
  */
+/**
+ * Functional Charter: the device's presence frame, forwarded by Suzi's server. Coming back releases
+ * what was held; the answer does not wait for that.
+ */
+router.post('/presence', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const { state, device_id: deviceId } = req.body ?? {};
+  if (!PRESENCE_STATES.includes(state) || typeof deviceId !== 'string' || !deviceId) { res.status(400).json({ ok: false, error: 'bad_presence' }); return; }
+  try {
+    const { returned } = await recordPresence(who.tenantId, who.userId, deviceId.slice(0, 60), state);
+    if (returned) void pumpHeld(who.tenantId, who.userId);
+    res.json({ ok: true });
+  } catch (err: any) {
+    log.warn('presence failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ ok: false, error: 'presence_failed' });
+  }
+});
+
+/** The day brief reached the board. Nexeo's own morning brief stops, if this device sends presence. */
+router.post('/brief-delivered', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const deviceId = req.body?.device_id;
+  if (typeof deviceId !== 'string' || !deviceId) { res.status(400).json({ ok: false, error: 'bad_device' }); return; }
+  try {
+    await markBriefHandover(who.tenantId, who.userId, deviceId.slice(0, 60));
+    res.json({ ok: true });
+  } catch (err: any) {
+    log.warn('brief handover failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ ok: false, error: 'handover_failed' });
+  }
+});
+
 router.post('/usage/round', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
