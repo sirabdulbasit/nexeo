@@ -11,6 +11,8 @@ import { classifyWebjsSendResult } from './sendReceipt';
 import { sendInboundTextReply } from './inboundReplyTransport';
 import { startInboundActivity, InboundActivity } from './inboundActivity';
 import { resolveRegisteredWhatsAppUser } from './inboundIdentity';
+import { whatsappWithOthers } from './othersPolicy';
+import { rememberSender } from './senderTriage';
 import prisma from '../../db/prisma';
 import createLogger from '../../utils/logger';
 import fs from 'fs';
@@ -913,7 +915,7 @@ export class WebjsProvider implements IWhatsAppProvider {
         return;
       }
 
-      log.info('Raw message event', { from: rawFrom, body: (message.body || '').slice(0, 50), type: message.type, hasMedia: message.hasMedia });
+      log.info('Raw message event', { from: rawFrom, bodyLen: (message.body || '').length, type: message.type, hasMedia: message.hasMedia });
 
       // Declared outside the try so the catch can gate the error reply on
       // _resolvedUserId (set by handleInboundMessage after registration).
@@ -1024,6 +1026,14 @@ export class WebjsProvider implements IWhatsAppProvider {
             log.warn('Inbound identity preflight failed', { clientNumber, error: e?.message });
             return undefined;
           });
+        // Owner ruling, 4 Nov 2026: a confirmed non-user's message is not read (othersPolicy), so its voice
+        // note or image is never downloaded or transcribed. Only the number is kept. A failed lookup
+        // (undefined) carries on, because it may be the user.
+        if (resolvedIdentity === null && !whatsappWithOthers()) {
+          void rememberSender({ clientNumber, ownerUserId: null, phone: fromNumber, rawSenderId: rawFrom, displayName: null, resolvedPhone: fromNumber }).catch(() => undefined);
+          log.info('Message from an unregistered number, not read', { clientNumber });
+          return;
+        }
         if (resolvedIdentity) {
           activity = await startInboundActivity(message, isVoice, {
             clientNumber, userId: resolvedIdentity.userId, messageId: msgId,

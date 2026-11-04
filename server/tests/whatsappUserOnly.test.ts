@@ -55,6 +55,20 @@ describe('messages from others', () => {
     expect(feed).toBeGreaterThan(gate);
   });
 
+  it('a non-user\'s voice note or image is never opened: the check comes before any download, on both paths', () => {
+    for (const [f, gate, media] of [
+      ['src/services/whatsapp/WebjsProvider.ts', 'resolvedIdentity === null && !whatsappWithOthers()', 'downloadInboundMedia('],
+      ['src/routes/webhookRoutes.ts', 'resolvedIdentity === null && !whatsappWithOthers()', 'downloadMetaMedia('],
+    ]) {
+      const src = readFileSync(f, 'utf8');
+      const at = src.indexOf(gate);
+      expect(at, f).toBeGreaterThan(0);
+      const firstMedia = src.indexOf(media, src.indexOf('resolveRegisteredWhatsAppUser(clientNumber, fromNumber)'));
+      expect(firstMedia, f).toBeGreaterThan(at);
+    }
+    expect(readFileSync('src/services/whatsapp/WebjsProvider.ts', 'utf8')).not.toContain("body: (message.body || '').slice(0, 50)");
+  });
+
   it('only a registered user may be sent WhatsApp; a failed lookup means no', async () => {
     expect(await mayWhatsApp('T', '+923001112222')).toBe(false);
     resolve.mockResolvedValue({ userId: 2 });

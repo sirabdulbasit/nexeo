@@ -200,6 +200,14 @@ router.post('/webhooks/whatsapp/:clientNumber', async (req, res) => {
                 log.warn('meta inbound identity preflight failed', { clientNumber, error: err?.message });
                 return undefined;
               });
+            // Owner ruling, 4 Nov 2026: a confirmed non-user's message is not read (othersPolicy). Only the number is kept.
+            const { whatsappWithOthers } = await import('../services/whatsapp/othersPolicy');
+            if (resolvedIdentity === null && !whatsappWithOthers()) {
+              const { rememberSender } = await import('../services/whatsapp/senderTriage');
+              void rememberSender({ clientNumber, ownerUserId: null, phone: fromNumber, rawSenderId: null, displayName: null, resolvedPhone: fromNumber }).catch(() => undefined);
+              log.info('meta message from an unregistered number, not read', { clientNumber });
+              continue;
+            }
             const isVoice = message.type === 'audio' || message.type === 'voice';
             let messageBody = message.text?.body || message.caption || '';
             let inputWasVoice = false;
