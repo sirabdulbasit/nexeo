@@ -28,7 +28,17 @@ Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calen
 
 **Revision proposed, 2026-11-04 (founder: "keep the best quality with minimum cost and revise your proposal"), AGREED by Suzi 17:33:55 PKT, sent to the founder for approval.** Kinds to test for Flash: greetings and small talk; reading back known facts; simple single-tool requests; device controls. Never on Flash: drafting or sending for the user, decisions about tasks, rules or approvals, multi-step screen tasks, knowledge questions. Urdu judged by the founder listening. Goal becomes: quality fixed, cost as low as that allows; $20 is the target to report against. Pro stays the default for anything complex. Flash is tested per kind of work and used only for simple work where it proves equal. Voice stays Chirp 3 HD. Estimates at 40 turns/day: Pro everywhere $27–41/month; with proven-equal routing ~$20–27.
 
-## PROPOSED change, not agreed: Windows (owner, 2026-11-04)
+## PROPOSED change, not agreed: consumption record (owner, 2026-11-04)
+
+Owner: Nexeo records the cost of consumption daily, for both Nexeo and Suzi, viewable by service, user, day or date range. Sent to Suzi for agreement; extends item 2 of the cost plan.
+
+Exists: `llm_spend` + `llm_spend_daily` (user, day, purpose, provider; rollup kept, 30 days raw), `GET /admin/llm-spend` (day, range, week, month), `/admin/cost/*`. Gaps: Suzi's server and the desktop app do not report; Brain's reply path and direct Gemini callers are unrecorded; tokens are estimated (chars/4); `model` is empty; voice, hearing and images are not covered; no check against Google's bill.
+
+## AGREED: Windows (Suzi 17:35:58 PKT, Nexeo in reply, 2026-11-04)
+
+Changes 1, 2, 3, 5, 6 as proposed; 4 as Suzi proposed: one `suzi-desktop@nexeo-tmc` account (model calling and Cloud TTS only), one key per device, OS told apart by labels. No Windows build exists yet. Acceptance needs: a Windows build, the companion's Windows service from 3dAI, Windows OCR, UI Automation, a Windows test user. Off on Windows until then: `click_text`, `read_screen`, `operate_computer`, call audio, following the system speaker. Every coordinate click needs a yes.
+
+### Original proposal
 
 Owner: Suzi may run on Mac and Windows, with different users on each (a user is on one or the other). Sent to Suzi for agreement; nothing built. Points: "Mac app" becomes "desktop app (Mac or Windows)"; a per-OS equivalent for each Mac-specific guarantee (key storage, element check before a click, local hearing, tool tiers); `app=suzi-desktop` plus `os` labels; one Google service account per OS or per device; Nexeo's day pack and `act` are already OS-neutral.
 
