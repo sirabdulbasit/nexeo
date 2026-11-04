@@ -1887,6 +1887,7 @@ model LlmSpend {
   purpose      String?  @db.VarChar(60)
   inputTokens  Int      @default(0) @map("input_tokens")
   outputTokens Int      @default(0) @map("output_tokens")
+  cachedTokens Int      @default(0) @map("cached_tokens")
   estUsd       Decimal  @default(0) @map("est_usd") @db.Decimal(10, 6)
   durationMs   Int?     @map("duration_ms")
   success      Boolean  @default(true)
@@ -3375,6 +3376,7 @@ model SuziActLog {
   args            Json      @default("{}")
   confirmedByUser Boolean   @default(false) @map("confirmed_by_user")
   voiceScore      Float?    @map("voice_score")
+  deviceId        String?   @map("device_id") @db.VarChar(60)
   status          String    @default("running") @db.VarChar(20) // running | ok | failed
   result          Json?
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)

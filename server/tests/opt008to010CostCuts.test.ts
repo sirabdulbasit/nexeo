@@ -62,7 +62,7 @@ vi.mock('../src/db/prisma', () => ({ default: { triageDecisionCache: row } }));
 const callLLM = vi.fn();
 vi.mock('../src/services/llmRouter', () => ({ callLLM: (...a: any[]) => callLLM(...a) }));
 
-import { reasonAboutEvent, triageEventKey, TRIAGE_EVENT_TTL_MS, __triageCacheInternals } from '../src/services/triage/triageReasoner';
+import { reasonAboutEvent, triageEventKey, triageMaterialFingerprint, TRIAGE_EVENT_TTL_MS, __triageCacheInternals } from '../src/services/triage/triageReasoner';
 
 const decision = { archetype: 'reply_needed', rationale: 'r', suggestedAction: 'draft_reply', confidence: 0.9, actions: [], critical: false, noise: false, meetingIntent: false };
 const ctx = (over: any = {}): any => ({
@@ -109,10 +109,40 @@ describe('OPT-010 one reasoning per email', () => {
     expect((await reasonAboutEvent('dh', ctx())).rationale).toBe('r');
   });
 
+  it('OPT-012: when what matters changes, the hold is not served; the verdict never carries its fingerprint', async () => {
+    const v = __triageCacheInternals.TRIAGE_PROMPT_VERSION;
+    row.findUnique
+      .mockResolvedValueOnce({ decision: { ...decision, rationale: 'before the change', __fp: 'an-older-fingerprint' }, createdAt: new Date(), promptVersion: v })
+      .mockResolvedValueOnce({ decision, createdAt: new Date(), promptVersion: v });
+    const out = await reasonAboutEvent('dh', ctx());
+    expect(out.rationale).toBe('r');
+    await new Promise((r) => setTimeout(r, 5));
+    const held = row.upsert.mock.calls.find((c) => c[0].where.cacheKey === triageEventKey(ctx()))![0];
+    expect(held.create.decision.__fp).toBe(triageMaterialFingerprint(ctx()));
+    // An unchanged fingerprint is served, without the internal field.
+    row.findUnique.mockReset();
+    row.findUnique.mockResolvedValueOnce({ decision: { ...decision, __fp: triageMaterialFingerprint(ctx()) }, createdAt: new Date(), promptVersion: v });
+    expect(await reasonAboutEvent('dh', ctx())).toEqual(decision);
+  });
+
+  it('OPT-012: a hold from before fingerprints is kept and stamped, with no model call', async () => {
+    row.findUnique.mockResolvedValueOnce({ decision, createdAt: new Date(), promptVersion: __triageCacheInternals.TRIAGE_PROMPT_VERSION });
+    expect(await reasonAboutEvent('dh', ctx())).toEqual(decision);
+    expect(callLLM).not.toHaveBeenCalled();
+    expect(row.update.mock.calls[0][0].data.decision.__fp).toBe(triageMaterialFingerprint(ctx()));
+  });
+
+  it('OPT-012: the fingerprint moves on a new related item or thread message, not on the subject line', () => {
+    const a = triageMaterialFingerprint(ctx());
+    expect(triageMaterialFingerprint(ctx({ sender: { ...ctx().sender, relatedOpenItems: [{ title: 'x', status: 'NEW' }] } }))).not.toBe(a);
+    expect(triageMaterialFingerprint(ctx({ sender: { ...ctx().sender, threadContext: [{ from: 'them', text: 'hi' }] } }))).not.toBe(a);
+    expect(triageMaterialFingerprint(ctx())).toBe(a);
+  });
+
   it('a live answer is held too', () => {
     const src = read('services/triage/triageReasoner.ts');
     const live = src.slice(src.indexOf('const decision = await llmReason(ctx, userPrompt)'), src.indexOf('return decision;', src.indexOf('const decision = await llmReason(ctx, userPrompt)')));
-    expect(live).toContain('if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision)');
+    expect(live).toContain('if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision)');
   });
 
   it('the key is per tenant, per user and per event; an event-less call has no hold', () => {

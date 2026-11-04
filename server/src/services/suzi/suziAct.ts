@@ -30,6 +30,8 @@ export interface ActRequest {
   confirmed_by_user?: boolean;
   voice_score?: number | null;
   timezone?: string;
+  /** From the verified login on Suzi's server (Functional Charter, row 18). */
+  device_id?: string | null;
 }
 
 export type ActResponse =
@@ -73,6 +75,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
         clientNumber, userId, op: req.op, idempotencyKey: key, argsHash: fp, args: (req.args ?? {}) as any,
         confirmedByUser: req.confirmed_by_user === true,
         voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
+        deviceId: req.device_id ? String(req.device_id).slice(0, 60) : null,
       },
       select: { id: true },
     });
@@ -106,7 +109,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
     action: `suzi.act.${req.op}`,
     subjectType: 'open_item', subjectId: typeof req.args?.id === 'string' ? req.args.id : null,
     result: out.ok ? 'success' : 'failure',
-    details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, ...(out.ok ? {} : { error: out.error }) },
+    details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, ...(out.ok ? {} : { error: out.error }) },
   });
   if (out.ok) return { status: 200, body: { ok: true, audit_id: logId, item: out.item } };
   return { status: statusOf(out.error), body: { ok: false, audit_id: logId, error: out.error, ...(out.detail ? { detail: out.detail } : {}) } };

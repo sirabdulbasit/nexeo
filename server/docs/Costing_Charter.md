@@ -1,6 +1,6 @@
 # Costing Charter: Nexeo and Suzi
 
-**Version 1.0, 4 Nov 2026.** Agreed by Nexeo and Suzi. **Waiting on the founder's approval: no cost work starts before it.** Both sides hold this same file. Figures are estimates until real turns are measured.
+**Version 1.1, 4 Nov 2026.** Agreed by Nexeo and Suzi. **Approved by the founder, 4 Nov 2026: build per this charter.** Items 5, 6 and 7 stand as recommended unless he says otherwise. Both sides hold this same file. Figures are estimates until real turns are measured.
 
 **Changing this charter:** Suzi and Nexeo agree between themselves, each keeping its own part optimal, and send the founder ONE joint summary for approval. Every message carries its date and time with seconds (PKT). What each side does is in `Functional_Charter.md`.
 
@@ -35,7 +35,7 @@ Removing waste needs no trade. Anything cheaper ships only if a test shows it is
 
 ## For the founder's approval
 
-1. **Restores quality, first:** re-judge an email at once when something important changes. Earlier savings can leave a score up to a day old and a triage decision up to 7 days old. Built and tested, not live: `server/docs/parked/opt-012-refresh-on-change.patch` (Nexeo repo). Costs slightly more. *Can be approved now, on its own.*
+1. **Restores quality, first:** re-judge an email at once when something important changes. Earlier savings can leave a score up to a day old and a triage decision up to 7 days old. Live from D-156. Costs slightly more. *Can be approved now, on its own.*
 2. **See the costs:** the consumption record below; record Brain's unrecorded reply path; model name in the token log; `app=suzi-desktop` + `os` labels (the founder passes this to the 3dAI builder).
 3. **Savings with no quality loss:** more answers from the day pack on the desktop app ("what's my day", "next meeting", "today's meetings", "how many overdue", "who emailed me"); a same-voice audio cache; long lists on the board with a short spoken summary; voice stops at once when interrupted; wiki facts instead of Brain's 60,000–100,000-token reply path.
 4. **Tests on a dedicated test user, a few dollars in total:**
@@ -51,7 +51,7 @@ Removing waste needs no trade. Anything cheaper ships only if a test shows it is
 
 ## The consumption record
 
-Nexeo keeps the one record, every day, for Nexeo and Suzi, viewable by service, user, day or date range. Built only after the founder approves.
+Nexeo keeps the one record, every day, for Nexeo and Suzi, viewable by service, user, day or date range. On Nexeo and Suzi's server: live from D-156. The desktop batch goes live when the desktop app sends it.
 
 - **Suzi's server** reports each model round from the provider's own counts: user, tenant, device, turn id, model, prompt, cached, output and thinking tokens, time.
 - **The desktop app** sends a daily batch through its server: `POST {gateway}/v1/usage {day, os, app_version, idempotency_key, items:[{service, units, unit}]}`. Safe to resend. Up to 7 days late; a month closes on day 7 of the next month; older batches stay on the machine.

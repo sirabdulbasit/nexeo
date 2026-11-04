@@ -141,9 +141,27 @@ const TRIAGE_CACHE_TTL_DAYS = 14;
  * attention window. A user's action still re-reasons at once: `invalidateReasonerCache(dedupHash)`
  * deletes by dedup hash, and the event entry carries the same hash. A new reply in a thread is
  * its own feed event, so it is reasoned on its own.
+ *
+ * OPT-012, owner 2026-11-04: "reducing cost doesn't mean to compromise the quality". The hold stores
+ * a fingerprint of what should move this decision (`triageMaterialFingerprint`); when that changes,
+ * the email is reasoned again at once.
  */
 export const TRIAGE_EVENT_TTL_MS = 7 * 86_400_000;
 const TRIAGE_EVENT_KEY_VERSION = 'ev1';
+
+/** OPT-012 — the sender's open items, thread length, standing rule, usual delegate, account links, meeting state. */
+export function triageMaterialFingerprint(ctx: Pick<ReasonerContext, 'sender' | 'org' | 'meeting' | 'activeRule'>): string {
+  const material = {
+    items: ctx.sender.relatedOpenItems.map((o) => `${o.title}|${o.status}`).sort(),
+    thread: ctx.sender.threadContext.length,
+    delegate: ctx.sender.dominantDelegatee ?? null,
+    rule: ctx.activeRule?.action ?? null,
+    account: ctx.org.senderOnActiveAccount,
+    project: ctx.org.senderOnActiveProject,
+    meeting: ctx.meeting ? { start: ctx.meeting.start ?? null, conflicts: !!ctx.meeting.hasConflicts } : null,
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
+}
 
 export function triageEventKey(ctx: Pick<ReasonerContext, 'clientNumber' | 'userId' | 'feedEventId'>): string | null {
   if (!ctx.feedEventId) return null;
@@ -212,12 +230,13 @@ export async function reasonAboutEvent(
   const eventKey = triageEventKey(ctx);
 
   // OPT-010: the per-email hold comes first, whatever the prompt looks like now.
-  const held = await heldDecisionForEvent(eventKey);
+  const materialFp = triageMaterialFingerprint(ctx);
+  const held = await heldDecisionForEvent(eventKey, materialFp);
   if (held) return held;
 
   const l1 = cache.get(cacheKey);
   if (l1 && Date.now() - l1.fetchedAt < L1_TTL_MS) {
-    if (eventKey) void writeCache(eventKey, dedupHash, ctx, l1.decision);
+    if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...l1.decision, __fp: materialFp } as ReasonerDecision);
     return l1.decision;
   }
 
@@ -242,7 +261,7 @@ export async function reasonAboutEvent(
         where: { cacheKey },
         data: { hits: { increment: 1 }, lastHitAt: new Date() },
       }).catch(() => {});
-      if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
+      if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision);
       return decision;
     }
   } catch (err: any) {
@@ -253,7 +272,7 @@ export async function reasonAboutEvent(
     const decision = await llmReason(ctx, userPrompt);
     rememberL1(cacheKey, decision);
     void writeCache(cacheKey, dedupHash, ctx, decision);
-    if (eventKey) void writeCache(eventKey, dedupHash, ctx, decision);
+    if (eventKey) void writeCache(eventKey, dedupHash, ctx, { ...decision, __fp: materialFp } as ReasonerDecision);
     return decision;
   } catch (err: any) {
     // DEF-334 (2): the second of the two measured flood sites (~6,900 lines in
@@ -274,7 +293,7 @@ export async function reasonAboutEvent(
 }
 
 /** OPT-010: this email's held decision while its TTL holds, else null. Never throws. */
-async function heldDecisionForEvent(eventKey: string | null): Promise<ReasonerDecision | null> {
+async function heldDecisionForEvent(eventKey: string | null, materialFp: string): Promise<ReasonerDecision | null> {
   if (!eventKey) return null;
   try {
     const prisma = (await import('../../db/prisma')).default;
@@ -283,7 +302,14 @@ async function heldDecisionForEvent(eventKey: string | null): Promise<ReasonerDe
       select: { decision: true, createdAt: true, promptVersion: true },
     });
     if (held && held.promptVersion === TRIAGE_PROMPT_VERSION && Date.now() - held.createdAt.getTime() < TRIAGE_EVENT_TTL_MS) {
-      return held.decision as unknown as ReasonerDecision;
+      // OPT-012: something that matters changed, so reason again. A hold from before fingerprints
+      // existed has nothing to compare: it is kept, and stamped with today's signals.
+      const { __fp, ...decision } = held.decision as any;
+      if (__fp && __fp !== materialFp) return null;
+      if (!__fp) {
+        void prisma.triageDecisionCache.update({ where: { cacheKey: eventKey }, data: { decision: { ...decision, __fp: materialFp } } }).catch(() => {});
+      }
+      return decision as ReasonerDecision;
     }
   } catch (err: any) {
     log.warn('triage event hold read failed — falling through', { error: err?.message });

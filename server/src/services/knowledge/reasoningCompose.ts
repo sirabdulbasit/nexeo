@@ -304,11 +304,13 @@ ${actionsBlock}`;
 
   let raw: string;
   try {
-    raw = await callGemini(systemPromptWithDecisionContract, userMessage, {
+    // Costing Charter: named, so Brain's reply path shows as itself on the record and the bill.
+    const { runWithLlmFeature } = await import('../llmBillingLabels');
+    raw = await runWithLlmFeature('chat_reasoning', undefined, () => callGemini(systemPromptWithDecisionContract, userMessage, {
       maxTokens: 2048,
       flash: false, // Pro for full reasoning
       responseMimeType: 'application/json',
-    });
+    }), { userId: input.userId });
   } catch (e: any) {
     console.warn('[reasoningCompose] LLM call failed', { userId: input.userId, error: e?.message });
     return null;

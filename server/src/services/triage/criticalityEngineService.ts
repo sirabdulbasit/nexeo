@@ -589,6 +589,10 @@ export const __fusionCacheInternals = { bucketHours, normalisePromptForKey };
  * construction: at most 1 live score a day for a recent event, whatever the sweep cadence
  * or the prompt drift. What stays live on every pass: the superpowers (absence, cross-source,
  * decay), the user's calibration and the star floor, none of which go through the model.
+ *
+ * OPT-012, owner 2026-11-04: "reducing cost doesn't mean to compromise the quality". The hold
+ * stores a fingerprint of the signals that should move a judgement (`fusionMaterialFingerprint`).
+ * When they change, the email is scored again at once, whatever the TTL says.
  */
 const FUSION_EVENT_KEY_VERSION = 'ev1';
 export const FUSION_EVENT_TTL_MS = { recent: 24 * 3600_000, old: 7 * 86_400_000 } as const;
@@ -607,13 +611,36 @@ export function fusionEventTtlMs(receivedAt: Date | null | undefined, now = Date
   return now - t < RECENT_EVENT_MS ? FUSION_EVENT_TTL_MS.recent : FUSION_EVENT_TTL_MS.old;
 }
 
+/**
+ * OPT-012 — what should move this email's judgement: its sender's open items, matching standing
+ * instructions, delegation owners, stars, tone, CRM stage, and deadlines tied to this sender as they
+ * come within a day. Deliberately left out: the clock (ages, silence), knowledge snippets, and other
+ * people's deadlines, which change constantly or would re-score every email at once.
+ */
+export function fusionMaterialFingerprint(s: Pick<GatheredSignals, 'openItems' | 'deadlines' | 'instructionMatches' | 'delegationOwners' | 'importanceStars' | 'sentiment' | 'crm'>): string {
+  const senderTitles = new Set(s.openItems.map((o) => o.title));
+  const material = {
+    items: s.openItems.map((o) => `${o.id}|${o.status}|${o.priority}|${o.dueDate ?? ''}`).sort(),
+    deadlines: s.deadlines
+      .filter((d) => d.source !== 'open_item' || senderTitles.has(d.what))
+      .map((d) => `${d.what}|${d.hoursUntil <= 24 ? 'soon' : 'later'}`).sort(),
+    instructions: s.instructionMatches.map((i) => i.id).sort(),
+    owners: s.delegationOwners.map((o) => `${o.area}|${o.ownerName}`).sort(),
+    stars: s.importanceStars,
+    tone: s.sentiment.tone ?? null,
+    crm: s.crm.map((c) => c.stage).sort(),
+  };
+  return crypto.createHash('sha256').update(JSON.stringify(material)).digest('hex').slice(0, 32);
+}
+
 /** Fire-and-forget: a real verdict (never the deterministic fallback) is kept for the event. */
-function rememberFusionForEvent(eventKey: string | null, clientNumber: string, result: unknown): void {
+function rememberFusionForEvent(eventKey: string | null, clientNumber: string, result: unknown, fp: string): void {
   if (!eventKey) return;
+  const held = { ...(result as object), __fp: fp };
   void prisma.criticalityFusionCache.upsert({
     where: { cacheKey: eventKey },
-    create: { cacheKey: eventKey, clientNumber, promptVersion: FUSION_PROMPT_VERSION, result: result as any },
-    update: { result: result as any, promptVersion: FUSION_PROMPT_VERSION, createdAt: new Date() },
+    create: { cacheKey: eventKey, clientNumber, promptVersion: FUSION_PROMPT_VERSION, result: held as any },
+    update: { result: held as any, promptVersion: FUSION_PROMPT_VERSION, createdAt: new Date() },
   }).catch((err: any) => log.warn('fusion event cache write failed', { error: err?.message }));
 }
 
@@ -627,7 +654,8 @@ async function fuseAndScore(
   // OPT-006: the per-event ceiling comes first. Within its TTL an event is answered from
   // its last real verdict, whatever its prompt looks like now.
   const eventKey = input.feedEventId ? fusionEventKey(input.clientNumber, input.feedEventId) : null;
-  const held = await fusionHeldForEvent(eventKey, input.receivedAt);
+  const materialFp = fusionMaterialFingerprint(signals);
+  const held = await fusionHeldForEvent(eventKey, input.receivedAt, materialFp);
   if (held) return held;
 
   // Cache read. Never allowed to break scoring: any failure here falls through
@@ -649,7 +677,7 @@ async function fuseAndScore(
         data: { hits: { increment: 1 }, lastHitAt: new Date() },
       }).catch(() => {});
       const hit = cached.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
-      rememberFusionForEvent(eventKey, input.clientNumber, hit);
+      rememberFusionForEvent(eventKey, input.clientNumber, hit, materialFp);
       return hit;
     }
   } catch (err: any) {
@@ -702,7 +730,7 @@ async function fuseAndScore(
         createdAt: new Date(),
       },
     }).catch((err: any) => log.warn('fusion cache write failed', { error: err?.message }));
-    rememberFusionForEvent(eventKey, input.clientNumber, result);
+    rememberFusionForEvent(eventKey, input.clientNumber, result, materialFp);
 
     return result;
   } catch (err: any) {
@@ -734,7 +762,7 @@ async function fuseAndScore(
 }
 
 /** OPT-006: the event's last real verdict while its TTL holds, else null. Never throws. */
-async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date): Promise<Awaited<ReturnType<typeof fuseAndScore>> | null> {
+async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date, materialFp: string): Promise<Awaited<ReturnType<typeof fuseAndScore>> | null> {
   if (!eventKey) return null;
   try {
     const ev = await prisma.criticalityFusionCache.findUnique({
@@ -743,11 +771,15 @@ async function fusionHeldForEvent(eventKey: string | null, receivedAt: Date): Pr
     });
     if (!ev || ev.promptVersion !== FUSION_PROMPT_VERSION) return null;
     if (Date.now() - ev.createdAt.getTime() >= fusionEventTtlMs(receivedAt)) return null;
+    // OPT-012: something that matters changed, so judge it again. A hold from before fingerprints
+    // existed has nothing to compare: it is kept, and stamped with today's signals.
+    const { __fp, ...verdict } = ev.result as any;
+    if (__fp && __fp !== materialFp) return null;
     void prisma.criticalityFusionCache.update({
       where: { cacheKey: eventKey },
-      data: { hits: { increment: 1 }, lastHitAt: new Date() },
+      data: { hits: { increment: 1 }, lastHitAt: new Date(), ...(__fp ? {} : { result: { ...verdict, __fp: materialFp } }) },
     }).catch(() => {});
-    return ev.result as unknown as Awaited<ReturnType<typeof fuseAndScore>>;
+    return verdict as Awaited<ReturnType<typeof fuseAndScore>>;
   } catch (err: any) {
     log.warn('fusion event cache read failed — falling through', { error: err?.message });
     return null;

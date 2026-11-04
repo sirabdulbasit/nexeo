@@ -10,29 +10,34 @@
  *   tenant   the customer: `opts.clientNumber` of the call, else the request's tenant scope
  *   feature  the call's purpose ('triage', 'criticality_fuse', …), else 'unlabeled'
  *
+ * Costing Charter, 2026-11-04: the same place also RECORDS every call in `llm_spend`, from Google's
+ * own usage counts (prompt, cached, output, thinking) and with the real model name. So Brain's reply
+ * path and the seventeen direct callers, which recorded nothing, are now on the record, and the ledger
+ * no longer estimates tokens at 4 characters each.
+ *
  * The labels are attached in ONE place — the GenAI client's generateContent /
  * generateContentStream — so the seventeen direct callers of the client are covered
  * without changing a line of them. `callLLM` sets the feature for everything it routes;
  * a direct caller that sets none shows up as 'unlabeled', which is itself the finding.
  *
  * Vertex rules for a label: lowercase letters, digits, '_' and '-', at most 63 characters.
- * The Gemini Developer API (API-key mode) has no labels field, so the client is left alone
- * there.
+ * The Gemini Developer API (API-key mode) has no labels field, so calls there are recorded but
+ * not labelled.
  */
 import { AsyncLocalStorage } from 'async_hooks';
 import type { GoogleGenAI } from '@google/genai';
-import { currentClientNumber } from '../db/tenantContext';
+import { currentClientNumber, currentTenant } from '../db/tenantContext';
 
 export const APP_LABEL = 'nexeo';
 export const UNLABELED = 'unlabeled';
 export const NO_TENANT = 'none';
 
-interface LlmFeatureScope { feature: string; tenant?: string | null }
+interface LlmFeatureScope { feature: string; tenant?: string | null; userId?: number | null; feedEventId?: string | null }
 const scope = new AsyncLocalStorage<LlmFeatureScope>();
 
 /** Run `fn` with this feature (and tenant) on every Vertex call it makes. */
-export function runWithLlmFeature<T>(feature: string, tenant: string | null | undefined, fn: () => Promise<T>): Promise<T> {
-  return scope.run({ feature, tenant }, fn);
+export function runWithLlmFeature<T>(feature: string, tenant: string | null | undefined, fn: () => Promise<T>, extra: { userId?: number | null; feedEventId?: string | null } = {}): Promise<T> {
+  return scope.run({ feature, tenant, ...extra }, fn);
 }
 
 /** A Vertex label value: lowercase letters, digits, '_' and '-', at most 63 chars, never empty. */
@@ -61,18 +66,56 @@ export function withBillingLabels<T extends { config?: any }>(params: T): T {
   return { ...params, config: { ...config, labels: { ...currentBillingLabels(), ...(config.labels ?? {}) } } };
 }
 
+/** Writes one call to the ledger from Google's counts. Never throws into the call it measures. */
+function recordUsage(model: unknown, usage: any, s: LlmFeatureScope | undefined): void {
+  if (!usage) return;
+  const name = String(model ?? '');
+  // Imported here, not at the top: the GenAI client must not pull in the database (and .env) at load.
+  void import('./llmSpendService').then(({ recordLlmSpend }) => recordLlmSpend({
+    provider: /flash/i.test(name) ? 'gemini-flash' : 'gemini',
+    model: name.slice(0, 80) || undefined,
+    clientNumber: s?.tenant ?? currentClientNumber() ?? undefined,
+    userId: s?.userId ?? currentTenant()?.userId ?? undefined,
+    purpose: s?.feature ?? UNLABELED,
+    feedEventId: s?.feedEventId ?? null,
+    inputTokens: Number(usage.promptTokenCount) || 0,
+    cachedTokens: Number(usage.cachedContentTokenCount) || 0,
+    outputTokens: (Number(usage.candidatesTokenCount) || 0) + (Number(usage.thoughtsTokenCount) || 0),
+  })).catch(() => {});
+}
+
 /**
- * Patch a Vertex client so every generateContent / generateContentStream carries the labels.
- * Idempotent; a non-Vertex client is returned untouched.
+ * Patch a client so every generateContent / generateContentStream is recorded and, on Vertex, carries
+ * the labels (the Gemini Developer API has no labels field). Idempotent.
  */
 export function attachBillingLabels(client: GoogleGenAI): GoogleGenAI {
   const c = client as any;
   const models = c?.models;
-  if (!c?.vertexai || !models || models.__billingLabels) return client;
-  for (const name of ['generateContent', 'generateContentStream'] as const) {
-    const orig = models[name];
-    if (typeof orig !== 'function') continue;
-    models[name] = (params: any, ...rest: any[]) => orig.call(models, withBillingLabels(params), ...rest);
+  if (!models || models.__billingLabels) return client;
+  const label = (params: any) => (c.vertexai ? withBillingLabels(params) : params);
+  if (typeof models.generateContent === 'function') {
+    const orig = models.generateContent;
+    models.generateContent = async (params: any, ...rest: any[]) => {
+      const s = scope.getStore();
+      const r = await orig.call(models, label(params), ...rest);
+      recordUsage(params?.model, r?.usageMetadata, s);
+      return r;
+    };
+  }
+  if (typeof models.generateContentStream === 'function') {
+    const orig = models.generateContentStream;
+    models.generateContentStream = async (params: any, ...rest: any[]) => {
+      const s = scope.getStore();
+      const stream = await orig.call(models, label(params), ...rest);
+      return (async function* () {
+        let usage: unknown;
+        for await (const chunk of stream) {
+          if (chunk?.usageMetadata) usage = chunk.usageMetadata;
+          yield chunk;
+        }
+        recordUsage(params?.model, usage, s);
+      })();
+    };
   }
   models.__billingLabels = true;
   return client;

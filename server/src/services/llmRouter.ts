@@ -192,18 +192,21 @@ export async function callLLM(
         // OPT-005: the purpose becomes the Vertex billing label `feature` on this call.
         const text = await withTimeout(
           () => runWithLlmFeature(opts?.purpose ?? 'unknown', opts?.clientNumber,
-            () => callProvider(provider, systemPrompt, userMessage, opts?.maxTokens, opts?.thinkingBudget)),
+            () => callProvider(provider, systemPrompt, userMessage, opts?.maxTokens, opts?.thinkingBudget),
+            { userId: opts?.userId, feedEventId: opts?.feedEventId }),
           timeoutMs,
         );
         if (text && text.trim().length > 0) {
-          const outputTokens = estimateTokens(text);
-          // Fire-and-forget spend record
-          void recordLlmSpend({
-            provider, userId: opts?.userId, clientNumber: opts?.clientNumber,
-            purpose: opts?.purpose ?? 'unknown',
-            feedEventId: opts?.feedEventId ?? null,
-            inputTokens, outputTokens,
-          }).catch(() => {});
+          // Costing Charter: Gemini calls are recorded by the client itself from Google's own counts
+          // (llmBillingLabels.ts). Claude does not pass through it, so it is recorded here.
+          if (provider === 'claude') {
+            void recordLlmSpend({
+              provider, userId: opts?.userId, clientNumber: opts?.clientNumber,
+              purpose: opts?.purpose ?? 'unknown',
+              feedEventId: opts?.feedEventId ?? null,
+              inputTokens, outputTokens: estimateTokens(text),
+            }).catch(() => {});
+          }
           // Prod fix 2026-07-10: LLM output truncated at maxTokens can
           // end in a lone surrogate (half an emoji). Every downstream
           // consumer slices/persists this text; sanitizing HERE — the

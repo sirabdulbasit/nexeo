@@ -34,6 +34,7 @@ import createLogger from '../utils/logger';
 const log = createLogger('llm-spend');
 
 type Provider = 'claude' | 'gemini' | 'gemini-flash';
+import { tokenCostUsd } from './consumption/priceTable';
 
 interface SpendParams {
   provider: Provider;
@@ -42,6 +43,9 @@ interface SpendParams {
   purpose: string;
   inputTokens: number;
   outputTokens: number;
+  /** The real model id, and Google's cached share of inputTokens, when the provider reports them. */
+  model?: string;
+  cachedTokens?: number;
   /** Source event this call was about, when there is one. See CallLlmOpts. */
   feedEventId?: string | null;
 }
@@ -61,6 +65,7 @@ const PRICE_PER_M = {
 export function estimatedCostUsd(p: SpendParams): number {
   const rate = PRICE_PER_M[p.provider];
   if (!rate) return 0;
+  if (p.model) return tokenCostUsd(p.model, { input: p.inputTokens, cached: p.cachedTokens, output: p.outputTokens });
   return (p.inputTokens / 1_000_000) * rate.in + (p.outputTokens / 1_000_000) * rate.out;
 }
 
@@ -78,6 +83,8 @@ export async function recordLlmSpend(p: SpendParams): Promise<void> {
         clientNumber,
         userId: p.userId ?? null,
         provider: p.provider,
+        model: p.model ?? null,
+        cachedTokens: p.cachedTokens ?? 0,
         purpose: p.purpose,
         feedEventId: p.feedEventId ?? null,
         inputTokens: p.inputTokens,

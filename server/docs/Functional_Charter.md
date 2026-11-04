@@ -2,6 +2,8 @@
 
 **Version 1.0, 4 Nov 2026.** Agreed by Nexeo and Suzi. Both sides hold this same file. Items marked *founder* wait on the founder's decision.
 
+**Kick-off (founder, 4 Nov 2026):** when both sides have finished their parts of the build, they shake hands again: each confirms its part is done and tested, and only then does the system kick off.
+
 **Changing this charter:** any change must be re-agreed by both sides BEFORE any development or build starts: propose it, both reply AGREE with date, time and seconds (PKT), update this file on both sides, then build. Cost matters are in `Costing_Charter.md`.
 
 ## The principle
@@ -80,6 +82,7 @@ Each user has their own Suzi: the boss's personal assistant for clerical work. T
 - **Live link:** WebSocket protocol v1 (hello / welcome with features, user_utterance, assistant_start, assistant_delta, assistant_done, tool_call → tool_result, notice). Tool arguments go under `args` and must match the schema the device announces in hello.
 - **Device tools:** the tools announced in hello, including `present_report` (blocks: kpis, chart, table, list, text).
 - **Day pack:** `GET https://tai.tmcltd.com/suzi/v1/day-pack`. Fields include `version` (format version), `generated_at`, `cursor`, `tz`, `date`, `calendar`, `actions`, `emails`, `emails_loading`, `kpis`, `brief`, `missing`.
+- **Usage:** `POST https://tai.tmcltd.com/suzi/v1/usage`: see `Costing_Charter.md`.
 - **Act:** `POST https://tai.tmcltd.com/suzi/v1/act` with `{op, args, idempotency_key, confirmed_by_user, voice_score?, ts?}`. `task.update` args: `{id, update: done|cancel|move|not_yet|note, due?: YYYY-MM-DD, note?}`. Tenant, user and device come only from the verified login, never the body. `rules_version` is added once rules are in the pack.
 - **Signing, before any send:** Ed25519 key in the OS keyring (Keychain, or Credential Manager on Windows), registered once with `POST {gateway}/v1/device-key {"pubkey":"<base64 raw 32 bytes>"}`; replacing a key needs the founder in the portal. The device signs RFC 8785 canonical JSON of `{op, args, idempotency_key, ts}` in the header `X-Suzi-Signature`; `ts` is UTC ISO-8601, within 5 minutes. Suzi's server is the only verifier and forwards a verified result; Nexeo refuses an irreversible op without it. Sends stay off until signing and the coordinate-click check exist.
 - **Knowledge:** `GET …/knowledge?q=<text>` → `[{page_id, title, excerpt, updated_at, url}]`, at most 5 results, about 4,000 characters.
@@ -105,14 +108,13 @@ A dedicated test user per OS, so tests stop touching the founder's history and i
 
 **Suzi, to build:** the Rules view and read-back card, the email compose card, the journal sender, the changes feed and push handling, task create and assign from speech, triage mode, respecting `primary`, the coordinate-click check, signing registration, the Windows steps above.
 
-**Nexeo and Suzi's server, built:** day pack v1, `act` with `task.update`, audit trail.
+**Nexeo and Suzi's server, built:** day pack v1, `act` with `task.update` and the device id, `ts` allowed, audit trail, the user's own zone on Suzi's server.
 
 **Nexeo and Suzi's server, to build:**
-1. Device id in `act`; allow `ts`; remove the fixed Karachi zone on Suzi's server.
-2. Presence and the reminder rules above.
-3. Knowledge route, `present_blocks`, `primary`.
-4. `rules` + `rules_md`, people, glossary, wiki slices; `rule.propose / apply / remove`; `task.create / assign / reassign / priority`; changes feed and `sync`; triage list.
-5. Signing, then email ops, journal, safety net.
+1. Presence and the reminder rules above.
+2. Knowledge route, `present_blocks`, `primary`.
+3. `rules` + `rules_md`, people, glossary, wiki slices; `rule.propose / apply / remove`; `task.create / assign / reassign / priority`; changes feed and `sync`; triage list.
+4. Signing, then email ops, journal, safety net.
 
 ## How we talk
 

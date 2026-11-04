@@ -18,7 +18,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import path from 'path';
-import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs } from '../src/services/triage/criticalityEngineService';
+import { FUSION_EVENT_TTL_MS, fusionEventKey, fusionEventTtlMs, fusionMaterialFingerprint } from '../src/services/triage/criticalityEngineService';
 
 const now = Date.parse('2026-11-04T12:00:00Z');
 
@@ -49,15 +49,15 @@ describe('OPT-006 the order of operations in fuseAndScore', () => {
   const body = src.slice(src.indexOf('async function fuseAndScore('));
   it('event lookup → prompt cache → LLM; remembered on live and on prompt hit; never the fallback', () => {
     const at = (s: string) => { const i = body.indexOf(s); expect(i, s).toBeGreaterThan(-1); return i; };
-    const eventRead = at("await fusionHeldForEvent(eventKey, input.receivedAt)");
+    const eventRead = at("await fusionHeldForEvent(eventKey, input.receivedAt, materialFp)");
     const promptRead = at("where: { cacheKey },");
     const llm = at("callLLM(FUSION_PROMPT, userMsg");
     const fallback = at("fallbackLogGate('fuseAndScore')");
     expect(eventRead).toBeLessThan(promptRead);
     expect(promptRead).toBeLessThan(llm);
     // a prompt-cache hit and a live verdict are both remembered for the event…
-    expect(body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, hit)')).toBeLessThan(llm);
-    const liveRemember = body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, result)');
+    expect(body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, hit, materialFp)')).toBeLessThan(llm);
+    const liveRemember = body.indexOf('rememberFusionForEvent(eventKey, input.clientNumber, result, materialFp)');
     expect(liveRemember).toBeGreaterThan(llm);
     expect(liveRemember).toBeLessThan(fallback);
     // …and nothing after the fallback gate writes an event entry.
@@ -68,10 +68,40 @@ describe('OPT-006 the order of operations in fuseAndScore', () => {
     expect(held).toContain('where: { cacheKey: eventKey }');
     expect(held).toContain('ev.promptVersion !== FUSION_PROMPT_VERSION');
     expect(held).toContain('fusionEventTtlMs(receivedAt)');
+    expect(held).toContain('if (__fp && __fp !== materialFp) return null;');
   });
   it('the attention-list path passes the feed event id', () => {
     const sug = readFileSync(path.join(__dirname, '../src/services/triage/triageSuggester.ts'), 'utf8');
     const call = sug.slice(sug.indexOf('criticality = await scoreCriticality({'));
     expect(call.slice(0, 1200)).toContain('feedEventId: row.id,');
+  });
+});
+
+describe('OPT-012 quality: a change that matters re-scores at once', () => {
+  const base: any = {
+    openItems: [{ id: 'i1', title: 'Contract', status: 'NEW', priority: 'high', age_days: 3, dueDate: null }],
+    deadlines: [{ source: 'open_item', what: 'Contract', at: 'x', hoursUntil: 40 }],
+    instructionMatches: [], delegationOwners: [], importanceStars: 0, crm: [],
+    sentiment: { score: 0, urgency: 0, tone: 'neutral', rationale: 'r' },
+    knowledge: [{ title: 't', pageType: 'topic', snippet: 'a' }],
+    senderTempo: { medianReplyHours: 5, currentSilenceHours: 10, typicalWindowHours: 9 },
+  };
+  const fp = (over: any) => fusionMaterialFingerprint({ ...base, ...over });
+  it('moves on what matters', () => {
+    const a = fp({});
+    expect(fp({ openItems: [{ ...base.openItems[0], status: 'IN_PROGRESS' }] })).not.toBe(a);
+    expect(fp({ openItems: [...base.openItems, { id: 'i2', title: 'New', status: 'NEW', priority: 'low', age_days: 0, dueDate: null }] })).not.toBe(a);
+    expect(fp({ importanceStars: 4 })).not.toBe(a);
+    expect(fp({ instructionMatches: [{ id: 'r1', kind: 'k', title: 't', originalText: 'o' }] })).not.toBe(a);
+    expect(fp({ deadlines: [{ ...base.deadlines[0], hoursUntil: 20 }] })).not.toBe(a); // came within a day
+    expect(fp({ sentiment: { ...base.sentiment, tone: 'hostile' } })).not.toBe(a);
+  });
+  it('does not move on the clock, on snippets, or on other senders\' deadlines', () => {
+    const a = fp({});
+    expect(fp({ openItems: [{ ...base.openItems[0], age_days: 9 }] })).toBe(a);
+    expect(fp({ deadlines: [{ ...base.deadlines[0], hoursUntil: 30 }] })).toBe(a);
+    expect(fp({ knowledge: [{ title: 'other', pageType: 'topic', snippet: 'b' }] })).toBe(a);
+    expect(fp({ senderTempo: { medianReplyHours: 5, currentSilenceHours: 99, typicalWindowHours: 9 } })).toBe(a);
+    expect(fp({ deadlines: [...base.deadlines, { source: 'open_item', what: 'Someone else item', at: 'x', hoursUntil: 2 }] })).toBe(a);
   });
 });

@@ -39,7 +39,7 @@ export function getGenAI(): GoogleGenAI {
           + '(configure the Vertex provider / set USE_VERTEX_AI=true, or set GEMINI_API_KEY)',
         );
       }
-      client = new GoogleGenAI({ apiKey });
+      client = attachBillingLabels(new GoogleGenAI({ apiKey }));
     }
   }
   return client;

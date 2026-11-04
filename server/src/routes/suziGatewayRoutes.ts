@@ -25,6 +25,7 @@ import { applyFollowUp, listPendingActions } from '../services/suzi/suziActions'
 import { buildDayPack } from '../services/suzi/dayPack';
 import { act } from '../services/suzi/suziAct';
 import { resolveUserTimezone } from '../services/userTimezoneService';
+import { recordDesktopBatch, recordServerRound } from '../services/consumption/consumptionService';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -67,7 +68,8 @@ router.get('/day-brief', async (req: Request, res: Response) => {
   if (!who) return;
   const { userId, tenantId } = who;
   try {
-    const facts = await buildDayBriefFacts(tenantId, userId, { timezone: typeof req.query.timezone === 'string' ? req.query.timezone : undefined });
+    // Functional Charter: the user's own zone unless the caller names one.
+    const facts = await buildDayBriefFacts(tenantId, userId, { timezone: typeof req.query.timezone === 'string' ? req.query.timezone : await resolveUserTimezone(userId) });
     log.info('day brief served', { userId, clientNumber: tenantId, meetings: (facts.blocks[1] as any).items.length, calendar: facts.sources.calendar });
     res.json(facts);
   } catch (err: any) {
@@ -106,12 +108,50 @@ router.post('/act', async (req: Request, res: Response) => {
       op: String(b.op ?? ''), args: b.args && typeof b.args === 'object' ? b.args : {},
       idempotency_key: b.idempotency_key, confirmed_by_user: b.confirmed_by_user === true,
       voice_score: typeof b.voice_score === 'number' ? b.voice_score : null, timezone,
+      device_id: typeof b.device_id === 'string' ? b.device_id : null,
     });
     log.info('suzi act', { userId: who.userId, op: b.op, ok: out.body.ok, auditId: out.body.audit_id });
     res.status(out.status).json(out.body);
   } catch (err: any) {
     log.warn('suzi act failed', { userId: who.userId, op: b.op, error: err?.message });
     res.status(500).json({ ok: false, error: 'act_failed' });
+  }
+});
+
+/** Functional Charter: `pack.tz` is the only source of a user's zone; Suzi's server asks here for its clock. */
+router.get('/user-time', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  res.json({ tz: await resolveUserTimezone(who.userId) });
+});
+
+/**
+ * Costing Charter — the consumption record.
+ *   POST /usage/round {user_id, tenant_id, turn_id, round, model, prompt, cached, output, thoughts, device_id}
+ *   POST /usage/desktop {user_id, tenant_id, day, os, app_version, idempotency_key, items, device_id}
+ * Counts only, never content. Safe to resend.
+ */
+router.post('/usage/round', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    await recordServerRound(who.tenantId, who.userId, req.body ?? {}, { timezone: await resolveUserTimezone(who.userId) });
+    res.json({ ok: true });
+  } catch (err: any) {
+    log.warn('usage round failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ ok: false, error: 'usage_failed' });
+  }
+});
+
+router.post('/usage/desktop', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    const out = await recordDesktopBatch(who.tenantId, who.userId, req.body ?? {}, { timezone: await resolveUserTimezone(who.userId) });
+    res.status(out.status).json(out.body);
+  } catch (err: any) {
+    log.warn('usage batch failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ ok: false, error: 'usage_failed' });
   }
 });
 
