@@ -49,11 +49,13 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 | 4 | WhatsApp-down message written once per window (OPT-008) | ~$0.09, ~$1 on an outage day | D-154 |
 | 5 | Mind State once a day (OPT-009) | ~$0.06 | D-154 |
 | 6 | One triage reasoning per email (OPT-010) | ~$0.40 | D-154 |
-| 7 | Suzi's server: caching, long calls, Flash for routine turns | ~$1.30 | waits on the owner: the code holds another session's uncommitted CN-009 work |
+| 7 | Suzi's server: labels, token logging, per-turn lines out of the system prompt, long results capped (OPT-011) | not yet known | live (D-155). Flash NOT switched: not needed so far |
 
 **Rejected: triage on Flash.** Tested on 30 real emails with the same prompts: action agreement Flash/Pro 17/30 against Pro/Pro 23/30, archetype 18 vs 26, noise 23 vs 28, critical 26 vs 29. Flash missed 7 of Pro's noise calls. The per-email hold saves about the same without changing the model.
 
-Expected: Nexeo ~$0.50/day, Suzi ~$0.40/day once row 7 is done, ~$0.90 in total.
+**Correction, D-155: Suzi is probably not the $1.70/day first assumed.** Real token counts are 3,000–4,300 per round, about $0.02 per brief turn, so roughly $0.40/day at 21 turns a day (the real Mac declares more tools, so this may be low). The ~8.7M Pro tokens missing from the ledger fit `reasoningCompose.ts:307`, which calls Pro directly and records nothing, under the nightly build's ~146 test questions at 60–100k tokens each. That build stopped on 3 Nov. Unproven until the bill by label.
+
+**Current estimate: Nexeo ~$0.50/day + Suzi ~$0.40/day = ~$0.90/day, with no change to Suzi's model.** Still to do: record compose spend in the ledger.
 
 ## 3. Measurements
 
