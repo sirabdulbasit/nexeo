@@ -47,6 +47,17 @@ Nexeo's positions on the open items:
 
 Facts learned from Suzi: the Mac app calls Google directly on project nexeo-tmc (Chirp 3 HD voice; Gemini 3.1 Flash-Lite hearing, ~$0.25/day beyond the free tier). No `act` call from the Mac had arrived by 17:01 PKT. Presence frame proposed: `{"type":"presence","state":"active|away|locked|asleep|paused"}`.
 
+**Round 3, 2026-11-04.** **AGREED: 5, 6, 7, 14, 16.** Only **18** stays open with Suzi (one change); **1** and **19** wait on the owner.
+
+Agreed details:
+- **5:** Suzi's server verifies; RFC 8785 over `{op, args, idempotency_key, ts}`; top-level `ts` (UTC ISO-8601), allowed by the strict check; `X-Suzi-Signature`; `ts` within 5 minutes; Nexeo refuses an irreversible op without a verified result. `POST {gateway}/v1/device-key {"pubkey":"<base64 raw 32 bytes>"}` stores `jarvis.devices.pubkey`, first registration only; replacing a key needs the founder in the portal.
+- **6:** coordinate clicks look up the element; outward or unreadable is T2 (Suzi builds this before any send is enabled). Send keys and a `type_text` ending in a newline are T2.
+- **7:** while alive, Nexeo uses no other channel; routine through pack and feed; critical at once as `assistant_start`. In quiet hours a critical item waits (silent card) unless the user's rules say it may wake them, then one short spoken alert. During meeting notes: silent card only.
+- **14:** `present_blocks({title, blocks:[{id, title, say}]})`; Suzi's server builds `present_report` from data tools' block ids. First version: tasks, meetings, emails.
+- **16:** the split is a target. Mac labels go in the 3dAI companion (`app=suzi-mac`, founder passes it on); TTS may need its own key or project.
+
+**18, Nexeo's change:** roles belong to a service account, not to a key, so "only what the Mac needs" requires a new Mac-only service account. Before rotating any `vertex-sa` key, check who else uses it: Suzi's server's default credential file is also `secrets/vertex-sa.json`.
+
 The sections below are the Nexeo session's earlier draft, kept for detail.
 
 Until an item is marked **AGREED**, neither side builds or changes it. Each item has a proposal from the Nexeo session; the Suzi team answers yes, no or a counter-proposal, and the owner settles anything left open.
