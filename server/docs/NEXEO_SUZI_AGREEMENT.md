@@ -28,7 +28,11 @@ Nexeo's measurements, 28 Oct–4 Nov, 169 turns: 2 used the brief, task or calen
 
 **Revision proposed, 2026-11-04 (founder: "keep the best quality with minimum cost and revise your proposal"), AGREED by Suzi 17:33:55 PKT, sent to the founder for approval.** Kinds to test for Flash: greetings and small talk; reading back known facts; simple single-tool requests; device controls. Never on Flash: drafting or sending for the user, decisions about tasks, rules or approvals, multi-step screen tasks, knowledge questions. Urdu judged by the founder listening. Goal becomes: quality fixed, cost as low as that allows; $20 is the target to report against. Pro stays the default for anything complex. Flash is tested per kind of work and used only for simple work where it proves equal. Voice stays Chirp 3 HD. Estimates at 40 turns/day: Pro everywhere $27–41/month; with proven-equal routing ~$20–27.
 
-## PROPOSED change, not agreed: consumption record (owner, 2026-11-04)
+## AGREED: consumption record (Suzi 17:37:42 PKT, Nexeo in reply, 2026-11-04). Built only after the founder approves the cost plan
+
+Nexeo keeps the one record, priced from one table, each row measured or estimated; counts only, never content; admin-only views by service, user, day or date range; monthly check against Google's bill. Day = the user's own zone. Desktop batches: `POST {gateway}/v1/usage {day, os, app_version, idempotency_key, items:[{service, units, unit}]}`, up to 7 days late; a month closes on day 7 of the next. Paid: `voice_characters`, `hearing_seconds` (~32 tokens/s), `meeting_audio_seconds`, `meeting_writing_characters`. Free: `voice_characters_fallback`, `local_hearing_seconds`, `local_screen_operator_steps`. Activity: `turns_spoken`, `turns_typed`, `turns_app_started`, `local_answers`, `tool_steps`, `screenshots_sent`.
+
+### Original proposal
 
 Owner: Nexeo records the cost of consumption daily, for both Nexeo and Suzi, viewable by service, user, day or date range. Sent to Suzi for agreement; extends item 2 of the cost plan.
 
