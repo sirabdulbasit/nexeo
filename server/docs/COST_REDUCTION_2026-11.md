@@ -57,6 +57,8 @@ Why the ledger looked wrong before: `llmSpendService.ts` priced Flash at $0.075/
 
 **Current estimate: Nexeo ~$0.50/day + Suzi ~$0.40/day = ~$0.90/day, with no change to Suzi's model.** Still to do: record compose spend in the ledger.
 
+**Added 11-04: the Mac app also bills to project nexeo-tmc** (~$0.25/day beyond the free tier, Suzi's figure), so the honest total is **~$1.15/day**, not ~$0.90. The $0.94 of image generation was the 3dAI character builder. Further cuts wait on the Nexeo–Suzi agreement.
+
 ## 3. Measurements
 
 Written per deploy in `brain_evaluation_chart.md` (D-153 onward). What to compare, per day, from `llm_spend_unified` and from the GCP bill by label:

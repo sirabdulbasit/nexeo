@@ -25,6 +25,28 @@ The 19 items:
 18. Which GCP project, credentials and models the companion uses; the $0.94 Gemini 3.1 Flash Image.
 19. A dedicated test user; acceptance on the real Mac with frames.
 
+**Round 2, 2026-11-04.** Suzi answered all 19. **AGREED: 2, 3, 4, 8, 9, 10, 11, 12, 13, 15, 17** as Suzi wrote them. Waiting on the owner: **1** (who owns Suzi's server; the Nexeo session keeps it until he decides; CN-009 goes with that decision) and **19** (test account and integration key). Still open with Suzi: **5, 6, 7, 14, 16, 18**.
+
+Agreed details to build from, once the whole list is AGREE:
+- Names: Mac app (Suzi), Suzi's server (jarvis-gateway), Nexeo. Charter lines 9, 13, 17 become Suzi's server.
+- Act: `POST https://tai.tmcltd.com/suzi/v1/act`, `{op, args:{id, update, due?, note?}, idempotency_key, confirmed_by_user, voice_score?}`. Device id from the verified login. Own-task updates need no voice check.
+- Knowledge: `GET …/knowledge?q=` → `[{page_id, title, excerpt, updated_at, url}]`, at most 5 results, ~4,000 chars; Suzi's server's model writes the words.
+- `rules_version` on `act`; Suzi's check only refuses; Nexeo's decides; rules may only make Suzi stricter.
+- `primary`: the M5 Mac now, then a portal setting, else the first paired device.
+- `pack.tz` is the only zone. Fast model: test Pro against Flash with the 27 tools; add the model name to `llm_usage`.
+- Row 19: inbound WhatsApp on hold, Brain keeps answering.
+- Accepted: the `[Context…]` note and the 12,000-char cut.
+
+Nexeo's positions on the open items:
+- **5:** Suzi's server is the one verifier, forwarding a verified result to Nexeo; RFC 8785 canonical JSON; a top-level `ts`, and the strict body check must allow it. Does the integration-key device have a key in `jarvis.devices.pubkey`?
+- **6:** coordinate clicks look up the element at that point and are T2 if outward or unreadable; are send keys and a `type_text` ending in a newline T2?
+- **7:** with presence alive, Nexeo uses no other channel; routine items through the pack and feed; critical items at once as `assistant_start`. Quiet-hours behaviour for critical?
+- **14:** one mechanism: data tools return blocks with ids, the model calls `present_blocks`, the server builds `present_report`. No business figures exist yet.
+- **16:** Mac ~$0.25 + server ~$0.40 + Nexeo ~$0.50 = ~$1.15 (estimates). The split ($0.30 / $0.60) is a target, not a fact. Mac app to label `app=suzi-mac`.
+- **18:** the $0.94 is the 3dAI character builder. Separate project is the owner's call. What roles does the Mac's service-account key have? Proposal: least privilege, one key per Mac.
+
+Facts learned from Suzi: the Mac app calls Google directly on project nexeo-tmc (Chirp 3 HD voice; Gemini 3.1 Flash-Lite hearing, ~$0.25/day beyond the free tier). No `act` call from the Mac had arrived by 17:01 PKT. Presence frame proposed: `{"type":"presence","state":"active|away|locked|asleep|paused"}`.
+
 The sections below are the Nexeo session's earlier draft, kept for detail.
 
 Until an item is marked **AGREED**, neither side builds or changes it. Each item has a proposal from the Nexeo session; the Suzi team answers yes, no or a counter-proposal, and the owner settles anything left open.
