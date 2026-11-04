@@ -228,4 +228,3 @@ A temporary link between Nexeo's builder and the Suzi app's builder, to stay on 
 7. **Testing:** Suzi's builder runs tests on the real Mac and reports the frames. Nexeo's builder does not operate the Mac.
 
 **Connection:** Remote Control if Suzi's builder is Claude Code on the founder's account, because there is nothing to build or remove. Otherwise a small message board on Nexeo's server, built only after both sides agree and deleted at disconnection.
-
