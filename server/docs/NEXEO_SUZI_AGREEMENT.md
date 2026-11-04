@@ -213,5 +213,4 @@ Until an item is marked **AGREED**, neither side builds or changes it. Each item
 
 **The rules are off behind the kick-off switch** `brain_channel.suziReachOn`. The Mac began sending presence at 18:26:27 PKT, when it was announced. Frames are recorded; nothing else moves until the switch is turned on at kick-off.
 
-**Open with Suzi, 4 Nov 18:40 PKT:** does the Mac show `notice` as a silent card; does the Mac hold speech and cards itself while meeting notes are on; what marks the brief handover when the Mac gives its own morning brief; what happens when a user stays away for days (proposed: after 72 hours, back to WhatsApp).
-
+**Open with Suzi, 4 Nov 18:38:20 PKT:** does the Mac show `notice` as a silent card; does the Mac hold speech and cards itself while meeting notes are on; what marks the brief handover when the Mac gives its own morning brief; what happens when a user stays away for days (proposed: after 72 hours, back to WhatsApp).
