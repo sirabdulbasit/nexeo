@@ -54,9 +54,9 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **T1, narrated:** opening, typing, clicking.
 - **T2, needs a voice-verified yes or an Approve click:**
   - closing apps, moving or deleting files (to the Trash or Recycle Bin), shell commands, risky hotkeys;
-  - clicking an outward button (Send, Submit, Approve, Pay, Transfer, Buy, Confirm, Sign, Post, Publish, Share, Forward), and screen-operator tasks that ask for one;
+  - clicking an outward button (Send, Submit, Approve, Pay, Transfer, Buy, Purchase, Rent, Confirm, Sign, Post, Publish, Share, Forward, Subscribe, Join, Comment, Reply, Thanks), and screen-operator tasks that ask for one;
   - typing text that ends in Enter, and the hotkeys Return, Enter and Cmd/Ctrl+Return;
-  - a coordinate click (`mouse_click`) on an outward button, or on an element whose label can't be read. The element is looked up with Accessibility on the Mac (built) and UI Automation on Windows (to build; until then **every** coordinate click on Windows is T2).
+  - a coordinate click (`mouse_click`) on an outward button, or on an element whose label can't be read, except a click whose label can't be read in Excel or Numbers, or in a browser whose front tab's address is YouTube (youtube.com, www, m and music.youtube.com, youtu.be; read from the browser, never the window title; an address that can't be read asks). Mac only, until Windows has the element check. Agreed 5 Nov 2026. The element is looked up with Accessibility on the Mac (built) and UI Automation on Windows (to build; until then **every** coordinate click on Windows is T2).
 
 **Same guarantees on both OSes.** Each OS-specific promise needs an equivalent before that OS may do the action; until then the action stays off.
 
