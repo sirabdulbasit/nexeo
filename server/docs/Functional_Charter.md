@@ -88,7 +88,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **Act:** `POST https://tai.tmcltd.com/suzi/v1/act` (401 without a credential).
   - Body: `{"op", "args", "idempotency_key", "confirmed_by_user", "voice_score"?, "ts"?}`. Unknown fields get a 400.
   - Tenant, user and device come only from the verified login, never from the body.
-  - `task.update` args: `{id, update: done|cancel|move|not_yet|note, due?: YYYY-MM-DD, note?}`
+  - `task.update` args: `{id, update: done|cancel|move|not_yet|note|reopen|assign, due?: YYYY-MM-DD, note?, person_id?}`. `reopen` puts the user's finished or cancelled task back on the open list, with no time limit. An open task gets `bad_state`, and a finished one refuses every other update until reopened, except `note`. `assign` needs `person_id` from `people`: it records who the task went to and tells nobody, and a person with no email gets `no_email`. Whether the person is told is the founder's to rule (link T21, both AGREE, 5 Nov 2026).
   - Answer: `{ok, audit_id, item}` on success, `{ok, audit_id, error, detail?}` on failure. A retry with the same key adds `replayed: true`; a stale `rules_version` adds the current one. The email ops of E4 describe `item` (both AGREE, 5 Nov 2026).
 - **Signing (irreversible ops):**
   - An Ed25519 key in the OS keyring.

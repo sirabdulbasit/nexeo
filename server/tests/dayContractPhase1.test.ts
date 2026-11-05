@@ -153,6 +153,11 @@ describe('act', () => {
     expect(auditFn.mock.calls[0][0]).toMatchObject({ clientNumber: 'TMC-0001', actorId: 2, action: 'suzi.act.task.update', subjectId: 'a1', result: 'success' });
   });
 
+  it('assign: person_id reaches the follow-up (link T21, D1)', async () => {
+    await act('TMC-0001', 2, { ...ok, idempotency_key: 'k9', args: { id: 'a1', update: 'assign', person_id: 'p1' } });
+    expect(follow).toHaveBeenCalledWith('TMC-0001', 2, expect.objectContaining({ actionId: 'a1', update: 'assign', personId: 'p1' }));
+  });
+
   it('a repeated key replays the stored answer and does NOT do the work again', async () => {
     await act('TMC-0001', 2, ok);
     const fp = log.create.mock.calls[0][0].data.argsHash;

@@ -305,8 +305,8 @@ router.post('/usage/desktop', async (req: Request, res: Response) => {
 /**
  * DEF-385 (CL-063) — the Action Center for Suzi.
  *   GET  /actions?user_id&tenant_id&limit?&timezone?  → {total, overdue, actions:[{id,title,priority,status,due,overdue}]}
- *   POST /actions/update {user_id, tenant_id, action_id, update: done|cancel|move|not_yet, due?: YYYY-MM-DD, note?}
- *        → {ok:true, update, action} | 400 bad_update/bad_date | 404 not_found | 409 rejected
+ *   POST /actions/update {user_id, tenant_id, action_id, update: done|cancel|move|not_yet|note|reopen|assign, due?: YYYY-MM-DD, note?, person_id?}
+ *        → {ok:true, update, action} | 400 bad_update/bad_date/bad_state/no_email | 404 not_found | 409 rejected
  */
 router.get('/actions', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
@@ -327,7 +327,7 @@ router.post('/actions/update', async (req: Request, res: Response) => {
   if (!who) return;
   const b = req.body ?? {};
   try {
-    const out = await applyFollowUp(who.tenantId, who.userId, { actionId: String(b.action_id ?? ''), update: String(b.update ?? ''), due: typeof b.due === 'string' ? b.due : undefined, note: typeof b.note === 'string' ? b.note : undefined, timezone: typeof b.timezone === 'string' ? b.timezone : undefined });
+    const out = await applyFollowUp(who.tenantId, who.userId, { actionId: String(b.action_id ?? ''), update: String(b.update ?? ''), due: typeof b.due === 'string' ? b.due : undefined, note: typeof b.note === 'string' ? b.note : undefined, personId: typeof b.person_id === 'string' ? b.person_id : undefined, timezone: typeof b.timezone === 'string' ? b.timezone : undefined });
     if (out.ok) { log.info('suzi follow-up applied', { userId: who.userId, actionId: out.action.id, update: out.update }); res.json(out); return; }
     res.status(out.error === 'not_found' ? 404 : out.error === 'rejected' ? 409 : 400).json(out);
   } catch (err: any) {
