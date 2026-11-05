@@ -57,7 +57,7 @@ export async function pollAllTenants(): Promise<PollSummary[]> {
             const r = await adapter.storeAndPublish(normalised, t.clientNumber);
             if (r.status === 'new') ingested += 1;
             else if (r.status === 'duplicate') duplicates += 1;
-            else errors += 1;
+            else if (r.status !== 'self_echo') errors += 1; // Nexeo's own mail, refused as intended
           } catch {
             errors += 1;
           }
