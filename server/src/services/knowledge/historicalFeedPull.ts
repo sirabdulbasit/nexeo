@@ -270,4 +270,3 @@ export async function warmUpBrainFromSources(clientNumber: string, userId: numbe
 
   return { pulls, wikiBackfill };
 }
-
