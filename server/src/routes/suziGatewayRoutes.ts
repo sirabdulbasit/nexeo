@@ -30,6 +30,7 @@ import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPr
 import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
 import { readThread } from '../services/suzi/suziEmail';
+import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
@@ -139,6 +140,18 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('knowledge failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'knowledge could not be searched' });
+  }
+});
+
+/** Link T12, P6: what changed, with no content. */
+router.get('/changes', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    res.json(await changesSince(who.tenantId, who.userId, req.query.since));
+  } catch (err: any) {
+    log.warn('changes failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'changes could not be read' });
   }
 });
 
