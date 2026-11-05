@@ -289,6 +289,11 @@ const server = app.listen(env.port, async () => {
   startIndexEventProcessor();
   // Phase 5: Proactive intelligence — hourly scan
   setInterval(() => protectedJob('proactive_intelligence', 'important', () => runProactiveIntelligence()), 60 * 60 * 1000);
+  // Actual GCP cost: hourly check, at most one BigQuery scan every 6 h; does nothing without the key.
+  setInterval(() => protectedJob('gcp_billing_sync', 'important', async () => {
+    const { syncIfStale } = await import('./services/gcpBilling/gcpBillingService');
+    await syncIfStale();
+  }), 60 * 60 * 1000);
   // Agent scheduler: initialize all scheduled agents
   import('./agents/agentScheduler').then(({ initializeAgentScheduler }) => {
     initializeAgentScheduler().then(() => console.log('[Agents] Scheduler initialized')).catch(() => {});

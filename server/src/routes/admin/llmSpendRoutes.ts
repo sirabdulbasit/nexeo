@@ -20,7 +20,8 @@ const router = Router();
 
 router.get('/llm-spend', requireAdmin, async (req: Request, res: Response) => {
   try {
-    const clientNumber = String(req.query.cn || req.user?.clientNumber);
+    // Only a super admin may read another client's spend.
+    const clientNumber = String((req.user?.isSuperAdmin && req.query.cn) || req.user?.clientNumber);
     // Accepts a single day (unchanged) or an inclusive range. `period` is a convenience the UI
     // uses so the client does not have to compute week/month boundaries and disagree with the
     // server about where a week starts.

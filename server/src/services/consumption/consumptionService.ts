@@ -71,7 +71,7 @@ export async function recordDesktopBatch(clientNumber: string, userId: number, b
   return { status: 200, body: { ok: true, stored, replayed, ignored } };
 }
 
-export const GROUPS = ['service', 'user', 'day', 'part'] as const;
+export const GROUPS = ['service', 'user', 'day', 'month', 'part', 'client'] as const;
 export type ConsumptionGroup = typeof GROUPS[number];
 
 export interface ConsumptionRow { key: string; part?: string; calls: number; input_tokens: number; cached_tokens: number; output_tokens: number; est_usd: number; all_measured: boolean }
@@ -87,18 +87,22 @@ const COMBINED = `
          est_usd::numeric, measured
     FROM consumption_events`;
 
-const KEY: Record<ConsumptionGroup, string> = { service: `part || ' / ' || service`, user: `COALESCE(user_id::text, 'system')`, day: `day::text`, part: `part` };
+const KEY: Record<ConsumptionGroup, string> = { service: `part || ' / ' || service`, user: `COALESCE((SELECT u.name FROM users u WHERE u.id = c.user_id) || ' #' || c.user_id, c.user_id::text, 'system')`, day: `day::text`, month: `to_char(day, 'YYYY-MM')`, part: `part`, client: `COALESCE((SELECT t.name FROM tenants t WHERE t.client_number = c.client_number) || ' · ', '') || c.client_number` };
 
-/** One line per service, user, day or part over a date range, plus the total. userId narrows it to one person. */
-export async function consumptionReport(clientNumber: string, p: { from: string; to: string; groupBy: ConsumptionGroup; userId?: number }) {
+/** One line per service, user, day, month, part or client over a date range, plus the total. userId narrows it to one person. A null client means every client: super admins only, enforced by the route. */
+export async function consumptionReport(clientNumber: string | null, p: { from: string; to: string; groupBy: ConsumptionGroup; userId?: number }) {
   if (!DAY.test(p.from) || !DAY.test(p.to)) throw new Error('from and to must be YYYY-MM-DD');
+  const params: unknown[] = [p.from, p.to];
+  if (clientNumber !== null) params.unshift(clientNumber);
+  const firstDay = clientNumber !== null ? 2 : 1;
+  if (p.userId) params.push(p.userId);
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `SELECT ${KEY[p.groupBy]} AS key, SUM(calls)::bigint AS calls, SUM(input_tokens)::bigint AS input_tokens, SUM(cached_tokens)::bigint AS cached_tokens,
             SUM(output_tokens)::bigint AS output_tokens, SUM(est_usd)::float8 AS est_usd, BOOL_AND(measured) AS all_measured
        FROM (${COMBINED}) c
-      WHERE client_number = $1 AND day BETWEEN $2::date AND $3::date ${p.userId ? 'AND user_id = $4' : ''}
-      GROUP BY 1 ORDER BY ${p.groupBy === 'day' ? '1' : 'SUM(est_usd) DESC'}`,
-    ...(p.userId ? [clientNumber, p.from, p.to, p.userId] : [clientNumber, p.from, p.to]),
+      WHERE ${clientNumber !== null ? 'client_number = $1 AND ' : ''}day BETWEEN $${firstDay}::date AND $${firstDay + 1}::date ${p.userId ? `AND user_id = $${firstDay + 2}` : ''}
+      GROUP BY 1 ORDER BY ${p.groupBy === 'day' || p.groupBy === 'month' ? '1' : 'SUM(est_usd) DESC'}`,
+    ...params,
   );
   const out: ConsumptionRow[] = rows.map((r) => ({
     key: String(r.key), calls: Number(r.calls), input_tokens: Number(r.input_tokens), cached_tokens: Number(r.cached_tokens),

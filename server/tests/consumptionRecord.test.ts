@@ -142,5 +142,11 @@ describe('the report', () => {
     expect(r.total_usd).toBeCloseTo(1.71);
     expect(query.mock.calls[0].slice(1)).toEqual(['TMC-0001', '2026-11-01', '2026-11-04', 2]);
     expect(reportCsv(r.rows).split('\n')[1]).toBe('"nexeo / triage",2,10,0,5,1.5,true');
+    query.mockClear();
+    await consumptionReport(null, { from: '2026-11-01', to: '2026-11-04', groupBy: 'client', userId: 2 });
+    const [allSql, ...allParams] = query.mock.calls[0];
+    expect(allSql).not.toContain('client_number = $1');
+    expect(allSql).toContain('day BETWEEN $1::date AND $2::date AND user_id = $3');
+    expect(allParams).toEqual(['2026-11-01', '2026-11-04', 2]);
   });
 });

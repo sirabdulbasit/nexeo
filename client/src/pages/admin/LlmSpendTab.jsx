@@ -5,6 +5,7 @@
  */
 import { useEffect, useState } from 'react';
 import api from '../../services/api';
+import { ConsumptionPanel, ActualCostPanel } from './LlmCostPanels';
 
 export default function LlmSpendTab({ user }) {
   // Owner, 2026-08-27: "i need this daily, weekly, monthly and with date range etc".
@@ -43,9 +44,11 @@ export default function LlmSpendTab({ user }) {
 
   return (
     <section className="settings-section">
+      <ConsumptionPanel user={user} />
+      {user?.isSuperAdmin && <ActualCostPanel />}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
         <div>
-          <h2 style={{ margin: 0 }}>LLM Spend · {report?.clientNumber ?? ''}</h2>
+          <h2 style={{ margin: 0 }}>Nexeo calls in detail · {report?.clientNumber ?? ''}</h2>
           {report?.from && (
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
               {report.from === report.to ? report.from : `${report.from} → ${report.to}`}
@@ -195,7 +198,7 @@ export default function LlmSpendTab({ user }) {
           )}
 
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 10 }}>
-            Cost is estimated from published per-token pricing (Gemini Flash $0.075/$0.30 per 1M in/out · Gemini Pro $1.25/$5.00 · Claude Haiku $0.25/$1.25). Token counts are estimated from text length (~4 chars/token). Real cost is what your provider bills.
+            Cost here is an estimate from our own records. Real cost is what the provider bills.
           </div>
         </>
       )}
