@@ -14,7 +14,7 @@
  *     also goes to audit_logs with the rest of the system's actions, including refusals.
  *
  * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign), whatsapp.to_user, and the
- * email session (suziEmail.ts).
+ * email session (suziEmail.ts; a signed send for a user on the switch is really sent, suziSend.ts).
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
@@ -34,6 +34,8 @@ export interface ActRequest {
   timezone?: string;
   /** From the verified login on Suzi's server (Functional Charter, row 18). */
   device_id?: string | null;
+  /** T22: set only by Suzi's server, after it checked the device's signature. The device can't send it. */
+  signature_verified?: boolean;
 }
 
 export type ActResponse =
@@ -71,7 +73,12 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
     const r = await brainContactsUser({ userId, clientNumber, kind: 'suzi_to_user', summary: text.slice(0, 120), body: text, urgency: 'normal' as any, bypassRateLimit: true });
     return r.sent ? { ok: true, item: { sent: true } } : { ok: false, error: 'rejected', detail: 'WhatsApp could not deliver it' };
   }
-  if (req.op.startsWith('email.')) return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true);
+  if (req.op.startsWith('email.')) {
+    return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, {
+      signatureVerified: req.signature_verified === true,
+      voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
+    });
+  }
   return { ok: false, error: 'unknown_op' };
 }
 
@@ -123,7 +130,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
     subjectType: req.op.startsWith('email.') ? 'email' : 'open_item',
     subjectId: typeof req.args?.id === 'string' ? req.args.id : typeof req.args?.draft_id === 'string' ? req.args.draft_id : typeof req.args?.thread_id === 'string' ? req.args.thread_id : null,
     result: out.ok ? 'success' : 'failure',
-    details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, ...(out.ok ? {} : { error: out.error }) },
+    details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, signature_verified: req.signature_verified === true, ...(out.ok ? {} : { error: out.error }) },
   });
   if (out.ok) return { status: 200, body: { ok: true, audit_id: logId, item: out.item } };
   return { status: statusOf(out.error), body: { ok: false, audit_id: logId, error: out.error, ...(out.detail ? { detail: out.detail } : {}) } };

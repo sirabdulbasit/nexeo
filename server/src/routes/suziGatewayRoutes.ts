@@ -116,6 +116,8 @@ router.post('/act', async (req: Request, res: Response) => {
       idempotency_key: b.idempotency_key, confirmed_by_user: b.confirmed_by_user === true,
       voice_score: typeof b.voice_score === 'number' ? b.voice_score : null, timezone,
       device_id: typeof b.device_id === 'string' ? b.device_id : null,
+      // T22: only Suzi's server reaches this loopback route, and it sets this after checking the signature.
+      signature_verified: b.signature_verified === true,
     });
     log.info('suzi act', { userId: who.userId, op: b.op, ok: out.body.ok, auditId: out.body.audit_id });
     // Link T12, P2: decided from Nexeo's own copy either way; a stale number only tells Suzi to refetch.

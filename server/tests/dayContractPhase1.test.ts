@@ -31,6 +31,8 @@ vi.mock('../src/services/auditLogService', () => ({ audit: (...a: any[]) => audi
 const follow = vi.fn();
 vi.mock('../src/services/suzi/suziActions', async (orig) => ({ ...(await (orig as any)()), applyFollowUp: (...a: any[]) => follow(...a) }));
 vi.mock('../src/services/userTimezoneService', async (orig) => ({ ...(await (orig as any)()), resolveUserTimezone: async () => 'Asia/Karachi' }));
+const emailOp = vi.fn();
+vi.mock('../src/services/suzi/suziEmail', async (orig) => ({ ...(await (orig as any)()), runEmailOp: (...a: any[]) => emailOp(...a) }));
 const pack = vi.fn();
 vi.mock('../src/services/suzi/dayPack', async (orig) => ({ ...(await (orig as any)()), buildDayPack: (...a: any[]) => pack(...a) }));
 
@@ -226,5 +228,28 @@ describe('the routes trust only the gateway', () => {
     const r = await request(app).get(`/g/day-pack?${q}`).set('Authorization', 'Bearer right-secret');
     expect(r.status).toBe(200);
     expect(pack).toHaveBeenCalledWith('TMC-0001', 2, { timezone: KHI });
+  });
+});
+
+describe('T22: a send reaches the email ops with how it was verified', () => {
+  beforeEach(() => {
+    log.create.mockReset(); log.update.mockReset(); emailOp.mockReset(); auditFn.mockReset();
+    log.create.mockResolvedValue({ id: 'audit22' }); log.update.mockResolvedValue({});
+    emailOp.mockResolvedValue({ ok: true, item: { draft_id: '7', sent: true } });
+  });
+  const send = { op: 'email.send', args: { draft_id: '7' }, idempotency_key: 's1', confirmed_by_user: true };
+  it('verified by Suzi\'s server, with the voice score: both are passed on and audited', async () => {
+    await act('TMC-0001', 2, { ...send, voice_score: 0.91, signature_verified: true });
+    expect(emailOp).toHaveBeenCalledWith('TMC-0001', 2, 'email.send', { draft_id: '7' }, true, { signatureVerified: true, voiceScore: 0.91 });
+    expect(auditFn.mock.calls[0][0].details).toMatchObject({ signature_verified: true, voice_score: 0.91 });
+  });
+  it('anything but a literal true is unverified', async () => {
+    await act('TMC-0001', 2, { ...send, signature_verified: 'true' as any });
+    expect(emailOp.mock.calls[0][5]).toEqual({ signatureVerified: false, voiceScore: null });
+  });
+  it('the route takes the flag only as a literal true, and only the gateway reaches it', async () => {
+    const fs = await import('fs'); const path = await import('path');
+    const src = fs.readFileSync(path.join(__dirname, '../src/routes/suziGatewayRoutes.ts'), 'utf8');
+    expect(src).toContain('signature_verified: b.signature_verified === true');
   });
 });

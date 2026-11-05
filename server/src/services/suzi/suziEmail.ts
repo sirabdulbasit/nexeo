@@ -6,8 +6,10 @@
  *                               ({instruction?}). A new draft for a thread replaces the older one
  *   email.new, email.forward    a new email or a forward, ending in the same email.send
  *   email.update_draft          rewritten by the model
- *   email.send                  UNTIL SIGNING EXISTS (R2, E6): saved to the user's Gmail Drafts, never sent
- *   email.undo                  the saved draft is removed from Gmail
+ *   email.send                  saved to the user's Gmail Drafts (R2, E6). Really sent only on a send signed by the
+ *                               device, with the user's yes and voice score, for a user on the send switch (T22):
+ *                               then held 10 seconds and handed to Gmail by suziSend.ts. This file sends nothing itself
+ *   email.undo                  a held send is cancelled and stays in Drafts; otherwise the saved draft is removed
  *   email.mark                  handled / no_reply_needed: the thread leaves the attention list
  *
  * Every read is scoped to this tenant and user, and Gmail is only ever read with that user's own account.
@@ -92,7 +94,8 @@ async function dropOlderDrafts(clientNumber: string, userId: number, threadId: s
   const older = await prisma.$queryRawUnsafe<Array<{ id: number; gmail_draft_id: string | null }>>(
     `SELECT id, output->>'gmailDraftId' AS gmail_draft_id FROM agent_actions
       WHERE client_number = $1 AND user_id = $2 AND action_type = '${DRAFT_TYPE}' AND status = 'done'
-        AND input->>'source' = '${FROM_SUZI}' AND output->>'threadId' = $3`,
+        AND input->>'source' = '${FROM_SUZI}' AND output->>'threadId' = $3
+        AND COALESCE(output->'send'->>'state', '') NOT IN ('held', 'sending', 'sent')`,
     clientNumber, userId, threadId,
   );
   const { deleteGmailDraft } = await import('../gmailService');
@@ -158,6 +161,7 @@ async function updateDraft(clientNumber: string, userId: number, a: Args): Promi
   const instruction = text(a.instruction);
   if (!instruction) return fail('bad_instruction');
   const o: any = draft.output ?? {};
+  if (GOING.has(o.send?.state)) return fail('bad_state', 'it is being sent or has gone');
   const body = await writeWithModel(clientNumber, userId, `The draft so far:\nTo: ${o.to}\nSubject: ${o.subject}\n"""\n${o.body}\n"""\n\nChange it as the user asks: ${instruction}\nKeep everything they didn't ask to change.`);
   const output = { ...o, body, gmailDraftId: undefined };
   // A saved Gmail draft would no longer match what the user approved.
@@ -169,14 +173,39 @@ async function updateDraft(clientNumber: string, userId: number, a: Args): Promi
   return { ok: true, item: draftCard(draft.id as unknown as number, output) };
 }
 
-/** E6: saved, not sent. Saving twice gives the same draft. */
-async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, confirmed: boolean): Promise<EmailOpResult> {
+/** T22: how a send arrived. Only Suzi's server sets `signatureVerified`; the device can't. */
+export type SendGate = { signatureVerified: boolean; voiceScore: number | null };
+const UNSIGNED: SendGate = { signatureVerified: false, voiceScore: null };
+const GOING = new Set(['held', 'sending', 'sent']);
+
+const heldAnswer = (draftId: unknown, o: any) => ({
+  ok: true as const,
+  item: { draft_id: String(draftId), saved_to_gmail_drafts: true, sent: true, send_at: o.send.send_at, undo_until: o.send.undo_until, gmail_draft_id: o.gmailDraftId ?? null },
+});
+
+/** E6: saved to Drafts; saving twice gives the same draft. T22: a verified send for a user on the switch is held, then sent. */
+async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<EmailOpResult> {
   if (!confirmed) return fail('needs_confirmation');
+  if (gate.signatureVerified && gate.voiceScore === null) return fail('no_voice_score', 'a signed send needs voice_score');
   const draft = await ownDraft(clientNumber, userId, a.draft_id);
   if (!draft) return fail('not_found');
   const o: any = draft.output ?? {};
-  const answer = (id: string) => ({ ok: true as const, item: { draft_id: String(draft.id), saved_to_gmail_drafts: true, sent: false, gmail_draft_id: id } });
-  if (o.gmailDraftId) return answer(o.gmailDraftId);
+  if (GOING.has(o.send?.state)) return heldAnswer(draft.id, o);
+  const gmailDraftId = o.gmailDraftId ?? await saveDraftInGmail(clientNumber, userId, draft, o);
+  if (typeof gmailDraftId !== 'string') return gmailDraftId;
+  const { maySendForReal, scheduleRelease, SEND_HOLD_MS } = await import('./suziSend');
+  if (!gate.signatureVerified || !(await maySendForReal(clientNumber, userId))) {
+    return { ok: true, item: { draft_id: String(draft.id), saved_to_gmail_drafts: true, sent: false, gmail_draft_id: gmailDraftId } };
+  }
+  const at = new Date(Date.now() + SEND_HOLD_MS).toISOString();
+  const output = { ...o, gmailDraftId, send: { state: 'held', send_at: at, undo_until: at, voice_score: gate.voiceScore } };
+  await prisma.agentAction.update({ where: { id: draft.id }, data: { output: output as any } as any });
+  scheduleRelease(draft.id as unknown as number);
+  return heldAnswer(draft.id, output);
+}
+
+/** The Gmail draft id, or the failure to answer with. */
+async function saveDraftInGmail(clientNumber: string, userId: number, draft: { id: number; input: unknown }, o: any): Promise<string | EmailOpResult> {
   const inp: any = draft.input ?? {};
   const { createGmailDraft, getEmailHeadersForReply } = await import('../gmailService');
   const fe = inp.feedEventId ? await prisma.feedEvent.findFirst({ where: { id: String(inp.feedEventId), clientNumber }, select: { sourceId: true } }) : null;
@@ -189,13 +218,25 @@ async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, 
   const saved = await createGmailDraft(userId, o.to, o.subject, o.body, o.cc ?? undefined, reply);
   if (!saved.success || !saved.draftId) return fail('rejected', saved.error ?? 'Gmail did not save the draft');
   await prisma.agentAction.update({ where: { id: draft.id }, data: { output: { ...o, gmailDraftId: saved.draftId } as any } as any });
-  return answer(saved.draftId);
+  return saved.draftId;
 }
 
+/** T22: a held send is cancelled (and stays in Drafts) in one conditional write, so it can't race the release. */
 async function undoSave(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
   const draft = await ownDraft(clientNumber, userId, a.draft_id);
   if (!draft) return fail('not_found');
   const o: any = draft.output ?? {};
+  const cancelled = { ok: true as const, item: { draft_id: String(draft.id), undone: true, sent: false, saved_to_gmail_drafts: true } };
+  if (o.send?.state === 'cancelled') return cancelled;
+  if (GOING.has(o.send?.state)) {
+    const won = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+      `UPDATE agent_actions SET output = jsonb_set(output, '{send,state}', '"cancelled"'), updated_at = now()
+        WHERE id = $1 AND client_number = $2 AND user_id = $3 AND output->'send'->>'state' = 'held' RETURNING id`,
+      draft.id, clientNumber, userId,
+    );
+    if (won.length) return cancelled;
+    return fail('bad_state', 'it has already gone');
+  }
   if (!o.gmailDraftId) return { ok: true, item: { draft_id: String(draft.id), undone: false } };
   const { deleteGmailDraft } = await import('../gmailService');
   const r = await deleteGmailDraft(userId, o.gmailDraftId);
@@ -239,13 +280,13 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
 
 export const EMAIL_OPS = ['email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark'] as const;
 
-export async function runEmailOp(clientNumber: string, userId: number, op: string, args: Args, confirmed: boolean): Promise<EmailOpResult> {
+export async function runEmailOp(clientNumber: string, userId: number, op: string, args: Args, confirmed: boolean, gate: SendGate = UNSIGNED): Promise<EmailOpResult> {
   switch (op) {
     case 'email.draft': return createDraft(clientNumber, userId, args);
     case 'email.new': return newEmail(clientNumber, userId, args);
     case 'email.forward': return forwardEmail(clientNumber, userId, args);
     case 'email.update_draft': return updateDraft(clientNumber, userId, args);
-    case 'email.send': return saveToGmailDrafts(clientNumber, userId, args, confirmed);
+    case 'email.send': return saveToGmailDrafts(clientNumber, userId, args, confirmed, gate);
     case 'email.undo': return undoSave(clientNumber, userId, args);
     case 'email.mark': return mark(clientNumber, userId, args);
     default: return fail('unknown_op');

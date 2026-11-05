@@ -126,6 +126,14 @@ const server = app.listen(env.port, async () => {
     console.warn('[llmRouter] outage reporter not installed', (err as Error)?.message);
   }
   startAutoRefresh(env.indexRefreshIntervalMs);
+  // Link T22: a Suzi email held for its 10-second undo when the server stopped gets its timer back.
+  try {
+    const { resumeHeldSends } = await import('./services/suzi/suziSend');
+    const n = await resumeHeldSends();
+    if (n) console.log(`[suzi-send] ${n} held send(s) resumed`);
+  } catch (err) {
+    console.warn('[suzi-send] held sends not resumed', (err as Error)?.message);
+  }
   // Tier 1 #7 — install/update canonical system gate rules. Idempotent,
   // safe on every boot. Runs before the scheduler so any cron that hits
   // the gate engine sees the seeded rules.

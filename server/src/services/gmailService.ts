@@ -387,7 +387,7 @@ export async function sendUserEmail(
 }
 
 
-// ─── Saved drafts (link E6): until device signing exists, Suzi's "send" saves here and nothing is sent ───
+// ─── Saved drafts (link E6): Suzi's "send" saves here. Only a signed, held send (T22, suziSend.ts) sends one ───
 
 export async function createGmailDraft(
   userId: number,
@@ -430,6 +430,19 @@ export async function deleteGmailDraft(userId: number, draftId: string): Promise
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err?.message ?? 'delete failed' };
+  }
+}
+
+/** T22: sends a saved draft exactly as saved. Called only by suziSend.ts after the hold. */
+export async function sendGmailDraft(userId: number, draftId: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { client, error } = await getAuthenticatedClient(userId);
+  if (!client) return { success: false, error };
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const r = await gmail.users.drafts.send({ userId: 'me', requestBody: { id: draftId } });
+    return r.data.id ? { success: true, messageId: r.data.id } : { success: false, error: 'Gmail returned no message id' };
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? 'send failed' };
   }
 }
 
