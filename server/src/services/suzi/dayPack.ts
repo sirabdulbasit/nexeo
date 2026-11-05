@@ -15,6 +15,8 @@
  * here and `title` is the default for a model that writes none. One source down never fails
  * the pack: `missing` says which and how to reconnect it (the DEF-385 rule).
  */
+import { rulesDocument, type RulesDocument, type SuziRules } from './suziRules';
+import { recentPeople, type SuziPerson } from './suziPeople';
 import prisma from '../../db/prisma';
 import { buildDayBriefFacts, loadAttentionEmails, localDate, safeTimezone, type BriefBlock, type DayBriefFacts } from './dayBriefFacts';
 import { listPendingActions, type SuziAction } from './suziActions';
@@ -165,6 +167,22 @@ export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
   calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_loading: boolean;
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
+  rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
+}
+
+/**
+ * Link T12. Off until the founder has seen the joint-summary line, because the desktop app builds ahead: a
+ * field in the pack is a live feature. Turning it on is this one line and a deploy.
+ */
+export const PHASE2_IN_PACK = false;
+
+/** What can't be read stays out and the desktop keeps its last copy, which only ever makes it stricter. */
+export async function phase2Fields(clientNumber: string, userId: number): Promise<Partial<RulesDocument> & { people?: SuziPerson[] }> {
+  const [rules, people] = await Promise.all([
+    rulesDocument(clientNumber, userId).catch(() => null),
+    recentPeople(clientNumber, userId).catch(() => null),
+  ]);
+  return { ...(rules ?? {}), ...(people ? { people } : {}) };
 }
 
 /** Prep notes already written for upcoming meetings, by calendar event id. */
@@ -180,7 +198,7 @@ async function prepNotes(clientNumber: string, userId: number): Promise<Map<stri
   return new Map(rows.map((r) => [r.event_id, r.question]));
 }
 
-export async function buildDayPack(clientNumber: string, userId: number, opts: { timezone?: string; now?: Date } = {}): Promise<DayPack> {
+export async function buildDayPack(clientNumber: string, userId: number, opts: { timezone?: string; now?: Date; phase2?: boolean } = {}): Promise<DayPack> {
   const tz = safeTimezone(opts.timezone);
   const now = opts.now ?? new Date();
   const today = localDate(now, tz);
@@ -222,5 +240,6 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
+    ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
   };
 }

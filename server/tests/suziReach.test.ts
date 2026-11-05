@@ -39,6 +39,17 @@ beforeEach(() => {
   tell.mockResolvedValue({ delivered: 1 }); notice.mockResolvedValue({ delivered: 1 }); email.mockResolvedValue(true);
 });
 
+describe('link T11: nudges off', () => {
+  const base = { critical: true, emergency: false, speakable: true, carded: false, alive: true, quiet: false, absentMs: 0, emailed: false };
+  it('a critical item is a silent card, with no spoken turn; nudges on is unchanged', () => {
+    expect(decide({ ...base, nudgesOff: true })).toEqual({ step: 'card', email: false });
+    expect(decide(base)).toEqual({ step: 'speak', email: false });
+  });
+  it('not even an emergency is spoken, and no other channel starts', () => {
+    expect(decide({ ...base, emergency: true, nudgesOff: true })).toEqual({ step: 'card', email: false });
+  });
+});
+
 describe('alive', () => {
   const p = (state: string, frame: number, since = frame) => ({ state, last_frame_at: ago(frame), state_since: ago(since) });
   it('active with a frame in the last 3 minutes', () => {

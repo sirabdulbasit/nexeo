@@ -27,6 +27,8 @@ import { act } from '../services/suzi/suziAct';
 import { resolveUserTimezone } from '../services/userTimezoneService';
 import { recordDesktopBatch, recordServerRound } from '../services/consumption/consumptionService';
 import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPresence } from '../services/suzi/suziReach';
+import { newerRulesVersion } from '../services/suzi/suziRules';
+import { searchPeople } from '../services/suzi/suziPeople';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
 
@@ -113,7 +115,9 @@ router.post('/act', async (req: Request, res: Response) => {
       device_id: typeof b.device_id === 'string' ? b.device_id : null,
     });
     log.info('suzi act', { userId: who.userId, op: b.op, ok: out.body.ok, auditId: out.body.audit_id });
-    res.status(out.status).json(out.body);
+    // Link T12, P2: decided from Nexeo's own copy either way; a stale number only tells Suzi to refetch.
+    const newer = await newerRulesVersion(who.tenantId, who.userId, b.rules_version);
+    res.status(out.status).json(newer === undefined ? out.body : { ...out.body, rules_version: newer });
   } catch (err: any) {
     log.warn('suzi act failed', { userId: who.userId, op: b.op, error: err?.message });
     res.status(500).json({ ok: false, error: 'act_failed' });
@@ -133,6 +137,22 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('knowledge failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'knowledge could not be searched' });
+  }
+});
+
+/** Link T12, P3: the user's own people, by name. Results are never logged, only their number. */
+router.get('/people', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  if (!q) { res.status(400).json({ error: 'q is required' }); return; }
+  try {
+    const results = await searchPeople(who.tenantId, who.userId, q);
+    log.info('people served', { userId: who.userId, clientNumber: who.tenantId, results: results.length });
+    res.json(results);
+  } catch (err: any) {
+    log.warn('people failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'people could not be searched' });
   }
 });
 
@@ -163,10 +183,10 @@ router.get('/primary-device', async (req: Request, res: Response) => {
 router.post('/presence', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
-  const { state, device_id: deviceId } = req.body ?? {};
+  const { state, device_id: deviceId, nudges } = req.body ?? {};
   if (!PRESENCE_STATES.includes(state) || typeof deviceId !== 'string' || !deviceId) { res.status(400).json({ ok: false, error: 'bad_presence' }); return; }
   try {
-    const { returned } = await recordPresence(who.tenantId, who.userId, deviceId.slice(0, 60), state);
+    const { returned } = await recordPresence(who.tenantId, who.userId, deviceId.slice(0, 60), state, new Date(), nudges === false);
     if (returned) void pumpHeld(who.tenantId, who.userId);
     res.json({ ok: true });
   } catch (err: any) {
