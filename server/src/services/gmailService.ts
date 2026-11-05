@@ -93,6 +93,32 @@ export async function getInbox(userId: number, maxResults = 10, query?: string):
 
 // ─── Read full email ──────────────────────────────────────────
 
+type MailPart = { mimeType?: string | null; filename?: string | null; body?: { data?: string | null; size?: number | null } | null; parts?: MailPart[] | null };
+
+/** Every part of a message, however deep. An email with attachments nests its text a level or two down. */
+function allParts(part: MailPart | null | undefined): MailPart[] {
+  if (!part) return [];
+  return [part, ...(part.parts ?? []).flatMap(allParts)];
+}
+
+/** The readable text of a message: its plain text if it has any, otherwise its HTML with the markup taken out. */
+export function extractEmailBody(payload: MailPart | null | undefined): string {
+  const parts = allParts(payload).filter((p) => p.body?.data && !p.filename);
+  const decode = (p: MailPart) => Buffer.from(p.body!.data!, 'base64').toString('utf-8');
+  const plain = parts.find((p) => p.mimeType === 'text/plain');
+  if (plain) return decode(plain);
+  const html = parts.find((p) => p.mimeType === 'text/html');
+  if (html) {
+    return decode(html)
+      .replace(/<(style|script)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  return parts[0] ? decode(parts[0]) : '';
+}
+
 export async function readEmail(userId: number, messageId: string): Promise<{ email?: EmailDetail; error?: string }> {
   const { client, error } = await getAuthenticatedClient(userId);
   if (!client) return { error };
@@ -104,23 +130,11 @@ export async function readEmail(userId: number, messageId: string): Promise<{ em
     const headers = detail.data.payload?.headers || [];
     const getHeader = (name: string) => headers.find(h => h.name?.toLowerCase() === name.toLowerCase())?.value || '';
 
-    // Extract body
-    let body = '';
     const payload = detail.data.payload;
-    if (payload?.body?.data) {
-      body = Buffer.from(payload.body.data, 'base64').toString('utf-8');
-    } else if (payload?.parts) {
-      const textPart = payload.parts.find(p => p.mimeType === 'text/plain');
-      const htmlPart = payload.parts.find(p => p.mimeType === 'text/html');
-      if (textPart?.body?.data) {
-        body = Buffer.from(textPart.body.data, 'base64').toString('utf-8');
-      } else if (htmlPart?.body?.data) {
-        body = Buffer.from(htmlPart.body.data, 'base64').toString('utf-8').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      }
-    }
+    const body = extractEmailBody(payload);
 
     // Extract attachments
-    const attachments = (payload?.parts || [])
+    const attachments = allParts(payload)
       .filter(p => p.filename && p.filename.length > 0)
       .map(p => ({ filename: p.filename!, mimeType: p.mimeType || '', size: parseInt(p.body?.size?.toString() || '0') }));
 
