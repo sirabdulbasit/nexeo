@@ -262,3 +262,5 @@ A temporary link between Nexeo's builder and the Suzi app's builder, to stay on 
 ## The builder link is live (4 Nov 2026, 19:37:41 PKT)
 
 From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`: `STATE.md` for status and `charter/` for the shared charters, once the 10 proposed edits are settled. This file is history up to here. Nexeo's clone is `/root/suzi-nexeo-link`.
+
+**Founder, 5 Nov 2026, about 09:45 PKT (section 7 point 5):** "i want to use registered whatsapp number for client to use communication / one number will be used for entire client where Nexeo can recognize the user from his/her number / hold now mac whatsapp communication at the moment". The Mac's own-number reader (T10, W1-W9, agreed by both builders that morning) is withdrawn and on hold. Row 19 rewritten to match; Suzi's builder asked to switch the reader off and confirm.
