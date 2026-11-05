@@ -70,8 +70,8 @@ describe('DEF-251 — the matrix: completion exists, evidence-guarded; abandon u
     expect(t?.guards ?? []).not.toContain('resolution_reason');
   });
 
-  it('the matrix count moved 32 → 33, documented', () => {
-    expect(TRANSITIONS).toHaveLength(33);
+  it('the matrix count moved 32 → 33 (DEF-251), then 34 (link T21, R1), documented', () => {
+    expect(TRANSITIONS).toHaveLength(34);
   });
 });
 

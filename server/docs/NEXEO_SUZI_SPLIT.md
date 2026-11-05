@@ -76,7 +76,7 @@ Suzi runs the user's day from a local working copy. Nexeo stays the system of re
 **Phase 1 (built 11-04, DEF-388):**
 - On Nexeo, loopback + gateway secret: `GET /api/v1/suzi/gateway/day-pack`, `POST /api/v1/suzi/gateway/act`.
 - On Suzi's server, device credential: `GET /v1/day-pack`, `POST /v1/act`. The Mac cannot reach Nexeo's loopback routes. Tenant and user come only from the verified device.
-- `act` ops: `task.update` (done / cancel / move / not_yet / note). Idempotent per (tenant, user, key), ownership-checked, audited; `audit_id` is the `suzi_act_log` row.
+- `act` ops: `task.update` (done / cancel / move / not_yet / note / reopen / assign; reopen and assign since link T21, 5 Nov 2026: assign records the person and tells nobody). Idempotent per (tenant, user, key), ownership-checked, audited; `audit_id` is the `suzi_act_log` row.
 - Every time is in the user's zone with its offset. `say` in pack blocks is empty: the model writes `title` and `say`.
 - Not yet: `delta` on key figures (no history kept).
 

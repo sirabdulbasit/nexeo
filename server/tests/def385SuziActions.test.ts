@@ -25,7 +25,7 @@ import { applyFollowUp, listPendingActions } from '../src/services/suzi/suziActi
 
 beforeEach(() => {
   findFirst.mockReset(); findMany.mockReset(); changeStatus.mockReset(); lifecycle.mockReset();
-  findFirst.mockResolvedValue({ id: 'a1', title: 'Submit Goals-26', priority: 'critical', status: 'CLOSED', dueDate: null });
+  findFirst.mockResolvedValue({ id: 'a1', title: 'Submit Goals-26', priority: 'critical', status: 'IN_PROGRESS', dueDate: null });
   lifecycle.mockResolvedValue({ handled: true, closed: true });
 });
 

@@ -80,3 +80,17 @@ export async function searchPeople(clientNumber: string, userId: number, rawQuer
   );
   return rows.map(toPerson);
 }
+
+/** One of the user's own people by id (link T21, D1). Anyone else's id is not found. */
+export async function personById(clientNumber: string, userId: number, id: string): Promise<SuziPerson | null> {
+  if (!id || id.length > 100) return null;
+  const rows = await prisma.$queryRawUnsafe<Row[]>(
+    `SELECT p.id, p.display_name AS name, ${PICK_FACETS}
+       FROM persons p
+       LEFT JOIN person_facets f ON f.person_id = p.id AND f.facet_type IN ('email', 'phone')
+      WHERE p.id = $3 AND p.client_number = $1 AND p.user_id = $2
+      GROUP BY p.id, p.display_name`,
+    clientNumber, userId, id,
+  );
+  return rows[0] ? toPerson(rows[0]) : null;
+}

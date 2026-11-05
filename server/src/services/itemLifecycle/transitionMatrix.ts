@@ -87,7 +87,9 @@ export interface TransitionSpec {
 }
 
 /**
- * The 33 transitions. Count is exact — any change requires documenting why.
+ * The 34 transitions. Count is exact — any change requires documenting why.
+ *
+ * Link T21, R1 added the 34th: `CLOSED → TRIAGED`, owner only (DEF-404).
  *
  * DEF-236 added 3: exits from `DRAFT`. DEF-251 added the 4th — `DRAFT → CLOSED`, evidence-
  * guarded, because completed work was unrecordable on a draft (S23, the payroll item).
@@ -170,7 +172,12 @@ export const TRANSITIONS: readonly TransitionSpec[] = [
   // was cancelled and its old priority is no longer trustworthy.
   { from: 'CANCELLED', to: 'TRIAGED', guards: ['is_owner_or_agent'], requiresApproval: false, description: 'Restored after cancellation — re-triage before acting' },
 
-  // Terminal: CLOSED has no outgoing transitions. CANCELLED has exactly one.
+  // Out of CLOSED (1) — link T21, R1 (DEF-404). The owner reopens his own finished work, the
+  // same way as the restore above. A task marked done by mistake (19:32:50 PKT, 5 Nov 2026) had
+  // no way back. Owner or agent only, and it lands on TRIAGED for the same reason.
+  { from: 'CLOSED', to: 'TRIAGED', guards: ['is_owner_or_agent'], requiresApproval: false, description: 'Reopened by the owner — finished by mistake, or not finished after all' },
+
+  // CANCELLED and CLOSED have exactly one way out each, both back to TRIAGED.
 ];
 
 /**
@@ -227,7 +234,10 @@ export function allFromTransitions(from: ItemStatus): TransitionSpec[] {
  * the item… because it's still in draft" after the owner had already answered
  * it). Caught by this guard on the first run, third time in a row it has done
  * its job.
+ *
+ * Link T21, R1 raised it to 34: `CLOSED → TRIAGED`, owner only. A task closed by
+ * mistake had no way back (DEF-404).
  */
-if (TRANSITIONS.length !== 33) {
-  throw new Error(`transitionMatrix: expected 33 transitions, found ${TRANSITIONS.length}`);
+if (TRANSITIONS.length !== 34) {
+  throw new Error(`transitionMatrix: expected 34 transitions, found ${TRANSITIONS.length}`);
 }

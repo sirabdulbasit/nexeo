@@ -13,7 +13,8 @@
  *   - is AUDITED: the suzi_act_log row is the audit entry (its id is the `audit_id`), and a line
  *     also goes to audit_logs with the rest of the system's actions, including refusals.
  *
- * Ops: task.update (done / cancel / move / not_yet / note), and the email session (suziEmail.ts).
+ * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign), whatsapp.to_user, and the
+ * email session (suziEmail.ts).
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
@@ -57,6 +58,7 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
       update: String(a.update ?? ''),
       due: typeof a.due === 'string' ? a.due : undefined,
       note: typeof a.note === 'string' ? a.note : undefined,
+      personId: typeof a.person_id === 'string' ? a.person_id : undefined,
       timezone: req.timezone,
     });
     return r.ok ? { ok: true, item: r.action } : { ok: false, error: r.error, detail: r.detail };
