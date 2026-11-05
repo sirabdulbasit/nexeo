@@ -2,7 +2,9 @@
  * Going through emails one by one (link E1-E7; founder approved 5 Nov). Nexeo reads and writes; Suzi presents.
  *
  *   GET …/email?thread_id=      the latest message of a thread, on request; nothing is stored
- *   email.draft                 from dictation ({text}), or written by the model ({instruction?})
+ *   email.draft                 a reply: {text} as given (dictation, or the desktop's own AI), or written by the model
+ *                               ({instruction?}). A new draft for a thread replaces the older one
+ *   email.new, email.forward    a new email or a forward, ending in the same email.send
  *   email.update_draft          rewritten by the model
  *   email.send                  UNTIL SIGNING EXISTS (R2, E6): saved to the user's Gmail Drafts, never sent
  *   email.undo                  the saved draft is removed from Gmail
@@ -85,23 +87,69 @@ async function ownDraft(clientNumber: string, userId: number, rawId: unknown) {
   return prisma.agentAction.findFirst({ where: { id, clientNumber, userId, actionType: DRAFT_TYPE } as any });
 }
 
-async function createDraft(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+/** One live draft per thread: "change it" arrives as a second draft, and Gmail must not keep the first. */
+async function dropOlderDrafts(clientNumber: string, userId: number, threadId: string): Promise<void> {
+  const older = await prisma.$queryRawUnsafe<Array<{ id: number; gmail_draft_id: string | null }>>(
+    `SELECT id, output->>'gmailDraftId' AS gmail_draft_id FROM agent_actions
+      WHERE client_number = $1 AND user_id = $2 AND action_type = '${DRAFT_TYPE}' AND status = 'done'
+        AND input->>'source' = '${FROM_SUZI}' AND output->>'threadId' = $3`,
+    clientNumber, userId, threadId,
+  );
+  const { deleteGmailDraft } = await import('../gmailService');
+  for (const d of older) {
+    if (d.gmail_draft_id) await deleteGmailDraft(userId, d.gmail_draft_id).catch(() => {});
+    await prisma.agentAction.update({ where: { id: d.id }, data: { status: 'rejected' } as any });
+  }
+}
+
+const ADDRESS = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
+const addressesOk = (v: string) => v.split(',').map((x) => x.trim()).every((x) => ADDRESS.test(x));
+
+async function saveNewDraft(clientNumber: string, userId: number, output: Record<string, unknown>, input: Record<string, unknown> = {}): Promise<EmailOpResult> {
+  const row = await prisma.agentAction.create({
+    data: {
+      clientNumber, userId, actionType: DRAFT_TYPE, status: 'done', requiresApproval: false,
+      input: { itemType: 'email', source: FROM_SUZI, ...input } as any, output: { channel: 'email', ...output } as any,
+    } as any,
+  });
+  return { ok: true, item: draftCard(row.id as unknown as number, output) };
+}
+
+async function newEmail(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+  const to = text(a.to); const cc = text(a.cc); const subject = text(a.subject); const body = text(a.text);
+  if (!addressesOk(to) || (cc && !addressesOk(cc))) return fail('bad_address');
+  if (!subject || !body) return fail('bad_draft', 'a subject and text are required');
+  return saveNewDraft(clientNumber, userId, { to, ...(cc ? { cc } : {}), subject, body, mode: 'new' });
+}
+
+/** Attachments stay behind until forwarding really sends, and the answer says so rather than implying they went. */
+async function forwardEmail(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+  const to = text(a.to);
+  if (!addressesOk(to)) return fail('bad_address');
   const mail = await latestMail(clientNumber, userId, text(a.thread_id));
+  if (!mail) return fail('not_found');
+  const { readEmail } = await import('../gmailService');
+  const r = await readEmail(userId, mail.sourceId);
+  if (!r.email) return fail('rejected', r.error ?? 'the email could not be read');
+  const e = r.email;
+  const quoted = `---------- Forwarded message ---------\nFrom: ${e.from}\nDate: ${e.date}\nSubject: ${e.subject}\nTo: ${e.to}\n\n${e.body ?? ''}`;
+  const body = [text(a.text), quoted].filter(Boolean).join('\n\n');
+  const out = await saveNewDraft(clientNumber, userId, { to, subject: /^fwd:/i.test(e.subject) ? e.subject : `Fwd: ${e.subject}`, body, mode: 'forward' });
+  if (!out.ok) return out;
+  return { ok: true, item: { ...(out.item as object), attachments_left_out: (e.attachments ?? []).length } };
+}
+
+async function createDraft(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+  const threadId = text(a.thread_id);
+  const mail = await latestMail(clientNumber, userId, threadId);
   if (!mail) return fail('not_found');
   if (!mail.senderEmail) return fail('rejected', 'the email has no address to reply to');
   const dictated = text(a.text);
   const body = dictated || await writeWithModel(clientNumber, userId, await replyTask(userId, mail, text(a.instruction)));
-  const output = {
-    channel: 'email', to: mail.senderEmail, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject || '(no subject)'}`,
-    body, threadId: text(a.thread_id),
-  };
-  const row = await prisma.agentAction.create({
-    data: {
-      clientNumber, userId, actionType: DRAFT_TYPE, status: 'done', requiresApproval: false,
-      input: { feedEventId: mail.id, itemType: 'email', source: FROM_SUZI } as any, output: output as any,
-    } as any,
-  });
-  return { ok: true, item: draftCard(row.id as unknown as number, output) };
+  await dropOlderDrafts(clientNumber, userId, threadId);
+  return saveNewDraft(clientNumber, userId, {
+    to: mail.senderEmail, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject || '(no subject)'}`, body, threadId,
+  }, { feedEventId: mail.id });
 }
 
 async function updateDraft(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
@@ -189,11 +237,13 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
   return { ok: true, item: { thread_id: threadId, state: text(a.state), emails: rows.length } };
 }
 
-export const EMAIL_OPS = ['email.draft', 'email.update_draft', 'email.send', 'email.undo', 'email.mark'] as const;
+export const EMAIL_OPS = ['email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark'] as const;
 
 export async function runEmailOp(clientNumber: string, userId: number, op: string, args: Args, confirmed: boolean): Promise<EmailOpResult> {
   switch (op) {
     case 'email.draft': return createDraft(clientNumber, userId, args);
+    case 'email.new': return newEmail(clientNumber, userId, args);
+    case 'email.forward': return forwardEmail(clientNumber, userId, args);
     case 'email.update_draft': return updateDraft(clientNumber, userId, args);
     case 'email.send': return saveToGmailDrafts(clientNumber, userId, args, confirmed);
     case 'email.undo': return undoSave(clientNumber, userId, args);

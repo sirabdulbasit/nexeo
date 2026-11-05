@@ -74,11 +74,13 @@ describe('reading', () => {
 
 describe('drafting', () => {
   it('dictation is the user\'s own words, with no model', async () => {
+    query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [] : [mailRow]));
     const r: any = await runEmailOp('T', 2, 'email.draft', { thread_id: 'th1', text: 'Yes, go ahead.' }, false);
     expect(r.item).toEqual({ draft_id: '7', to: 'a@x.com', cc: null, subject: 'Re: Budget', body: 'Yes, go ahead.' });
     expect(llm).not.toHaveBeenCalled();
   });
   it('a written draft is never on Flash, and an email\'s text is data', async () => {
+    query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [] : [mailRow]));
     await runEmailOp('T', 2, 'email.draft', { thread_id: 'th1', instruction: 'say yes' }, false);
     const [system, user, opts] = llm.mock.calls[0];
     expect(opts.providers.join()).not.toMatch(/flash/i);
@@ -86,7 +88,7 @@ describe('drafting', () => {
     expect(user).toContain('say yes');
   });
   it('a subject already starting Re: isn\'t doubled', async () => {
-    query.mockResolvedValue([{ ...mailRow, subject: 'Re: Budget' }]);
+    query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [] : [{ ...mailRow, subject: 'Re: Budget' }]));
     const r: any = await runEmailOp('T', 2, 'email.draft', { thread_id: 'th1', text: 'ok' }, false);
     expect(r.item.subject).toBe('Re: Budget');
   });
@@ -104,6 +106,42 @@ describe('drafting', () => {
     expect(r.item.body).toBe('Written.');
     expect(dropDraft).toHaveBeenCalledWith(2, 'g1');
     expect(update.mock.calls[0][0].data.output.gmailDraftId).toBeUndefined();
+  });
+});
+
+describe('a new draft, a new email, a forward', () => {
+  it('a full draft from the desktop\'s own AI is kept word for word, and a second replaces the first, in Gmail too', async () => {
+    query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [{ id: 5, gmail_draft_id: 'old' }] : [mailRow]));
+    const r: any = await runEmailOp('TMC-0001', 2, 'email.draft', { thread_id: 'th1', text: 'Line one.\n\nLine two.' }, false);
+    expect(r.item.body).toBe('Line one.\n\nLine two.');
+    expect(llm).not.toHaveBeenCalled();
+    expect(dropDraft).toHaveBeenCalledWith(2, 'old');
+    expect(update.mock.calls[0][0]).toMatchObject({ where: { id: 5 }, data: { status: 'rejected' } });
+    const sql = query.mock.calls.find((c) => c[0].includes('agent_actions'))!;
+    expect(sql.slice(1)).toEqual(['TMC-0001', 2, 'th1']);
+  });
+  it('a new email needs a real address, a subject and text', async () => {
+    const good: any = await runEmailOp('T', 2, 'email.new', { to: 'a@x.com, b@y.org', cc: 'c@z.io', subject: 'Hi', text: 'Body' }, false);
+    expect(good.item).toEqual({ draft_id: '7', to: 'a@x.com, b@y.org', cc: 'c@z.io', subject: 'Hi', body: 'Body' });
+    expect(await runEmailOp('T', 2, 'email.new', { to: 'Zeeshan', subject: 'Hi', text: 'B' }, false)).toMatchObject({ error: 'bad_address' });
+    expect(await runEmailOp('T', 2, 'email.new', { to: 'a@x.com', subject: '', text: 'B' }, false)).toMatchObject({ error: 'bad_draft' });
+    expect(create).toHaveBeenCalledTimes(1);
+  });
+  it('a forward quotes the email and says what it leaves out', async () => {
+    const r: any = await runEmailOp('T', 2, 'email.forward', { thread_id: 'th1', to: 'b@y.org', text: 'FYI' }, false);
+    expect(r.item.subject).toBe('Fwd: Budget');
+    expect(r.item.body.startsWith('FYI\n\n---------- Forwarded message')).toBe(true);
+    expect(r.item.attachments_left_out).toBe(1);
+  });
+  it('someone else\'s thread can\'t be forwarded', async () => {
+    query.mockResolvedValue([]);
+    expect(await runEmailOp('T', 2, 'email.forward', { thread_id: 'x', to: 'b@y.org' }, false)).toMatchObject({ error: 'not_found' });
+    expect(saveDraft).not.toHaveBeenCalled();
+  });
+  it('a new email isn\'t threaded on anything when saved', async () => {
+    find.mockResolvedValue({ id: 7, output: { to: 'a', subject: 's', body: 'b', mode: 'new' }, input: {} });
+    await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true);
+    expect(saveDraft.mock.calls[0][5]).toEqual({});
   });
 });
 
