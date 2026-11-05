@@ -68,10 +68,11 @@ export async function reachFor(clientNumber: string, userId: number, now = new D
       clientNumber, userId,
     );
     if (!rows?.length) return NOT_ADOPTED;
-    const live = rows.filter((r) => isAlive(r, now));
-    if (live.length) return { adopted: true, alive: true, absentMs: 0, ...(live.every((r) => r.nudges_off) ? { nudgesOff: true } : {}) };
+    // Founder, 5 Nov: with nudges off she only informs when asked, so the last word from the device holds while it's away too.
+    const quietly = rows.every((r) => r.nudges_off) ? { nudgesOff: true } : {};
+    if (rows.some((r) => isAlive(r, now))) return { adopted: true, alive: true, absentMs: 0, ...quietly };
     const last = Math.max(...rows.map((r) => new Date(r.last_alive_at ?? r.last_frame_at).getTime()));
-    return { adopted: true, alive: false, absentMs: now.getTime() - last };
+    return { adopted: true, alive: false, absentMs: now.getTime() - last, ...quietly };
   } catch (e: any) {
     log.warn('presence unreadable, contacting as before', { userId, error: e?.message });
     return NOT_ADOPTED;
@@ -106,7 +107,7 @@ export type Step = 'speak' | 'card' | 'hold';
  * Stays held after a card only when it is still owed a spoken turn.
  */
 export function decide(i: { critical: boolean; emergency: boolean; speakable: boolean; carded: boolean; alive: boolean; quiet: boolean; absentMs: number; emailed: boolean; nudgesOff?: boolean }): { step: Step; email: boolean } {
-  if (!i.alive) return { step: 'hold', email: i.critical && !i.quiet && !i.emailed && i.absentMs >= ABSENT_FOR_EMAIL_MS };
+  if (!i.alive) return { step: 'hold', email: i.critical && !i.quiet && !i.emailed && !i.nudgesOff && i.absentMs >= ABSENT_FOR_EMAIL_MS };
   // Link T11: with nudges off nothing is spoken, so no model round is paid for words nobody hears.
   if (i.critical && i.speakable && (!i.quiet || i.emergency) && !i.nudgesOff) return { step: 'speak', email: false };
   if (i.carded) return { step: 'hold', email: false };

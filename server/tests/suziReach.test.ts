@@ -48,6 +48,11 @@ describe('link T11: nudges off', () => {
   it('not even an emergency is spoken, and no other channel starts', () => {
     expect(decide({ ...base, emergency: true, nudgesOff: true })).toEqual({ step: 'card', email: false });
   });
+  it('away with nudges off, no email after 10 minutes; with nudges on, the email still goes', () => {
+    const away = { ...base, alive: false, absentMs: 11 * 60_000 };
+    expect(decide({ ...away, nudgesOff: true })).toEqual({ step: 'hold', email: false });
+    expect(decide(away)).toEqual({ step: 'hold', email: true });
+  });
 });
 
 describe('alive', () => {
