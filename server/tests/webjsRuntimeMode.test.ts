@@ -82,7 +82,7 @@ describe('provider consumption — source-level enforcement', () => {
     fs.readFileSync(path.join(__dirname, '..', 'src', 'services', 'whatsapp', rel), 'utf8');
 
   it('both Web.js providers consume the shared helper', () => {
-    for (const provider of ['WebjsProvider.ts', 'UserWebjsProvider.ts']) {
+    for (const provider of ['WebjsProvider.ts']) {
       const src = read(provider);
       expect(src, `${provider} must import webjsRuntimeMode`).toContain("from './webjsRuntimeMode'");
       expect(src, `${provider} must guard before client construction`).toContain('assertHeadfulDisplayAvailable');
@@ -139,7 +139,7 @@ describe('resolveWebjsDisplayEnv — dedicated display beats ambient', () => {
     } as NodeJS.ProcessEnv)).not.toThrow();
   });
   it('both providers pass the effective display env to the Chrome child', () => {
-    for (const provider of ['WebjsProvider.ts', 'UserWebjsProvider.ts']) {
+    for (const provider of ['WebjsProvider.ts']) {
       const src = fs.readFileSync(
         path.join(__dirname, '..', 'src', 'services', 'whatsapp', provider), 'utf8');
       expect(src, `${provider} must resolve the display env`).toContain('resolveWebjsDisplayEnv');

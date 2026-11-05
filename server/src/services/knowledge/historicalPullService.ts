@@ -80,12 +80,6 @@ export async function runHistoricalPullForUser(
     triggered.push({ slug: 'gmail', action: 'attachment_backfill' });
   }
 
-  // Future: whatsapp_personal historical pull. Not implemented today —
-  // pairing only captures live messages forward.
-  const hasWhatsApp = connectors.some((c: any) => c.connectorType.slug === 'whatsapp_personal');
-  if (hasWhatsApp) {
-    skipped.push({ slug: 'whatsapp_personal', reason: 'historical_pull_not_yet_supported' });
-  }
 
   // Anything else connected but not handled above (google_tasks, google_drive_personal, ...)
   for (const c of connectors) {

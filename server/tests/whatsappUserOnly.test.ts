@@ -9,7 +9,7 @@
  *     without being listed here.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { execSync } from 'child_process';
 
 const capture = vi.fn(); const triage = vi.fn(); const remember = vi.fn(); const resolve = vi.fn(); const logged: any[] = [];
@@ -45,14 +45,8 @@ describe('messages from others', () => {
     expect(JSON.stringify(logged)).toContain('not read');
   });
 
-  it('the personal WhatsApp path stops after the user\'s dictation and before the feed', () => {
-    const src = readFileSync('src/services/whatsapp/UserWebjsProvider.ts', 'utf8');
-    const dictation = src.indexOf('await handleSelfDictation({');
-    const gate = src.indexOf('if (!whatsappWithOthers()) return;\n\n      let phone');
-    const feed = src.indexOf('await ingestFeedEvent({');
-    expect(dictation).toBeGreaterThan(0);
-    expect(gate).toBeGreaterThan(dictation);
-    expect(feed).toBeGreaterThan(gate);
+  it('the personal-number link is gone: one registered number per client (owner, 5 Nov)', () => {
+    expect(existsSync('src/services/whatsapp/UserWebjsProvider.ts')).toBe(false);
   });
 
   it('a non-user\'s voice note or image is never opened: the check comes before any download, on both paths', () => {

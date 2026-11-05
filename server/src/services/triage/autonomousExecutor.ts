@@ -84,12 +84,6 @@ async function markSourceAsRead(event: FeedEventForExec): Promise<void> {
       if (!fe?.sourceId) return;
       const { markAsRead } = await import('../gmailService');
       await markAsRead(event.userId, fe.sourceId);
-    } else if (event.sourceType === 'whatsapp') {
-      const payload = (event.rawPayload ?? {}) as any;
-      const target = payload.chatId || payload.waMessageId;
-      if (!target) return;
-      const { markAsRead } = await import('../whatsapp/UserWebjsProvider');
-      await markAsRead(event.userId, target);
     }
   } catch { /* best effort */ }
 }

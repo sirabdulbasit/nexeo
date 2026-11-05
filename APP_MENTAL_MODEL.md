@@ -135,9 +135,9 @@ Treat WhatsApp failures as session/runtime issues first, code second — and che
 `server/docs/brain_chat_archive.md` before "fixing" anything, because this subsystem has a
 history of the same class recurring.
 
-- Two distinct clients exist: the **tenant** channel (`WebjsProvider` / `MetaProvider`,
-  Brain ↔ user and Brain → counterparts) and the **user's own** paired WhatsApp
-  (`UserWebjsProvider`, read-only context). Don't conflate them.
+- One channel: the client's registered number (`WebjsProvider` / `MetaProvider`), one per client. Nexeo
+  recognizes each user from their number and reaches only users. The per-user personal-number link was
+  removed on 2026-11-05 (owner ruling).
 - `whatsapp-web.js` is pinned at **1.34.7** and is the fragile dependency. Modern WhatsApp
   addresses the same human under **two interchangeable identities** — a phone Wid
   (`<digits>@c.us`) and a LID Wid (`<digits>@lid`). Comparing raw id strings across those

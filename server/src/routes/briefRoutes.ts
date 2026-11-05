@@ -386,12 +386,9 @@ router.post('/drafts/:id/send', async (req: Request, res: Response) => {
     if (isWhatsApp) {
       const chatId = out.chatId;
       if (!chatId) return res.status(400).json({ error: 'draft is missing chatId' });
-      const { sendReply } = await import('../services/whatsapp/UserWebjsProvider');
-      // Provenance: this endpoint is only reachable via the user
-      // clicking Send on a draft they've reviewed in Day Brief.
-      // Authentication is verified via requireAuth middleware on the
-      // route. This is the canonical user-initiated send.
-      r = await sendReply(user.id, chatId, body, 'ui_user_send_draft');
+      // Owner ruling, 5 Nov 2026: WhatsApp runs on the client's registered number and only reaches users.
+      const { WHATSAPP_USER_ONLY } = await import('../services/whatsapp/othersPolicy');
+      r = { success: false, error: WHATSAPP_USER_ONLY };
     } else {
       // Build a proper threaded reply. The send path used to drop
       // threadId, In-Reply-To, and References — every reply showed up
@@ -526,13 +523,6 @@ router.post('/drafts/:id/send', async (req: Request, res: Response) => {
           if (fe?.sourceType === 'gmail' && fe.sourceId) {
             const { markAsRead } = await import('../services/gmailService');
             await markAsRead(user.id, fe.sourceId);
-          } else if (fe?.sourceType === 'whatsapp') {
-            const rp: any = fe.rawPayload ?? {};
-            const target = rp.chatId || rp.waMessageId;
-            if (target) {
-              const { markAsRead } = await import('../services/whatsapp/UserWebjsProvider');
-              await markAsRead(user.id, target);
-            }
           }
           await prisma.feedEvent.updateMany({
             where: { id: String(inp.feedEventId), clientNumber: user.clientNumber },
@@ -908,48 +898,6 @@ router.get('/attention/:feedEventId/thread', async (req: Request, res: Response)
           }
         } catch { /* try webjs */ }
 
-        // (3) webjs backfill — ALWAYS runs now (was: only when outbound
-        // was empty). The Postgres/Redis sources only capture outbound
-        // sent AFTER the 2026-05-13 capture-deploy; pre-deploy
-        // historical outbound only exists in WhatsApp's local cache.
-        // Running webjs unconditionally lets us pick that history up
-        // and persist it so the modal becomes complete over time.
-        // Dedupe by (timestamp within 2s OR existing waMessageId).
-        try {
-          const { fetchThreadContext } = await import('../services/whatsapp/UserWebjsProvider');
-          const turns = await fetchThreadContext(user.id, String(chatId), 50);
-          const meTurns = turns.filter((t) => t.from === 'me');
-          for (const t of meTurns) {
-            const ts = toMs(t.timestamp) ?? t.timestamp;
-            const dup = outboundMsgs.some((m) =>
-              Math.abs(m.timestamp - ts) < 2000 || m.text === t.text,
-            );
-            if (!dup) {
-              outboundMsgs.push({
-                from: 'me' as const,
-                subject: '',
-                text: t.text,
-                timestamp: ts,
-                fromName: 'You',
-              });
-              // Persist for next time. Synthetic msgId per turn so
-              // re-fetches stay idempotent.
-              const syntheticId = `backfill:${chatId}:${ts}`;
-              await prisma.whatsAppOutboundMessage.upsert({
-                where: { userId_waMessageId: { userId: user.id, waMessageId: syntheticId } } as any,
-                create: {
-                  clientNumber: user.clientNumber,
-                  userId: user.id,
-                  chatId: String(chatId),
-                  waMessageId: syntheticId,
-                  bodyText: String(t.text).slice(0, 4000),
-                  sentAt: new Date(ts),
-                } as any,
-                update: {},
-              }).catch(() => null);
-            }
-          }
-        } catch { /* webjs broken — inbound-only is still useful */ }
       }
 
       // Merge + sort chronologically.
@@ -1548,7 +1496,7 @@ router.get('/connector-gaps', async (req: Request, res: Response) => {
         label: 'Messaging',
         why: 'WhatsApp is where a lot of real work lands. Without it, I only see email patterns.',
         required: true,
-        options: [ { slug: 'whatsapp_personal', name: 'WhatsApp (Personal)' }, { slug: 'whatsapp', name: 'WhatsApp (Business)' }, { slug: 'telegram', name: 'Telegram' } ],
+        options: [ { slug: 'whatsapp', name: 'WhatsApp (Business)' }, { slug: 'telegram', name: 'Telegram' } ],
       },
       {
         id: 'tasks',
@@ -2443,13 +2391,6 @@ router.post('/decide', async (req: Request, res: Response) => {
       if (event.sourceType === 'gmail' && event.sourceId) {
         const { markAsRead } = await import('../services/gmailService');
         await markAsRead(user.id, event.sourceId);
-      } else if (event.sourceType === 'whatsapp') {
-        const rp: any = (event as any).rawPayload ?? {};
-        const target = rp.chatId || rp.waMessageId;
-        if (target) {
-          const { markAsRead } = await import('../services/whatsapp/UserWebjsProvider');
-          await markAsRead(user.id, target);
-        }
       }
     } catch { /* best effort */ }
   }

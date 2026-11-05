@@ -110,7 +110,6 @@ const UNTRIAGED_STILL_EMITTED = [
   'backfillConceptPages', 'backfillDevanagariToUrdu', 'backfillEmailBodies',
   'backfillEmailThreadIds', 'backfillEntityLinks', 'backfillFeedEventAt',
   'backfillOpenItemDelegationStatus', 'backfillPersons', 'backfillSenderWiki',
-  'backfillTodayGmail', 'backfillVoiceTranscripts', 'backfillWikiEmbeddings',
   'brainBasitCheck', 'brainTranscriptReplay', 'calibrateResponseJudge',
   'cleanupDuplicateOpenItems', 'cleanupJunkContacts', 'cleanupLegacyHaseebOSContent',
   'dedupContactsByEmail', 'diagnoseWebjsBootstrap', 'feedEventsPruner',

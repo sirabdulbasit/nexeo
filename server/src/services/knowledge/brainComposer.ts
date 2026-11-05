@@ -5247,59 +5247,6 @@ async function buildAttentionBlockForDayBrief(clientNumber: string, userId: numb
     // Cap at 5 items per brief — beyond that we're saturating LLM
     // budget on a single read.
     const wantsContext = filteredForFreshness.filter(needsContext).slice(0, 5);
-    if (wantsContext.length > 0) {
-      const { fetchThreadContext } = await import('../whatsapp/UserWebjsProvider');
-      const { analyzeConversation } = await import('../triage/conversationAnalyzer');
-      await Promise.all(wantsContext.map(async (it: any) => {
-        const chatId = it.chatId || (it.senderPhone ? `${String(it.senderPhone).replace(/[^\d]/g, '')}@c.us` : null);
-        const senderKey = String(it.senderPhone ?? it.chatId ?? it.from ?? '').toLowerCase();
-        if (!chatId || !senderKey) return;
-        try {
-          const thread = await fetchThreadContext(userId, String(chatId), 20);
-          if (!thread || thread.length === 0) return;
-          // Single-message threads can't have context; skip.
-          if (thread.length === 1) return;
-          const analysis = await analyzeConversation({
-            userId, clientNumber,
-            senderName: it.fromDisplay ?? it.from ?? 'them',
-            senderKey,
-            thread,
-            latestEventId: it.feedEventId,
-          });
-          // The analyzer returns:
-          //   summary: 2-3 sentence what-the-conversation-is-about
-          //   loops:   per-topic open/closed loops
-          // For the brief line we want a one-liner: prefer the most
-          // recent OPEN-with-user loop's "ask" (most actionable); fall
-          // back to the conversation summary; fall back to the prior-
-          // turn quote we used earlier as last resort.
-          const openLoop = analysis.loops?.find((l) => l.openWith === 'user' && l.ask);
-          const recentLoop = analysis.loops?.[0];
-          let topic = '';
-          if (openLoop?.ask) {
-            topic = openLoop.ask;
-          } else if (recentLoop?.topic) {
-            topic = recentLoop.topic;
-          } else if (analysis.summary) {
-            topic = analysis.summary;
-          }
-          if (topic) {
-            // Cap topic length for readability.
-            it.contextPrefix = topic.slice(0, 100);
-          } else {
-            // Fall back: prior-turn quote (still better than nothing).
-            const eventTs = it.receivedAt ? new Date(it.receivedAt).getTime() : Date.now();
-            const prior = [...thread]
-              .filter((t) => t.timestamp < eventTs - 1000 && t.text && t.text.trim().length >= 6)
-              .sort((a, b) => b.timestamp - a.timestamp)[0];
-            if (prior) {
-              const from = prior.from === 'me' ? 'your earlier message' : 'their earlier message';
-              it.contextPrefix = `in reply to ${from} "${prior.text.slice(0, 60)}"`;
-            }
-          }
-        } catch { /* best-effort */ }
-      }));
-    }
 
     const items = filteredForFreshness;
 

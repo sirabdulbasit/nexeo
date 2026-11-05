@@ -66,7 +66,6 @@ export const CONNECTOR_READINESS: Record<string, ConnectorReadiness> = {
   ms_teams_org: 'declared',
   telegram: 'declared',
   whatsapp: 'beta',           // Meta Business API skeleton, not active
-  whatsapp_personal: 'production',  // WebJS pairing live
 
   // Notion / Drive / FACL
   notion_personal: 'production',
@@ -216,17 +215,6 @@ const personalConnectors: ConnectorTypeSeed[] = [
     scope: 'personal',
     authMethod: 'webhook',
     configSchema: { fields: [{ name: 'phoneNumber', label: 'Phone Number', type: 'tel', required: true }] },
-    capabilities: ['read', 'write'],
-    icon: 'whatsapp',
-  },
-  {
-    slug: 'whatsapp_personal',
-    name: 'WhatsApp (Personal)',
-    description: 'Pair your personal WhatsApp via QR scan. Brain reads incoming chats, replies, and marks as read.',
-    category: 'messaging',
-    scope: 'personal',
-    authMethod: 'qr_pair',
-    configSchema: { fields: [] },
     capabilities: ['read', 'write'],
     icon: 'whatsapp',
   },

@@ -1646,7 +1646,6 @@ export async function buildAttentionList(
   // alone (better to surface a doubt than silently swallow).
   const waCandidatesForReplyCheck = items.filter((it) => it.itemType === 'whatsapp');
   if (waCandidatesForReplyCheck.length > 0) {
-    const { fetchThreadContext } = await import('../whatsapp/UserWebjsProvider');
     const { getRedis } = await import('../../utils/redisClient');
     const redis = getRedis();
     const userRepliedFeedEventIds = new Set<string>();
@@ -1657,11 +1656,7 @@ export async function buildAttentionList(
     // fetchThreadContext (the original route — kept as fallback for
     // chats that pre-date the marker rollout).
     let noChatId = 0;
-    let emptyThread = 0;
-    let noMeMsg = 0;
-    let meStaleVsInbound = 0;
     let dropped = 0;
-    let droppedByMarker = 0;
     await Promise.all(waCandidatesForReplyCheck.map(async (it) => {
       try {
         let chatId = (it as any).chatId as string | null | undefined;
@@ -1674,7 +1669,7 @@ export async function buildAttentionList(
         const inboundMs = it.receivedAt ? new Date(it.receivedAt).getTime() : 0;
 
         // ── Route 1: Redis outbound marker. ──
-        // Set by UserWebjsProvider's message_received hook when fromMe=true.
+        // Older markers only: the personal-number link that set them is gone (owner, 5 Nov).
         // Key: wa_outbound:{userId}:{destChatId}. Value: most recent
         // outbound timestamp (ms). If MD's latest outbound is newer
         // than this inbound, the conversation is handled from MD's
@@ -1689,28 +1684,11 @@ export async function buildAttentionList(
               const fids = (it as any).conversationFeedEventIds ?? [it.feedEventId];
               for (const fid of fids) userRepliedFeedEventIds.add(fid);
               dropped += 1;
-              droppedByMarker += 1;
-              return;
+                            return;
             }
-          } catch { /* fall through to webjs */ }
+          } catch { /* the card stays */ }
         }
 
-        // ── Route 2: webjs fetchThreadContext (fallback). ──
-        const thread = await fetchThreadContext(userId, String(chatId), 20);
-        if (!thread || thread.length === 0) { emptyThread += 1; return; }
-        const sorted = [...thread].sort((a, b) => b.timestamp - a.timestamp);
-        const latestMe = sorted.find((t) => t.from === 'me');
-        const latestInbound = sorted.find((t) => t.from === 'them');
-        if (!latestMe) { noMeMsg += 1; return; }
-        if (!latestInbound) { return; }
-        if (latestMe.timestamp > latestInbound.timestamp) {
-          userRepliedFeedEventIds.add(it.feedEventId);
-          const fids = (it as any).conversationFeedEventIds ?? [it.feedEventId];
-          for (const fid of fids) userRepliedFeedEventIds.add(fid);
-          dropped += 1;
-        } else {
-          meStaleVsInbound += 1;
-        }
       } catch { /* best-effort per-card */ }
     }));
     if (userRepliedFeedEventIds.size > 0) {
@@ -1719,71 +1697,10 @@ export async function buildAttentionList(
       items.push(...filtered);
     }
     console.log(
-      `[triage] WA user-replied filter: candidates=${waCandidatesForReplyCheck.length} dropped=${dropped} `
-      + `byMarker=${droppedByMarker} byWebjs=${dropped - droppedByMarker} `
-      + `noChatId=${noChatId} emptyThread=${emptyThread} noMeMsg=${noMeMsg} meStaleVsInbound=${meStaleVsInbound}`,
+      `[triage] WA user-replied filter: candidates=${waCandidatesForReplyCheck.length} dropped=${dropped} noChatId=${noChatId}`,
     );
   }
 
-  // ── WhatsApp loop extraction (Phase 2) ──
-  // For each collapsed WA conversation card, ask Brain to read the
-  // full thread and extract the discrete OPEN LOOPS by topic. Cards
-  // that have no openWith=user loops route to auto-handle (Brief);
-  // cards with one or more open loops surface as multi-bullet cards
-  // in My Attention. Cached per latest-message-id so a quiet
-  // conversation doesn't burn an LLM call every triage cycle.
-  //
-  // Runs only on WA cards that actually carry conversationCount > 1
-  // — single messages don't benefit from loop extraction. Best-effort:
-  // failure leaves the card without loops (Phase 1 single-decision
-  // behaviour applies).
-  const waCardsForLoops = items.filter(
-    (it) => it.itemType === 'whatsapp' && Number((it as any).conversationCount) > 1,
-  );
-  if (waCardsForLoops.length > 0) {
-    const { fetchThreadContext } = await import('../whatsapp/UserWebjsProvider');
-    const { analyzeConversation } = await import('./conversationAnalyzer');
-    await Promise.all(waCardsForLoops.map(async (it) => {
-      try {
-        const chatId = (it as any).chatId
-          || (it as any).senderPhone
-          || it.fromEmail
-          || it.from;
-        if (!chatId) return;
-        const senderKey = ((it as any).senderPhone || it.fromEmail || it.from || '').toLowerCase().trim();
-        // Use the most recent feed_event id in the conversation as the
-        // cache key — it changes when new messages arrive, invalidating
-        // the cached loops naturally.
-        const latestEventId = ((it as any).conversationFeedEventIds ?? [it.feedEventId])[0];
-        const thread = await fetchThreadContext(userId, String(chatId), 20).catch(() => []);
-        if (thread.length === 0) return;
-        const analysis = await analyzeConversation({
-          userId, clientNumber,
-          senderName: it.fromDisplay || it.from || senderKey,
-          senderKey,
-          thread,
-          latestEventId,
-        });
-        (it as any).loops = analysis.loops;
-        (it as any).conversationSummary = analysis.summary;
-        // If the analyzer found NO open user-facing loop, the card
-        // doesn't need to bother the user. Demote to non-critical so
-        // the autonomy gate / handled list can route it correctly.
-        // We don't auto-route here — the existing autonomy gate
-        // downstream uses this signal. We just nullify the critical
-        // flag and downgrade band when no user-facing loop exists.
-        if (!analysis.hasOpenLoopWithUser && analysis.loops.length > 0) {
-          // Loops exist but none point at the user — closed/casual.
-          if (it.criticality) {
-            it.criticality.band = it.criticality.band === 'critical' ? 'medium' : it.criticality.band;
-          }
-          it.critical = false;
-        }
-      } catch (err: any) {
-        console.warn('[triage] loop extraction failed for WA card', it.feedEventId, err.message);
-      }
-    }));
-  }
 
   // ── Gmail thread loop extraction (Phase 3-equivalent for email) ──
   // Per user 2026-05-14: "this kind of explanation should be for every
@@ -2269,46 +2186,6 @@ export async function buildHandledList(
   }).catch(() => [] as Array<{ dedupHash: string }>);
   hidden.forEach((h) => hiddenHashes.add(h.dedupHash));
 
-  // WhatsApp "you already replied" lookup — mirror of the
-  // buildAttentionList filter so any WA conversation MD has answered
-  // on-device lands in Brief 'auto_decided' bucket instead of either
-  // surfacing in My Attention or vanishing entirely (per user
-  // 2026-05-12: Kashif HR HRA portal thread — MD replied "Ok let me
-  // check" directly on WhatsApp, Brain never ingested the outbound
-  // and kept re-asking). We ask webjs for each unique chat once and
-  // record the latest 'me' timestamp; the bucketing loop below
-  // compares per-event. Best-effort: any failure leaves the row to
-  // fall through normal bucketing — better to surface a doubt than
-  // silently swallow.
-  const waReplyAtMsByChatId = new Map<string, number>();
-  const waChatIds = new Set<string>();
-  for (const r of candidates) {
-    if (r.sourceType !== 'whatsapp') continue;
-    const cid = (r.rawPayload as any)?.chatId
-      || (r.senderPhone ? `${String(r.senderPhone).replace(/[^\d]/g, '')}@c.us` : '');
-    if (cid) waChatIds.add(String(cid));
-  }
-  if (waChatIds.size > 0) {
-    let withReplies = 0;
-    try {
-      const { fetchThreadContext } = await import('../whatsapp/UserWebjsProvider');
-      await Promise.all(Array.from(waChatIds).map(async (cid) => {
-        try {
-          const thread = await fetchThreadContext(userId, cid, 50);
-          if (!thread || thread.length === 0) return;
-          let lastMeMs = 0;
-          for (const t of thread) {
-            if (t.from === 'me' && t.timestamp > lastMeMs) lastMeMs = t.timestamp;
-          }
-          if (lastMeMs > 0) {
-            waReplyAtMsByChatId.set(cid, lastMeMs);
-            withReplies += 1;
-          }
-        } catch { /* best-effort per-chat */ }
-      }));
-    } catch { /* best-effort: module load / batch-level */ }
-    console.log(`[brief] WA you-replied lookup: chats=${waChatIds.size} withReplies=${withReplies}`);
-  }
 
   const out: HandledItem[] = [];
   const AUTONOMY_THRESHOLD = 0.85;
@@ -2386,26 +2263,6 @@ export async function buildHandledList(
       }
     }
 
-    // WhatsApp analog of userRepliedThread: if MD has sent a 'me'
-    // message in this chat AFTER this inbound, the loop is closed
-    // from MD's side. Bucket as auto_decided so the count is honest
-    // and the audit row shows the actual reply timestamp from webjs.
-    if (r.sourceType === 'whatsapp') {
-      const payload = r.rawPayload as any;
-      const cid = payload?.chatId
-        || (r.senderPhone ? `${String(r.senderPhone).replace(/[^\d]/g, '')}@c.us` : '');
-      const lastMeMs = cid ? waReplyAtMsByChatId.get(String(cid)) : undefined;
-      if (lastMeMs && lastMeMs > extractEventOccurredAt(r).getTime()) {
-        out.push({
-          ...base(item),
-          bucket: 'auto_decided',
-          category: 'you_handled',
-          decidedAt: new Date(lastMeMs).toISOString(),
-          reason: 'You replied on WhatsApp',
-        });
-        continue;
-      }
-    }
 
     if (!item) continue; // triage threw — leave for the diagnostic, not Brief
 

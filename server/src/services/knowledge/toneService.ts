@@ -219,24 +219,6 @@ Write the email body in HTML (<p> paragraphs):`;
 //  person specifically — a reply to your wife reads nothing like a reply
 //  to a vendor. Samples are cached per (userId, chatId) for 15 min.
 
-interface WaToneCacheEntry {
-  samples: string[];
-  fetchedAt: number;
-}
-const waToneCache = new Map<string, WaToneCacheEntry>();
-
-async function waSamplesFor(userId: number, chatId: string): Promise<string[]> {
-  const key = `${userId}:${chatId}`;
-  const cached = waToneCache.get(key);
-  if (cached && Date.now() - cached.fetchedAt < TTL_MS) return cached.samples;
-  try {
-    const { fetchSentSamplesForChat } = await import('../whatsapp/UserWebjsProvider');
-    const samples = await fetchSentSamplesForChat(userId, chatId, 30);
-    waToneCache.set(key, { samples, fetchedAt: Date.now() });
-    return samples;
-  } catch { return []; }
-}
-
 /**
  * Compose a short WhatsApp reply in the MD's exact style for THIS chat.
  * Falls back to a generic one-liner if samples unavailable.
@@ -264,16 +246,9 @@ export async function composeWhatsAppReply(params: {
   // Run the two pre-LLM lookups in parallel — they're independent and
   // each adds ~100-300ms of network latency. Sequential was ~500ms on
   // a slow link; parallel cuts to ~250ms.
-  const samplesPromise = waSamplesFor(userId, chatId).catch(() => [] as string[]);
-  const threadPromise = (threadContext && threadContext.length > 0)
-    ? Promise.resolve(threadContext)
-    : (async () => {
-        try {
-          const { fetchThreadContext } = await import('../whatsapp/UserWebjsProvider');
-          return await fetchThreadContext(userId, chatId, 10);
-        } catch { return [] as Array<{ from: 'me' | 'them'; text: string; timestamp: number }>; }
-      })();
-  const [samples, thread] = await Promise.all([samplesPromise, threadPromise]);
+  // Owner ruling, 5 Nov 2026: Nexeo doesn't read the user's chats, so tone comes only from what the caller passes.
+  const samples: string[] = [];
+  const thread = threadContext ?? [];
 
   // Meeting intent detection — if incoming looks like a scheduling ask,
   // fetch next few free calendar slots so we can propose concrete times.

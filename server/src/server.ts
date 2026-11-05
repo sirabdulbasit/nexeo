@@ -315,11 +315,6 @@ const server = app.listen(env.port, async () => {
   // MD doesn't re-scan after a server restart. Whatsapp-web.js LocalAuth
   // persists the browser session on disk; this call just re-creates the
   // Client instance and reconnects silently.
-  if (process.env.ENABLE_WHATSAPP_PERSONAL !== 'false') {
-    import('./services/whatsapp/UserWebjsProvider').then(({ resumeAllSessions }) => {
-      resumeAllSessions().then(() => console.log('[WhatsApp Personal] User sessions resumed')).catch(() => {});
-    }).catch(() => {});
-  }
   // Smart log health — escalation and repair remain operational self-healing,
   // while log retention is owned by the central cleanup governor.
   setInterval(() => {
@@ -746,56 +741,6 @@ const server = app.listen(env.port, async () => {
   // Per user: "make sure this should not happen again" — Aziz
   // Masood thread had only 1 of ~5 inbound captured and zero
   // outbound. This job makes that gap loud instead of silent.
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const { runWaIngestHealthAudit } = await import('./jobs/waIngestHealthAudit');
-        const s = await runWaIngestHealthAudit();
-        console.log(`[waIngestAudit] users=${s.usersAudited} chats=${s.chatsAudited} gaps=${s.gapsFound} errors=${s.errors}`);
-      } catch (err: any) {
-        console.warn('[waIngestAudit] error:', err.message);
-      }
-    })();
-  }, 10 * 60 * 1000); // first run 10 min after boot
-  setInterval(async () => {
-    try {
-      const { runWaIngestHealthAudit } = await import('./jobs/waIngestHealthAudit');
-      const s = await runWaIngestHealthAudit();
-      console.log(`[waIngestAudit] users=${s.usersAudited} chats=${s.chatsAudited} gaps=${s.gapsFound} errors=${s.errors}`);
-    } catch (err: any) {
-      console.warn('[waIngestAudit] error:', err.message);
-    }
-  }, 24 * 60 * 60 * 1000); // daily
-
-  // 2026-05-16 — WA outbound reconciliation (Path 3 of 3 in the
-  // defense-in-depth model). Walks recent chats per connected user
-  // every 10 min and writes any outbound rows missed by the
-  // message_create listener or the on-inbound back-catch-up. With
-  // all three paths running, an outbound has to slip past ALL of
-  // them to be silently lost — improbable. The daily ingest audit
-  // catches anything that somehow does.
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const { runWaOutboundReconciliation } = await import('./jobs/waOutboundReconciliation');
-        const s = await runWaOutboundReconciliation();
-        if (s.outboundWritten > 0 || s.errors > 0) {
-          console.log(`[waOutboundRecon] users=${s.usersScanned} chats=${s.chatsScanned} written=${s.outboundWritten} errors=${s.errors}`);
-        }
-      } catch (err: any) {
-        console.warn('[waOutboundRecon] error:', err.message);
-      }
-    })();
-  }, 7 * 60 * 1000); // first run 7 min after boot
-  setInterval(() => {
-    protectedJob('wa_outbound_reconciliation', 'important', async () => {
-      const { runWaOutboundReconciliation } = await import('./jobs/waOutboundReconciliation');
-      const s = await runWaOutboundReconciliation();
-      if (s.outboundWritten > 0 || s.errors > 0) {
-        console.log(`[waOutboundRecon] users=${s.usersScanned} chats=${s.chatsScanned} written=${s.outboundWritten} errors=${s.errors}`);
-      }
-    });
-  }, 10 * 60 * 1000); // every 10 min
 
   // HaseebOS v15 L1.4 — feed publish retry catch-up worker every 2 min
   setInterval(() => {
@@ -933,14 +878,6 @@ const server = app.listen(env.port, async () => {
   // lastSyncAt for every user whose live webjs client is in the
   // CONNECTED state, so Day Brief's "Last synced X ago" reflects
   // channel liveness, not last-message-arrival.
-  setInterval(async () => {
-    try {
-      const { heartbeatAllConnected } = await import('./services/whatsapp/UserWebjsProvider');
-      await heartbeatAllConnected();
-    } catch (err: any) {
-      console.warn('[wa-heartbeat] error:', err.message);
-    }
-  }, 2 * 60 * 1000);
 
   // MyOS — Google Chat poller every 5 min (was 20 min). Same poll-only
   // constraint as Tasks for the user-OAuth scope (no push notifications
@@ -1093,13 +1030,6 @@ async function gracefulShutdown(signal: string) {
     console.log('[shutdown] whatsapp (tenant) clients destroyed');
   } catch (err: any) {
     console.warn('[shutdown] whatsapp tenant destroy error:', err.message);
-  }
-  try {
-    const { destroyAllUserSessions } = await import('./services/whatsapp/UserWebjsProvider');
-    await destroyAllUserSessions();
-    console.log('[shutdown] whatsapp (user) sessions destroyed');
-  } catch (err: any) {
-    console.warn('[shutdown] whatsapp user destroy error:', err.message);
   }
 
   // Release DB pool. Dynamic import to avoid circular issues.

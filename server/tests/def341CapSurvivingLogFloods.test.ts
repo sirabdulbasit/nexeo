@@ -89,17 +89,8 @@ describe('DEF-341 — surviving floods are bounded, counting preserved', () => {
     expect(lines[6].meta.clientNumber).toBe('TMC-0002');
   });
 
-  it('fetchThreadContext no-client (~960/day from the dead session) is gated per user per hour at the call site', () => {
-    const src = read('../src/services/whatsapp/UserWebjsProvider.ts');
-    expect(src).toContain("import { windowedLogGate } from '../../utils/boundedLog'");
-    expect(src).toMatch(/const gate = noClientLogGate\(String\(userId\)\);\s*\n\s*if \(gate\.log\)/);
-    expect(src).toMatch(/windowedLogGate\(NO_CLIENT_LOG_CAP, 60 \* 60 \* 1000\)/);
-    // the ungated call is gone — nothing in the no-client branch logs outside the gate
-    expect(src).not.toMatch(/log\.warn\('\[fetchThreadContext\] no client in user map', \{ userId, chatId \}\);/);
-  });
-
   it('both sites use the ONE shared gate from utils/boundedLog — no second implementation', () => {
-    for (const rel of ['../src/services/whatsapp/UserWebjsProvider.ts', '../src/services/selfheal/repairService.ts']) {
+    for (const rel of ['../src/services/selfheal/repairService.ts']) {
       const src = read(rel);
       expect(src).toContain("from '../../utils/boundedLog'");
       expect(src).not.toMatch(/windowStart:\s*number;\s*count:\s*number/); // no inline re-implementation

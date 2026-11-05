@@ -28,7 +28,7 @@
  */
 import createLogger from '../../utils/logger';
 import { callLLM } from '../llmRouter';
-import type { ThreadTurn } from '../whatsapp/UserWebjsProvider';
+export interface ThreadTurn { from: 'me' | 'them'; text: string; timestamp: number }
 
 const log = createLogger('conv-analyzer');
 

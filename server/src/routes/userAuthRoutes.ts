@@ -137,37 +137,6 @@ router.post('/users/:empcode/reset-password', requireAuth, requireAdmin, async (
   res.json({ success: true, tempPassword: result.tempPassword });
 });
 
-// ─── Voice transcript backfill ─────────────────────────────────
-// Runs the backfill IN this server process (where the in-memory
-// webjs clients live). CLI scripts spawn a fresh Node process and
-// see an empty clients Map — that's why running ts-node returned
-// skipped(no-client)=N for every row.
-//
-// Default scope: caller's own user. Passing userId in the body to
-// backfill someone else's data is gated to admins/super-admins so a
-// regular user can't read another user's voice notes.
-router.post('/voice-backfill', requireAuth, async (req: Request, res: Response) => {
-  const caller = (req as any).user;
-  const apply = !!req.body?.apply;
-  const requestedUserId = req.body?.userId ? Number(req.body.userId) : null;
-  let userId = caller.id;
-  if (requestedUserId && requestedUserId !== caller.id) {
-    if (!caller.isAdmin && !caller.isSuperAdmin) {
-      return res.status(403).json({ error: 'admin required to backfill another user' });
-    }
-    userId = requestedUserId;
-  }
-  const limit = req.body?.limit ? Math.max(1, Math.min(500, Number(req.body.limit))) : 200;
-  try {
-    const { backfillVoiceTranscriptsInProcess } =
-      await import('../services/whatsapp/UserWebjsProvider');
-    const result = await backfillVoiceTranscriptsInProcess({ apply, userId, limit });
-    res.json({ ok: true, mode: apply ? 'apply' : 'dry-run', userId, limit, ...result });
-  } catch (err: any) {
-    res.status(500).json({ error: err.message ?? 'backfill failed' });
-  }
-});
-
 // ─── Admin: SMTP Health / Test ─────────────────────────────────
 // Verifies the tenant's SMTP transport via SMTP handshake (does NOT
 // send a real message). Used by Client Config → Email/SMTP to surface

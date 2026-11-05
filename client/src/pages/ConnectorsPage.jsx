@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -207,100 +207,7 @@ export default function ConnectorsPage() {
     setLoading(false);
   }
 
-  // ── WhatsApp (Personal) QR pairing — separate modal ──
-  const [waPair, setWaPair] = useState(null); // { connector, status, qrDataUrl, connectedNumber, error }
-  const waPollRef = useRef(null);
-
-  async function openWhatsAppPair(c) {
-    setWaPair({ connector: c, status: 'connecting', qrDataUrl: null, connectedNumber: null });
-    try {
-      const r = await api.post('/connectors/whatsapp_personal/pair');
-      setWaPair((prev) => prev ? { ...prev, ...r.data } : prev);
-    } catch (err) {
-      setWaPair((prev) => prev ? { ...prev, status: 'error', error: err.response?.data?.error || 'Failed to start pairing' } : prev);
-    }
-    // Poll status every 2s until connected / error
-    if (waPollRef.current) clearInterval(waPollRef.current);
-    waPollRef.current = setInterval(async () => {
-      try {
-        const r = await api.get('/connectors/whatsapp_personal/status');
-        setWaPair((prev) => prev ? { ...prev, ...r.data } : prev);
-        if (r.data.status === 'connected') {
-          clearInterval(waPollRef.current); waPollRef.current = null;
-          flash('WhatsApp paired successfully!', 'success');
-          setTimeout(() => { setWaPair(null); load(); }, 1500);
-        } else if (r.data.status === 'error') {
-          clearInterval(waPollRef.current); waPollRef.current = null;
-        }
-      } catch {}
-    }, 2000);
-  }
-
-  function closeWhatsAppPair() {
-    if (waPollRef.current) { clearInterval(waPollRef.current); waPollRef.current = null; }
-    setWaPair(null);
-  }
-
-  async function handleWhatsAppDisconnect(c) {
-    try {
-      await api.post('/connectors/whatsapp_personal/disconnect');
-      flash('WhatsApp disconnected', 'info');
-      load();
-    } catch (err) { flash(err.response?.data?.error || 'Disconnect failed', 'error'); }
-  }
-
-  // ── WhatsApp excluded-contacts modal ──
-  // Numbers listed here are DROPPED at ingest. Brain never sees them,
-  // they never surface in Day Brief. E.164 format (+92300...).
-  const [waExcludedOpen, setWaExcludedOpen] = useState(false);
-  const [waExcludedList, setWaExcludedList] = useState([]);
-  const [waExcludedInput, setWaExcludedInput] = useState('');
-  const [waExcludedSaving, setWaExcludedSaving] = useState(false);
-
-  async function openWhatsAppExcluded() {
-    setWaExcludedOpen(true);
-    setWaExcludedInput('');
-    try {
-      const r = await api.get('/connectors/whatsapp_personal/excluded');
-      setWaExcludedList(r.data.numbers || []);
-    } catch { setWaExcludedList([]); }
-  }
-
-  function waExcludedAdd() {
-    const v = waExcludedInput.trim();
-    if (!v) return;
-    if (!/^\+?\d{7,15}$/.test(v.replace(/[\s\-()]/g, ''))) {
-      flash('Enter a valid phone number (e.g. +923001234567)', 'error');
-      return;
-    }
-    setWaExcludedList((prev) => Array.from(new Set([...prev, v])));
-    setWaExcludedInput('');
-  }
-
-  function waExcludedRemove(n) {
-    setWaExcludedList((prev) => prev.filter((x) => x !== n));
-  }
-
-  async function waExcludedSave() {
-    setWaExcludedSaving(true);
-    try {
-      const r = await api.post('/connectors/whatsapp_personal/excluded', { numbers: waExcludedList });
-      setWaExcludedList(r.data.numbers || []);
-      flash('Excluded contacts saved', 'success');
-      setWaExcludedOpen(false);
-    } catch (err) {
-      flash(err.response?.data?.error || 'Save failed', 'error');
-    }
-    setWaExcludedSaving(false);
-  }
-
-  // ── Open Configure modal (ALL connectors go through modal) ──
   function openConfigure(c) {
-    // WhatsApp (Personal) is QR-pair, not credential entry — route to QR modal.
-    if (c.slug === 'whatsapp_personal' || c.authMethod === 'qr_pair') {
-      openWhatsAppPair(c);
-      return;
-    }
     setModal(c);
     setSaved(false);
     setTesting(false);
@@ -417,9 +324,6 @@ export default function ConnectorsPage() {
   }
 
   async function handleDisconnect(c) {
-    if (c.slug === 'whatsapp_personal' || c.authMethod === 'qr_pair') {
-      return handleWhatsAppDisconnect(c);
-    }
     try { await api.post('/connectors/disconnect', { connectorTypeId: c.id }); flash(`${c.name} disconnected`); load(); } catch {}
   }
 
@@ -878,15 +782,6 @@ export default function ConnectorsPage() {
                             >
                               {syncingId === c.id ? '⟳ Syncing…' : '⟳ Sync'}
                             </button>
-                            {c.slug === 'whatsapp_personal' && (
-                              <button
-                                style={{ ...s.btn, ...s.btnOutline, fontSize: 11 }}
-                                onClick={openWhatsAppExcluded}
-                                title="Manage excluded contacts (wife, family) — their messages are never read by Brain"
-                              >
-                                Excluded contacts
-                              </button>
-                            )}
                             <button style={{ ...s.btn, ...s.btnOutline }} onClick={() => openConfigure(c)}>Reconfigure</button>
                             <button style={{ ...s.btn, ...s.btnDanger }} onClick={() => handleDisconnect(c)}>Disconnect</button>
                           </>
@@ -1047,109 +942,6 @@ export default function ConnectorsPage() {
         </div>
       )}
 
-      {/* ── WhatsApp (Personal) Excluded Contacts Modal ── */}
-      {waExcludedOpen && (
-        <div style={s.modal} onClick={() => setWaExcludedOpen(false)}>
-          <div style={s.modalBody} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#eee' }}>Excluded WhatsApp contacts</div>
-              <button style={{ ...s.btn, ...s.btnOutline, padding: '4px 10px' }} onClick={() => setWaExcludedOpen(false)}>✕</button>
-            </div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 14, lineHeight: 1.5 }}>
-              Messages from these numbers are <strong style={{ color: '#eee' }}>dropped at the door</strong> — they never
-              enter Day Brief, Brain never reads them, and no reply is ever drafted. Use this for family, close friends,
-              or any private chat you want kept out of the system.
-            </div>
-
-            <label style={s.label}>Add a number</label>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <input
-                style={{ ...s.input, flex: 1 }}
-                placeholder="+923001234567"
-                value={waExcludedInput}
-                onChange={(e) => setWaExcludedInput(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); waExcludedAdd(); } }}
-              />
-              <button style={{ ...s.btn, ...s.btnPrimary, flexShrink: 0 }} onClick={waExcludedAdd}>Add</button>
-            </div>
-
-            <div style={{ marginTop: 16 }}>
-              {waExcludedList.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#666', padding: '12px 0', textAlign: 'center' }}>No excluded contacts yet.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {waExcludedList.map((n) => (
-                    <div key={n} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#252525', borderRadius: 8 }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: 13, color: '#ccc' }}>{n}</span>
-                      <button style={{ ...s.btn, ...s.btnDanger, fontSize: 11, padding: '4px 10px' }} onClick={() => waExcludedRemove(n)}>Remove</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
-              <button style={{ ...s.btn, ...s.btnOutline }} onClick={() => setWaExcludedOpen(false)}>Cancel</button>
-              <button
-                style={{ ...s.btn, ...s.btnPrimary, opacity: waExcludedSaving ? 0.6 : 1 }}
-                disabled={waExcludedSaving}
-                onClick={waExcludedSave}
-              >
-                {waExcludedSaving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── WhatsApp (Personal) QR Pair Modal ── */}
-      {waPair && (
-        <div style={s.modal} onClick={closeWhatsAppPair}>
-          <div style={s.modalBody} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#eee' }}>Pair WhatsApp</div>
-              <button style={{ ...s.btn, ...s.btnOutline, padding: '4px 10px' }} onClick={closeWhatsAppPair}>✕</button>
-            </div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 14 }}>
-              On your phone: WhatsApp → Settings → Linked Devices → Link a Device, then scan the QR below.
-            </div>
-
-            {waPair.status === 'connected' ? (
-              <div style={{ textAlign: 'center', padding: 32 }}>
-                <div style={{ fontSize: 46, marginBottom: 10 }}>✓</div>
-                <div style={{ fontSize: 16, color: '#4ade80', fontWeight: 600 }}>Paired</div>
-                {waPair.connectedNumber && <div style={{ fontSize: 13, color: '#aaa', marginTop: 6 }}>{waPair.connectedNumber}</div>}
-              </div>
-            ) : waPair.status === 'error' ? (
-              <div>
-                <div style={s.error}>{waPair.error || 'Pairing failed'}</div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-                  <button style={{ ...s.btn, ...s.btnOutline }} onClick={closeWhatsAppPair}>Close</button>
-                  <button style={{ ...s.btn, ...s.btnPrimary }} onClick={() => openWhatsAppPair(waPair.connector)}>Retry</button>
-                </div>
-              </div>
-            ) : (
-              <div style={{ textAlign: 'center' }}>
-                {waPair.qrDataUrl ? (
-                  <img
-                    src={waPair.qrDataUrl}
-                    alt="WhatsApp QR code"
-                    style={{ width: 260, height: 260, background: '#fff', padding: 12, borderRadius: 8 }}
-                  />
-                ) : (
-                  <div style={{ padding: 80, color: '#888', fontSize: 13 }}>
-                    Waiting for QR code…
-                  </div>
-                )}
-                <div style={{ fontSize: 11, color: '#666', marginTop: 10 }}>
-                  Status: {waPair.status}
-                  {waPair.status === 'qr' && ' · QR refreshes automatically'}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
