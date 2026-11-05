@@ -21,7 +21,7 @@ import { audit } from '../auditLogService';
 import { applyFollowUp } from './suziActions';
 import { EMAIL_OPS, runEmailOp } from './suziEmail';
 
-export const ACT_OPS = ['task.update', ...EMAIL_OPS] as const;
+export const ACT_OPS = ['task.update', 'whatsapp.to_user', ...EMAIL_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -60,6 +60,14 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
       timezone: req.timezone,
     });
     return r.ok ? { ok: true, item: r.action } : { ok: false, error: r.error, detail: r.detail };
+  }
+  // Founder, 5 Nov: online, Suzi sends through Nexeo. Row 19: only to the user themself, so there is no `to` to give.
+  if (req.op === 'whatsapp.to_user') {
+    const text = typeof req.args?.text === 'string' ? req.args.text.trim().slice(0, 2000) : '';
+    if (!text) return { ok: false, error: 'bad_text' };
+    const { brainContactsUser } = await import('../notifications/brainOutboundService');
+    const r = await brainContactsUser({ userId, clientNumber, kind: 'suzi_to_user', summary: text.slice(0, 120), body: text, urgency: 'normal' as any, bypassRateLimit: true });
+    return r.sent ? { ok: true, item: { sent: true } } : { ok: false, error: 'rejected', detail: 'WhatsApp could not deliver it' };
   }
   if (req.op.startsWith('email.')) return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true);
   return { ok: false, error: 'unknown_op' };

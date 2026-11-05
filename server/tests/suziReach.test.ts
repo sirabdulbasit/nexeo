@@ -22,12 +22,13 @@ vi.mock('../src/services/suzi/gatewayAdminClient', () => ({
   suziReasonFor: (kind: string) => (kind === 'critical_bundle' ? 'email' : kind === 'open_item_owner_chase' ? 'task' : null),
 }));
 const quiet = vi.fn(); const email = vi.fn(); const delivered = vi.fn();
+const wa = vi.fn(async () => ({ sent: false }));
 vi.mock('../src/services/notifications/brainOutboundService', () => ({
-  isWithinQuietHours: (...a: any[]) => quiet(...a), emailHeldItem: (...a: any[]) => email(...a), recordSuziDelivery: (...a: any[]) => delivered(...a),
+  brainContactsUser: (...a: any[]) => wa(...a), isWithinQuietHours: (...a: any[]) => quiet(...a), emailHeldItem: (...a: any[]) => email(...a), recordSuziDelivery: (...a: any[]) => delivered(...a),
 }));
 vi.mock('../src/services/whatsapp/displayIdentity', () => ({ scrubSyntheticIdentities: async (s: string) => s }));
 
-import { briefHandedOver, decide, isAlive, primaryDeviceOf, pumpHeld, reachFor, recordPresence } from '../src/services/suzi/suziReach';
+import { briefHandedOver, decide, isAlive, isDueBy, primaryDeviceOf, pumpHeld, reachFor, recordPresence } from '../src/services/suzi/suziReach';
 
 const now = new Date('2026-11-04T12:00:00Z');
 const ago = (ms: number) => new Date(now.getTime() - ms);
@@ -37,6 +38,32 @@ beforeEach(() => {
   for (const f of [q, exec, findFirst, tell, notice, quiet, email, delivered]) f.mockReset();
   exec.mockResolvedValue(1); findFirst.mockResolvedValue({ notificationPreferences: {} }); quiet.mockResolvedValue(false);
   tell.mockResolvedValue({ delivered: 1 }); notice.mockResolvedValue({ delivered: 1 }); email.mockResolvedValue(true);
+});
+
+describe('founder, 5 Nov: while Suzi is offline, Nexeo takes it up', () => {
+  const away = { critical: false, emergency: false, speakable: true, carded: false, alive: false, quiet: false, absentMs: 11 * 60_000, emailed: false };
+  it('an emergency goes at once, at any hour', () => {
+    expect(decide({ ...away, critical: true, emergency: true, absentMs: 0, quiet: true })).toEqual({ step: 'hold', email: true });
+  });
+  it('a high item, or one due today or overdue, after 10 minutes, outside quiet hours', () => {
+    expect(decide({ ...away, critical: true }).email).toBe(true);
+    expect(decide({ ...away, dueNow: true }).email).toBe(true);
+    expect(decide({ ...away, critical: true, absentMs: 9 * 60_000 }).email).toBe(false);
+    expect(decide({ ...away, critical: true, quiet: true }).email).toBe(false);
+    expect(decide({ ...away, dueNow: true, quiet: true }).email).toBe(false);
+  });
+  it('everything else waits; nudges off sends nothing, not even an emergency; never twice', () => {
+    expect(decide(away).email).toBe(false);
+    expect(decide({ ...away, critical: true, emergency: true, nudgesOff: true }).email).toBe(false);
+    expect(decide({ ...away, critical: true, emergency: true, emailed: true }).email).toBe(false);
+  });
+  it('a due date: today or earlier counts; later, missing or unreadable does not', () => {
+    expect(isDueBy({ due: '2026-11-05' }, '2026-11-05')).toBe(true);
+    expect(isDueBy({ dueAt: '2026-11-01T09:00:00Z' }, '2026-11-05')).toBe(true);
+    expect(isDueBy({ due: '2026-11-06' }, '2026-11-05')).toBe(false);
+    expect(isDueBy({}, '2026-11-05')).toBe(false);
+    expect(isDueBy({ due: 'soon' }, '2026-11-05')).toBe(false);
+  });
 });
 
 describe('CN-011: in a meeting', () => {
@@ -168,6 +195,15 @@ describe('the pump', () => {
     setup([row()], aliveRows);
     await pumpHeld('T', 2, now);
     expect(quiet.mock.calls[1][0]).toMatchObject({ quietStart: '23:30', quietEnd: '06:00' });
+  });
+  it('gone for 10 minutes: WhatsApp first, on the registered number, and no email when it reached him', async () => {
+    wa.mockResolvedValueOnce({ sent: true });
+    const before = email.mock.calls.length;
+    setup([row()], goneRows);
+    const r = await pumpHeld('T', 2, now);
+    expect(r).toMatchObject({ emailed: 1, spoken: 0 });
+    expect(wa.mock.calls.at(-1)![0]).toMatchObject({ userId: 2, bypassRateLimit: true });
+    expect(email.mock.calls.length).toBe(before);
   });
   it('gone for 10 minutes: critical is emailed and stays held for his return; a failed email can try again', async () => {
     setup([row()], goneRows);

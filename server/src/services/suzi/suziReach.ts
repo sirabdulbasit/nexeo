@@ -4,8 +4,10 @@
  *   - Alive: a presence frame in the last 3 minutes with state active, or away for under 30 minutes.
  *   - While alive, Nexeo uses no other channel. A critical item Suzi may speak starts a turn at once;
  *     everything else arrives as a silent card.
- *   - Not alive: the item is held and delivered on return. After 10 minutes outside quiet hours a
- *     critical item also goes by email.
+ *   - Not alive (founder, 5 Nov: "Nexeo will take up through email or whatsapp"): the item is held and
+ *     delivered on return. Meanwhile an emergency goes at once, at any hour; a high item, or one due today
+ *     or overdue, goes after 10 minutes, outside quiet hours. WhatsApp on the registered number first, email
+ *     if that can't deliver. Everything else waits. With nudges off, nothing goes.
  *   - Quiet hours (the user's, default 22:00-08:00): a critical item shows as a silent card and is
  *     spoken when quiet hours end. Only an emergency is spoken at night, as it reached him before.
  *
@@ -18,6 +20,8 @@
  * item, a user coming back, or the sweep. Each step claims its row first, so two pumps cannot both
  * deliver the same item.
  */
+import { localDate } from './dayBriefFacts';
+import { resolveUserTimezone } from '../userTimezoneService';
 import prisma from '../../db/prisma';
 import createLogger from '../../utils/logger';
 
@@ -104,12 +108,21 @@ export async function recordPresence(clientNumber: string, userId: number, devic
 
 export type Step = 'speak' | 'card' | 'hold';
 
+/** Due today or overdue, by the item's own date. A missing or unreadable date isn't urgent. */
+export function isDueBy(metadata: any, today: string): boolean {
+  const due = String(metadata?.due ?? metadata?.dueAt ?? metadata?.due_date ?? '').slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(due) && due <= today;
+}
+
 /**
  * What to do with one item right now. `carded`: the silent card has already shown.
  * Stays held after a card only when it is still owed a spoken turn.
  */
-export function decide(i: { critical: boolean; emergency: boolean; speakable: boolean; carded: boolean; alive: boolean; quiet: boolean; absentMs: number; emailed: boolean; nudgesOff?: boolean; meeting?: boolean }): { step: Step; email: boolean } {
-  if (!i.alive) return { step: 'hold', email: i.critical && !i.quiet && !i.emailed && !i.nudgesOff && i.absentMs >= ABSENT_FOR_EMAIL_MS };
+export function decide(i: { critical: boolean; emergency: boolean; speakable: boolean; carded: boolean; alive: boolean; quiet: boolean; absentMs: number; emailed: boolean; nudgesOff?: boolean; meeting?: boolean; dueNow?: boolean }): { step: Step; email: boolean } {
+  if (!i.alive) {
+    const urgent = i.critical || i.dueNow === true;
+    return { step: 'hold', email: !i.emailed && !i.nudgesOff && (i.emergency || (urgent && !i.quiet && i.absentMs >= ABSENT_FOR_EMAIL_MS)) };
+  }
   // Link T11: with nudges off nothing is spoken, so no model round is paid for words nobody hears.
   if (i.critical && i.speakable && (!i.quiet || i.emergency) && !i.nudgesOff && !i.meeting) return { step: 'speak', email: false };
   if (i.carded) return { step: 'hold', email: false };
@@ -150,18 +163,19 @@ export async function pumpHeld(clientNumber: string, userId: number, now = new D
 
     const user = await prisma.user.findFirst({ where: { id: userId, clientNumber }, select: { notificationPreferences: true } });
     const bc = (user?.notificationPreferences as any)?.brain_channel ?? {};
-    const [{ isWithinQuietHours, emailHeldItem, recordSuziDelivery }, { tellSuzi, noticeSuzi, suziReasonFor }, { scrubSyntheticIdentities }] = await Promise.all([
+    const [{ brainContactsUser, isWithinQuietHours, emailHeldItem, recordSuziDelivery }, { tellSuzi, noticeSuzi, suziReasonFor }, { scrubSyntheticIdentities }] = await Promise.all([
       import('../notifications/brainOutboundService'), import('./gatewayAdminClient'), import('../whatsapp/displayIdentity'),
     ]);
     const quiet = await isWithinQuietHours({ ...bc, quietStart: bc.quietStart || '22:00', quietEnd: bc.quietEnd || '08:00' }, userId);
     const reach = await reachFor(clientNumber, userId, now);
     const owner = { userId, clientNumber };
+    const today = localDate(now, await resolveUserTimezone(userId).catch(() => 'Asia/Karachi'));
 
     for (const r of rows) {
       const body = r.body ?? '';
       const critical = r.urgency === 'high' || r.urgency === 'emergency';
       const speakable = !!suziReasonFor(r.kind, r.metadata) && r.provenance !== 'quoted_third_party';
-      const d = decide({ critical, emergency: r.urgency === 'emergency', speakable, carded: !!r.carded_at, alive: reach.alive, quiet, absentMs: reach.absentMs, emailed: !!r.emailed_at, nudgesOff: reach.nudgesOff, meeting: reach.meeting });
+      const d = decide({ critical, emergency: r.urgency === 'emergency', speakable, carded: !!r.carded_at, alive: reach.alive, quiet, absentMs: reach.absentMs, emailed: !!r.emailed_at, nudgesOff: reach.nudgesOff, meeting: reach.meeting, dueNow: isDueBy(r.metadata, today) });
 
       if (d.step === 'speak' && out.spoken < MAX_SPOKEN_PER_PUMP) {
         const told = await tellSuzi(owner, { kind: r.kind, body: await scrubSyntheticIdentities(body, clientNumber), urgency: r.urgency, provenance: r.provenance ?? undefined, metadata: r.metadata });
@@ -183,7 +197,9 @@ export async function pumpHeld(clientNumber: string, userId: number, now = new D
       if (d.email) {
         const claimed = await prisma.$executeRawUnsafe(`UPDATE suzi_outbox SET emailed_at = now() WHERE id = $1::bigint AND state = 'held' AND emailed_at IS NULL`, r.id);
         if (Number(claimed) > 0) {
-          const ok = await emailHeldItem({ userId, clientNumber, kind: r.kind, summary: r.summary, body, urgency: r.urgency, metadata: r.metadata });
+          const text = await scrubSyntheticIdentities(body, clientNumber);
+          const told = await brainContactsUser({ userId, clientNumber, kind: r.kind, summary: r.summary, body: text, urgency: r.urgency as any, provenance: r.provenance as any, metadata: r.metadata, bypassRateLimit: true, bypassQuietHours: true }).catch(() => null);
+          const ok = told?.sent === true || await emailHeldItem({ userId, clientNumber, kind: r.kind, summary: r.summary, body, urgency: r.urgency, metadata: r.metadata });
           if (ok) out.emailed++;
           else await prisma.$executeRawUnsafe(`UPDATE suzi_outbox SET emailed_at = NULL WHERE id = $1::bigint`, r.id);
         }
