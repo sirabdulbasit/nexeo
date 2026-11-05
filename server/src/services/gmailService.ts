@@ -372,6 +372,53 @@ export async function sendUserEmail(
   }
 }
 
+
+// ─── Saved drafts (link E6): until device signing exists, Suzi's "send" saves here and nothing is sent ───
+
+export async function createGmailDraft(
+  userId: number,
+  to: string,
+  subject: string,
+  body: string,
+  cc?: string,
+  opts?: { threadId?: string; inReplyTo?: string; references?: string },
+): Promise<{ success: boolean; draftId?: string; error?: string }> {
+  const { client, error } = await getAuthenticatedClient(userId);
+  if (!client) return { success: false, error };
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const headers = [
+      `To: ${to}`,
+      cc ? `Cc: ${cc}` : '',
+      `Subject: ${encodeHeaderValue(subject)}`,
+      opts?.inReplyTo ? `In-Reply-To: ${opts.inReplyTo}` : '',
+      opts?.references ? `References: ${opts.references}` : '',
+      'Content-Type: text/plain; charset=utf-8',
+      'MIME-Version: 1.0',
+    ].filter(Boolean).join('\r\n');
+    const raw = Buffer.from(`${headers}\r\n\r\n${body}`).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    const r = await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody: { message: { raw, ...(opts?.threadId ? { threadId: opts.threadId } : {}) } },
+    });
+    return r.data.id ? { success: true, draftId: r.data.id } : { success: false, error: 'Gmail returned no draft id' };
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? 'draft failed' };
+  }
+}
+
+export async function deleteGmailDraft(userId: number, draftId: string): Promise<{ success: boolean; error?: string }> {
+  const { client, error } = await getAuthenticatedClient(userId);
+  if (!client) return { success: false, error };
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    await gmail.users.drafts.delete({ userId: 'me', id: draftId });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message ?? 'delete failed' };
+  }
+}
+
 // ─── Recent Sent items summary (for user "did it go?" queries) ─
 /** Return a compact list of the most recent SENT messages so Brain
  *  can answer "did my email to X actually go?" honestly. Unlike

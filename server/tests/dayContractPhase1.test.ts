@@ -190,7 +190,7 @@ describe('act', () => {
   });
 
   it('an unknown op or a missing key does nothing at all', async () => {
-    expect(await act('TMC-0001', 2, { ...ok, op: 'email.send' })).toMatchObject({ status: 400, body: { error: 'unknown_op' } });
+    expect(await act('TMC-0001', 2, { ...ok, op: 'calendar.book' })).toMatchObject({ status: 400, body: { error: 'unknown_op' } });
     expect(await act('TMC-0001', 2, { ...ok, idempotency_key: ' ' })).toMatchObject({ status: 400, body: { error: 'bad_idempotency_key' } });
     expect(log.create).not.toHaveBeenCalled();
     expect(follow).not.toHaveBeenCalled();

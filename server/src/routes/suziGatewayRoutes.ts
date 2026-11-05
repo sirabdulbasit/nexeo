@@ -29,6 +29,7 @@ import { recordDesktopBatch, recordServerRound } from '../services/consumption/c
 import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPresence } from '../services/suzi/suziReach';
 import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
+import { readThread } from '../services/suzi/suziEmail';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
@@ -138,6 +139,22 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('knowledge failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'knowledge could not be searched' });
+  }
+});
+
+/** Link E3: one email, on request. A read, so not an `act` op; nothing is stored. */
+router.get('/email', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const threadId = typeof req.query.thread_id === 'string' ? req.query.thread_id.trim() : '';
+  if (!threadId) { res.status(400).json({ error: 'thread_id is required' }); return; }
+  try {
+    const email = await readThread(who.tenantId, who.userId, threadId);
+    if (!email) { res.status(404).json({ error: 'not_found' }); return; }
+    res.json(email);
+  } catch (err: any) {
+    log.warn('email read failed', { userId: who.userId, error: err?.message });
+    res.status(502).json({ error: 'the email could not be read' });
   }
 });
 

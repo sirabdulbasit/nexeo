@@ -13,14 +13,15 @@
  *   - is AUDITED: the suzi_act_log row is the audit entry (its id is the `audit_id`), and a line
  *     also goes to audit_logs with the rest of the system's actions, including refusals.
  *
- * Phase 1 ops: task.update (done / cancel / move / not_yet / note).
+ * Ops: task.update (done / cancel / move / not_yet / note), and the email session (suziEmail.ts).
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
 import { audit } from '../auditLogService';
 import { applyFollowUp } from './suziActions';
+import { EMAIL_OPS, runEmailOp } from './suziEmail';
 
-export const ACT_OPS = ['task.update'] as const;
+export const ACT_OPS = ['task.update', ...EMAIL_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -43,6 +44,7 @@ const fingerprint = (op: string, args: unknown) =>
 
 function statusOf(error: string): 400 | 403 | 404 | 409 {
   if (error === 'not_found') return 404;
+  if (error === 'needs_confirmation') return 403;
   if (error === 'rejected') return 409;
   return 400;
 }
@@ -59,6 +61,7 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
     });
     return r.ok ? { ok: true, item: r.action } : { ok: false, error: r.error, detail: r.detail };
   }
+  if (req.op.startsWith('email.')) return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true);
   return { ok: false, error: 'unknown_op' };
 }
 
@@ -107,7 +110,8 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
   await audit({
     clientNumber, actorId: userId, actorKind: 'user',
     action: `suzi.act.${req.op}`,
-    subjectType: 'open_item', subjectId: typeof req.args?.id === 'string' ? req.args.id : null,
+    subjectType: req.op.startsWith('email.') ? 'email' : 'open_item',
+    subjectId: typeof req.args?.id === 'string' ? req.args.id : typeof req.args?.draft_id === 'string' ? req.args.draft_id : typeof req.args?.thread_id === 'string' ? req.args.thread_id : null,
     result: out.ok ? 'success' : 'failure',
     details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, ...(out.ok ? {} : { error: out.error }) },
   });
