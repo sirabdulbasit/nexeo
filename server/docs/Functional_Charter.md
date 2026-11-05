@@ -89,6 +89,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
   - Body: `{"op", "args", "idempotency_key", "confirmed_by_user", "voice_score"?, "ts"?}`. Unknown fields get a 400.
   - Tenant, user and device come only from the verified login, never from the body.
   - `task.update` args: `{id, update: done|cancel|move|not_yet|note, due?: YYYY-MM-DD, note?}`
+  - Answer: `{ok, audit_id, item}` on success, `{ok, audit_id, error, detail?}` on failure. A retry with the same key adds `replayed: true`; a stale `rules_version` adds the current one. The email ops of E4 describe `item` (both AGREE, 5 Nov 2026).
 - **Signing (irreversible ops):**
   - An Ed25519 key in the OS keyring.
   - One-time `POST /v1/device-key {"pubkey":"<base64 raw 32 bytes>"}`, stored in `jarvis.devices.pubkey`. Replacing a key needs the founder.
