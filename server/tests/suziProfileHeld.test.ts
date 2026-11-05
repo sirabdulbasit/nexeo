@@ -44,7 +44,7 @@ describe('held items', () => {
     const [sql, ...args] = query.mock.calls[0];
     expect(args).toEqual(['TMC-0001', 2]);
     expect(sql).toContain("urgency IN ('high', 'emergency')");
-    expect(sql).toContain("state = 'held' OR delivered_how = 'notice'");
+    expect(sql).toContain("state = 'held' OR delivered_how IN ('notice', 'whatsapp', 'email')");
     expect(sql).toContain('LIMIT 20');
     expect(exec).not.toHaveBeenCalled();
   });

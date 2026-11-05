@@ -39,7 +39,7 @@ export async function heldItems(clientNumber: string, userId: number): Promise<H
     `SELECT id::text, kind, summary, urgency, created_at FROM suzi_outbox
       WHERE client_number = $1 AND user_id = $2 AND urgency IN ('high', 'emergency')
         AND created_at > now() - interval '${HELD_WINDOW_HOURS} hours'
-        AND (state = 'held' OR delivered_how = 'notice')
+        AND (state = 'held' OR delivered_how IN ('notice', 'whatsapp', 'email'))
       ORDER BY created_at DESC LIMIT ${MAX_HELD}`,
     clientNumber, userId,
   );

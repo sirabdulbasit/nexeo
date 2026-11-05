@@ -199,8 +199,10 @@ export async function pumpHeld(clientNumber: string, userId: number, now = new D
         if (Number(claimed) > 0) {
           const text = await scrubSyntheticIdentities(body, clientNumber);
           const told = await brainContactsUser({ userId, clientNumber, kind: r.kind, summary: r.summary, body: text, urgency: r.urgency as any, provenance: r.provenance as any, metadata: r.metadata, bypassRateLimit: true, bypassQuietHours: true }).catch(() => null);
-          const ok = told?.sent === true || await emailHeldItem({ userId, clientNumber, kind: r.kind, summary: r.summary, body, urgency: r.urgency, metadata: r.metadata });
-          if (ok) out.emailed++;
+          const onWhatsApp = told?.sent === true;
+          const ok = onWhatsApp || await emailHeldItem({ userId, clientNumber, kind: r.kind, summary: r.summary, body, urgency: r.urgency, metadata: r.metadata });
+          // Being told twice is a nudge (founder): it counts as delivered, and "anything urgent?" still finds it.
+          if (ok) { out.emailed++; await finished(r.id, onWhatsApp ? 'whatsapp' : 'email'); }
           else await prisma.$executeRawUnsafe(`UPDATE suzi_outbox SET emailed_at = NULL WHERE id = $1::bigint`, r.id);
         }
       }

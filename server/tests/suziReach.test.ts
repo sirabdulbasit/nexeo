@@ -205,10 +205,11 @@ describe('the pump', () => {
     expect(wa.mock.calls.at(-1)![0]).toMatchObject({ userId: 2, bypassRateLimit: true });
     expect(email.mock.calls.length).toBe(before);
   });
-  it('gone for 10 minutes: critical is emailed and stays held for his return; a failed email can try again', async () => {
+  it('gone for 10 minutes: critical is emailed and counts as delivered; a failed email can try again', async () => {
     setup([row()], goneRows);
     expect(await pumpHeld('T', 2, now)).toMatchObject({ emailed: 1, spoken: 0 });
     expect(tell).not.toHaveBeenCalled();
+    expect(exec.mock.calls.some((c) => String(c[0]).includes("state = 'delivered'") && c[2] === 'email')).toBe(true);
     email.mockResolvedValue(false);
     setup([row()], goneRows);
     expect(await pumpHeld('T', 2, now)).toMatchObject({ emailed: 0 });
