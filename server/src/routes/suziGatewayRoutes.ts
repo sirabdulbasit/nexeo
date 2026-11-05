@@ -221,10 +221,10 @@ router.get('/primary-device', async (req: Request, res: Response) => {
 router.post('/presence', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
-  const { state, device_id: deviceId, nudges } = req.body ?? {};
+  const { state, device_id: deviceId, nudges, meeting } = req.body ?? {};
   if (!PRESENCE_STATES.includes(state) || typeof deviceId !== 'string' || !deviceId) { res.status(400).json({ ok: false, error: 'bad_presence' }); return; }
   try {
-    const { returned } = await recordPresence(who.tenantId, who.userId, deviceId.slice(0, 60), state, new Date(), nudges === false);
+    const { returned } = await recordPresence(who.tenantId, who.userId, deviceId.slice(0, 60), state, new Date(), nudges === false, meeting === true);
     if (returned) void pumpHeld(who.tenantId, who.userId);
     res.json({ ok: true });
   } catch (err: any) {

@@ -33,7 +33,7 @@ const HOLD_MAX_MS = 72 * 3_600_000;
 const MAX_SPOKEN_PER_PUMP = 3; // Suzi's server waits at most 5 per session
 const MAX_ROWS_PER_PUMP = 25;
 
-export interface PresenceRow { state: string; state_since: Date | string; last_frame_at: Date | string; last_alive_at?: Date | string | null; nudges_off?: boolean }
+export interface PresenceRow { state: string; state_since: Date | string; last_frame_at: Date | string; last_alive_at?: Date | string | null; nudges_off?: boolean; meeting?: boolean }
 
 export function isAlive(p: PresenceRow, now: Date): boolean {
   const frameAge = now.getTime() - new Date(p.last_frame_at).getTime();
@@ -42,7 +42,7 @@ export function isAlive(p: PresenceRow, now: Date): boolean {
   return p.state === 'away' && now.getTime() - new Date(p.state_since).getTime() < AWAY_MAX_MS;
 }
 
-export interface Reach { adopted: boolean; alive: boolean; absentMs: number; nudgesOff?: boolean }
+export interface Reach { adopted: boolean; alive: boolean; absentMs: number; nudgesOff?: boolean; meeting?: boolean }
 const NOT_ADOPTED: Reach = { adopted: false, alive: false, absentMs: 0 };
 
 /** Any device for now. Once `primary` exists (next in the charter's list), only that device counts. */
@@ -62,7 +62,7 @@ export async function reachFor(clientNumber: string, userId: number, now = new D
   try {
     const rows = await prisma.$queryRawUnsafe<PresenceRow[]>(
       // Functional Charter, "Reaching the user": once a device is in charge, only that device counts.
-      `SELECT state, state_since, last_frame_at, last_alive_at, nudges_off FROM suzi_presence
+      `SELECT state, state_since, last_frame_at, last_alive_at, nudges_off, meeting FROM suzi_presence
         WHERE client_number = $1 AND user_id = $2
           AND device_id = COALESCE((SELECT notification_preferences->'brain_channel'->>'suziPrimaryDevice' FROM users WHERE id = $2), device_id)`,
       clientNumber, userId,
@@ -70,7 +70,8 @@ export async function reachFor(clientNumber: string, userId: number, now = new D
     if (!rows?.length) return NOT_ADOPTED;
     // Founder, 5 Nov: with nudges off she only informs when asked, so the last word from the device holds while it's away too.
     const quietly = rows.every((r) => r.nudges_off) ? { nudgesOff: true } : {};
-    if (rows.some((r) => isAlive(r, now))) return { adopted: true, alive: true, absentMs: 0, ...quietly };
+    const live = rows.filter((r) => isAlive(r, now));
+    if (live.length) return { adopted: true, alive: true, absentMs: 0, ...quietly, ...(live.some((r) => r.meeting) ? { meeting: true } : {}) };
     const last = Math.max(...rows.map((r) => new Date(r.last_alive_at ?? r.last_frame_at).getTime()));
     return { adopted: true, alive: false, absentMs: now.getTime() - last, ...quietly };
   } catch (e: any) {
@@ -80,7 +81,7 @@ export async function reachFor(clientNumber: string, userId: number, now = new D
 }
 
 /** Saves a frame. `returned` = the user was not alive and now is, so what was held can go. */
-export async function recordPresence(clientNumber: string, userId: number, deviceId: string, state: PresenceState, now = new Date(), nudgesOff = false): Promise<{ returned: boolean }> {
+export async function recordPresence(clientNumber: string, userId: number, deviceId: string, state: PresenceState, now = new Date(), nudgesOff = false, meeting = false): Promise<{ returned: boolean }> {
   const before = await reachFor(clientNumber, userId, now);
   const prior = await prisma.$queryRawUnsafe<Array<{ state: string; state_since: Date }>>(
     `SELECT state, state_since FROM suzi_presence WHERE client_number = $1 AND user_id = $2 AND device_id = $3`,
@@ -89,15 +90,16 @@ export async function recordPresence(clientNumber: string, userId: number, devic
   const since = prior[0]?.state === state ? new Date(prior[0].state_since) : now;
   const alive = isAlive({ state, state_since: since, last_frame_at: now }, now);
   await prisma.$executeRawUnsafe(
-    `INSERT INTO suzi_presence (client_number, user_id, device_id, state, state_since, last_frame_at, last_alive_at, nudges_off)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `INSERT INTO suzi_presence (client_number, user_id, device_id, state, state_since, last_frame_at, last_alive_at, nudges_off, meeting)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      ON CONFLICT (client_number, user_id, device_id) DO UPDATE
        SET state = EXCLUDED.state, state_since = EXCLUDED.state_since, last_frame_at = EXCLUDED.last_frame_at,
            last_alive_at = COALESCE(EXCLUDED.last_alive_at, suzi_presence.last_alive_at),
-           nudges_off = EXCLUDED.nudges_off`,
-    clientNumber, userId, deviceId, state, since, now, alive ? now : null, nudgesOff,
+           nudges_off = EXCLUDED.nudges_off, meeting = EXCLUDED.meeting`,
+    clientNumber, userId, deviceId, state, since, now, alive ? now : null, nudgesOff, meeting,
   );
-  return { returned: alive && !before.alive };
+  // A meeting ending is a return too: what it held back can now be spoken.
+  return { returned: alive && (!before.alive || (!!before.meeting && !meeting)) };
 }
 
 export type Step = 'speak' | 'card' | 'hold';
@@ -106,10 +108,10 @@ export type Step = 'speak' | 'card' | 'hold';
  * What to do with one item right now. `carded`: the silent card has already shown.
  * Stays held after a card only when it is still owed a spoken turn.
  */
-export function decide(i: { critical: boolean; emergency: boolean; speakable: boolean; carded: boolean; alive: boolean; quiet: boolean; absentMs: number; emailed: boolean; nudgesOff?: boolean }): { step: Step; email: boolean } {
+export function decide(i: { critical: boolean; emergency: boolean; speakable: boolean; carded: boolean; alive: boolean; quiet: boolean; absentMs: number; emailed: boolean; nudgesOff?: boolean; meeting?: boolean }): { step: Step; email: boolean } {
   if (!i.alive) return { step: 'hold', email: i.critical && !i.quiet && !i.emailed && !i.nudgesOff && i.absentMs >= ABSENT_FOR_EMAIL_MS };
   // Link T11: with nudges off nothing is spoken, so no model round is paid for words nobody hears.
-  if (i.critical && i.speakable && (!i.quiet || i.emergency) && !i.nudgesOff) return { step: 'speak', email: false };
+  if (i.critical && i.speakable && (!i.quiet || i.emergency) && !i.nudgesOff && !i.meeting) return { step: 'speak', email: false };
   if (i.carded) return { step: 'hold', email: false };
   return { step: 'card', email: false };
 }
@@ -159,7 +161,7 @@ export async function pumpHeld(clientNumber: string, userId: number, now = new D
       const body = r.body ?? '';
       const critical = r.urgency === 'high' || r.urgency === 'emergency';
       const speakable = !!suziReasonFor(r.kind, r.metadata) && r.provenance !== 'quoted_third_party';
-      const d = decide({ critical, emergency: r.urgency === 'emergency', speakable, carded: !!r.carded_at, alive: reach.alive, quiet, absentMs: reach.absentMs, emailed: !!r.emailed_at, nudgesOff: reach.nudgesOff });
+      const d = decide({ critical, emergency: r.urgency === 'emergency', speakable, carded: !!r.carded_at, alive: reach.alive, quiet, absentMs: reach.absentMs, emailed: !!r.emailed_at, nudgesOff: reach.nudgesOff, meeting: reach.meeting });
 
       if (d.step === 'speak' && out.spoken < MAX_SPOKEN_PER_PUMP) {
         const told = await tellSuzi(owner, { kind: r.kind, body: await scrubSyntheticIdentities(body, clientNumber), urgency: r.urgency, provenance: r.provenance ?? undefined, metadata: r.metadata });

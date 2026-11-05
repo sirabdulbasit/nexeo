@@ -39,6 +39,17 @@ beforeEach(() => {
   tell.mockResolvedValue({ delivered: 1 }); notice.mockResolvedValue({ delivered: 1 }); email.mockResolvedValue(true);
 });
 
+describe('CN-011: in a meeting', () => {
+  const base = { critical: true, emergency: false, speakable: true, carded: false, alive: true, quiet: false, absentMs: 0, emailed: false };
+  it('alive, so no other channel; a critical item is a silent card and stays owed its spoken turn', () => {
+    expect(decide({ ...base, meeting: true })).toEqual({ step: 'card', email: false });
+    expect(decide({ ...base, meeting: true, carded: true })).toEqual({ step: 'hold', email: false });
+  });
+  it('when the meeting ends, it is spoken', () => {
+    expect(decide({ ...base, carded: true })).toEqual({ step: 'speak', email: false });
+  });
+});
+
 describe('link T11: nudges off', () => {
   const base = { critical: true, emergency: false, speakable: true, carded: false, alive: true, quiet: false, absentMs: 0, emailed: false };
   it('a critical item is a silent card, with no spoken turn; nudges on is unchanged', () => {
