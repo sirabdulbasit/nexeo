@@ -17,11 +17,12 @@
  * through the model). Every block says whether its source is connected, so a
  * missing calendar is reported as missing, never as an empty day.
  */
+import { emailGist } from './emailGist';
 import prisma from '../../db/prisma';
 
 export type BriefBlock =
   | { type: 'kpis'; id: string; title: string; items: Array<{ label: string; value: number | string; unit?: string; note?: string }> }
-  | { type: 'list'; id: string; title: string; connected: boolean; loading?: boolean; items: Array<{ primary: string; secondary?: string; time?: string }> }
+  | { type: 'list'; id: string; title: string; connected: boolean; loading?: boolean; items: Array<{ detail?: string; primary: string; secondary?: string; time?: string }> }
   | { type: 'table'; id: string; title: string; columns: string[]; rows: Array<Array<string | number | null>> }
   | { type: 'chart'; id: string; title: string; chart: 'bar'; series: Array<{ label: string; value: number }> };
 
@@ -165,7 +166,7 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
   const attention = email ? await loadAttentionEmails(clientNumber, userId, opts.attentionTimeoutMs) : { items: [], loading: false };
   const emailsLoading = attention.loading;
   if (emailsLoading) missing.push({ source: 'email', status: 'loading' });
-  const attentionEmails = attention.items.map((i) => ({ from: i.fromDisplay || i.from, subject: i.subject, receivedAt: i.receivedAt, critical: i.critical }));
+  const attentionEmails = attention.items.map((i) => ({ detail: [emailGist(i).summary, emailGist(i).point].filter(Boolean).join(' '), from: i.fromDisplay || i.from, subject: i.subject, receivedAt: i.receivedAt, critical: i.critical }));
   const emailsNeedingReply = attentionEmails.length;
 
   const sortedActions = [...actions].sort((a, b) =>
@@ -221,6 +222,8 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
           primary: (e.subject || '(no subject)').slice(0, 200),
           secondary: `${e.from}${e.critical ? ' · critical' : ''}`.slice(0, 200),
           time: localDate(new Date(e.receivedAt), tz),
+          // For the words the model says; the board keeps the subject and the sender.
+          ...(e.detail ? { detail: e.detail } : {}),
         })),
       },
       { type: 'chart', id: 'actions_by_priority', title: 'Pending actions by priority', chart: 'bar', series: byPriority },

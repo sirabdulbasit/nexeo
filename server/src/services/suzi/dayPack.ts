@@ -15,6 +15,7 @@
  * here and `title` is the default for a model that writes none. One source down never fails
  * the pack: `missing` says which and how to reconnect it (the DEF-385 rule).
  */
+import { emailGist } from './emailGist';
 import { rulesDocument, type RulesDocument, type SuziRules } from './suziRules';
 import { recentPeople, type SuziPerson } from './suziPeople';
 import prisma from '../../db/prisma';
@@ -143,7 +144,7 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
   return out.slice(0, MAX_BRIEF_BLOCKS);
 }
 
-export interface PackEmail { thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string }
+export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
 function decodeEntities(t: string): string {
@@ -151,7 +152,7 @@ function decodeEntities(t: string): string {
 }
 
 /** One attention item as a pack email. Never a body: the preview is cut at 200 characters. */
-export function toPackEmail(i: { threadId?: string | null; feedEventId: string; fromDisplay?: string; from: string; subject: string; preview?: string; receivedAt: string; critical?: boolean; criticality?: { band?: string } | null }, tz: string): PackEmail {
+export function toPackEmail(i: { threadId?: string | null; feedEventId: string; fromDisplay?: string; from: string; subject: string; preview?: string; receivedAt: string; critical?: boolean; criticality?: { band?: string } | null; rationale?: string | null; suggestedAction?: string | null; suggestedDelegateeName?: string | null }, tz: string): PackEmail {
   const received = new Date(i.receivedAt);
   return {
     thread_id: i.threadId ?? i.feedEventId,
@@ -160,6 +161,7 @@ export function toPackEmail(i: { threadId?: string | null; feedEventId: string; 
     preview: decodeEntities(String(i.preview ?? '')).replace(/\s+/g, ' ').trim().slice(0, EMAIL_PREVIEW_MAX),
     received_at: isNaN(received.getTime()) ? String(i.receivedAt) : toZonedIso(received, tz),
     urgency: i.criticality?.band ?? (i.critical ? 'critical' : 'normal'),
+    ...emailGist(i),
   };
 }
 
