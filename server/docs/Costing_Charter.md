@@ -110,4 +110,5 @@ The voice stays **Chirp 3 HD**.
 
 - [x] Suzi: agreed, 4 Nov 2026 (consumption record: 17:37:42 PKT)
 - [x] Nexeo: agreed, 4 Nov 2026 (consumption record: AGREE on Suzi's 17:37:42 answers, given 19:37:41 PKT)
+- [x] Founder: 5 Nov 2026, the desktop's own LLM: its cost on the user's key counts toward the $20; roughly cost-neutral; each rule on the model covers its own path ("never on Flash" governs what Suzi's server and Nexeo pick; on the own LLM screen tasks run only on tested models).
 - [x] Founder: approved, 4 Nov 2026 (decisions 8.2 scope and 8.3 design usage as recommended, pending his correction; 8.4 test accounts still to come)

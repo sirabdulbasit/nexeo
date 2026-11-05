@@ -5,7 +5,7 @@
  *     current one, and a failed lookup returns nothing rather than touching the decided operation;
  *  3. rules and people are read only for this tenant and this user (delegations are the tenant's);
  *  4. people have no empty fields, at most 5 search results, and an empty question reads nothing;
- *  5. the pack carries none of this until the switch is turned on, and a failed part stays out.
+ *  5. the pack carries these behind one switch, and a failed part stays out.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -145,8 +145,8 @@ describe('names', () => {
 });
 
 describe('the pack', () => {
-  it('carries none of this until the founder has seen the line: flip this test with the switch', () => {
-    expect(PHASE2_IN_PACK).toBe(false);
+  it('carries it: approved by the founder, 5 Nov', () => {
+    expect(PHASE2_IN_PACK).toBe(true);
   });
   it('with the switch on, the fields are there', async () => {
     db({ version: 2 });

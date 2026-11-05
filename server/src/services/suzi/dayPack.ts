@@ -170,11 +170,8 @@ export interface DayPack {
   rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
 }
 
-/**
- * Link T12. Off until the founder has seen the joint-summary line, because the desktop app builds ahead: a
- * field in the pack is a live feature. Turning it on is this one line and a deploy.
- */
-export const PHASE2_IN_PACK = false;
+/** Link T12, approved by the founder 5 Nov. The desktop app builds ahead, so a field in the pack is a live feature. */
+export const PHASE2_IN_PACK = true;
 
 /** What can't be read stays out and the desktop keeps its last copy, which only ever makes it stricter. */
 export async function phase2Fields(clientNumber: string, userId: number): Promise<Partial<RulesDocument> & { people?: SuziPerson[] }> {

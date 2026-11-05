@@ -29,6 +29,7 @@ import { recordDesktopBatch, recordServerRound } from '../services/consumption/c
 import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPresence } from '../services/suzi/suziReach';
 import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
+import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
 import createLogger from '../utils/logger';
 
@@ -137,6 +138,43 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('knowledge failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'knowledge could not be searched' });
+  }
+});
+
+/** Link T14: the assistant's one name. Nexeo's profile is the record. */
+router.get('/profile', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    res.json({ assistant_name: await getAssistantName(who.tenantId, who.userId) });
+  } catch (err: any) {
+    log.warn('profile failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'profile could not be read' });
+  }
+});
+
+router.post('/profile', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    const ok = await setAssistantName(who.tenantId, who.userId, req.body?.assistant_name);
+    if (!ok) { res.status(400).json({ ok: false, error: 'bad_name' }); return; }
+    res.json({ ok: true, assistant_name: await getAssistantName(who.tenantId, who.userId) });
+  } catch (err: any) {
+    log.warn('profile update failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ ok: false, error: 'profile_failed' });
+  }
+});
+
+/** Link T11, N4: what nudges-off keeps back, for "anything urgent?". */
+router.get('/held', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    res.json(await heldItems(who.tenantId, who.userId));
+  } catch (err: any) {
+    log.warn('held failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: 'held items could not be read' });
   }
 });
 

@@ -48,4 +48,5 @@ export const DESKTOP_SERVICES: Record<string, { unit: string; usdPerUnit: number
   local_answers: { unit: 'answers', usdPerUnit: 0, measured: true },
   tool_steps: { unit: 'steps', usdPerUnit: 0, measured: true },
   screenshots_sent: { unit: 'screenshots', usdPerUnit: 0, measured: true },
+  briefs_shown: { unit: 'briefs', usdPerUnit: 0, measured: true },
 };

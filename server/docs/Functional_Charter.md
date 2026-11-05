@@ -79,7 +79,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 4. UI Automation for the click check.
 5. A test user on Windows.
 
-**Reaching the user:** while the device in charge is alive, Nexeo uses no other channel. Routine items go through the pack and the changes feed, and Suzi picks the moment. **Critical items arrive at once** as `assistant_start`. During quiet hours a critical item waits (a silent card), unless a rule says it may wake the user. While meeting notes are on: silent card, spoken after the meeting. Nexeo's own morning brief stops once Suzi's handover has worked.
+**Reaching the user:** while the device in charge is alive, Nexeo uses no other channel. Routine items go through the pack and the changes feed, and Suzi picks the moment. **Critical items arrive at once** as `assistant_start`. During quiet hours a critical item waits (a silent card), unless a rule says it may wake the user. While meeting notes are on: silent card, spoken after the meeting. Nexeo's own morning brief stops once Suzi's handover has worked. **With nudges off (the user's Settings), nothing is raised, critical items included; they're kept and given when the user asks.** **While Suzi is offline, Nexeo works through WhatsApp and email, by the item's criticality, priority and deadline (founder, 5 Nov 2026).**
 
 ## 4. The contract
 
@@ -123,10 +123,12 @@ A dedicated test user per OS, with its own integration key (item 19, from the fo
 3. **What counts as a change:** responsibilities (who does what), the contract (routes, fields, frames, formats, signing), the rules and safety tiers, privacy defaults, credentials, and anything in the Costing Charter.
 4. **What doesn't:** fixing a bug or improving something inside one side's own part, as long as the contract and the rules stay exactly as agreed. If unsure, treat it as a change and ask.
 5. The founder may approve, overrule, or decide anything that's open.
-6. **Kick-off (founder's rule):** when both sides have finished their parts, each confirms its part is done and tested, and only then does the system kick off.
+6. **Founder's approval (5 Nov 2026):** both builders' AGREE is enough for a change, unless it touches cost, privacy, sends or a new way of reaching the user; those go to him.
+7. **Kick-off (founder's rule):** when both sides have finished their parts, each confirms its part is done and tested, and only then does the system kick off.
 
 ## 8. Sign-off
 
 - [x] Suzi (desktop app): agreed, 4 Nov 2026
 - [x] Nexeo: AGREE, 4 Nov 2026 (rounds 1–3, deploy D-155: Nexeo 0d65495, Suzi's server 3bc1938; Windows change 17:37:02 PKT). Nexeo's copy is server/docs/NEXEO_SUZI_AGREEMENT.md.
-- [ ] Founder: approve, and decide items 1 (owner of Suzi's server) and 19 (test accounts)
+- [x] Founder: joint summary approved, 5 Nov 2026 ("approve all"): the own LLM with the R8 and L4 exceptions for users he has enabled, and its cost line; screen tasks on tested models only; meeting assistance for others by a per-user switch, off by default; `language` and `meeting` on presence and `local_context`; emails one by one (until signing, "send" saves to Gmail Drafts, and Suzi says so); one English line per Urdu reply; back to WhatsApp after 72 hours away; `briefs_shown`; nudges off and `presence.nudges`; Phase 2 of the pack (rules, 100 people, glossary, wiki slices, changes, sync hint); one assistant on the registered number (T13).
+- [ ] Founder: decide items 1 (owner of Suzi's server) and 19 (test accounts)
