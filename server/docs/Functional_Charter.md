@@ -41,7 +41,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 ## 3. Rules both sides follow
 
 - **R1 One writer.** Only Nexeo changes the outside world, including by operating an app on the computer, unless the user asked for it in this request, confirmed it with the voice lock, and it is journaled. Local file actions on the computer are outside R1 (Suzi's tiers cover them).
-- **R2 Confirmation before anything irreversible**, with the voice lock passed; money and approval delegations get an extra on-screen confirmation. **Irreversible operations are signed by the device** (see the contract). Sends stay off until signing exists. `task.update` on the user's own items needs no voice check (it is recorded with `voice_score` when spoken).
+- **R2 Confirmation before anything irreversible**, with the voice lock passed; money and approval delegations get an extra on-screen confirmation. **Irreversible operations are signed by the device** (see the contract). An email is really sent only when signed, for a user on Nexeo's send switch (off by default); otherwise "send" saves to Gmail Drafts (T22). `task.update` on the user's own items needs no voice check (it is recorded with `voice_score` when spoken).
 - **R3** Rules are enforced in code; the desktop app's check can only refuse, and Nexeo's check decides.
 - **R4** Act only on the current request.
 - **R5** Never claim an action that didn't happen.
@@ -92,9 +92,12 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
   - Answer: `{ok, audit_id, item}` on success, `{ok, audit_id, error, detail?}` on failure. A retry with the same key adds `replayed: true`; a stale `rules_version` adds the current one. The email ops of E4 describe `item` (both AGREE, 5 Nov 2026).
 - **Signing (irreversible ops):**
   - An Ed25519 key in the OS keyring.
-  - One-time `POST /v1/device-key {"pubkey":"<base64 raw 32 bytes>"}`, stored in `jarvis.devices.pubkey`. Replacing a key needs the founder.
+  - The key: a paired device signs with its pairing key (`jarvis.devices.pubkey`). A device signed in with an integration key registers its key once with `POST /v1/device-key {"pubkey":"<standard base64, raw 32 bytes>"}` and its bearer: it is set only on a device still holding the placeholder; the same key again is `200 {ok, already: true}`; another key is `409 key_set` (replacing needs the founder); a paired device is `409 paired`. Errors come as `{error: {code, message}}`.
+  - Base64 is standard with padding, for the key and the 64-byte signature.
   - The signature covers canonical JSON (**RFC 8785**) of `{op, args, idempotency_key, ts}`, sent as the header `X-Suzi-Signature`. `ts` is top level, in UTC, and within 5 minutes.
-  - **Suzi's server is the only verifier.** It forwards a verified result to Nexeo, and Nexeo refuses irreversible ops without it.
+  - **Suzi's server is the only verifier.** It checks against the key of the device behind the credential and forwards a verified op to Nexeo with `signature_verified: true`, which the device can't set (400). A bad, stale or keyless signature is `401 bad_signature`, never forwarded as unsigned.
+  - `email.send` signed needs `voice_score` (400 `no_voice_score` without it); Nexeo records it and sets no threshold. Nexeo sends only when signed, confirmed, voiced, and the user is on the send switch. Then the answer is `item: {draft_id, saved_to_gmail_drafts: true, sent: true, send_at, undo_until, gmail_draft_id}`: the email is held 10 seconds and then the saved Gmail draft itself is sent. Otherwise it is saved to Drafts with `sent: false`, as before.
+  - `email.undo` is unsigned. Inside the hold it cancels the send and the email stays in Drafts (`{undone: true, sent: false}`); once it has gone, `bad_state` "it has already gone". A failed Gmail send is recorded on Nexeo and the email stays in Drafts; there is no frame for it yet. (Link T22, both AGREE, 6 Nov 2026.)
 - **Presence:**
   - `{"type":"presence","state":"active|away|locked|asleep|paused"}`, sent on every change and every 60 s, once `welcome.features` includes `presence`.
   - "Alive" means a presence frame in the last 3 minutes with state active, or away for under 30 minutes.
