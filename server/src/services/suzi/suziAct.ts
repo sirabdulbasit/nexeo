@@ -13,16 +13,18 @@
  *   - is AUDITED: the suzi_act_log row is the audit entry (its id is the `audit_id`), and a line
  *     also goes to audit_logs with the rest of the system's actions, including refusals.
  *
- * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign), whatsapp.to_user, and the
- * email session (suziEmail.ts; a signed send for a user on the switch is really sent, suziSend.ts).
+ * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign), whatsapp.to_user, the
+ * email session (suziEmail.ts; a signed send for a user on the switch is really sent, suziSend.ts), and
+ * build control's gap.report / gap.approve (suziGaps.ts, link T28).
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
 import { audit } from '../auditLogService';
 import { applyFollowUp } from './suziActions';
 import { EMAIL_OPS, runEmailOp } from './suziEmail';
+import { GAP_OPS, runGapOp } from './suziGaps';
 
-export const ACT_OPS = ['task.update', 'whatsapp.to_user', ...EMAIL_OPS] as const;
+export const ACT_OPS = ['task.update', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -79,6 +81,15 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
       voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
     });
   }
+  // Link T28: build control. Signed, voiced and confirmed, from his own device only (suziGaps.ts).
+  if (req.op.startsWith('gap.')) {
+    return runGapOp(clientNumber, userId, req.op, req.args ?? {}, {
+      signatureVerified: req.signature_verified === true,
+      voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
+      confirmed: req.confirmed_by_user === true,
+      deviceId: req.device_id ?? null,
+    });
+  }
   return { ok: false, error: 'unknown_op' };
 }
 
@@ -127,7 +138,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
   await audit({
     clientNumber, actorId: userId, actorKind: 'user',
     action: `suzi.act.${req.op}`,
-    subjectType: req.op.startsWith('email.') ? 'email' : 'open_item',
+    subjectType: req.op.startsWith('email.') ? 'email' : req.op.startsWith('gap.') ? 'suzi_gap' : 'open_item',
     subjectId: typeof req.args?.id === 'string' ? req.args.id : typeof req.args?.draft_id === 'string' ? req.args.draft_id : typeof req.args?.thread_id === 'string' ? req.args.thread_id : null,
     result: out.ok ? 'success' : 'failure',
     details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, signature_verified: req.signature_verified === true, ...(out.ok ? {} : { error: out.error }) },

@@ -30,6 +30,7 @@ import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPr
 import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
 import { suggestDelegates } from '../services/suzi/delegateSuggest';
+import { listGaps, setGapState } from '../services/suzi/suziGaps';
 import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
@@ -224,6 +225,34 @@ router.get('/people', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('people failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'people could not be searched' });
+  }
+});
+
+/** Link T28: his own gap list, with where each stands. A read. */
+router.get('/gaps', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    const gaps = await listGaps(who.tenantId, who.userId, { state: typeof req.query.state === 'string' ? req.query.state : undefined });
+    res.json({ gaps });
+  } catch (err: any) {
+    log.warn('gaps failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: { code: 'failed', message: 'the gap list could not be read' } });
+  }
+});
+
+/** Link T28: Nexeo's builder records where a gap stands. Loopback and the shared secret only; Suzi's server never relays it. */
+router.post('/gaps/state', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  try {
+    const r = await setGapState(who.tenantId, who.userId, req.body ?? {});
+    if (!r.ok) { res.status(r.error === 'not_found' ? 404 : 400).json({ error: { code: r.error, message: r.detail ?? r.error } }); return; }
+    log.info('gap state set', { userId: who.userId, clientNumber: who.tenantId, id: (r.item as any).id, state: (r.item as any).state });
+    res.json(r.item);
+  } catch (err: any) {
+    log.warn('gap state failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: { code: 'failed', message: 'the gap could not be updated' } });
   }
 });
 

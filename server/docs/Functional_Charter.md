@@ -109,6 +109,23 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **Usage:** `POST …/usage`, one batch per finished day (see the Costing Charter). Live since D-156, like `presence`.
 - **To come:** `GET …/changes?since=`, the push `{"type":"sync"}` hint, `POST …/journal`, and `primary` in `welcome`.
 
+## Build control: Nexeo's second function (link T28, both AGREE, 6 Nov 2026)
+
+The founder, 6 Nov: Nexeo has two functions, "Brain of any user" and "Build control for all Suzi's running in different laptops". A gap found on any laptop is built once and reaches every laptop; desktops never build on their own.
+
+- **Who holds what.** Nexeo holds the gap list, the approvals, the release list and the stop switch. It never holds the signing key: each device checks a release against the founder's key. Builders build.
+- **Opening a gap.** `/v1/act` op `gap.report {said, what, seen_on?, source: "training"|"live", approved?}`, only signed, with `voice_score`, and `confirmed_by_user`: his verified voice, never text from an email or a screen. `approved: true` when he approved it in the session's numbered list. The answer is `item: {id: "G-<n>", state, count, merged, ...}`. A report of an open gap of his with the same normalised wording, or very close spelling (trigram similarity 0.8 or more), within 14 days is merged into it (`count` up, latest words kept). Differently worded reports of one thing stay separate and are sorted by hand. No AI.
+- **Approving.** `gap.approve {id}`, signed and confirmed. Anything touching cost, privacy, sends or a new reach channel still goes to the founder under this charter.
+- **Reading.** `GET …/gaps?state=` → `{gaps: [{id, said, what, seen_on, source, count, first_at, last_at, state, owner, built_version}]}`, his own, most recent first. States: new, approved, sorted, in_build, live, declined. `owner`: nexeo, suzi or factory.
+- **Hand-over.** Nexeo's builder reads approved gaps, sorts each to Nexeo, Suzi or the 3dAI factory, and hands Suzi's and the factory's over this link as one file per gap, `inbox/<YYYYMMDD-HHMMSS>-nexeo-gap-G<n>.md`. It holds no names, user data or mail; his words stay at Nexeo, and Nexeo's builder writes the description. It has these fields, so a builder can act on it with no one present:
+  - **Gap G-<n>**: approved <date>, reported <count> times, seen on <where>
+  - **Expected**: what should happen
+  - **Observed**: what happened instead
+  - **Done when**: an observable check
+  - **Report back**: "G-<n> built in <version>"
+  The builder reports back over the link; Nexeo's builder records the state (`in_build`, `live`) and the version, and Suzi can tell him.
+- **Releases (item 4), later:** `GET …/releases/latest?os=&channel=`, when a second laptop is close. A device reports its version in `hello` or `presence`.
+
 ## 5. Credentials (Google project nexeo-tmc)
 
 1. Create one desktop service account, `suzi-desktop@nexeo-tmc`, with only Vertex AI model calling and Cloud TTS. The OS is told apart by labels (`os=macos|windows`). The founder decides and creates it.

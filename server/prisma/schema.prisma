@@ -3386,3 +3386,31 @@ model SuziActLog {
   @@index([clientNumber, userId, createdAt], map: "suzi_act_log_tenant_user_created_idx")
   @@map("suzi_act_log")
 }
+
+/// Link T28 (both AGREE, 6 Nov 2026): build control. Gaps the user reports by voice to any Suzi; read and
+/// written with raw SQL (services/suzi/suziGaps.ts). Migration 20261106_suzi_gaps.
+model SuziGap {
+  gapNo        BigInt    @id @default(autoincrement()) @map("gap_no")
+  clientNumber String    @map("client_number")
+  userId       Int       @map("user_id")
+  said         String
+  what         String
+  seenOn       String?   @map("seen_on")
+  source       String    @default("training")
+  norm         String
+  count        Int       @default(1)
+  reports      Json      @default("[]")
+  state        String    @default("new")
+  owner        String?
+  handover     String?
+  builtVersion String?   @map("built_version")
+  approvedAt   DateTime? @map("approved_at")
+  approvedBy   String?   @map("approved_by")
+  firstAt      DateTime  @default(now()) @map("first_at")
+  lastAt       DateTime  @default(now()) @map("last_at")
+  updatedAt    DateTime  @default(now()) @map("updated_at")
+
+  @@index([clientNumber, userId, lastAt(sort: Desc)], map: "suzi_gaps_user_last_ix")
+  @@index([state, lastAt(sort: Desc)], map: "suzi_gaps_state_ix")
+  @@map("suzi_gaps")
+}
