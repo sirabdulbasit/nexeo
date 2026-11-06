@@ -29,6 +29,7 @@ import { recordDesktopBatch, recordServerRound } from '../services/consumption/c
 import { markBriefHandover, PRESENCE_STATES, primaryDeviceOf, pumpHeld, recordPresence } from '../services/suzi/suziReach';
 import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
+import { suggestDelegates } from '../services/suzi/delegateSuggest';
 import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
@@ -223,6 +224,23 @@ router.get('/people', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('people failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'people could not be searched' });
+  }
+});
+
+/** Link T24: who a task could go to. A read with no model; it ends in `task.update` assign, on his choice. */
+router.get('/delegate-suggestions', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const taskId = typeof req.query.task_id === 'string' ? req.query.task_id.trim() : '';
+  if (!taskId || taskId.length > 100) { res.status(400).json({ error: { code: 'bad_query', message: 'task_id is required, up to 100 characters' } }); return; }
+  try {
+    const r = await suggestDelegates(who.tenantId, who.userId, taskId);
+    if (!r.ok) { res.status(r.error === 'not_found' ? 404 : 400).json({ error: { code: r.error, message: r.detail } }); return; }
+    log.info('delegate suggestions served', { userId: who.userId, clientNumber: who.tenantId, suggestions: r.suggestions.length, skipped: r.skipped, checked: r.checked });
+    res.json({ suggestions: r.suggestions, skipped: r.skipped, checked: r.checked });
+  } catch (err: any) {
+    log.warn('delegate suggestions failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: { code: 'failed', message: 'suggestions could not be worked out' } });
   }
 });
 
