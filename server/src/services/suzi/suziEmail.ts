@@ -1,7 +1,8 @@
 /**
  * Going through emails one by one (link E1-E7; founder approved 5 Nov). Nexeo reads and writes; Suzi presents.
  *
- *   GET …/email?thread_id=      the latest message of a thread, on request; nothing is stored
+ *   GET …/email?thread_id=      the latest message of a thread, on request; nothing is stored. With replied_at and
+ *                               reply_checked, asked of Gmail live (T23, suziReplied.ts)
  *   email.draft                 a reply: {text} as given (dictation, or the desktop's own AI), or written by the model
  *                               ({instruction?}). A new draft for a thread replaces the older one
  *   email.new, email.forward    a new email or a forward, ending in the same email.send
@@ -16,6 +17,7 @@
  * An email's text is someone else's words: the model treats it as data, never as instructions.
  */
 import prisma from '../../db/prisma';
+import { replyStateOf } from './suziReplied';
 
 const MAX_BODY = 4000;
 const DRAFT_TYPE = 'draft_reply';
@@ -23,7 +25,7 @@ const FROM_SUZI = 'suzi_email_session';
 
 export type EmailOpResult = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 type Args = Record<string, unknown>;
-type Mail = { id: string; sourceId: string; subject: string; senderEmail: string | null };
+type Mail = { id: string; sourceId: string; subject: string; senderEmail: string | null; gmailThreadId: string | null };
 
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): EmailOpResult => ({ ok: false, error, ...(detail ? { detail } : {}) });
@@ -31,28 +33,30 @@ const fail = (error: string, detail?: string): EmailOpResult => ({ ok: false, er
 /** The thread's latest email. `thread_id` is Gmail's, or the feed event's when an email has no thread. */
 async function latestMail(clientNumber: string, userId: number, threadId: string): Promise<Mail | null> {
   if (!threadId) return null;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id: string; subject: string | null; sender_email: string | null }>>(
-    `SELECT id, source_id, raw_payload->>'subject' AS subject, sender_email FROM feed_events
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id: string; subject: string | null; sender_email: string | null; thread_id: string | null }>>(
+    `SELECT id, source_id, raw_payload->>'subject' AS subject, sender_email, raw_payload->>'threadId' AS thread_id FROM feed_events
       WHERE client_number = $1 AND user_id = $2 AND source_type = 'gmail'
         AND (id = $3 OR raw_payload->>'threadId' = $3)
       ORDER BY created_at DESC LIMIT 1`,
     clientNumber, userId, threadId,
   );
   const r = rows[0];
-  return r ? { id: r.id, sourceId: r.source_id, subject: r.subject ?? '', senderEmail: r.sender_email } : null;
+  return r ? { id: r.id, sourceId: r.source_id, subject: r.subject ?? '', senderEmail: r.sender_email, gmailThreadId: r.thread_id } : null;
 }
 
 export async function readThread(clientNumber: string, userId: number, threadId: string): Promise<unknown | null> {
   const mail = await latestMail(clientNumber, userId, threadId);
   if (!mail) return null;
   const { readEmail } = await import('../gmailService');
-  const r = await readEmail(userId, mail.sourceId);
+  // T23: asked live, so a reply sent a minute ago counts.
+  const [r, reply] = await Promise.all([readEmail(userId, mail.sourceId), replyStateOf(userId, mail.gmailThreadId)]);
   if (!r.email) throw new Error(r.error ?? 'the email could not be read');
   const e = r.email;
   return {
     thread_id: threadId, from: e.from, to: e.to, cc: e.cc, subject: e.subject, received_at: e.date,
     body_text: String(e.body ?? '').slice(0, MAX_BODY),
     attachments: (e.attachments ?? []).map((a) => a.filename),
+    replied_at: reply.replied_at, reply_checked: reply.reply_checked,
   };
 }
 
@@ -150,9 +154,15 @@ async function createDraft(clientNumber: string, userId: number, a: Args): Promi
   const dictated = text(a.text);
   const body = dictated || await writeWithModel(clientNumber, userId, await replyTask(userId, mail, text(a.instruction)));
   await dropOlderDrafts(clientNumber, userId, threadId);
-  return saveNewDraft(clientNumber, userId, {
-    to: mail.senderEmail, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject || '(no subject)'}`, body, threadId,
-  }, { feedEventId: mail.id });
+  const [out, reply] = await Promise.all([
+    saveNewDraft(clientNumber, userId, {
+      to: mail.senderEmail, subject: /^re:/i.test(mail.subject) ? mail.subject : `Re: ${mail.subject || '(no subject)'}`, body, threadId,
+    }, { feedEventId: mail.id }),
+    replyStateOf(userId, mail.gmailThreadId),
+  ]);
+  // T23: he may already have answered. The draft is still saved; Suzi warns before he sends.
+  if (!out.ok) return out;
+  return { ok: true, item: { ...(out.item as object), replied_at: reply.replied_at, reply_checked: reply.reply_checked } };
 }
 
 async function updateDraft(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {

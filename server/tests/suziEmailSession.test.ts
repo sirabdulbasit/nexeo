@@ -41,13 +41,18 @@ vi.mock('../src/services/triage/triageSuggester', () => ({
   invalidateTriageCache: (...a: any[]) => invalidate(...a),
 }));
 
+// T23: whether he has already answered is asked of Gmail live (suziReplied.ts, tested on its own).
+const replyOf = vi.fn();
+vi.mock('../src/services/suzi/suziReplied', () => ({ replyStateOf: (...a: any[]) => replyOf(...a) }));
+
 import { readThread, runEmailOp } from '../src/services/suzi/suziEmail';
 
-const mailRow = { id: 'fe1', source_id: 'gm1', subject: 'Budget', sender_email: 'a@x.com', snippet: 's' };
+const mailRow = { id: 'fe1', source_id: 'gm1', subject: 'Budget', sender_email: 'a@x.com', snippet: 's', thread_id: 'th1' };
 const draftRow = (output: any = { to: 'a@x.com', subject: 'Re: Budget', body: 'Hello' }) => ({ id: 7, output, input: { feedEventId: 'fe1' } });
 
 beforeEach(() => {
-  for (const f of [query, find, create, update, decision, saveDraft, dropDraft, read, llm, invalidate]) f.mockReset();
+  for (const f of [query, find, create, update, decision, saveDraft, dropDraft, read, llm, invalidate, replyOf]) f.mockReset();
+  replyOf.mockResolvedValue({ replied_at: null, reply_checked: true });
   query.mockResolvedValue([mailRow]);
   create.mockResolvedValue({ id: 7 });
   read.mockResolvedValue({ email: { from: 'A <a@x.com>', to: 'me', cc: '', subject: 'Budget', date: 'd', body: 'x'.repeat(9000), attachments: [{ filename: 'f.pdf' }] } });
@@ -59,7 +64,7 @@ beforeEach(() => {
 describe('reading', () => {
   it('has the agreed shape, cut at 4,000 characters, for this tenant and user', async () => {
     const e: any = await readThread('TMC-0001', 2, 'th1');
-    expect(Object.keys(e).sort()).toEqual(['attachments', 'body_text', 'cc', 'from', 'received_at', 'subject', 'thread_id', 'to']);
+    expect(Object.keys(e).sort()).toEqual(['attachments', 'body_text', 'cc', 'from', 'received_at', 'replied_at', 'reply_checked', 'subject', 'thread_id', 'to']);
     expect(e.body_text).toHaveLength(4000);
     expect(e.attachments).toEqual(['f.pdf']);
     expect(query.mock.calls[0].slice(1)).toEqual(['TMC-0001', 2, 'th1']);
@@ -76,7 +81,7 @@ describe('drafting', () => {
   it('dictation is the user\'s own words, with no model', async () => {
     query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [] : [mailRow]));
     const r: any = await runEmailOp('T', 2, 'email.draft', { thread_id: 'th1', text: 'Yes, go ahead.' }, false);
-    expect(r.item).toEqual({ draft_id: '7', to: 'a@x.com', cc: null, subject: 'Re: Budget', body: 'Yes, go ahead.' });
+    expect(r.item).toEqual({ draft_id: '7', to: 'a@x.com', cc: null, subject: 'Re: Budget', body: 'Yes, go ahead.', replied_at: null, reply_checked: true });
     expect(llm).not.toHaveBeenCalled();
   });
   it('a written draft is never on Flash, and an email\'s text is data', async () => {
@@ -194,5 +199,28 @@ describe('marking', () => {
     query.mockResolvedValue([]);
     expect(await runEmailOp('T', 2, 'email.mark', { thread_id: 'x', state: 'handled' }, false)).toEqual({ ok: false, error: 'not_found' });
     expect(decision).not.toHaveBeenCalled();
+  });
+});
+
+describe('T23: already answered', () => {
+  it('GET /email says when he replied, asked of Gmail by the thread\'s own Gmail id', async () => {
+    replyOf.mockResolvedValue({ replied_at: '2026-11-06T06:40:00.000Z', reply_checked: true });
+    const e: any = await readThread('T', 2, 'th1');
+    expect(e.replied_at).toBe('2026-11-06T06:40:00.000Z');
+    expect(e.reply_checked).toBe(true);
+    expect(replyOf).toHaveBeenCalledWith(2, 'th1');
+  });
+  it('GET /email says plainly when it could not be checked', async () => {
+    replyOf.mockResolvedValue({ replied_at: null, reply_checked: false });
+    const e: any = await readThread('T', 2, 'th1');
+    expect(e).toMatchObject({ replied_at: null, reply_checked: false });
+  });
+  it('email.draft on an answered thread is still saved, and the answer says he already replied', async () => {
+    query.mockImplementation(async (sql: string) => (sql.includes('agent_actions') ? [] : [mailRow]));
+    replyOf.mockResolvedValue({ replied_at: '2026-11-06T06:40:00.000Z', reply_checked: true });
+    const r: any = await runEmailOp('T', 2, 'email.draft', { thread_id: 'th1', text: 'Yes.' }, false);
+    expect(r.ok).toBe(true);
+    expect(r.item.draft_id).toBe('7');
+    expect(r.item.replied_at).toBe('2026-11-06T06:40:00.000Z');
   });
 });

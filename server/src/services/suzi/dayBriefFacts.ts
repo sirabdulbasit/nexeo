@@ -107,7 +107,16 @@ export async function loadAttentionEmails(clientNumber: string, userId: number, 
       new Promise<null>((r) => { const t = setTimeout(() => r(null), timeoutMs); (t as any).unref?.(); }),
     ]);
     if (!part) return { items: [], loading: true };
-    return { items: part.myAttention.filter((i) => i.itemType === 'email'), loading: false };
+    // Link T23: Gmail itself says what he has already answered, from any address or app. Those
+    // are left out; the rest carry whether that could be checked. Copies, since the triage cache
+    // shares these objects.
+    const emails = part.myAttention.filter((i) => i.itemType === 'email');
+    const { replyStates, UNCHECKED } = await import('./suziReplied');
+    const states = await replyStates(userId, emails.map((i) => i.threadId));
+    const items = emails
+      .map((i) => ({ ...i, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
+      .filter((i) => !i.reply.replied_at);
+    return { items, loading: false };
   } catch {
     return { items: [], loading: false };
   }

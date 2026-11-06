@@ -144,7 +144,7 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
   return out.slice(0, MAX_BRIEF_BLOCKS);
 }
 
-export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string }
+export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
 function decodeEntities(t: string): string {
@@ -234,7 +234,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     date: today,
     calendar: packCalendar(events, today, tz, prep),
     actions,
-    emails: attention.items.map((i) => toPackEmail(i, tz)),
+    // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
+    emails: attention.items.map((i) => ({ ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked })),
     emails_loading: attention.loading,
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
