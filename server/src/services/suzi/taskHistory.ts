@@ -93,12 +93,28 @@ function events(item: Item, status: StatusRow[], userId: number): Ev[] {
   return out;
 }
 
-/** Newest first, at most 20. */
+/**
+ * Newest first, at most 20. Nexeo's own follow-ups repeat (one task had 20 escalations in a row, crowding out
+ * everything that really happened), so the same Nexeo step is folded into one line with a count, at its
+ * latest time; real events are never folded.
+ */
 export function historyOf(item: Item, status: StatusRow[], userId: number): HistoryEntry[] {
-  return events(item, status, userId)
-    .sort((a, b) => b.ms - a.ms)
-    .slice(0, HISTORY_MAX)
-    .map(({ at, who, change, note }) => ({ at, who, change, ...(note ? { note } : {}) }));
+  const sorted = events(item, status, userId).sort((a, b) => b.ms - a.ms);
+  const out: Array<HistoryEntry & { n: number; key?: string }> = [];
+  const folded = new Map<string, HistoryEntry & { n: number }>();
+  for (const e of sorted) {
+    if (!e.real) {
+      const key = `${e.who}\u0000${e.change}`;
+      const seen = folded.get(key);
+      if (seen) { seen.n += 1; continue; }
+      const entry = { at: e.at, who: e.who, change: e.change, ...(e.note ? { note: e.note } : {}), n: 1 };
+      folded.set(key, entry);
+      out.push(entry);
+    } else {
+      out.push({ at: e.at, who: e.who, change: e.change, ...(e.note ? { note: e.note } : {}), n: 1 });
+    }
+  }
+  return out.slice(0, HISTORY_MAX).map(({ n, ...h }) => (n > 1 ? { ...h, change: `${h.change} (${n} times)` } : h));
 }
 
 /** The latest real change, or null when nothing is recorded. */

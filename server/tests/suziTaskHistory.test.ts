@@ -78,8 +78,17 @@ describe('history', () => {
     expect(h.map((e) => e.who)).toEqual(['Nexeo', 'a colleague']);
   });
   it('at most 20', () => {
-    const many = Array.from({ length: 30 }, (_, i) => ({ text: `n${i}`, at: new Date(Date.UTC(2026, 10, 1, i)).toISOString(), by: 'user:2' }));
+    const many = Array.from({ length: 30 }, (_, i) => ({ text: `n${i}`, at: new Date(Date.UTC(2026, 10, 1, i % 24, i)).toISOString(), by: 'user:2' }));
     expect(historyOf({ notes: many }, [], 2)).toHaveLength(HISTORY_MAX);
+  });
+});
+
+describe('Nexeo\'s repeats', () => {
+  it('the same Nexeo step is one line with a count, so real events still show', () => {
+    const escalations = Array.from({ length: 30 }, (_, i) => ({ at: new Date(Date.UTC(2026, 10, 5, i % 24, i)).toISOString(), event: 'owner_escalated' }));
+    const h = historyOf({ createdAt: new Date('2026-11-01T08:00:00Z'), notes: [{ text: 'mine', at: '2026-11-02T10:00:00Z', by: 'user:2' }], metadata: { actionLifecycle: { followUpHistory: escalations } } }, [], 2);
+    expect(h.map((e) => e.change)).toEqual(['Nexeo escalated it (30 times)', 'Note', 'Created']);
+    expect(h[0].at).toBe(new Date(Math.max(...escalations.map((e) => Date.parse(e.at)))).toISOString());
   });
 });
 
