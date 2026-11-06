@@ -31,6 +31,7 @@ import { newerRulesVersion } from '../services/suzi/suziRules';
 import { searchPeople } from '../services/suzi/suziPeople';
 import { suggestDelegates } from '../services/suzi/delegateSuggest';
 import { listGaps, setGapState } from '../services/suzi/suziGaps';
+import { taskHistory } from '../services/suzi/taskHistory';
 import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
@@ -225,6 +226,22 @@ router.get('/people', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('people failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'people could not be searched' });
+  }
+});
+
+/** Link T25: what happened to one of his tasks, newest first. A read with no model. */
+router.get('/task-history', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const id = typeof req.query.id === 'string' ? req.query.id.trim() : '';
+  if (!id || id.length > 100) { res.status(400).json({ error: { code: 'bad_query', message: 'id is required, up to 100 characters' } }); return; }
+  try {
+    const r = await taskHistory(who.tenantId, who.userId, id);
+    if (!r.ok) { res.status(404).json({ error: { code: r.error, message: r.detail } }); return; }
+    res.json({ history: r.history, checked: r.checked });
+  } catch (err: any) {
+    log.warn('task history failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: { code: 'failed', message: 'the history could not be read' } });
   }
 });
 

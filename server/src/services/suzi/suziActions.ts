@@ -22,21 +22,25 @@ import { recordActionLifecycleReply } from '../openItems/actionLifecycleService'
 import { localDate, safeTimezone } from './dayBriefFacts';
 import { toZonedIso } from './zonedTime';
 import { personById } from './suziPeople';
+import { changedAt, statusRowsFor, HISTORY_SELECT, type StatusRow } from './taskHistory';
 
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
-export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null }
+/** `updated_at` moves on every write, Nexeo's bookkeeping included; `changed_at` only on a real change (T25, DEF-406). */
+export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null }
 
-const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, delegateeName: true, updatedAt: true } as const;
+const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, ...HISTORY_SELECT } as const;
 
 /** An open item as Suzi sees it. `owner` is the delegate when delegated, else 'me'. */
-function toSuziAction(r: any, tz: string, today: string): SuziAction {
+function toSuziAction(r: any, tz: string, today: string, userId: number, status: StatusRow[] = []): SuziAction {
   const due = r.dueDate ? localDate(r.dueDate, tz) : null;
+  const changed = r.createdAt !== undefined ? changedAt(r, status, userId) : null;
   return {
     id: r.id, title: String(r.title ?? '').slice(0, 200), owner: r.delegateeName || 'me',
     priority: r.priority ?? '', status: r.status ?? '', due, overdue: !!due && due < today,
     updated_at: r.updatedAt ? toZonedIso(r.updatedAt, tz) : null,
+    changed_at: changed ? toZonedIso(changed, tz) : null,
   };
 }
 
@@ -48,7 +52,9 @@ export async function listPendingActions(clientNumber: string, userId: number, o
     select: ITEM_SELECT,
     take: 500,
   });
-  const actions = rows.map((r) => toSuziAction(r, tz, today)).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
+  // A status history that can't be read leaves changed_at to the other records, never to updated_at.
+  const status = await statusRowsFor(clientNumber, userId, rows.map((r) => r.id)).catch(() => new Map<string, StatusRow[]>());
+  const actions = rows.map((r) => toSuziAction(r, tz, today, userId, status.get(r.id))).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
   const limit = Math.min(Math.max(opts.limit ?? 20, 1), 500);
   return { total: actions.length, overdue: actions.filter((a) => a.overdue).length, actions: actions.slice(0, limit) };
 }
@@ -128,6 +134,7 @@ export async function applyFollowUp(
     return { ok: false, error: 'rejected', detail: String(e?.message ?? 'rejected').slice(0, 200) };
   }
   const after = await prisma.openItem.findFirst({ where: { id: item.id, clientNumber, userId }, select: ITEM_SELECT });
+  const afterStatus = await statusRowsFor(clientNumber, userId, [item.id]).catch(() => new Map<string, StatusRow[]>());
   const tz = safeTimezone(p.timezone);
-  return { ok: true, update, action: toSuziAction(after ?? { id: item.id }, tz, localDate(new Date(), tz)) };
+  return { ok: true, update, action: toSuziAction(after ?? { id: item.id }, tz, localDate(new Date(), tz), userId, afterStatus.get(item.id)) };
 }
