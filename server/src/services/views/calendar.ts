@@ -81,6 +81,8 @@ export async function getTodayCalendar(args: {
       createdAt: { gte: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000) },
     },
     select: { id: true, rawPayload: true },
+    // Newest first, so the dedup below keeps each event's latest version (DEF-416).
+    orderBy: { createdAt: 'desc' },
     take: 200,
   }).catch(() => [] as Array<{ id: string; rawPayload: unknown }>);
 
@@ -89,8 +91,15 @@ export async function getTodayCalendar(args: {
   });
 
   const events: CalendarEventRow[] = [];
+  // DEF-416 (CL-070): the poller writes a new row when an event changes, so one meeting can have several rows.
+  // One entry per event id, its latest version; a cancelled event is left out. Same rule as Suzi's pack.
+  const seen = new Set<string>();
   for (const r of rows) {
     const p = (r.rawPayload as Record<string, unknown> | null) ?? {};
+    const key = String((p as any).eventId ?? (p as any).id ?? r.id);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if ((p as any).status === 'cancelled') continue;
     const startObj = (p as any).start;
     const endObj = (p as any).end;
     const startIso = typeof startObj === 'string'
