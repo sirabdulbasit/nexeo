@@ -979,7 +979,7 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
         `<div style="font-family: -apple-system, system-ui, sans-serif;">`,
         `<p><em>Delivered via email fallback — WhatsApp channel unavailable.</em></p>`,
         `<hr />`,
-        `<div style="white-space: pre-wrap;">${escapeHtml(req.body)}</div>`,
+        `<div style="white-space: pre-wrap;">${whatsAppToEmailHtml(req.body)}</div>`,
         `</div>`,
       ].join('\n');
       const emailResult = await sendUserEmail(user.id, user.email, emailSubject, emailBody);
@@ -1588,4 +1588,16 @@ export async function maybeSendSuppressionDigest(
     // future digest — the opposite failure, and a worse one than a duplicate.
     digestInFlight.delete(claim);
   }
+}
+
+/**
+ * DEF-409: the fallback email carries a body written for WhatsApp. Its `*bold*`, `_italic_` and `~strike~`
+ * showed as raw symbols in his inbox (CL-068). Escaped first, so nothing in the body becomes markup except
+ * these three; a marker only counts when it wraps text on one line, the way WhatsApp reads it.
+ */
+export function whatsAppToEmailHtml(body: string): string {
+  return escapeHtml(body)
+    .replace(/(^|[\s(])\*([^*\n]+?)\*(?=$|[\s.,;:!?)])/gm, '$1<strong>$2</strong>')
+    .replace(/(^|[\s(])_([^_\n]+?)_(?=$|[\s.,;:!?)])/gm, '$1<em>$2</em>')
+    .replace(/(^|[\s(])~([^~\n]+?)~(?=$|[\s.,;:!?)])/gm, '$1<s>$2</s>');
 }

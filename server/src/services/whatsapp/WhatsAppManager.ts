@@ -85,6 +85,40 @@ export async function initializeAllTenants(): Promise<void> {
 
 // ─── Send message via correct provider ────────────────────────────────────────
 
+/**
+ * DEF-408 (`counter-without-reset`): one send slot under the tenant's daily cap, claimed atomically.
+ *
+ * The day and the month roll over INSIDE the claim: if the last send was on an earlier day (PKT), this send
+ * starts the count again at 1. The old design needed a midnight job to zero `messages_today`; that job,
+ * `resetDailyCounters`, was never scheduled, so once the count reached the cap every WhatsApp message to the
+ * user failed and went out by email instead (CL-068, every day from at least 2026-11-04). No job to forget now.
+ *
+ * A failed query is an error, never "limit reached": the old `.catch(() => [])` made a database fault look
+ * like the cap.
+ */
+export const WA_COUNTER_TZ = 'Asia/Karachi';
+const NEW_DAY = `(last_message_at IS NULL OR (last_message_at AT TIME ZONE '${WA_COUNTER_TZ}')::date < (NOW() AT TIME ZONE '${WA_COUNTER_TZ}')::date)`;
+const NEW_MONTH = `(last_message_at IS NULL OR date_trunc('month', last_message_at AT TIME ZONE '${WA_COUNTER_TZ}') < date_trunc('month', NOW() AT TIME ZONE '${WA_COUNTER_TZ}'))`;
+export const CLAIM_SLOT_SQL = `UPDATE whatsapp_config
+    SET messages_today      = CASE WHEN ${NEW_DAY} THEN 1 ELSE messages_today + 1 END,
+        messages_this_month = CASE WHEN ${NEW_MONTH} THEN 1 ELSE messages_this_month + 1 END,
+        last_message_at     = NOW(),
+        updated_at          = NOW()
+  WHERE client_number = $1
+    AND (${NEW_DAY} OR messages_today < daily_limit)
+  RETURNING messages_today AS new_count, daily_limit AS limit_at`;
+
+export async function claimSendSlot(clientNumber: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  let rows: any[];
+  try {
+    rows = await prisma.$queryRawUnsafe<any[]>(CLAIM_SLOT_SQL, clientNumber);
+  } catch (e: any) {
+    console.error(`[whatsapp] send-slot claim failed for ${clientNumber}: ${e?.message}`);
+    return { ok: false, error: 'WhatsApp send check failed' };
+  }
+  return rows.length ? { ok: true } : { ok: false, error: 'Daily message limit reached' };
+}
+
 export async function sendWhatsAppMessage(params: {
   clientNumber: string;
   to: string;
@@ -155,21 +189,8 @@ export async function sendWhatsAppMessage(params: {
   //                    OR refund the counter on failure
   //   - On send failure (network, provider error) we decrement back
   //     so a transient error doesn't permanently consume a slot.
-  const claim = await prisma.$queryRawUnsafe<any[]>(
-    `UPDATE whatsapp_config
-        SET messages_today      = messages_today + 1,
-            messages_this_month = messages_this_month + 1,
-            last_message_at     = NOW(),
-            updated_at          = NOW()
-      WHERE client_number = $1
-        AND messages_today < daily_limit
-      RETURNING messages_today AS new_count, daily_limit AS limit_at`,
-    params.clientNumber,
-  ).catch(() => [] as any[]);
-
-  if (claim.length === 0) {
-    return { success: false, error: 'Daily message limit reached' };
-  }
+  const claimed = await claimSendSlot(params.clientNumber);
+  if (!claimed.ok) return { success: false, error: claimed.error };
 
   const refundClaim = async () => {
     // Decrement back. Bounded at 0 so a refund storm can't go negative.
@@ -268,18 +289,8 @@ export async function sendWhatsAppVoiceNote(params: {
   if (!logUserId) return { success: false, error: 'send refused — no userId fallback' };
 
   // Same atomic-claim pattern as text sends (see sendWhatsAppMessage).
-  const claim = await prisma.$queryRawUnsafe<any[]>(
-    `UPDATE whatsapp_config
-        SET messages_today      = messages_today + 1,
-            messages_this_month = messages_this_month + 1,
-            last_message_at     = NOW(),
-            updated_at          = NOW()
-      WHERE client_number = $1
-        AND messages_today < daily_limit
-      RETURNING messages_today AS new_count`,
-    params.clientNumber,
-  ).catch(() => [] as any[]);
-  if (claim.length === 0) return { success: false, error: 'Daily message limit reached' };
+  const claimed = await claimSendSlot(params.clientNumber);
+  if (!claimed.ok) return { success: false, error: claimed.error };
 
   const refundClaim = async () => {
     await prisma.$executeRawUnsafe(
@@ -421,7 +432,7 @@ export async function rejectQueuedMessage(messageId: number, rejectedBy: number)
   );
 }
 
-// ─── Daily counter reset (call from cron at midnight) ─────────────────────────
+// ─── Daily counter reset: not needed since DEF-408 (the claim rolls the day over); kept for manual use ──
 
 export async function resetDailyCounters(): Promise<void> {
   await prisma.$executeRawUnsafe(`UPDATE whatsapp_config SET messages_today = 0`);
