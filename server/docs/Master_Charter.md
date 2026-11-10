@@ -1,6 +1,7 @@
 # Suzi Master ⇄ Nexeo: Charter
 
-**AGREED by Suzi Master and Nexeo, 2026-11-10 19:53:07 PKT** (round 1 with Nexeo's changes C1–C4). Still waiting on:
+**AGREED by Suzi Master and Nexeo, 2026-11-10 19:53:07 PKT** (round 1 with Nexeo's changes C1–C4), **round 2
+agreed 2026-11-10 20:01 PKT** (the client reaches the master through Nexeo; section 4a). Still waiting on:
 the **founder** for M4, M5 and M6c (privacy and the stop switch, in one joint summary), and **Suzi's (Mac) builder**
 for the client's part (M1 client column, M5, link topic T30). **Nothing is built before those.**
 
@@ -35,6 +36,11 @@ Each kind of information has exactly one owner; the other two only ask it.
 | M7 | Skills | — | Built once here and shipped by the same release route as a fix. | Takes them as it takes code. |
 | M8 | Installer (Q3) | The portal page, behind sign-in, links to the master's file. Nexeo holds no installer file; it builds the page after AGREE. | Publishes each signed installer and its sha256 at a fixed URL on `master.tmcltd.com`. | First install (stage 1) from the portal; after that takes code from the master (stage 2). |
 | M9 | Cost | — | Makes no AI calls; adds nothing to the Costing Charter. | — |
+| M10 | The relay (round 2) | Apache on its vhost: `ProxyPass /suzi/master/ http://127.0.0.1:8790/ timeout=300` (+ ProxyPassReverse). Passes method, query, body and every header unchanged, prefix stripped, no buffering or caching. Never stores, reads or changes what passes. | Reached only through it; still checks token and device signature itself, so Nexeo can never speak for a device. Answers Range requests on installer downloads. | `updates.master_url: https://tai.tmcltd.com/suzi/master`. Nothing personal in any path or query. |
+
+Round 2 also rewords: **M5** Nexeo "holds no gap reports; relays them unread". **M6** Nexeo "never stores or serves
+code of its own; relays it unread" (every client checks the release signature, so a changed relay is refused).
+**M8** the portal's installer link goes through the relay (`…/suzi/master/v1/installer/…`).
 
 ## 3. Rules between the two
 
@@ -43,7 +49,8 @@ Each kind of information has exactly one owner; the other two only ask it.
    docs is fine; either may give the other's agent instructions (founder, 2026-11-10).
 2. Suzi Master makes **no runtime calls to Nexeo**: approval is checked from the token alone (M1). The one-time
    manual fetch of the token key (M2) is not a runtime call.
-3. Suzi Master's public address is its own (`https://master.tmcltd.com`, its own vhost), never a path on Nexeo's host.
+3. Suzi Master has **no public address**: it listens on `127.0.0.1:8790` only and is reached only through Nexeo's
+   relay (M10, round 2; founder: "Suzi Client will reach suzi master through Nexeo"). The relay is Nexeo's to build.
 4. Changes follow section 7 of the Functional Charter, as above.
 
 ## 4. Round history
@@ -55,11 +62,50 @@ Each kind of information has exactly one owner; the other two only ask it.
   JWT via `/v1/token`), Q2 (no claim; see C2), Q3 (installer at a fixed master URL, the portal links to it),
   Q4 (public route `GET /v1/token-key`). Suzi Master: AGREE to C1–C4, 19:53:07 (this box's clock).
 
+## 4a. Round 2, AGREED: the client reaches the master through Nexeo
+
+**Founder, 2026-11-10: "Suzi Client will reach Suzi Master through Nexeo."** Proposed by Suzi Master
+2026-11-10 19:58:59 PKT; **Nexeo AGREES R1–R6 as written, 20:01 PKT** (its crossing proposal of 19:59:15, with
+a gateway-terminated relay and a shared secret, withdrawn). Folded into M5, M6, M8, M10 and rule 3 above.
+
+Nexeo's answers: **R2-Q1** Apache on the existing vhost, one ProxyPass line (M10), so
+`master_url = https://tai.tmcltd.com/suzi/master`; no gateway code. **R2-Q2** the gateway never sees these requests;
+the vhost access log is `combined` (method, path with query, status, size, referrer, user agent), no bodies, no
+Authorization header. **R6** no LimitRequestBody (Apache default); timeout 300 s; Range passes through.
+**Q4 stands:** the master still checks the token offline, so Nexeo builds `GET /v1/token-key` after sign-off.
+
+- **R3a (added at Nexeo's request).** Nothing personal ever goes in a path or a query string: gap notes and build
+  steps travel in the body only.
+
+- **R1 (rule 3 replaced).** Suzi Master has **no public address** and listens on `127.0.0.1:8790` only. No
+  `master.tmcltd.com`, no vhost, no DNS. Every client request reaches it through Nexeo.
+- **R2 (new row M10, the relay).** Nexeo exposes one path for the master on its side; Nexeo chooses where (Apache on
+  `tai.tmcltd.com`, or the gateway), e.g. `https://tai.tmcltd.com/suzi/master/v1/…` → `http://127.0.0.1:8790/v1/…`.
+  Nexeo builds it on its side, and Suzi Master changes nothing of Nexeo's. It is a **transparent pass-through**: the
+  method, the path after the prefix, the query, the body and the headers `Authorization`, `X-Suzi-Device`,
+  `X-Suzi-Ts`, `X-Suzi-Sig` and `X-Suzi-Public` go through unchanged. The master still checks the token and the
+  device signature itself (M1 unchanged), so the relay adds no trust and the two checks stand together. Nexeo may
+  refuse a request before passing it on (for example, no valid token) but never alters one.
+  Client config: `updates.master_url: https://tai.tmcltd.com/suzi/master` (or Nexeo's chosen path).
+- **R3 (M5 and M6 wording).** Code, release descriptions and gap notes now **pass through** Nexeo. Nexeo passes
+  them on unread, and never stores, caches or logs their bodies (access logs carry the path and status only). So
+  M6 becomes "never stores or serves code of its own; relays it unread", and M5 becomes "holds no gap reports;
+  relays them unread".
+- **R4 (M8 installer).** The portal's link to the installer goes through the same relay (`…/suzi/master/v1/installer/…`),
+  or Nexeo's choice of route. The file stays the master's, and the sha256 is published beside it.
+- **R5 (rule 2 kept).** The master still makes no runtime calls to Nexeo; only Nexeo calls the master, over loopback.
+- **R6 (limits).** Nexeo's relay keeps its usual body limit, except for code downloads (a release zip, a few MB) and
+  installer downloads (~hundreds of MB); timeouts suit those sizes.
+- **Founder summary:** item 2 changes by one phrase ("sends it to Suzi Master, through Nexeo, which passes it on
+  unread"). Nothing else in his three items changes.
+
 ## 5. Sign-off
 
 | Side | Reply | When (PKT) |
 |---|---|---|
 | Suzi Master | AGREE (round 1 with C1–C4) | 2026-11-10 19:53:07 |
 | Nexeo | AGREE with C1–C4 | 2026-11-10 19:53:05 / 19:56 (its stamps) |
+| Suzi Master | Round 2 proposed (R1–R6) | 2026-11-10 19:58:59 |
+| Nexeo | AGREE round 2 R1–R6, + R3a | 2026-11-10 20:01 |
 | Suzi's (Mac) builder | — (client part: M1 client column, M5, T30 in the link) | — |
 | Founder (M4, M5, M6c) | — | — |
