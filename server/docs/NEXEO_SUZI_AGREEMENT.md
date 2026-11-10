@@ -351,3 +351,11 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - The brief line arrives as `POST /master/notice`.
   - Waiting on Suzi Master's AGREE. Founder: "go ahead" to build at 21:01:11 PKT.
 - **The mirror** was re-copied at 21:01:11 PKT (round 4 text, sha256 f412fcd7…).
+- **Correction:** the mirror re-copied at 5779935 is Suzi Master's 9c4b957, which already holds round 5 (sha256 06aa50c4…), not f412fcd7.
+- **Round 5 closed** at 21:01:50 PKT. Suzi Master AGREED to E1-E8 (section 4d, read narrowly as the founder clarified), and Nexeo AGREED to its F1-F5:
+  - **F1:** the lead's approvals and notes carry the device's own signature end to end, with the device key forwarded.
+  - **F2:** the lead is marked by did on the master.
+  - **F3:** no queue; offline devices catch up when they next ask.
+  - **F4:** the installer route carries no did, and its X-Installer header carries the signed description.
+  - **F5:** the master pins Nexeo's forwarding key, `xrl/2vnfHa3i/C2YPuwy4pwNzPz2DWlHDixRzqjrVc4=`. The private half is `jarvis-gateway/secrets/nexeo-forward.pem` (0600).
+- **Founder:** "Nexeo will also provide downloading of .dmg and .exe based on windows using web/portal". The portal's Suzi Desktop section offers the installer for the visitor's system (.dmg on a Mac, .exe on Windows) with both shown, streamed from the master and never stored.
