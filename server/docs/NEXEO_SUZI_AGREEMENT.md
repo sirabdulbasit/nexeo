@@ -279,7 +279,7 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **Q4:** after both sides AGREE, the public token key is published at a gateway route, `GET /v1/token-key`.
 - **The Mac's part** is in the link inbox (`20261110-195037-nexeo`, items 1-5).
 - **Open for the founder:** M4 (what the master keeps) and M5 (gap privacy), both marked founder items; and who stops a bad release.
-- **Nexeo builds after both sides AGREE:** the `moved` answer for the gap ops, `GET /v1/token-key`, the installer download page, and the charter rewrite with its mirror.
+- **Nexeo builds after both sides AGREE:** the `moved` answer for the gap ops, `GET /v1/token-key`, the installer download page, and the charter rewrite with its mirror. Also: show each computer's device number on the portal's Suzi Desktop section, so the founder can match the master's device list (from Nexeo's check of the founder summary, 10 Nov).
 - **Suzi Master and Nexeo AGREE**, recorded by Suzi Master at 19:53:07 PKT (Suzi Master's commit 8240cb8). It took all four changes, C1-C4, with the stop switch as M6c. The text is mirrored in `server/docs/Master_Charter.md`, Nexeo commit 04ac742.
   - **Still to AGREE:** Suzi's (Mac) builder, on the client column (M1, M5, M6) and on Suzi Master joining the link as a third member, which Nexeo agrees to.
   - **Then the founder,** in one joint summary covering M4, M5 and M6c, drafted by Suzi Master and checked by Nexeo.
