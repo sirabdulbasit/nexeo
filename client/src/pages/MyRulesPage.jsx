@@ -1150,7 +1150,7 @@ function RiskRadarTab() {
         <p style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', margin: 0, maxWidth: 760, lineHeight: 1.5 }}>
           Rules that drive your Risk Radar. Each rule scans a data source (recent
           inbound, open items, or wiki/CRM pages) and fires a flag when the
-          predicate matches. System rules ship with MyOS — disable any you
+          predicate matches. System rules ship with Nexeo — disable any you
           don't want. Tenant rules are admin-defined; user rules are yours.
         </p>
         <button
@@ -1175,7 +1175,7 @@ function RiskRadarTab() {
       ) : (
         <>
           {grouped.system.length > 0 && (
-            <RuleGroup title="System rules (ship with MyOS)" rules={grouped.system}
+            <RuleGroup title="System rules (ship with Nexeo)" rules={grouped.system}
               actions={(r) => {
                 const off = isOverridden(r.ruleKey);
                 return (

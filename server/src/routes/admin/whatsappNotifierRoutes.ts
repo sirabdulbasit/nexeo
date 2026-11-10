@@ -146,7 +146,7 @@ router.post('/whatsapp-notifier/test', requireAdmin, async (req: Request, res: R
   const u = (req as any).user;
   const { toPhone, body } = req.body ?? {};
   if (!toPhone) return res.status(400).json({ error: 'toPhone required' });
-  const r = await sendViaNotifier(u.clientNumber, String(toPhone), String(body ?? 'MyOS notifier test message.'));
+  const r = await sendViaNotifier(u.clientNumber, String(toPhone), String(body ?? 'Nexeo notifier test message.'));
   res.json(r);
 });
 
@@ -171,7 +171,7 @@ router.post('/whatsapp-notifier/test-voice', requireAdmin, async (req: Request, 
   const u = (req as any).user;
   const { toPhone, body } = req.body ?? {};
   if (!toPhone) return res.status(400).json({ error: 'toPhone required' });
-  const text = String(body ?? 'This is a Brain voice note test from MyOS.');
+  const text = String(body ?? 'This is a Brain voice note test from Nexeo.');
   const { textToVoiceNote } = await import('../../services/voiceService');
   const audio = await textToVoiceNote(text);
   if (!audio) return res.json({ ok: false, error: 'TTS unavailable (no GOOGLE_APPLICATION_CREDENTIALS or quota exhausted)' });

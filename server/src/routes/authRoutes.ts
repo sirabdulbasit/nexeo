@@ -29,7 +29,7 @@ router.get('/callback', async (req, res) => {
       <body style="background:#1a1a1a;color:#e8e8e0;font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;">
         <div>
           <h1 style="color:#4ade80;">Google Drive Connected!</h1>
-          <p style="color:#888;">TMC AI can now read your Drive data directly.</p>
+          <p style="color:#888;">Nexeo can now read your Drive data directly.</p>
           <p style="color:#888;">You can close this window.</p>
         </div>
       </body>

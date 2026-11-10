@@ -890,7 +890,7 @@ router.get('/people/suggest', async (req: Request, res: Response) => {
       if (!addIfNew(u.email)) continue;
       candidates.push({
         kind: 'user', userId: u.id, name: u.name, email: u.email,
-        note: u.department ? `${u.department}${u.jobDescription ? ' · ' + u.jobDescription.slice(0, 40) : ''}` : 'Internal (MyOS user)',
+        note: u.department ? `${u.department}${u.jobDescription ? ' · ' + u.jobDescription.slice(0, 40) : ''}` : 'Internal (Nexeo user)',
         score: 1,
       });
     }

@@ -454,13 +454,13 @@ async function sendAgentEmailReport(
     <div style="padding:16px 32px;border-top:1px solid #eee;">
       <p style="margin:0;font-size:13px;color:#333;">Best regards,</p>
       <p style="margin:4px 0 0;font-size:14px;font-weight:600;color:#1a1a2e;">${agentName}</p>
-      <p style="margin:2px 0 0;font-size:12px;color:#888;">AI Agent — TMC AI Intelligence Platform</p>
+      <p style="margin:2px 0 0;font-size:12px;color:#888;">AI Agent — Nexeo</p>
     </div>
 
     <!-- Footer -->
     <div style="padding:12px 32px;background:#f9f9f9;border-top:1px solid #eee;text-align:center;">
       <p style="margin:0;font-size:11px;color:#aaa;">
-        This report was generated automatically by TMC AI. For interactive dashboards and detailed analysis,
+        This report was generated automatically by Nexeo. For interactive dashboards and detailed analysis,
         visit <a href="https://tai.tmcltd.com" style="color:#cc6b4a;text-decoration:none;">tai.tmcltd.com</a>
       </p>
     </div>

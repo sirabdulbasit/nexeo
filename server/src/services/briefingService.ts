@@ -65,7 +65,7 @@ export async function sendMorningBriefing(userId: number): Promise<void> {
         <hr style="border: 1px solid #eee; margin: 16px 0;">
         <div style="line-height: 1.8; color: #333; font-size: 14px;">${briefing}</div>
         <hr style="border: 1px solid #eee; margin: 16px 0;">
-        <p style="color: #999; font-size: 11px;">This is your automated morning briefing. Manage your settings in TMC AI.</p>
+        <p style="color: #999; font-size: 11px;">This is your automated morning briefing. Manage your settings in Nexeo.</p>
       </div>
     `);
 

@@ -1182,7 +1182,7 @@ async function composeLegacyCallCta(clientNumber: string, preamble: string): Pro
     const num = rows?.[0]?.connected_number;
     if (num) return `${preamble.trim()}\n\n📞 Call back: ${num}`;
   } catch { /* ignore */ }
-  return `${preamble.trim()}\n\nOpen MyOS to respond.`;
+  return `${preamble.trim()}\n\nOpen Nexeo to respond.`;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────

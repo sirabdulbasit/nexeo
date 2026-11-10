@@ -213,6 +213,6 @@ Return only the message text.`;
     const response = await genai.models.generateContent({ model: 'gemini-2.0-flash', contents: prompt });
     return (response.text || '').trim();
   } catch {
-    return `Please handle: "${item.title}". This item has been waiting over 72 hours. — Sent via MyOS auto-delegate`;
+    return `Please handle: "${item.title}". This item has been waiting over 72 hours. — Sent via Nexeo auto-delegate`;
   }
 }

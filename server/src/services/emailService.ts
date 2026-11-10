@@ -73,7 +73,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
         from = await getConfig(PLATFORM_CONFIG_TENANT, 'smtp_from') || '';
       } catch {}
     }
-    if (!from) from = 'TMC AI <noreply@tmc.com>';
+    if (!from) from = 'Nexeo <noreply@tmc.com>';
 
     await transport.sendMail({ from, to, subject, html });
     console.log(`[Email] Sent to ${to}: "${subject}"`);

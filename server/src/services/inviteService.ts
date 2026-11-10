@@ -60,11 +60,11 @@ export async function sendInvitation(userId: number, clientNumber: string, baseU
   // Get client's SMTP and send
   try {
     const transporter = await getClientTransporter(clientNumber);
-    const fromAddr = await getConfig(clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'TMC AI <noreply@tmcai.com>';
+    const fromAddr = await getConfig(clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'Nexeo <noreply@tmcai.com>';
 
     // Get tenant name for branding
     const tenant = await prisma.tenant.findUnique({ where: { clientNumber } });
-    const appName = await getConfig(clientNumber, 'app_name') || 'TMC AI Intelligence';
+    const appName = await getConfig(clientNumber, 'app_name') || 'Nexeo';
 
     await transporter.sendMail({
       from: fromAddr,
@@ -193,8 +193,8 @@ export async function sendPasswordReset(email: string, baseUrl: string): Promise
 
   try {
     const transporter = await getClientTransporter(user.clientNumber);
-    const fromAddr = await getConfig(user.clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'TMC AI <noreply@tmcai.com>';
-    const appName = await getConfig(user.clientNumber, 'app_name') || 'TMC AI Intelligence';
+    const fromAddr = await getConfig(user.clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'Nexeo <noreply@tmcai.com>';
+    const appName = await getConfig(user.clientNumber, 'app_name') || 'Nexeo';
 
     await transporter.sendMail({
       from: fromAddr,
@@ -237,8 +237,8 @@ export async function sendPasswordChangedEmail(userId: number): Promise<void> {
 
   try {
     const transporter = await getClientTransporter(user.clientNumber);
-    const fromAddr = await getConfig(user.clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'TMC AI <noreply@tmcai.com>';
-    const appName = await getConfig(user.clientNumber, 'app_name') || 'TMC AI Intelligence';
+    const fromAddr = await getConfig(user.clientNumber, 'smtp_from') || process.env.SMTP_FROM || 'Nexeo <noreply@tmcai.com>';
+    const appName = await getConfig(user.clientNumber, 'app_name') || 'Nexeo';
     const now = new Date().toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
 
     await transporter.sendMail({

@@ -13,7 +13,7 @@ export default function WhatsAppNotifierTab() {
   const [form, setForm] = useState({
     displayNumber: '', phoneNumberId: '', accessToken: '', appId: '', wabaId: '',
   });
-  const [test, setTest] = useState({ phone: '', msg: 'MyOS notifier test — ignore', userId: '' });
+  const [test, setTest] = useState({ phone: '', msg: 'Nexeo notifier test — ignore', userId: '' });
   const [msg, setMsg] = useState(null);
   const [confirmDisable, setConfirmDisable] = useState(false);
   // Webhook config state — separate from notifier credentials. The

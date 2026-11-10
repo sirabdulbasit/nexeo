@@ -83,15 +83,15 @@ async function executeTask(taskId: number): Promise<void> {
     }
 
     if (recipients.length > 0) {
-      const subject = `TMC AI Report: ${task.title}`;
+      const subject = `Nexeo Report: ${task.title}`;
       const html = `
         <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto;">
           <h2 style="color: #cc6b4a;">${task.title}</h2>
-          <p style="color: #666; font-size: 12px;">Scheduled report from TMC AI Intelligence · ${new Date().toLocaleString()}</p>
+          <p style="color: #666; font-size: 12px;">Scheduled report from Nexeo · ${new Date().toLocaleString()}</p>
           <hr style="border: 1px solid #eee;">
           <div style="white-space: pre-wrap; line-height: 1.6;">${result.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
           <hr style="border: 1px solid #eee;">
-          <p style="color: #999; font-size: 11px;">This is an automated report. Manage your schedules at TMC AI.</p>
+          <p style="color: #999; font-size: 11px;">This is an automated report. Manage your schedules in Nexeo.</p>
         </div>
       `;
 

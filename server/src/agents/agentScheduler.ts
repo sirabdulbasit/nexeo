@@ -252,7 +252,7 @@ async function notifyAgentError(
               Visit <a href="https://tai.tmcltd.com/agents">My Team</a> to check the agent status and reset if needed.
             </p>
             <hr style="border:1px solid #eee;margin:16px 0;"/>
-            <p style="color:#aaa;font-size:11px;">TMC AI Intelligence Platform</p>
+            <p style="color:#aaa;font-size:11px;">Nexeo</p>
           </div>`,
         );
       }

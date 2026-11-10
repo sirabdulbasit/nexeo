@@ -519,7 +519,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
           <label style={s.label}>Phone Number (E.164 format)</label>
           <input style={s.input} value={testNumber} onChange={e => setTestNumber(e.target.value)} placeholder="+923001234567" />
           <p style={{ color: '#888', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
-            Message: "This is a test message from TMCAI. WhatsApp is configured correctly. — Sent via TMCAI Admin Panel"
+            Message: "This is a test message from Nexeo. WhatsApp is configured correctly. — Sent via Nexeo Admin Panel"
           </p>
           <div style={{ ...s.row, marginTop: 12 }}>
             <button

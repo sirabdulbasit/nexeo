@@ -130,9 +130,9 @@ export function generateOpenAPISpec(baseUrl: string): object {
   return {
     openapi: '3.0.3',
     info: {
-      title: 'TMC AI Enterprise API',
+      title: 'Nexeo Enterprise API',
       version: '1.0.0',
-      description: 'Programmatic access to TMC AI organizational intelligence queries, knowledge base, and agent management.',
+      description: 'Programmatic access to Nexeo organizational intelligence queries, knowledge base, and agent management.',
       contact: { name: 'TMC Support', email: 'support@tmcltd.com' },
     },
     servers: [{ url: `${baseUrl}/api/v1`, description: 'Production' }],

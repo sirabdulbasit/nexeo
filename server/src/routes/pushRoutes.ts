@@ -95,7 +95,7 @@ router.patch('/prefs', requireAuth, async (req: Request, res: Response) => {
 router.post('/test', requireAuth, async (req: Request, res: Response) => {
   const result = await sendToUser(req.user!.clientNumber, req.user!.id, {
     event: 'approval_request',
-    title: 'MyOS test push',
+    title: 'Nexeo test push',
     body: 'If you see this on your device, web push is working.',
     severity: 'low',
     tag: 'test-push',

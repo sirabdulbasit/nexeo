@@ -37,10 +37,10 @@ function getGuides(redirectUri) {
           'Create a new project (or select existing) from the top dropdown',
           'In the left menu, go to **APIs & Services → Credentials**',
           'Click **+ CREATE CREDENTIALS → OAuth client ID**',
-          'If prompted, configure the **OAuth consent screen** first:\n   → User Type: **External** (or Internal if Workspace)\n   → App name: anything (e.g. "My TMC AI")\n   → Support email: your email\n   → Save and continue through all steps',
+          'If prompted, configure the **OAuth consent screen** first:\n   → User Type: **External** (or Internal if Workspace)\n   → App name: anything (e.g. "My Nexeo")\n   → Support email: your email\n   → Save and continue through all steps',
           'Back in Credentials, click **+ CREATE CREDENTIALS → OAuth client ID**',
           'Application type: **Web application**',
-          'Name: anything (e.g. "TMC AI Gmail")',
+          'Name: anything (e.g. "Nexeo Gmail")',
           `Under **Authorized redirect URIs**, click **+ ADD URI** and paste:\n   \`${RU}\``,
           'Click **Create**',
           'You will see **Client ID** and **Client Secret** — copy both',
@@ -48,7 +48,7 @@ function getGuides(redirectUri) {
         note: 'Keep this window open — you will need to paste these values in the next step.',
       },
       {
-        title: 'Enter credentials in TMC AI',
+        title: 'Enter credentials in Nexeo',
         steps: [
           'Go back to **My Connectors → Gmail → Configure**',
           'Scroll down to **Option 2 — Use Your Own App Credentials**',
@@ -137,11 +137,11 @@ function getGuides(redirectUri) {
         'Go to **https://app.clickup.com/settings/integrations** (or click your avatar → Settings → Integrations)',
         'Scroll down to **ClickUp API** section',
         'Click **Create an App**',
-        `App Name: \`TMC AI\` → Redirect URL: paste \`${RU}\``,
+        `App Name: \`Nexeo\` → Redirect URL: paste \`${RU}\``,
         'Click **Create App**',
         'You will see **Client ID** and **Client Secret** — copy both',
       ] },
-      { title: 'Step 2: Enter in TMC AI', steps: [
+      { title: 'Step 2: Enter in Nexeo', steps: [
         'Go to **My Connectors → ClickUp → Configure**',
         'Paste **Client ID** and **Client Secret**',
         'Click **Save & Continue → Authorize Now**',
@@ -157,15 +157,15 @@ function getGuides(redirectUri) {
       { title: 'Step 1: Create a Notion Integration', steps: [
         'Go to **https://www.notion.so/my-integrations**',
         'Click **+ New integration**',
-        'Name: `TMC AI Tasks` → Select your workspace → Click **Submit**',
+        'Name: `Nexeo Tasks` → Select your workspace → Click **Submit**',
         'Copy the **Internal Integration Token** (starts with `secret_...`)',
       ] },
       { title: 'Step 2: Share your Tasks database', steps: [
         'Open the Notion database you want to use as a task list',
-        'Click **Share** (top-right) → **Invite** → Search for `TMC AI Tasks` → Add it',
+        'Click **Share** (top-right) → **Invite** → Search for `Nexeo Tasks` → Add it',
         'Copy the **database ID** from the URL: `https://notion.so/YOUR_DB_ID?v=...`',
       ] },
-      { title: 'Step 3: Enter in TMC AI', steps: [
+      { title: 'Step 3: Enter in Nexeo', steps: [
         'Go to **My Connectors → Notion Tasks → Configure**',
         'Paste the **Integration Token** as Client ID',
         'Enter the **Database ID** as Client Secret (we use this field for the DB ID)',
@@ -182,7 +182,7 @@ function getGuides(redirectUri) {
       { title: 'Step 1: Create a Slack App', steps: [
         'Go to **https://api.slack.com/apps**',
         'Click **Create New App → From scratch**',
-        'App Name: `TMC AI` → Pick your workspace → Click **Create App**',
+        'App Name: `Nexeo` → Pick your workspace → Click **Create App**',
       ] },
       { title: 'Step 2: Set up OAuth', steps: [
         'In the left sidebar, click **OAuth & Permissions**',
@@ -196,7 +196,7 @@ function getGuides(redirectUri) {
         'Scroll to **App Credentials**',
         'Copy **Client ID** and **Client Secret**',
       ] },
-      { title: 'Step 4: Enter in TMC AI', steps: [
+      { title: 'Step 4: Enter in Nexeo', steps: [
         'Go to **My Connectors → Slack → Configure**',
         'Paste **Client ID** and **Client Secret**',
         'Click **Save & Continue → Authorize Now**',
@@ -271,7 +271,7 @@ function getGuides(redirectUri) {
       { title: 'Step 1: Create a LinkedIn App', steps: [
         'Go to **https://www.linkedin.com/developers/apps**',
         'Click **Create App**',
-        'App name: `TMC AI` → LinkedIn Page: select your company page (or create one) → Upload a logo → Check the agreement → Click **Create app**',
+        'App name: `Nexeo` → LinkedIn Page: select your company page (or create one) → Upload a logo → Check the agreement → Click **Create app**',
       ] },
       { title: 'Step 2: Configure OAuth', steps: [
         'Go to the **Auth** tab',
@@ -283,7 +283,7 @@ function getGuides(redirectUri) {
         'Request access to **Sign In with LinkedIn using OpenID Connect**',
         'This may take a few minutes to be approved',
       ] },
-      { title: 'Step 4: Enter in TMC AI', steps: [
+      { title: 'Step 4: Enter in Nexeo', steps: [
         'Go to **My Connectors → LinkedIn → Configure**',
         'Paste Client ID and Client Secret → Save & Continue → Authorize Now',
       ] },
@@ -299,7 +299,7 @@ function getGuides(redirectUri) {
         'Go to **https://developer.twitter.com/en/portal/dashboard**',
         'Sign in with your Twitter/X account',
         'You need a **Developer Account** — apply if you don\'t have one (free tier available)',
-        'Once approved, click **+ Add App** → Name: `TMC AI`',
+        'Once approved, click **+ Add App** → Name: `Nexeo`',
       ] },
       { title: 'Step 2: Get credentials', steps: [
         'Go to your app → **Keys and tokens** tab',
@@ -309,7 +309,7 @@ function getGuides(redirectUri) {
         `Type: **Web App** → Callback URL: \`${RU}\``,
         'Save',
       ] },
-      { title: 'Step 3: Enter in TMC AI', steps: [
+      { title: 'Step 3: Enter in Nexeo', steps: [
         'Go to **My Connectors → Twitter/X → Configure**',
         'Paste Client ID and Client Secret → Save & Continue → Authorize Now',
       ] },
@@ -325,7 +325,7 @@ function getGuides(redirectUri) {
         'Go to **https://marketplace.zoom.us/develop/create**',
         'Sign in with your Zoom account',
         'Choose **OAuth** app type → Click **Create**',
-        'App Name: `TMC AI` → Click **Create**',
+        'App Name: `Nexeo` → Click **Create**',
       ] },
       { title: 'Step 2: Configure', steps: [
         'On the app page, copy **Client ID** and **Client Secret**',
@@ -333,7 +333,7 @@ function getGuides(redirectUri) {
         'Under **Scopes**, add: `meeting:read`, `meeting:write`',
         'Click **Save**',
       ] },
-      { title: 'Step 3: Enter in TMC AI', steps: [
+      { title: 'Step 3: Enter in Nexeo', steps: [
         'Go to **My Connectors → Zoom → Configure**',
         'Paste Client ID and Client Secret → Save & Continue → Authorize Now',
       ] },
@@ -348,17 +348,17 @@ function getGuides(redirectUri) {
       { title: 'Step 1: Create a Notion Integration', steps: [
         'Go to **https://www.notion.so/my-integrations**',
         'Click **+ New integration**',
-        'Name: `TMC AI Personal` → Select your workspace → Submit',
+        'Name: `Nexeo Personal` → Select your workspace → Submit',
         'Copy the **Internal Integration Token**',
       ] },
       { title: 'Step 2: Share pages with the integration', steps: [
-        'Open any Notion page you want TMC AI to access',
-        'Click **Share → Invite → TMC AI Personal** → Add',
+        'Open any Notion page you want Nexeo to access',
+        'Click **Share → Invite → Nexeo Personal** → Add',
         'Repeat for each page or database you want accessible',
       ],
         note: 'The integration can ONLY access pages you explicitly share with it. Your private pages stay private.',
       },
-      { title: 'Step 3: Enter in TMC AI', steps: [
+      { title: 'Step 3: Enter in Nexeo', steps: [
         'Go to **My Connectors → Notion → Configure**',
         'Paste the Integration Token as your Client ID',
         'Click **Save & Continue → Authorize Now**',
@@ -387,7 +387,7 @@ function getGuides(redirectUri) {
           'In the **search bar at the top** of the page, type: **App registrations**',
           'Click on **App registrations** from the dropdown results',
           'You will see a page with a list (probably empty). Click the **+ New registration** button at the top',
-          `Fill in the form:\n   → **Name**: Type \`TMC AI\` (this is just a label, can be anything)\n   → **Supported account types**: Select the 3rd option: **"Accounts in any organizational directory... and personal Microsoft accounts"**\n   → **Redirect URI**: Select **Web** from the dropdown, then paste this URL:\n   \`${RU}\``,
+          `Fill in the form:\n   → **Name**: Type \`Nexeo\` (this is just a label, can be anything)\n   → **Supported account types**: Select the 3rd option: **"Accounts in any organizational directory... and personal Microsoft accounts"**\n   → **Redirect URI**: Select **Web** from the dropdown, then paste this URL:\n   \`${RU}\``,
           'Click the blue **Register** button at the bottom',
         ],
       },
@@ -396,7 +396,7 @@ function getGuides(redirectUri) {
         steps: [
           'After clicking Register, you will be taken to the app\'s overview page',
           'Look for **Application (client) ID** — it\'s a long code like `a1b2c3d4-e5f6-7890-abcd-ef1234567890`',
-          '**Copy this value** — you will paste it into TMC AI later. This is your **Client ID**',
+          '**Copy this value** — you will paste it into Nexeo later. This is your **Client ID**',
         ],
         note: 'Tip: Click the small copy icon next to the ID to copy it to your clipboard.',
       },
@@ -406,7 +406,7 @@ function getGuides(redirectUri) {
           'On the same page, look at the **left sidebar menu**',
           'Click **Certificates & secrets**',
           'Click **+ New client secret**',
-          'A small form appears:\n   → **Description**: Type `TMC AI`\n   → **Expires**: Select **24 months** (recommended)',
+          'A small form appears:\n   → **Description**: Type `Nexeo`\n   → **Expires**: Select **24 months** (recommended)',
           'Click **Add**',
           'A new row appears in the table. Look for the column called **Value** (NOT "Secret ID")',
           '**Copy the Value immediately!** It looks like a long random string. This is your **Client Secret**',
@@ -427,9 +427,9 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Step 6: Enter the values in TMC AI',
+        title: 'Step 6: Enter the values in Nexeo',
         steps: [
-          'Go back to **TMC AI** in your browser',
+          'Go back to **Nexeo** in your browser',
           'Go to **My Connectors** page → Find **Microsoft Outlook**',
           'Click **Configure**',
           'You will see two empty fields:\n   → **Client ID**: Paste the Application (client) ID you copied in Step 3\n   → **Client Secret**: Paste the secret Value you copied in Step 4',
@@ -437,7 +437,7 @@ function getGuides(redirectUri) {
           'You will see a summary showing your Client ID and masked secret',
           'Click **Save Credentials** → then click **Authorize Now →**',
           'You will be redirected to Microsoft to sign in and approve access',
-          'After approving, you will be redirected back to TMC AI',
+          'After approving, you will be redirected back to Nexeo',
           'Microsoft Outlook will now show as **Connected** with a green badge!',
         ],
       },
@@ -482,7 +482,7 @@ function getGuides(redirectUri) {
         note: 'This token gives full access to your Todoist account. Keep it private.',
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors** page',
           'Find **Todoist** under TASKS section',
@@ -521,7 +521,7 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Trello → Configure**',
           'Paste your **API Key** in the first field',
@@ -544,7 +544,7 @@ function getGuides(redirectUri) {
           'Click **Settings** (gear icon, top-right)',
           'In the left sidebar: **Integrations → Private Apps**',
           'Click **Create a private app**',
-          'Name: "TMC AI" (or anything)',
+          'Name: "Nexeo" (or anything)',
           'Go to the **Scopes** tab',
           'Under CRM, enable: **crm.objects.contacts.read**, **crm.objects.deals.read**, **crm.objects.companies.read**',
           'Click **Create app** → Confirm',
@@ -553,7 +553,7 @@ function getGuides(redirectUri) {
         note: 'You can always come back to Settings → Private Apps to see or rotate the token.',
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → HubSpot → Configure**',
           'Paste the Access Token in the **Private App Token** field',
@@ -574,7 +574,7 @@ function getGuides(redirectUri) {
           'Go to: https://id.atlassian.com/manage-profile/security/api-tokens',
           'Log in with your Atlassian account',
           'Click **Create API token**',
-          'Label: "TMC AI" → Click **Create**',
+          'Label: "Nexeo" → Click **Create**',
           'Copy the token shown (you won\'t see it again!)',
         ],
       },
@@ -586,7 +586,7 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Jira → Configure**',
           '**Jira Domain**: enter `mycompany.atlassian.net` (without https://)',
@@ -610,12 +610,12 @@ function getGuides(redirectUri) {
           'Go to **Apps and integrations → APIs → Zendesk API**',
           'Make sure **Token Access** is enabled',
           'Click **Add API token**',
-          'Description: "TMC AI" → **Save**',
+          'Description: "Nexeo" → **Save**',
           'Copy the token',
         ],
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Zendesk → Configure**',
           '**Zendesk Subdomain**: just the subdomain part (e.g. "mycompany" from mycompany.zendesk.com)',
@@ -655,7 +655,7 @@ function getGuides(redirectUri) {
         note: 'If you see an empty result, make sure you sent a message to the bot first, then refresh the URL.',
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Telegram → Configure**',
           '**Bot Token**: paste the token from BotFather',
@@ -685,7 +685,7 @@ function getGuides(redirectUri) {
           'Go to **https://developers.facebook.com/**',
           'Click **My Apps** (top-right) → **Create App**',
           'Select **Business** type → Click **Next**',
-          'App name: `TMC AI WhatsApp` → Select your Business Account → Click **Create App**',
+          'App name: `Nexeo WhatsApp` → Select your Business Account → Click **Create App**',
           'On the app dashboard, find **WhatsApp** and click **Set Up**',
           'You will see the **WhatsApp API Setup** page',
         ],
@@ -704,9 +704,9 @@ function getGuides(redirectUri) {
         steps: [
           'The token shown on the API Setup page is **temporary** (expires in 24 hours). You need a permanent one.',
           'Go to **https://business.facebook.com/settings/system-users**',
-          'Click **Add** to create a new System User:\n   → Name: `TMC AI`\n   → Role: **Admin**',
+          'Click **Add** to create a new System User:\n   → Name: `Nexeo`\n   → Role: **Admin**',
           'Click **Generate Token** on the system user you just created',
-          'Select your app (`TMC AI WhatsApp`)',
+          'Select your app (`Nexeo WhatsApp`)',
           'Under permissions, check: **whatsapp_business_messaging**, **whatsapp_business_management**',
           'Click **Generate Token**',
           '**Copy the token** — this is your permanent Access Token',
@@ -723,7 +723,7 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Step 6: Enter the values in TMC AI',
+        title: 'Step 6: Enter the values in Nexeo',
         steps: [
           'Go to **My Connectors → WhatsApp → Configure**',
           'Fill in the form:\n   → **Phone Number**: Your phone number with country code (e.g. +923001234567)\n   → **Phone Number ID**: The ID from Step 3\n   → **Access Token**: The permanent token from Step 4\n   → **Business Account ID**: (optional) from Step 5',
@@ -750,10 +750,10 @@ function getGuides(redirectUri) {
           '   → **Password**: Your SAP password',
           '   → **Client number** (optional): e.g. "100" or "200"',
         ],
-        note: 'Ask for a service account dedicated to TMC AI rather than using your personal SAP login.',
+        note: 'Ask for a service account dedicated to Nexeo rather than using your personal SAP login.',
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → SAP ERP → Configure**',
           '**SAP API URL**: paste the full URL',
@@ -778,7 +778,7 @@ function getGuides(redirectUri) {
           'Click your **user avatar** (top-right) → **My Profile** or **Preferences**',
           'Go to **Account Security** section',
           'Click **API Keys** → **New API Key**',
-          'Description: "TMC AI" → Click **Generate Key**',
+          'Description: "Nexeo" → Click **Generate Key**',
           'Copy the key shown',
         ],
       },
@@ -791,7 +791,7 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Odoo → Configure**',
           '**Odoo URL**: your Odoo instance URL (e.g. https://mycompany.odoo.com)',
@@ -813,7 +813,7 @@ function getGuides(redirectUri) {
         steps: [
           'Go to: https://www.notion.so/my-integrations',
           'Click **+ New integration**',
-          'Name: "TMC AI"',
+          'Name: "Nexeo"',
           'Select the workspace to connect',
           'Click **Submit**',
           'Copy the **Internal Integration Token** (starts with "secret_...")',
@@ -822,15 +822,15 @@ function getGuides(redirectUri) {
       {
         title: 'Share pages with the integration',
         steps: [
-          'Open any Notion page or database you want TMC AI to access',
+          'Open any Notion page or database you want Nexeo to access',
           'Click **Share** (top-right) → **Invite**',
-          'Search for "TMC AI" (your integration name) and add it',
+          'Search for "Nexeo" (your integration name) and add it',
           'Repeat for each page/database',
         ],
         note: 'The integration can only access pages explicitly shared with it.',
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → Notion (Org) → Configure**',
           'Paste the **Integration Token** in the API Key field',
@@ -850,7 +850,7 @@ function getGuides(redirectUri) {
         steps: [
           'Go to: https://github.com/settings/tokens',
           'Click **Generate new token** → **Fine-grained token** (recommended)',
-          'Token name: "TMC AI"',
+          'Token name: "Nexeo"',
           'Expiration: 90 days (or custom)',
           'Repository access: select the repos you want to monitor',
           'Permissions: enable **Issues (Read)**, **Pull requests (Read)**, **Metadata (Read)**',
@@ -858,7 +858,7 @@ function getGuides(redirectUri) {
         ],
       },
       {
-        title: 'Enter in TMC AI',
+        title: 'Enter in Nexeo',
         steps: [
           'Go to **My Connectors → GitHub → Configure**',
           'Paste the token in the **API Key** field',
@@ -883,7 +883,7 @@ const DEFAULT_GUIDE = {
         'Navigate to **Settings**, **Integrations**, **API**, or **Developer** section',
         'Create an API key, token, or OAuth app',
         'Copy the credentials',
-        'Go to **My Connectors** in TMC AI',
+        'Go to **My Connectors** in Nexeo',
         'Click **Configure** on the connector',
         'Paste your credentials in the form',
         'Click **Save & Continue → Connect**',
@@ -916,7 +916,7 @@ export default function ConnectorGuidePage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, borderBottom: '2px solid #cc6b4a', paddingBottom: 16 }}>
           <div>
             <div style={{ fontSize: 26, fontWeight: 700, color: '#111' }}>How to Configure {guide.name}</div>
-            <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>TMC AI — Connector Setup Guide</div>
+            <div style={{ fontSize: 13, color: '#888', marginTop: 4 }}>Nexeo — Connector Setup Guide</div>
             <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
               <span style={{ display: 'inline-block', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: '#cc6b4a22', color: '#cc6b4a' }}>{guide.type}</span>
             </div>
@@ -977,7 +977,7 @@ export default function ConnectorGuidePage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #ccc' }}>
-                <th style={{ textAlign: 'left', padding: '6px 8px', color: '#555' }}>Field in TMC AI</th>
+                <th style={{ textAlign: 'left', padding: '6px 8px', color: '#555' }}>Field in Nexeo</th>
                 <th style={{ textAlign: 'left', padding: '6px 8px', color: '#555' }}>Where to get it</th>
               </tr>
             </thead>
@@ -1007,7 +1007,7 @@ export default function ConnectorGuidePage() {
               {(slug === 'gmail' || slug === 'google_calendar' || slug === 'google_tasks') && <>
                 <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '6px 8px' }}>Client ID</td><td style={{ padding: '6px 8px' }}>Google Cloud Console → APIs & Services → Credentials → OAuth client</td></tr>
                 <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '6px 8px' }}>Client Secret</td><td style={{ padding: '6px 8px' }}>Same page as Client ID</td></tr>
-                <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '6px 8px' }}>Redirect URI</td><td style={{ padding: '6px 8px' }}>Pre-filled in TMC AI — copy and add to Google OAuth app</td></tr>
+                <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '6px 8px' }}>Redirect URI</td><td style={{ padding: '6px 8px' }}>Pre-filled in Nexeo — copy and add to Google OAuth app</td></tr>
               </>}
               {(slug === 'outlook' || slug === 'outlook_calendar') && <>
                 <tr style={{ borderBottom: '1px solid #eee' }}><td style={{ padding: '6px 8px' }}>Client ID</td><td style={{ padding: '6px 8px' }}>Azure Portal → App registrations → Application (client) ID</td></tr>
@@ -1032,7 +1032,7 @@ export default function ConnectorGuidePage() {
 
         {/* Footer */}
         <div style={{ marginTop: 32, padding: 14, background: '#f0f0f0', borderRadius: 8, fontSize: 12, color: '#888', textAlign: 'center' }}>
-          TMC AI Intelligence Platform — Connector Setup Guide — {guide.name} — {new Date().toLocaleDateString()}
+          Nexeo — Connector Setup Guide — {guide.name} — {new Date().toLocaleDateString()}
         </div>
       </div>
       </div>

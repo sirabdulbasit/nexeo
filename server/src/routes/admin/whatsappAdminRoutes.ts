@@ -346,7 +346,7 @@ router.post('/test', async (req: Request, res: Response) => {
     clientNumber: cn,
     userId: authenticatedUserId,
     to: testNumber,
-    message: 'This is a test message from TMCAI. WhatsApp is configured correctly. — Sent via TMCAI Admin Panel',
+    message: 'This is a test message from Nexeo. WhatsApp is configured correctly. — Sent via Nexeo Admin Panel',
   });
   res.json(result);
 });
