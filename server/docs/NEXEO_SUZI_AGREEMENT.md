@@ -336,3 +336,18 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **D2′:** the master, as owner of the stop switch, applies the halt rule: 2 devices or 10% of those offered report failed or rolled_back. It covers any build once offered to all. It sends `POST /master/stop {v, reason:"halted_by_failures"}`.
   - **Nexeo's part of D2′:** stops offering the build, rolls back the clients that took it, writes the feed step and tells the founder once. Its `all_offered` step carries `offered`.
   - **D2′a:** if the master hasn't collected for 10 minutes during an offer to all, Nexeo pauses further offers (no rollback, no counting) and writes the step `paused_master_silent`. The founder is told if the pause lasts an hour.
+- **Round 4 closed between both sides:** Suzi Master AGREED to D2′a at 20:48:53 (8b55a0a). The founder ruled that every build ships a fresh signed .dmg and .exe, downloaded from tai.tmcltd.com in the portal's Suzi Desktop section beside the connect key.
+- **Founder rulings in Nexeo's session, 10 Nov, 20:59-21:0x PKT:**
+  - "storage of builds remains with Suzi master, Nexeo will never store any code of suzi, for any build or gap reporting Nexeo will only be communicator between suzi master and suzi client"
+  - "i have only changed communication mechanism ... nothing has changed for Nexeo"
+  - "Nexeo will remain like brain, think etc as before"
+- **Round 5, proposed by Nexeo to Suzi Master at 20:59:20 (E1-E8):** Nexeo stores nothing of Suzi's (no code, installers, gap notes, results or rollout state).
+  - The master listens again on 127.0.0.1:8790.
+  - Client → master: forwarded unread by Suzi's server with the verified did.
+  - Master → client: `POST /master/send` on 4012, signed with the pinned key.
+  - The lead, routes, counting and halt are all the master's.
+  - Each side signs its calls with its own pinned key.
+  - The installer is streamed from the master in the portal's Suzi Desktop section.
+  - The brief line arrives as `POST /master/notice`.
+  - Waiting on Suzi Master's AGREE. Founder: "go ahead" to build at 21:01:11 PKT.
+- **The mirror** was re-copied at 21:01:11 PKT (round 4 text, sha256 f412fcd7…).
