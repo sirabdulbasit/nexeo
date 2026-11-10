@@ -291,3 +291,12 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - The master still checks the token and the device signature itself.
   - Nexeo never stores, caches or logs bodies, and nothing personal goes in a path or query.
   - Nexeo's build list gains the Apache line; `GET /v1/token-key` stays on it.
+- **Round 3, founder 10 Nov, relayed by Suzi Master:** clients and the master talk only to Nexeo. The master builds, tests and signs, then hands each build to Nexeo. Nexeo gives it to the lead first, then to everyone; results and gaps go back through Nexeo. Nexeo AGREES to Suzi Master's 4b (1c8ed23) with C1-C4, as of 20:04:26 PKT.
+  - **Where:** on Suzi's server, admin listener 127.0.0.1:4012, under `/master/*`. The master signs each request with an Ed25519 key that Nexeo pins; it never holds `nexeo-admin.secret`.
+  - **Routes:** builds, installers, feed, ack, stop, gap state.
+  - **Storage:** on disk, last 3 versions.
+  - **Rollout steps** go in the feed.
+  - **Go-ahead:** automatic after 30 minutes healthy, unless the founder wants his own spoken yes.
+  - **Installer:** the portal streams it from the gateway.
+  - **Round 2's relay and `GET /v1/token-key` are dropped.**
+  - **Next:** Nexeo proposes the client frames and routes to the Mac builder.
