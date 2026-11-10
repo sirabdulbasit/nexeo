@@ -300,3 +300,9 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **Installer:** the portal streams it from the gateway.
   - **Round 2's relay and `GET /v1/token-key` are dropped.**
   - **Next:** Nexeo proposes the client frames and routes to the Mac builder.
+- **Round 3 closed from Nexeo's side** at 20:05:25 PKT. Nexeo AGREES to Suzi Master's N1.
+  - **Results and rollout steps:** deleted once the master acks them, the same as gaps.
+  - **Kept by Nexeo:** only rollout state, overwritten in place. Per version, the lead's latest step; per device, the last version offered and the last version taken.
+  - **N1a** (Nexeo's addition): anything not yet acked is kept, never dropped. After 24 h with nothing acked, the founder is told once.
+  - **Founder summary:** `/var/www/suzi/protocol/Founder_Summary_T30.md`, checked OK. It asks him five things: 0 (confirm the round-3 ruling), 1, 2, 3a (automatic vs his yes) and 3b.
+  - **Master public key** (Ed25519, raw base64), to be pinned in the gateway config at build time: `GsMvtB/RB/jt0zQ8YPyIFxJQQDIOTEnAc+VwkfO5y1E=`.
