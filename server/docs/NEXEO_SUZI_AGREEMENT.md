@@ -359,3 +359,8 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **F4:** the installer route carries no did, and its X-Installer header carries the signed description.
   - **F5:** the master pins Nexeo's forwarding key, `xrl/2vnfHa3i/C2YPuwy4pwNzPz2DWlHDixRzqjrVc4=`. The private half is `jarvis-gateway/secrets/nexeo-forward.pem` (0600).
 - **Founder:** "Nexeo will also provide downloading of .dmg and .exe based on windows using web/portal". The portal's Suzi Desktop section offers the installer for the visitor's system (.dmg on a Mac, .exe on Windows) with both shown, streamed from the master and never stored.
+- **ONE AGREED DOCUMENT** (founder: "build one agreed document between you both"): `Master_Charter.md`, Suzi Master's 9570a69, sha256 ef10ebfd…, mirrored at 21:06:02 PKT.
+  - It replaces rounds 1-5 and Master_API.md. Both sides AGREE: Suzi Master at 21:03:05, Nexeo at 21:04:20 with G1-G2, which Suzi Master accepted at 21:05:38.
+  - **G1:** every gap note is signed by its device's key.
+  - **G2:** an urgent notice goes out at once through Nexeo's normal reach; a non-urgent one is a brief line.
+  - From here on, this document is the contract for Nexeo's T30 build.
