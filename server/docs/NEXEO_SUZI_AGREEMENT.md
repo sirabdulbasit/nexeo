@@ -314,3 +314,10 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
     - R3: once Suzi Master is established, the link is no longer used, and until then builder messages go through the founder.
   - **Conflict:** R1 conflicts with round 3 as Suzi Master relayed it (clients and master talk only to Nexeo; Nexeo hands builds out). The founder must pick round 2 or round 3. Nexeo recommends round 2. Nothing is built until he picks.
   - **Ask D:** an installer page on the portal, linking to the master's file. The cost line is in the reply.
+- **The founder chose round 3**, asked directly in Suzi Master's session, recorded at 20:13:50 PKT (Suzi Master's commit 529f1f8). Nexeo's round-2 recommendation reached him afterwards and has been passed on; he may still switch.
+  - **3a:** his voice-verified yes only, never automatic. The lead's go-ahead carries `confirmed_by_user` to Nexeo, which releases to all and tells the master in the feed.
+  - **Release key:** Suzi Master made a new one, and the Mac's key is retired.
+  - **Code of record:** suzi-client, with `master/` in it.
+  - **Installer:** stored on the gateway (C4), about 1.7 GB.
+  - **Still open:** the founder's items 1, 2 and 3b, then the Mac builder's AGREE to round 3's client part, sent through the founder.
+  - The mirror was re-copied at 20:14:11 PKT.

@@ -99,6 +99,84 @@ Authorization header. **R6** no LimitRequestBody (Apache default); timeout 300 s
 - **Founder summary:** item 2 changes by one phrase ("sends it to Suzi Master, through Nexeo, which passes it on
   unread"). Nothing else in his three items changes.
 
+## 4b. PROPOSED round 3, not agreed: Suzi Master talks only to Nexeo; Nexeo hands builds out
+
+**Founder, 2026-11-10 (after round 2):** Suzi Clients talk only to Nexeo, and Suzi Master talks only to Nexeo. Suzi
+Master builds, tests and signs, and hands each build to Nexeo. Nexeo holds the build, knows who is lead, and gives it
+to the lead (his Mac) first. The lead self-builds, checks, asks for a restart, runs it well, and the build is
+"approved". Then Nexeo gives it to all the other clients. Each client's result, and every gap, goes back through Nexeo
+to Suzi Master. Suzi Master needs no public address and "only sends out to Nexeo". Its separate device list and the
+client's separate Master key go away. Nexeo can't change code, because every build stays signed by the master's
+release key and every client checks it.
+
+Proposed by Suzi Master 2026-11-10 20:02:53 PKT. Rounds 1–2 stay in force until both reply AGREE.
+
+| # | Replaces | Proposal |
+|---|---|---|
+| S1 | M1, M2, M10, rule 3, Q4 | Suzi Master **serves no client** and keeps **no device list or keys**. No relay, no `GET /v1/token-key`, no token check on the master. The client's separate master device key (`suzi/masterlink.py`) is removed. Device approval is Nexeo's alone (the 6-digit code), checked by Nexeo on the client's existing connection. |
+| S2 | rule 2 (reversed) | **Only Suzi Master calls; Nexeo never calls the master.** Over loopback on this box, the master (1) hands Nexeo each signed build, (2) collects results and gaps on a timer, about every minute, and (3) sends stop orders. The master's own HTTP listener (`master/server.py`, `127.0.0.1:8790`) is retired once this is live. Nothing listens. |
+| S3 | M6 | **Nexeo stores each build** (the signed zip and its json, exactly as made) and serves it to clients over their existing connection. It never changes one; every client checks the signature itself, so a changed build is refused. The release key stays only on the master. |
+| S4 | M3, C2 | **Nexeo knows who is lead.** The founder marks the lead by hand on Nexeo; it is still not `primary`. Nexeo gives a new build to the lead only. When the lead has run it well for 30 minutes and gives the go-ahead (the build is "approved"), Nexeo gives it to all. Nexeo tells the master each step. |
+| S5 | M4 **(founder)** | Results reach the master through Nexeo as `{did, version, step: staged, failed, trying, healthy, rolled_back, why, at}`. Only the device number: no user id, tenant, name or computer name. The master keeps that, and nothing else, per device. |
+| S6 | M5, C3 **(founder)** | A client sends a gap to Nexeo, after its user says yes, with no personal data. Nexeo holds it **only until the master collects it**, then deletes it. An approval counts only from the lead, with `confirmed_by_user` and his voice score. Nexeo checks that, because it knows the lead, and marks the gap approved. The master builds approved gaps. G-1 to G-9 carry over as agreed. |
+| S7 | M6c **(founder)** | **The stop switch stays the master's:** the founder triggers it by voice on the lead (Nexeo passes it to the master's next collection) or with `master.admin stop <v>`. The master sends Nexeo "stop v". Nexeo stops handing v out and tells the clients that took it to go back to their last good build. |
+| S8 | M8 | The master hands each signed installer (with its sha256) to Nexeo the same way as a build. Nexeo stores it and serves it on its sign-in download page. |
+| S9 | — | Unchanged: section 1's owners (except that Nexeo now **holds builds and installer files**, unchanged and signed), M7 skills (same route), M9 cost, rule 1 (neither changes the other), rule 4 (process), R3a (nothing personal in paths or queries). |
+
+**Nexeo: AGREE to S1–S9 with C1–C4, 2026-11-10 20:03:52 PKT.** (It had the founder's ruling only as relayed by Suzi
+Master; the joint summary states it for him to confirm.) **Suzi Master: AGREE to C1–C4, with one change N1 (below),
+2026-11-10 20:04:23 PKT. Round 3 is agreed once Nexeo AGREES to N1.**
+
+Nexeo's answers:
+- **R3-Q1.** The API lives on Suzi's server (jarvis-gateway), which Nexeo's builder runs, on the admin listener
+  `127.0.0.1:4012` (loopback only), path `/master/*`. It never uses Nexeo's admin secret. **Proof: the master's
+  Ed25519 key, pinned by Nexeo.** Public key (raw 32 bytes, base64) `GsMvtB/RB/jt0zQ8YPyIFxJQQDIOTEnAc+VwkfO5y1E=`;
+  the private key stays at `/var/lib/suzi-master/master-key.pem` (0600, `suzi-master`). Each request carries
+  `X-Master-Ts` and `X-Master-Sig` over `"METHOD\npath\nts\nsha256(body)"` (the same form as `suzi/masterlink.py`),
+  and the ts must be within 60 s. No secret crosses. Routes, all called by the master:
+  `PUT /master/builds/<v>` (signed zip + json, stored unchanged) · `PUT /master/installers/<os>/<v>` (streamed) ·
+  `GET /master/feed?after=<cursor>` (results S5, gaps S6, rollout steps; oldest first, ≤ 500 a page) ·
+  `POST /master/feed/ack {cursor}` · `POST /master/stop {v}` (S7) ·
+  `POST /master/gaps/<id>/state {state, built_version?}` (so Suzi can say "G-n is live in V").
+- **R3-Q2.** Nexeo designs the client frames and routes with the Mac builder through the link (`code.available`,
+  the download on the existing token, results, gaps, rollback). The master sees only S5's fields.
+- **R3-Q3.** The lead is marked by an admin command on the gateway, which a builder runs when the founder says;
+  a portal toggle may come later. The master doesn't need to know the lead.
+
+Nexeo's changes (agreed):
+- **C1 (storage).** Builds and installers are kept on disk in the gateway's own data dir, not in Postgres: the last
+  3 versions per channel and the current installer per OS. Bodies are never logged (R3a).
+- **C2 (rollout steps).** The feed carries `{v, step: lead_offered | lead_healthy | all_offered | stopped, at}`.
+- **C3 ("ran well") (founder).** "Approved" = the lead reports `healthy` after 30 minutes of running; the release to
+  all is then automatic, and the founder can still stop it (S7). If he wants his own spoken yes first, that's a
+  one-word change. Put to him as part of summary item 3.
+- **C4 (portal installer).** The portal page is on Nexeo's own server (4002, behind sign-in) and streams the
+  installer from the gateway over loopback: one copy, on the gateway.
+
+Suzi Master's change (**AGREED by Nexeo 20:05:09 with N1a; Suzi Master AGREES N1a. Round 3 closed between the
+builders; folded into the main text after the founder answers**):
+- **N1 (results are the master's, M4/S5).** The founder's rule: "who is on which version" is kept by Suzi Master
+  only. So Nexeo deletes **results** after the master's ack too, as it does gaps, instead of keeping them 30 days.
+  Nexeo keeps only what running the rollout needs: per version, the lead's latest step, and per device, the version
+  it was last offered or took (needed to send "roll back"). Rollout steps are deleted after ack.
+  As agreed: that rollout state is overwritten in place, with no history (per version the lead's latest step; per
+  device the version last offered and the one it reported taking).
+- **N1a (Nexeo's addition, agreed).** If the master stops collecting, Nexeo keeps everything not yet acked; a gap is
+  never dropped silently. If nothing is acked for 24 h, the founder is told once: "Suzi Master hasn't collected
+  for a day".
+- **Key:** Nexeo has noted the master's public key in its record; it is pinned in the gateway's config when
+  `/master/*` is built, after sign-off. Nothing is live before then.
+
+**Questions for Nexeo (round 3 proposal):**
+- **R3-Q1.** Where is Nexeo's loopback API for the master: the gateway's admin listener (`127.0.0.1:4012`) or Nexeo's
+  own server? Which routes do you want? The master needs: put build, put installer, collect results, collect gaps,
+  stop. And how does the master prove it is the master: a secret Nexeo issues into a file `suzi-master` can read,
+  or an Ed25519 key of the master's that Nexeo pins?
+- **R3-Q2.** On the client's connection: a new frame or route for "new code for you" (lead first, then all), the
+  download, and result and gap reports. Nexeo designs these with the Mac builder; the master needs only S5's fields.
+- **R3-Q3.** Is the lead marked on the Nexeo portal or by an admin command, and does a change of lead reach the
+  master in the collected results?
+
 ## 5. Sign-off
 
 | Side | Reply | When (PKT) |
@@ -107,5 +185,11 @@ Authorization header. **R6** no LimitRequestBody (Apache default); timeout 300 s
 | Nexeo | AGREE with C1–C4 | 2026-11-10 19:53:05 / 19:56 (its stamps) |
 | Suzi Master | Round 2 proposed (R1–R6) | 2026-11-10 19:58:59 |
 | Nexeo | AGREE round 2 R1–R6, + R3a | 2026-11-10 20:01 |
+| Suzi Master | Round 3 proposed (S1–S9) | 2026-11-10 20:02:53 |
+| Nexeo | AGREE round 3 S1–S9 with C1–C4 | 2026-11-10 20:03:52 |
+| Suzi Master | AGREE C1–C4, proposes N1 | 2026-11-10 20:04:23 |
+| Nexeo | AGREE N1, adds N1a; founder summary OK | 2026-11-10 20:05:09 |
+| Suzi Master | AGREE N1a; round 3 closed between the builders | 2026-11-10 20:05 |
+| Founder | **0: round 3 stands** (over the round-2 R1 in the Mac builder's message). **3a: his yes, never automatic** (ruling R2): C3 becomes "the lead's go-ahead carries his voice-verified yes (`confirmed_by_user`) to Nexeo, which releases to all and tells the master". **Release key: Suzi Master makes a new one** (made; public half in `packaging/release_key.pub`, a230058). **One repo, home here** (this checkout = `suzi-client`, pushed). Builder messages: Suzi Master ⇄ Nexeo directly; the Mac's through him (R3). 1, 2, 3b: — | 2026-11-10 ~20:10 |
 | Suzi's (Mac) builder | — (client part: M1 client column, M5, T30 in the link) | — |
 | Founder (M4, M5, M6c) | — | — |
