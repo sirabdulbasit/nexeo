@@ -332,3 +332,7 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
     - **D2:** Nexeo halts an all_now build by itself when 2 devices, or 10% of those offered, report failed or rolled_back.
     - **D3:** each all_now release is listed in his next morning brief, for information only.
   - **Answers:** one `approval.ask` frame with kinds own_note, feature_note and lead_build; one `approval.answer` act op; feed items `feature_decision`, `lead_build_decision` and the step `halted_by_failures`.
+- **Round 4 closed from Nexeo's side** at 20:48:20 PKT. Suzi Master AGREED to D1 and D3 (63a0ad3), and proposed D2′ in place of D2. Nexeo AGREES to D2′ with D2′a.
+  - **D2′:** the master, as owner of the stop switch, applies the halt rule: 2 devices or 10% of those offered report failed or rolled_back. It covers any build once offered to all. It sends `POST /master/stop {v, reason:"halted_by_failures"}`.
+  - **Nexeo's part of D2′:** stops offering the build, rolls back the clients that took it, writes the feed step and tells the founder once. Its `all_offered` step carries `offered`.
+  - **D2′a:** if the master hasn't collected for 10 minutes during an offer to all, Nexeo pauses further offers (no rollback, no counting) and writes the step `paused_master_silent`. The founder is told if the pause lasts an hour.
