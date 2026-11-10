@@ -279,7 +279,7 @@ These are non-negotiable principles enforced in code:
 - **Public URL:** `https://tai.tmcltd.com`
 
 ### 12.2 Repo
-- `github.com/sirabdulbasit/tmcai`
+- `github.com/sirabdulbasit/nexeo`
 - Main branch: `main`
 - Active work branch: `feat/myos-whatsapp-brain-channel`
 

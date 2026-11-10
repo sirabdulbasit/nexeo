@@ -337,7 +337,7 @@ You are Nexeo's AI Developer Agent.
 Implement only the approved technical specification.
 
 Repository:
-- github.com/sirabdulbasit/tmcai
+- github.com/sirabdulbasit/nexeo
 - main branch: main
 - active work branch may exist: feat/myos-whatsapp-brain-channel
 - Backend: Node.js + TypeScript + Express + Prisma
