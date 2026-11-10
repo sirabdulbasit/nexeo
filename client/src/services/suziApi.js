@@ -22,3 +22,15 @@ export async function listDevices() {
 export async function disconnectDevice(id) {
   await api.delete(`${BASE}/devices/${encodeURIComponent(id)}`);
 }
+
+// Link T30: the current Suzi installer for each system, straight from Suzi Master (nothing kept at Nexeo).
+export async function listInstallers() {
+  const { data } = await api.get(`${BASE}/installers`);
+  return data ?? {}; // { macos: { available, version, sha256, size, file } | { available: false }, windows: … }
+}
+
+/** A short-lived download link (10 minutes) for one system; the browser opens it directly. */
+export async function installerLink(os) {
+  const { data } = await api.post(`${BASE}/installers/${encodeURIComponent(os)}/link`);
+  return data; // { url, expiresAt }
+}

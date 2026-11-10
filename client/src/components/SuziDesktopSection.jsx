@@ -3,7 +3,11 @@
 // computers using your keys. Lives in Settings → Suzi desktop.
 import { useEffect, useState } from 'react';
 import { InlineConfirm, formatPkt } from '../pages/admin/integrations/integrationUi';
-import { createApiKey, disconnectDevice, errorText, listDevices } from '../services/suziApi';
+import { createApiKey, disconnectDevice, errorText, installerLink, listDevices, listInstallers } from '../services/suziApi';
+
+// Link T30: which installer fits this visitor's computer; both are always shown.
+const THIS_OS = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? 'macos' : /Win/i.test(navigator.platform || navigator.userAgent) ? 'windows' : null;
+const OS_NAME = { macos: 'Mac (.dmg)', windows: 'Windows (.exe)' };
 
 const VALIDITY = [7, 30, 90, 'never'];
 
@@ -65,6 +69,7 @@ export default function SuziDesktopSection() {
 
   return (
     <>
+      <DownloadSuzi />
       <section className="settings-section">
         <h2>Connect Suzi desktop</h2>
         <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
@@ -124,6 +129,9 @@ export default function SuziDesktopSection() {
                     </span>
                   </div>
                   <div style={{ fontSize: 12, color: '#999' }}>
+                    device number <span style={{ fontFamily: 'monospace' }}>{d.id}</span>
+                  </div>
+                  <div style={{ fontSize: 12, color: '#999' }}>
                     created {formatPkt(d.connectedAt)}
                     {d.expiresAt ? ` · expires ${formatPkt(d.expiresAt)}` : d.keyPrefix ? ' · never expires' : ''}
                     {d.lastSeenAt ? ` · last used ${formatPkt(d.lastSeenAt)}` : ' · not used yet'}
@@ -142,6 +150,64 @@ export default function SuziDesktopSection() {
         )}
       </section>
     </>
+  );
+}
+
+// Link T30: the latest installer from Suzi Master, for this computer first. Nothing is stored at Nexeo; the
+// download link lasts 10 minutes.
+function DownloadSuzi() {
+  const [inst, setInst] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(null);
+  useEffect(() => {
+    listInstallers().then(setInst).catch((e) => { setInst({}); setErr(errorText(e)); });
+  }, []);
+  const download = async (os) => {
+    setBusy(os);
+    setErr(null);
+    try {
+      const { url } = await installerLink(os);
+      window.location.href = url;
+    } catch (e) {
+      setErr(errorText(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const order = THIS_OS === 'windows' ? ['windows', 'macos'] : ['macos', 'windows'];
+  return (
+    <section className="settings-section">
+      <h2>Download Suzi</h2>
+      <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+        Install Suzi on your computer, then connect her below with your key. This is always the latest version.
+      </p>
+      {inst === null && <div style={{ fontSize: 12, color: '#999' }}>Loading…</div>}
+      {inst && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {order.map((os) => {
+            const i = inst[os] ?? { available: false };
+            return (
+              <div key={os} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>
+                    {OS_NAME[os]}{os === THIS_OS ? <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 400 }}> · this computer</span> : null}
+                  </div>
+                  <div style={{ fontSize: 12, color: '#999' }}>
+                    {i.available
+                      ? <>version {i.version}{i.size ? ` · ${Math.round(i.size / 1048576)} MB` : ''} · sha256 <span style={{ fontFamily: 'monospace' }}>{String(i.sha256).slice(0, 16)}…</span></>
+                      : i.error ? i.error : 'Not available yet'}
+                  </div>
+                </div>
+                <button className="settings-btn" disabled={!i.available || busy === os} onClick={() => download(os)}>
+                  {busy === os ? <><span className="btn-spinner" /> Preparing…</> : 'Download'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      {err && <div style={{ fontSize: 12, color: '#fca5a5', marginTop: 8 }}>{err}</div>}
+    </section>
   );
 }
 

@@ -31,6 +31,7 @@ import { getOpenItems, type OpenItemRow } from './openItems';
 import { getAttentionSurface, type AttentionRow } from './attention';
 import { getTodayCalendar, type CalendarEventRow } from './calendar';
 import { getFollowUps, type FollowUps } from './followUps';
+import { masterLinesForBrief } from '../suzi/masterNotice';
 
 export interface DayBriefData {
   /** When this brief was assembled — useful for stale-data hints. */
@@ -60,6 +61,8 @@ export interface DayBriefData {
   /** DEF-412 (CL-069/CL-070): what used to arrive as separate nudges during the day, as facts. Null when it
    *  couldn't be read, so the brief says so instead of reporting "nothing". */
   followUps: FollowUps | null;
+  /** Link T30, D3: what Suzi Master fixed for everyone since yesterday. null = could not be read. */
+  suziUpdates?: string[] | null;
   recentWhatsApp: Array<{
     fromName: string;          // resolved contact title or '(not in contacts)'
     fromPhone: string;
@@ -89,6 +92,7 @@ export async function getDayBrief(args: {
   const generatedAt = new Date();
   const localDate = formatLocalDate(timezone, generatedAt);
 
+  const suziUpdates = await masterLinesForBrief(clientNumber, userId, generatedAt).catch(() => null);
   const [calendar, openItems, attention, emails, waMsgs, followUps] = await Promise.all([
     getTodayCalendar({ clientNumber, userId, opts: { timezone } }).catch(() => [] as CalendarEventRow[]),
     getOpenItems({ clientNumber, userId, opts: { limit: opts?.openItemsCap ?? 20 } }).catch(() => [] as OpenItemRow[]),
@@ -143,6 +147,7 @@ export async function getDayBrief(args: {
     openItems,
     attention,
     followUps,
+    suziUpdates,
     recentEmails: emails.map((r) => {
       const unwrap = r.sender_email?.match(/<([^>]+)>/)?.[1] ?? r.sender_email ?? '';
       return {
@@ -208,6 +213,7 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   if (data.openItems.length > 10) parts.push(`- … and ${data.openItems.length - 10} more open items`);
 
   parts.push(...renderFollowUps(data.followUps));
+  parts.push(...renderSuziUpdates(data.suziUpdates));
 
   parts.push(`\n## Recent emails — last 24h (${data.recentEmails.length})`);
   if (data.recentEmails.length === 0) parts.push('- (no emails in the last 24 hours)');
@@ -235,6 +241,12 @@ export function renderDayBriefBlock(data: DayBriefData): string {
  * need his decision, memory proposals). Facts only; the composer words them. Each overdue line carries what a
  * real assistant would say: when it was due, how late, who has it, and when it last really changed.
  */
+/** Link T30, D3: shown only when there is something, so a quiet day adds nothing to the brief. */
+export function renderSuziUpdates(lines: string[] | null | undefined): string[] {
+  if (!lines?.length) return [];
+  return ['\n## Suzi updates (since yesterday)', ...lines.map((l) => `- ${l}`)];
+}
+
 export function renderFollowUps(f: FollowUps | null): string[] {
   const out: string[] = ['\n## Follow-ups'];
   if (!f) { out.push('- (follow-ups could not be read just now: say so)'); return out; }

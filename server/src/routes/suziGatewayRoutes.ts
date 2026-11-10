@@ -32,6 +32,7 @@ import { searchPeople } from '../services/suzi/suziPeople';
 import { suggestDelegates } from '../services/suzi/delegateSuggest';
 import { listGaps, setGapState } from '../services/suzi/suziGaps';
 import { taskHistory } from '../services/suzi/taskHistory';
+import { masterNotice, MASTER_TEXT_MAX } from '../services/suzi/masterNotice';
 import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
@@ -255,6 +256,27 @@ router.get('/gaps', async (req: Request, res: Response) => {
   } catch (err: any) {
     log.warn('gaps failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: { code: 'failed', message: 'the gap list could not be read' } });
+  }
+});
+
+/**
+ * Link T30 (Master_Charter.md §4B, G2): a line from Suzi Master for this user, relayed by Suzi's server after it
+ * checked the master's signature and mapped the device to its user. Not urgent: his next morning brief. Urgent:
+ * told now through Nexeo's normal reach. Text only.
+ */
+router.post('/master-notice', async (req: Request, res: Response) => {
+  const who = await activeUser(req, res);
+  if (!who) return;
+  const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+  if (!text || text.length > MASTER_TEXT_MAX || typeof (req.body?.urgent ?? false) !== 'boolean') {
+    res.status(400).json({ error: { code: 'bad_request', message: `text (1-${MASTER_TEXT_MAX} characters) and urgent (boolean) are required` } });
+    return;
+  }
+  try {
+    res.json(await masterNotice({ userId: who.userId, clientNumber: who.tenantId, text, urgent: req.body.urgent === true }));
+  } catch (err: any) {
+    log.warn('master notice failed', { userId: who.userId, error: err?.message });
+    res.status(500).json({ error: { code: 'failed', message: 'the notice could not be recorded' } });
   }
 });
 

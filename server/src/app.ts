@@ -28,6 +28,7 @@ import mutedSendersRoutes from './routes/mutedSendersRoutes';
 import personalContactsRoutes from './routes/personalContactsRoutes';
 import userPreferencesRoutes from './routes/userPreferencesRoutes';
 import suziRoutes from './routes/suziRoutes';
+import suziDownloadRoutes from './routes/suziDownloadRoutes';
 import suziGatewayRoutes from './routes/suziGatewayRoutes';
 import conversationRoutes from './routes/conversationRoutes';
 import profileRoutes from './routes/profileRoutes';
@@ -270,6 +271,7 @@ v1.use('/wiki', wikiRoutes);
 v1.use('/drafts', draftsRoutes);
 v1.use('/brief', briefRoutes);
 v1.use('/suzi/gateway', suziGatewayRoutes); // DEF-385: before /suzi, which requires a signed-in person
+v1.use('/suzi/download', suziDownloadRoutes); // Link T30: a short-lived link is the permission (browser downloads carry no token)
 v1.use('/suzi', suziRoutes);
 
 // Static pages — served at root for Google OAuth branding verification

@@ -17,6 +17,7 @@ import {
   SUZI_KEY_VALIDITY_DAYS, SuziGatewayError, SuziNotConfiguredError, createApiKey, disconnectDevice, listDevices,
   type SuziKeyValidity, type SuziOwner,
 } from '../services/suzi/gatewayAdminClient';
+import { INSTALLER_OS, InstallerUnavailable, installerInfo, issueLink, type InstallerOs } from '../services/suzi/suziInstaller';
 
 const router = Router();
 router.use(requireAuth);
@@ -77,6 +78,28 @@ router.get('/devices', async (req: Request, res: Response) => {
   } catch (err) {
     fail(res, err);
   }
+});
+
+// Link T30: the current installer for each system, straight from Suzi Master (version, size, sha256), and a
+// short-lived download link. available:false = Suzi Master has none yet ("not available yet").
+router.get('/installers', async (_req: Request, res: Response) => {
+  const out: Record<string, unknown> = {};
+  for (const os of INSTALLER_OS) {
+    try {
+      const info = await installerInfo(os);
+      out[os] = info ? { available: true, ...info } : { available: false };
+    } catch (err) {
+      out[os] = { available: false, error: err instanceof InstallerUnavailable ? err.message : 'Something went wrong' };
+    }
+  }
+  res.json(out);
+});
+
+router.post('/installers/:os/link', keyLimiter, (req: Request, res: Response) => {
+  const os = String(req.params.os ?? '') as InstallerOs;
+  if (!(INSTALLER_OS as readonly string[]).includes(os)) { res.status(400).json({ error: 'os is macos or windows' }); return; }
+  const { token, expiresAt } = issueLink(os);
+  res.json({ url: `/api/v1/suzi/download/${token}`, expiresAt });
 });
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
