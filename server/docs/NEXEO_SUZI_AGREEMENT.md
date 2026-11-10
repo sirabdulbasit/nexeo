@@ -285,3 +285,9 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **Then the founder,** in one joint summary covering M4, M5 and M6c, drafted by Suzi Master and checked by Nexeo.
   - **Nothing is built before that.**
   - Recorded at 19:54:37 PKT.
+- **Round 2, founder 10 Nov:** "Suzi Client will reach suzi master through Nexeo". Nexeo AGREES to Suzi Master's section 4a (154c8ed), as of 20:00:07 PKT.
+  - The master listens on 127.0.0.1:8790 only, with no public address.
+  - Nexeo relays unchanged through Apache on `tai.tmcltd.com`: `ProxyPass /suzi/master/ http://127.0.0.1:8790/ timeout=300`.
+  - The master still checks the token and the device signature itself.
+  - Nexeo never stores, caches or logs bodies, and nothing personal goes in a path or query.
+  - Nexeo's build list gains the Apache line; `GET /v1/token-key` stays on it.
