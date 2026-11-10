@@ -364,3 +364,13 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **G1:** every gap note is signed by its device's key.
   - **G2:** an urgent notice goes out at once through Nexeo's normal reach; a non-urgent one is a brief line.
   - From here on, this document is the contract for Nexeo's T30 build.
+- **BUILT and LIVE, 10 Nov, 21:17-21:19 PKT (D-189):** Nexeo's side of the charter's §4.
+  - **Suzi's server, `1d44ce9`:**
+    - `/v1/master/*` is forwarded unread to 127.0.0.1:8790, signed with Nexeo's forwarding key; the user's token is never passed on.
+    - `/master/send` and `/master/notice` accept only the master's pinned key.
+    - `/admin/installer` streams the installer for the portal.
+  - **Nexeo, `65850db`:**
+    - `POST /suzi/gateway/master-notice`: not urgent = a "Suzi updates" line in the next brief; urgent = told now.
+    - The portal's Suzi Desktop section: "Download Suzi" (latest .dmg/.exe from Suzi Master, 10-minute link) and each computer's device number.
+  - Suzi Master's 8790 listener is live (its 03ca595).
+  - **Next:** the Mac builder's client side (frames, `/v1/master/*` calls), through the founder. Then the founder marks the lead's did, and the first build goes lead-first.
