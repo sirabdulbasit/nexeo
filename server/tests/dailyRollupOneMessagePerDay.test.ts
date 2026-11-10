@@ -21,6 +21,7 @@ const waSent = vi.hoisted(() => [] as Array<{ body: string }>);
 const state = vi.hoisted(() => ({
   created: [] as any[],
   rollupOn: 1 as number,          // selfpruning.daily_rollup_enabled
+  foldOn: 1 as number,            // notify.fold_into_brief (DEF-412)
   heldRows: [] as Array<{ kind: string; summary: string }>,
   digestAlreadySent: false,
   llmText: 'Held a few items into your daily summary.',
@@ -81,6 +82,7 @@ vi.mock('../src/services/behaviorConfig', () => ({
     if (key === 'notify.office_end_hour') return 24;
     if (key === 'notify.office_days_mask') return 127;
     if (key === 'selfpruning.daily_rollup_enabled') return state.rollupOn;
+    if (key === 'notify.fold_into_brief') return state.foldOn;
     return 50;
   },
 }));
@@ -113,24 +115,35 @@ beforeEach(() => {
   waSent.length = 0;
   state.created = [];
   state.rollupOn = 1;
+  state.foldOn = 1;
   state.heldRows = [];
   state.digestAlreadySent = false;
 });
 
 describe('DEF-327 — the loud producer is held at the chokepoint, not sent', () => {
-  it('THE FALSIFIER: a draft-ask is HELD (suppressed/daily_rollup), never sent as its own email', async () => {
+  // DEF-412 (founder, 10 Nov): draft-asks are now FOLDED into the morning brief, which carries them as facts,
+  // ahead of the DEF-327 rollup. Updated knowingly in the same commit: held, recorded, never its own email.
+  it('THE FALSIFIER: a draft-ask is HELD (folded into the morning brief), never sent as its own email', async () => {
     const res = await contact();
     expect(res.sent).toBe(false);
     const row = state.created.find((r) => r.kind === 'open_item_draft_ask');
     expect(row.status).toBe('suppressed');
-    expect(row.metadata.suppressReason).toBe('daily_rollup');
-    // suppressedBy=budget so the DEF-277 digest counts it as owed to him.
-    expect(row.metadata.suppressedBy).toBe('budget');
+    expect(row.metadata.suppressReason).toBe('folded_into_brief');
+    // Not `budget`: the brief carries it, so the DEF-277 receipt must not also announce it.
+    expect(row.metadata.suppressedBy).toBe('folded_into_brief');
     // No individual draft-ask text reached WhatsApp.
     expect(waSent.every((m) => !m.body.includes('What deadline'))).toBe(true);
   });
 
-  it('the held draft-ask fires the ONE daily receipt — the DEF-277 suppression digest', async () => {
+  it('DEF-412: a folded draft-ask sends NO receipt ("I held some notifications…", CL-070) and nothing reaches him', async () => {
+    await contact();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(state.created.some((r) => r.kind === SUPPRESSION_DIGEST_KIND)).toBe(false);
+    expect(waSent).toHaveLength(0);
+  });
+
+  it('with the fold switched off, the DEF-327 rollup and its ONE daily receipt still work', async () => {
+    state.foldOn = 0;
     state.heldRows = [
       { kind: 'open_item_draft_ask', summary: 'deadline for A' },
       { kind: 'open_item_draft_ask', summary: 'deadline for B' },
@@ -150,7 +163,7 @@ describe('DEF-327 — the loud producer is held at the chokepoint, not sent', ()
       state.created = [];
       const res = await contact({ kind });
       expect(res.sent, kind).toBe(false);
-      expect(state.created.find((r) => r.kind === kind).metadata.suppressReason).toBe('daily_rollup');
+      expect(state.created.find((r) => r.kind === kind).metadata.suppressReason).toBe('folded_into_brief');
     }
   });
 
@@ -169,9 +182,12 @@ describe('DEF-327 — the guards it must never reach', () => {
     expect(waSent.some((m) => m.body.includes('Hi from Hamna'))).toBe(true);
   });
 
-  it('a HIGH-urgency housekeeping escalation is never held', async () => {
+  // DEF-412 changed this knowingly: overdue reminders arrive as `high` (preactiveEngine), and the founder asked
+  // for them in one daily message, so the fold holds high too. Only an emergency goes at once.
+  it('a HIGH-urgency housekeeping message is folded into the brief too (DEF-412); only emergency goes at once', async () => {
     const res = await contact({ urgency: 'high' });
-    expect(res.sent).toBe(true);
+    expect(res.sent).toBe(false);
+    expect(state.created.find((r) => r.kind === 'open_item_draft_ask').metadata.suppressReason).toBe('folded_into_brief');
   });
 
   it('an EMERGENCY escalation is never held', async () => {
@@ -186,6 +202,7 @@ describe('DEF-327 — the guards it must never reach', () => {
 
   it('the switch OFF restores the old behaviour — the draft-ask flows to the tier cap and sends', async () => {
     state.rollupOn = 0;
+    state.foldOn = 0;
     const res = await contact();
     expect(res.sent).toBe(true); // held nowhere; below the 50% housekeeping budget with count=0
     expect(state.created.find((r) => r.kind === 'open_item_draft_ask')?.metadata?.suppressReason).toBeUndefined();

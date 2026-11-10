@@ -197,6 +197,36 @@ const DEFAULT_DAILY_CAP = 20;
  */
 export const HUMAN_KINDS = new Set(['wa_counterpart_message']);
 
+/**
+ * DEF-412 (CL-069, CL-070; founder 10 Nov, "go with your recommendations"): one daily message instead of a
+ * stream. These follow-ups no longer go out one by one: the morning brief carries them as facts (its
+ * Follow-ups section, views/followUps.ts), so each one is held here, recorded, and never retried.
+ * Named explicitly, by kind or by the queue producer's `source`: anything not listed still goes at once,
+ * so a new kind of message is never silently held. An emergency is never held.
+ */
+export const FOLD_INTO_BRIEF_KINDS = new Set([
+  'open_item_draft_ask', 'open_item_overdue', 'brain_health_alert', 'brain_daily_digest',
+]);
+export const FOLD_INTO_BRIEF_SOURCES = new Set([
+  'preactive_due_nudge',          // "… is now overdue. Shall I push the due date …"
+  'action_lifecycle_governor',    // "Intervention needed on …", deadline and status asks
+  'learn_proposal_digest',        // "N memory proposals waiting for your approval"
+  'inbound_noise_report', 'open_items_backlog_cleanup', 'trust_promotion', 'stale_connector_ping',
+  'delegation_recovery', 'delivery_ack', 'producer_sweep',
+]);
+export const FOLDED_INTO_BRIEF = 'folded_into_brief';
+
+export function foldsIntoBrief(req: { kind: string; urgency?: Urgency; metadata?: Record<string, unknown> }): boolean {
+  if (req.urgency === 'emergency') return false;
+  if (FOLD_INTO_BRIEF_KINDS.has(req.kind)) return true;
+  return req.kind === 'brain_prompt' && FOLD_INTO_BRIEF_SOURCES.has(String((req.metadata as any)?.source ?? ''));
+}
+
+/** DEF-412: email goes out at once only for something urgent, or the morning brief itself when WhatsApp failed. */
+export function emailsWhenWhatsAppFails(req: { kind: string; urgency?: Urgency }): boolean {
+  return req.urgency === 'high' || req.urgency === 'emergency' || req.kind === 'day_brief' || req.kind === 'day_brief_manual';
+}
+
 /** Share of the daily cap that non-human kinds may never consume: 25% of the
  *  default 20 = five slots held for people. Override per user with the
  *  `notify.human_reserve_pct` behaviour key. */
@@ -481,6 +511,20 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
   // Gated on the same `selfpruning.daily_rollup_enabled` switch DEF-325 used,
   // so no tenant's cadence changes without the opt-in already in place; a high
   // or emergency escalation of a housekeeping kind is never held.
+  // DEF-412: held for the morning brief, which carries it as a fact. Recorded, terminal, no receipt message.
+  if (!req.bypassRateLimit && foldsIntoBrief({ kind: req.kind, urgency, metadata: req.metadata })
+      && await (async () => {
+        const { getBehaviorValue } = await import('../behaviorConfig');
+        return (await getBehaviorValue('notify.fold_into_brief', { userId: user.id, clientNumber: user.clientNumber }).catch(() => 1)) !== 0;
+      })()) {
+    log.info('folded into the morning brief', { userId: user.id, kind: req.kind, source: (req.metadata as any)?.source ?? null });
+    return record({
+      ...req, user, channel: 'text', urgency,
+      status: 'suppressed', summary: req.summary,
+      metadata: { ...(req.metadata ?? {}), suppressedBy: FOLDED_INTO_BRIEF, suppressReason: FOLDED_INTO_BRIEF },
+    }, 'folded into the morning brief');
+  }
+
   if (
     HOUSEKEEPING_KINDS.has(req.kind)
     && urgency !== 'high' && urgency !== 'emergency'
@@ -966,7 +1010,7 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
   //   - User has an email address on file
   //   - Not an admin_test / smoke run (metadata check)
   // Body is plain-text; the recipient's mail client renders it.
-  if (channelsUsed.length === 0 && user.email && req.kind !== 'admin_test_brain') {
+  if (channelsUsed.length === 0 && user.email && req.kind !== 'admin_test_brain' && emailsWhenWhatsAppFails({ kind: req.kind, urgency })) {
     try {
       const { sendUserEmail } = await import('../gmailService');
       // DEF-324 `bracketed-marker-leak` — the subject is an owner-facing
@@ -975,13 +1019,7 @@ export async function brainContactsUser(req: BrainContactRequest): Promise<Brain
       // costume); DEF-332 moved recognition to the recorded gmail id, so
       // the costume retires. The kind still rides the audit row + metadata.
       const emailSubject = req.summary.slice(0, 200);
-      const emailBody = [
-        `<div style="font-family: -apple-system, system-ui, sans-serif;">`,
-        `<p><em>Delivered via email fallback — WhatsApp channel unavailable.</em></p>`,
-        `<hr />`,
-        `<div style="white-space: pre-wrap;">${whatsAppToEmailHtml(req.body)}</div>`,
-        `</div>`,
-      ].join('\n');
+      const emailBody = assistantEmailHtml(emailSubject, req.body);
       const emailResult = await sendUserEmail(user.id, user.email, emailSubject, emailBody);
       if (emailResult.success) {
         channelsUsed.push('email');
@@ -1398,7 +1436,7 @@ export async function emailHeldItem(i: { userId: number; clientNumber: string; k
     const { sendUserEmail } = await import('../gmailService');
     const { scrubSyntheticIdentities } = await import('../whatsapp/displayIdentity');
     const body = await scrubSyntheticIdentities(i.body, i.clientNumber);
-    const html = `<div style="font-family: -apple-system, system-ui, sans-serif;"><div style="white-space: pre-wrap;">${escapeHtml(body)}</div></div>`;
+    const html = assistantEmailHtml(i.summary.slice(0, 200), body);
     const sent = await sendUserEmail(user.id, user.email, i.summary.slice(0, 200), html);
     if (!sent.success) { log.warn('held item email failed', { userId: i.userId, kind: i.kind, error: sent.error }); return false; }
     await record({
@@ -1600,4 +1638,21 @@ export function whatsAppToEmailHtml(body: string): string {
     .replace(/(^|[\s(])\*([^*\n]+?)\*(?=$|[\s.,;:!?)])/gm, '$1<strong>$2</strong>')
     .replace(/(^|[\s(])_([^_\n]+?)_(?=$|[\s.,;:!?)])/gm, '$1<em>$2</em>')
     .replace(/(^|[\s(])~([^~\n]+?)~(?=$|[\s.,;:!?)])/gm, '$1<s>$2</s>');
+}
+
+/**
+ * DEF-412 (CL-069: "the content and presentation of email should be professional like a real assistant
+ * sending"). One layout for every email Nexeo sends him: a title, the message with WhatsApp emphasis turned
+ * into formatting, and a quiet footer saying why it came by email, instead of a banner above everything.
+ */
+export function assistantEmailHtml(title: string, body: string): string {
+  return [
+    `<div style="font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1f2933; max-width: 640px; line-height: 1.5;">`,
+    `<div style="font-size: 13px; letter-spacing: .04em; text-transform: uppercase; color: #6b7280;">Nexeo · your assistant</div>`,
+    `<h2 style="font-size: 18px; font-weight: 600; margin: 6px 0 14px;">${escapeHtml(title)}</h2>`,
+    `<div style="white-space: pre-wrap; font-size: 15px;">${whatsAppToEmailHtml(body)}</div>`,
+    `<hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 22px 0 10px;" />`,
+    `<div style="font-size: 12px; color: #6b7280;">Sent by email because WhatsApp couldn't be reached. Reply on WhatsApp or tell Suzi to act on it.</div>`,
+    `</div>`,
+  ].join('\n');
 }

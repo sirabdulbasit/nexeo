@@ -30,6 +30,7 @@ import prisma from '../../db/prisma';
 import { getOpenItems, type OpenItemRow } from './openItems';
 import { getAttentionSurface, type AttentionRow } from './attention';
 import { getTodayCalendar, type CalendarEventRow } from './calendar';
+import { getFollowUps, type FollowUps } from './followUps';
 
 export interface DayBriefData {
   /** When this brief was assembled — useful for stale-data hints. */
@@ -56,6 +57,9 @@ export interface DayBriefData {
   }>;
   /** Recent inbound WhatsApp (last 24h, capped 10), with known-contact
    *  resolution. Unknown senders labelled. */
+  /** DEF-412 (CL-069/CL-070): what used to arrive as separate nudges during the day, as facts. Null when it
+   *  couldn't be read, so the brief says so instead of reporting "nothing". */
+  followUps: FollowUps | null;
   recentWhatsApp: Array<{
     fromName: string;          // resolved contact title or '(not in contacts)'
     fromPhone: string;
@@ -85,7 +89,7 @@ export async function getDayBrief(args: {
   const generatedAt = new Date();
   const localDate = formatLocalDate(timezone, generatedAt);
 
-  const [calendar, openItems, attention, emails, waMsgs] = await Promise.all([
+  const [calendar, openItems, attention, emails, waMsgs, followUps] = await Promise.all([
     getTodayCalendar({ clientNumber, userId, opts: { timezone } }).catch(() => [] as CalendarEventRow[]),
     getOpenItems({ clientNumber, userId, opts: { limit: opts?.openItemsCap ?? 20 } }).catch(() => [] as OpenItemRow[]),
     getAttentionSurface({ clientNumber, userId, opts: { limit: opts?.attentionCap ?? 30 } }).catch(() => [] as AttentionRow[]),
@@ -112,6 +116,7 @@ export async function getDayBrief(args: {
         ORDER BY created_at DESC LIMIT 10`,
       clientNumber, userId,
     ).catch(() => [] as any[]),
+    getFollowUps({ clientNumber, userId, timezone, now: generatedAt }).catch(() => null),
   ]);
 
   // Resolve WA phones to known-contact names.
@@ -137,6 +142,7 @@ export async function getDayBrief(args: {
     calendar,
     openItems,
     attention,
+    followUps,
     recentEmails: emails.map((r) => {
       const unwrap = r.sender_email?.match(/<([^>]+)>/)?.[1] ?? r.sender_email ?? '';
       return {
@@ -201,6 +207,8 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   }
   if (data.openItems.length > 10) parts.push(`- … and ${data.openItems.length - 10} more open items`);
 
+  parts.push(...renderFollowUps(data.followUps));
+
   parts.push(`\n## Recent emails — last 24h (${data.recentEmails.length})`);
   if (data.recentEmails.length === 0) parts.push('- (no emails in the last 24 hours)');
   else for (const e of data.recentEmails.slice(0, 5)) {
@@ -220,4 +228,27 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   if (data.recentWhatsApp.length > 5) parts.push(`- … and ${data.recentWhatsApp.length - 5} more messages`);
 
   return parts.join('\n');
+}
+
+/**
+ * DEF-412: the follow-ups that no longer go out one by one during the day (overdue reminders, items that
+ * need his decision, memory proposals). Facts only; the composer words them. Each overdue line carries what a
+ * real assistant would say: when it was due, how late, who has it, and when it last really changed.
+ */
+export function renderFollowUps(f: FollowUps | null): string[] {
+  const out: string[] = ['\n## Follow-ups'];
+  if (!f) { out.push('- (follow-ups could not be read just now: say so)'); return out; }
+  out.push(`### Overdue (${f.overdue.length})`);
+  if (!f.overdue.length) out.push('- (nothing overdue)');
+  for (const o of f.overdue) {
+    out.push(`- ${o.title} · due ${o.due} (${o.daysOverdue} day${o.daysOverdue === 1 ? '' : 's'} overdue) · ${o.withWhom === 'you' ? 'with you' : `with ${o.withWhom}`} · ${o.lastChange ? `last real change ${o.lastChange}` : 'no change recorded'}`);
+  }
+  if (f.overdueTotal > f.overdue.length) out.push(`- … and ${f.overdueTotal - f.overdue.length} more overdue`);
+  out.push(`### Needs your decision (${f.needsDecision.length})`);
+  if (!f.needsDecision.length) out.push('- (nothing waiting on a decision)');
+  for (const d of f.needsDecision) out.push(`- ${d.title}${d.reason ? ` · ${d.reason}` : ''}`);
+  if (f.memoryProposalsWaiting !== null && f.memoryProposalsWaiting > 0) {
+    out.push(`### Memory proposals waiting for approval: ${f.memoryProposalsWaiting} (Settings → Brain Memories)`);
+  }
+  return out;
 }

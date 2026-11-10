@@ -127,9 +127,9 @@ describe('DEF-377 — brainContactsUser also tells Suzi', () => {
   });
 
   it('a Suzi failure changes nothing about the result Nexeo returns', async () => {
-    const ok = await brainContactsUser({ ...base, kind: 'brain_prompt', dedupKey: null, metadata: { source: 'preactive_due_nudge' } });
+    const ok = await brainContactsUser({ ...base, kind: 'brain_prompt', dedupKey: null, metadata: { source: 'preactive_meeting_prep' } });
     tellBehaviour.reject = true;
-    const again = await brainContactsUser({ ...base, kind: 'brain_prompt', body: 'Another reminder.', dedupKey: null, metadata: { source: 'preactive_due_nudge' } });
+    const again = await brainContactsUser({ ...base, kind: 'brain_prompt', body: 'Another reminder.', dedupKey: null, metadata: { source: 'preactive_meeting_prep' } });
     await flush();
     expect(ok.sent).toBe(true);
     expect(again.sent).toBe(true);
@@ -137,7 +137,7 @@ describe('DEF-377 — brainContactsUser also tells Suzi', () => {
   });
   it('a failed send (WhatsApp down, no fallback) is not told: the queue retries it and Suzi would repeat itself', async () => {
     state.waFails = true;
-    const r = await brainContactsUser({ ...base, kind: 'brain_prompt', dedupKey: null, metadata: { source: 'preactive_due_nudge' } });
+    const r = await brainContactsUser({ ...base, kind: 'brain_prompt', dedupKey: null, metadata: { source: 'preactive_meeting_prep' } });
     await flush();
     if (r.sent) throw new Error(`expected a failed send in this harness, got ${JSON.stringify(r)}`);
     expect(told).toHaveLength(0);
@@ -151,7 +151,7 @@ describe('DEF-377 — brainContactsUser also tells Suzi', () => {
   });
 
   it('third-party provenance is passed through, and synthetic @lid numbers are scrubbed before Suzi hears them', async () => {
-    await brainContactsUser({ ...base, kind: 'brain_prompt', provenance: 'quoted_third_party', body: 'Ahmed (+123456789012345) has not replied.', dedupKey: null, metadata: { source: 'preactive_due_nudge' } });
+    await brainContactsUser({ ...base, kind: 'brain_prompt', provenance: 'quoted_third_party', body: 'Ahmed (+123456789012345) has not replied.', dedupKey: null, metadata: { source: 'preactive_meeting_prep' } });
     await flush();
     expect(told).toHaveLength(1);
     expect(told[0].msg.provenance).toBe('quoted_third_party');

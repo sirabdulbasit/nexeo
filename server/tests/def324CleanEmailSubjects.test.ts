@@ -97,7 +97,8 @@ describe('DEF-324 — the owner-facing subject carries no internal token', () =>
   it('THE LEAK, closed: the fallback email subject is the summary — no [kind] prefix', async () => {
     const res = await brainContactsUser({
       userId: 2, clientNumber: 'TMC-0001',
-      kind: 'open_item_draft_ask', urgency: 'normal',
+      // DEF-412: only something urgent is emailed at once when WhatsApp fails, so the leak is pinned on one.
+      kind: 'connector_stale', urgency: 'high',
       summary: 'What deadline for the Fujairah pricing?',
       body: 'What deadline should I put on this?',
       dedupKey: `draft-ask-${Math.floor(Math.random() * 1e9)}`,
@@ -105,14 +106,14 @@ describe('DEF-324 — the owner-facing subject carries no internal token', () =>
     expect(state.emails).toHaveLength(1);
     expect(state.emails[0].subject).toBe('What deadline for the Fujairah pricing?');
     expect(state.emails[0].subject).not.toMatch(/^\[/);
-    expect(state.emails[0].subject).not.toContain('open_item_draft_ask');
+    expect(state.emails[0].subject).not.toContain('connector_stale');
     expect(res.channelsUsed).toContain('email');
   });
 
   it("DEF-332's receipt rides the same send: the gmail id is on the audit row, and the kind is not lost", async () => {
     await brainContactsUser({
       userId: 2, clientNumber: 'TMC-0001',
-      kind: 'brain_prompt', urgency: 'normal',
+      kind: 'brain_prompt', urgency: 'high',
       summary: 'Hamna Latif Bhutta replied',
       body: 'Hamna replied to your note.',
       dedupKey: `bp-${Math.floor(Math.random() * 1e9)}`,
@@ -122,5 +123,15 @@ describe('DEF-324 — the owner-facing subject carries no internal token', () =>
     expect(sent.metadata.gmailMessageId).toBe('gm-sent-42');
     expect(sent.metadata.rfc822MessageId).toBe('<nexeo-fixed@tmcltd.ai>'); // the copy-invariant key rides the same row
     expect(sent.kind).toBe('brain_prompt'); // the ledger keeps the kind; only the subject lost it
+  });
+
+  it('DEF-412: a non-urgent message is NOT emailed one by one when WhatsApp fails', async () => {
+    const before = state.emails.length;
+    const res = await brainContactsUser({
+      userId: 2, clientNumber: 'TMC-0001', kind: 'brain_prompt', urgency: 'normal',
+      summary: 'Routine update', body: 'A routine update.', dedupKey: `bp-${Math.floor(Math.random() * 1e9)}`,
+    });
+    expect(state.emails.length).toBe(before);
+    expect(res.channelsUsed).not.toContain('email');
   });
 });

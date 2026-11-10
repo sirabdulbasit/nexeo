@@ -958,6 +958,11 @@ export async function sendNextPrompt(userId: number, clientNumber: string): Prom
           lastSuppressedReason: r.reason ?? 'unknown',
         } as any,
       }),
+      // DEF-412: folded into the morning brief is final, not a failure to retry.
+      ...(!r.sent && r.suppressedBy === 'folded_into_brief' ? {
+        state: 'skipped',
+        metadata: { ...((promoted.metadata as any) ?? {}), foldedIntoBrief: true } as any,
+      } : {}),
     },
   });
 
