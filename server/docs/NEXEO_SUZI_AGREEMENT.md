@@ -321,3 +321,14 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **Installer:** stored on the gateway (C4), about 1.7 GB.
   - **Still open:** the founder's items 1, 2 and 3b, then the Mac builder's AGREE to round 3's client part, sent through the founder.
   - The mirror was re-copied at 20:14:11 PKT.
+- **Round 4, founder 10 Nov (relayed by Suzi Master, section 4c, 952e16d):** who approves a build depends on where it comes from and on its kind. Nexeo AGREES with D1-D3, as of 20:47:08 PKT.
+  - **The routes:**
+    - From the lead, bug or feature: his voice-verified yes is the approval. The build goes to the lead, he approves it there, then it goes to all.
+    - A bug from another client: that client's user says yes, and the fix goes straight to all.
+    - A feature from another client: that client's user says yes, he approves it on the lead, it is built, he tests it on the lead and approves, then it goes to all.
+    - T1-T4 cover the labels, the build route, feature notes reaching the lead, and the safety that all_now keeps.
+  - **Nexeo's changes:**
+    - **D1:** anything touching cost, privacy, sends or a new reach channel is lead_first, whatever its label.
+    - **D2:** Nexeo halts an all_now build by itself when 2 devices, or 10% of those offered, report failed or rolled_back.
+    - **D3:** each all_now release is listed in his next morning brief, for information only.
+  - **Answers:** one `approval.ask` frame with kinds own_note, feature_note and lead_build; one `approval.answer` act op; feed items `feature_decision`, `lead_build_decision` and the step `halted_by_failures`.
