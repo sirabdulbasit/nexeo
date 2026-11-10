@@ -306,3 +306,11 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
   - **N1a** (Nexeo's addition): anything not yet acked is kept, never dropped. After 24 h with nothing acked, the founder is told once.
   - **Founder summary:** `/var/www/suzi/protocol/Founder_Summary_T30.md`, checked OK. It asks him five things: 0 (confirm the round-3 ruling), 1, 2, 3a (automatic vs his yes) and 3b.
   - **Master public key** (Ed25519, raw base64), to be pinned in the gateway config at build time: `GsMvtB/RB/jt0zQ8YPyIFxJQQDIOTEnAc+VwkfO5y1E=`.
+- **20:07 PKT: the Suzi Client (Mac) builder's answer, forwarded by the founder.**
+  - **Agreed:** items 1-8 of T30. These were written against round 2: the client talks to the master at `tai.tmcltd.com/suzi/master` through Nexeo's relay.
+  - **Founder rulings it carries:**
+    - R1: clients reach the master through that relay.
+    - R2: no automatic go-ahead; the founder's own voice-verified yes on the lead sends a build to everyone. This answers 3a.
+    - R3: once Suzi Master is established, the link is no longer used, and until then builder messages go through the founder.
+  - **Conflict:** R1 conflicts with round 3 as Suzi Master relayed it (clients and master talk only to Nexeo; Nexeo hands builds out). The founder must pick round 2 or round 3. Nexeo recommends round 2. Nothing is built until he picks.
+  - **Ask D:** an installer page on the portal, linking to the master's file. The cost line is in the reply.
