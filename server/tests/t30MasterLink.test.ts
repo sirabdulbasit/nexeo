@@ -16,7 +16,10 @@ vi.mock('../src/services/notifications/brainOutboundService', () => ({ brainCont
 
 import { masterNotice, masterLinesForBrief, MASTER_LINE_KIND, MASTER_ALERT_KIND } from '../src/services/suzi/masterNotice';
 import { renderSuziUpdates } from '../src/services/views/dayBrief';
-import { issueLink, redeemLink, parseInstallerHeader, installerFetch, InstallerUnavailable, LINK_TTL_MS } from '../src/services/suzi/suziInstaller';
+import { issueLink, redeemLink, parseInstallerHeader, installerFetch, installerInfo, InstallerUnavailable, LINK_TTL_MS } from '../src/services/suzi/suziInstaller';
+import { mkdtempSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 beforeEach(() => { create.mockReset(); findMany.mockReset(); contact.mockReset(); contact.mockResolvedValue({ sent: true }); });
 
@@ -60,6 +63,30 @@ describe('the installer', () => {
     expect(redeemLink(token, t0 + 2000)).toBe('windows');
     expect(redeemLink(token, t0 + LINK_TTL_MS)).toBeNull();
     expect(redeemLink('made-up', t0)).toBeNull();
+  });
+  it('the description is read with a one-byte GET, never HEAD (Suzi Master answers HEAD with 501)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 't30-'));
+    writeFileSync(join(dir, 's'), 'x'.repeat(40));
+    process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE = join(dir, 's');
+    process.env.SUZI_GATEWAY_IN_TESTS = '1';
+    try {
+      const d = { os: 'macos', version: '1.1.0', file: 'Suzi-1.1.0-arm64.dmg', sha256: 'cc'.repeat(32), size: 243742941, made: '2026-11-11', sig: 'x' };
+      const calls: any[] = [];
+      const f = (async (url: string, init: any) => {
+        calls.push({ url, init });
+        if (init.method !== 'GET') return new Response('<html>501</html>', { status: 501 });
+        return new Response('A', { status: 206, headers: { 'x-installer': Buffer.from(JSON.stringify(d)).toString('base64') } });
+      }) as unknown as typeof fetch;
+      expect(await installerInfo('macos', f)).toMatchObject({ version: '1.1.0', file: 'Suzi-1.1.0-arm64.dmg', size: 243742941 });
+      expect(calls[0].init.method).toBe('GET');
+      expect(calls[0].init.headers.Range).toBe('bytes=0-0');
+      expect(calls[0].init.signal).toBeDefined();
+      const none = (async () => new Response('no', { status: 404 })) as unknown as typeof fetch;
+      expect(await installerInfo('windows', none)).toBeNull();
+    } finally {
+      delete process.env.SUZI_GATEWAY_ADMIN_SECRET_FILE;
+      delete process.env.SUZI_GATEWAY_IN_TESTS;
+    }
   });
   it('a test run never reaches the live server', async () => {
     await expect(installerFetch('macos', 'HEAD')).rejects.toBeInstanceOf(InstallerUnavailable);

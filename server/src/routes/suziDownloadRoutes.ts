@@ -6,7 +6,7 @@
  */
 import { Router, Request, Response } from 'express';
 import { Readable } from 'stream';
-import { InstallerUnavailable, installerFetch, redeemLink } from '../services/suzi/suziInstaller';
+import { InstallerUnavailable, installerFetch, parseInstallerHeader, redeemLink } from '../services/suzi/suziInstaller';
 
 const router = Router();
 const PASS = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'etag', 'last-modified', 'x-installer'];
@@ -21,7 +21,10 @@ router.get('/:token', async (req: Request, res: Response) => {
     res.status(r.status);
     for (const h of PASS) { const v = r.headers.get(h); if (v) res.setHeader(h, v); }
     const cd = r.headers.get('content-disposition');
-    res.setHeader('content-disposition', cd ?? `attachment; filename="${os === 'macos' ? 'Suzi.dmg' : 'Suzi-Setup.exe'}"`);
+    // Suzi Master names the file in its signed description, not in Content-Disposition.
+    const named = parseInstallerHeader(os, r.headers.get('x-installer'))?.file;
+    const file = named && /^[\w.-]{1,120}$/.test(named) ? named : os === 'macos' ? 'Suzi.dmg' : 'Suzi-Setup.exe';
+    res.setHeader('content-disposition', cd ?? `attachment; filename="${file}"`);
     res.setHeader('cache-control', 'no-store');
     const body = Readable.fromWeb(r.body as any);
     body.on('error', () => res.destroy());

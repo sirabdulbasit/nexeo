@@ -27,7 +27,7 @@ async function secret(): Promise<string> {
 }
 
 /** One call to Suzi's server for the installer. GET streams; nothing is buffered here. */
-export async function installerFetch(os: InstallerOs, method: 'GET' | 'HEAD', range?: string, fetchImpl: typeof fetch = fetch): Promise<Response> {
+export async function installerFetch(os: InstallerOs, method: 'GET' | 'HEAD', range?: string, fetchImpl: typeof fetch = fetch, timeoutMs?: number): Promise<Response> {
   // DEF-377: a test run never reaches the live server on this box.
   if (process.env.VITEST && process.env.SUZI_GATEWAY_IN_TESTS !== '1') throw new InstallerUnavailable('the live Suzi gateway is never called from a test run');
   const headers: Record<string, string> = { Authorization: `Bearer ${await secret()}` };
@@ -35,7 +35,7 @@ export async function installerFetch(os: InstallerOs, method: 'GET' | 'HEAD', ra
   try {
     return await fetchImpl(`${env.suziGatewayAdminUrl}/admin/installer?os=${os}`, {
       method, headers, redirect: 'manual',
-      ...(method === 'HEAD' ? { signal: AbortSignal.timeout(env.suziGatewayTimeoutMs) } : {}),
+      ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
     });
   } catch {
     throw new InstallerUnavailable('Suzi server could not be reached');
@@ -54,8 +54,13 @@ export function parseInstallerHeader(os: InstallerOs, h: string | null): Install
   }
 }
 
+/**
+ * The description of the current installer. Read with a one-byte GET, never HEAD: the charter's route is GET
+ * (§4A) and Suzi Master answers HEAD with 501 (seen live 2026-11-11). The one byte is thrown away.
+ */
 export async function installerInfo(os: InstallerOs, fetchImpl: typeof fetch = fetch): Promise<InstallerInfo | null> {
-  const r = await installerFetch(os, 'HEAD', undefined, fetchImpl);
+  const r = await installerFetch(os, 'GET', 'bytes=0-0', fetchImpl, env.suziGatewayTimeoutMs);
+  await r.body?.cancel().catch(() => undefined);
   if (r.status === 404) return null;
   if (r.status === 503) throw new InstallerUnavailable('Suzi Master cannot be reached right now');
   if (!r.ok) throw new InstallerUnavailable('Suzi server returned an error');
