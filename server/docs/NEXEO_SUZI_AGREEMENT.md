@@ -393,3 +393,36 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
     - **C4:** no user data goes to the master.
   - **Order:** Suzi Master accepts both forms first, then Nexeo deploys.
   - **Waiting on:** Suzi Master's AGREE to C1-C3, and the founder's yes given in Nexeo's own session.
+
+## F-2: brief by sections, act on every item (AGREED, founder 11 Nov 2026, 17:49 PKT)
+
+Proposed by Suzi Master on 11 Nov at about 17:50 PKT, at the founder's request. Both sides aligned on the technical text. The founder's own yes, in Nexeo's session: *"agreed F-2"*.
+
+Rules that delegate automatically follow option (a), which both sides recommended: prepare and hold, nothing sent without his yes.
+
+Suzi's side is the flow, the cards and the voice. Nexeo's side is the ops below, all through `/v1/act`:
+
+- **F-2.1 `task.create`:** fields {title, due?, person_id?, note?, source?: {email_id|meeting_id}}.
+  - With a person_id, the task is assigned and that person is told (T21).
+- **F-2.2 `task.update` "forward":** fields {person_id, note?}. Reassigns the task and tells the person. "assign" stays silent.
+- **F-2.3 `email.delegate`:** fields {email_id, person_id, note?}.
+  - Runs email.forward through the email.send gate: signed, voice_score, T22 switch, held 10 seconds.
+  - The task is created only once the forward has gone out.
+  - While held, the item is {state: "held", undo_until}. Once sent, it is {forwarded: true, task_id}.
+- **F-2.4 `rule.set` / `rule.remove`:** fields {kind: email_delegate|email_ignore, match: {by: sender|domain|subject, value}, person_id?, note?}. Returns {rule_id, rules_version}.
+  - email_ignore marks a matching email handled and sends nothing.
+  - email_delegate prepares and holds. The brief shows "ready to delegate to X by your rule", and one signed, voiced yes sends the batch.
+  - Only he sets rules on his own mailbox.
+  - A subject match is a case-insensitive substring.
+- **F-2.5 pack `emails[].by_rule`:** fields {action: ready|delegated|ignored, rule_id, person_name?, task_id?, at}. These emails are listed apart from those needing a reply.
+- **F-2.6 `calendar.update` / `calendar.cancel`:**
+  - Only for events he organises; anything else gets 409 not_organizer.
+  - Signed + voice_score for a cancel, or for any change once anyone else is invited.
+  - A title or note edit with nobody else invited is unsigned.
+  - Calendar write scope comes with his Google reconnect.
+  - Declining an invitation is a later op, not part of F-2.
+- **F-2.7 style for `email.draft`:** up to 3 of his own sent replies as examples.
+  - Read live from Gmail's SENT label: the same sender first, then the same domain.
+  - Quoted history stripped, each capped at 1,500 characters.
+  - Nothing stored at Nexeo. If his own AI drafts, the examples come as `style_examples`.
+- **Rollout:** an op Nexeo does not have yet answers 400 unknown_op, and Suzi shows "needs Nexeo". Each side ships in its own time.
