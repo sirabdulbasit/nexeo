@@ -100,11 +100,11 @@ export default function WhatsAppMergedTab({ msg, setMsg }) {
           </thead>
           <tbody>
             <tr><td style={cellStyle}>Brain → user</td><td style={cellStyle}>✅</td><td style={cellStyle}>✅ (Meta only)</td><td style={cellStyle}>✅ Business Calling API + tap-to-call CTA fallback</td></tr>
-            <tr><td style={cellStyle}>User → Brain</td><td style={cellStyle}>✅</td><td style={cellStyle}>✅ (transcribe → Brain → voice reply)</td><td style={cellStyle}><span style={{ color: '#f59e0b' }}>⚠️ inbound call routing not yet built</span></td></tr>
+            <tr><td style={cellStyle}>User → Brain</td><td style={cellStyle}>✅</td><td style={cellStyle}>✅ (transcribe → Brain → voice reply)</td><td style={cellStyle}><span style={{ color: 'var(--s-f59e0b)' }}>⚠️ inbound call routing not yet built</span></td></tr>
           </tbody>
         </table>
         <div style={{ marginTop: 6 }}>
-          <strong style={{ color: '#f59e0b' }}>Inbound voice call:</strong> when a user dials the
+          <strong style={{ color: 'var(--s-f59e0b)' }}>Inbound voice call:</strong> when a user dials the
           tenant number, the call rings to whoever physically holds the SIM. Auto-answer with a
           live voice bot (real-time STT/LLM/TTS) is a separate workstream — flag it when
           prioritised and we'll wire the Meta Calling webhook + bot pipeline.
@@ -260,7 +260,7 @@ function ChannelChip({ title, subtitle, live, detail, onPick, selected }) {
       style={{
         textAlign: 'left', cursor: 'pointer',
         padding: '12px 14px', border: '1px solid ' + (selected ? 'var(--accent)' : 'var(--border)'),
-        background: selected ? 'rgba(255,135,30,0.06)' : 'var(--panel, #141a22)',
+        background: selected ? 'rgba(255,135,30,0.06)' : 'var(--panel, var(--n-141a22))',
         borderRadius: 'var(--r-md)', color: 'var(--text)',
         display: 'flex', flexDirection: 'column', gap: 4,
       }}
@@ -274,8 +274,8 @@ function ChannelChip({ title, subtitle, live, detail, onPick, selected }) {
         <div style={{ flex: 1 }} />
         <span style={{
           fontSize: 11, padding: '1px 6px', borderRadius: 4,
-          background: live ? 'rgba(34,197,94,0.18)' : 'rgba(152,160,168,0.16)',
-          color: live ? '#9bd9a0' : 'var(--text-muted)',
+          background: live ? 'rgba(34,197,94,0.18)' : 'rgba(var(--n-98a0a8-rgb),0.16)',
+          color: live ? 'var(--s-9bd9a0)' : 'var(--text-muted)',
           textTransform: 'uppercase', letterSpacing: '.3px', fontWeight: 600,
         }}>{live ? 'live' : 'offline'}</span>
       </div>

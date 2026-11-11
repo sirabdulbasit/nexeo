@@ -27,9 +27,9 @@ import api from '../services/api';
  */
 
 const PROVIDERS = [
-  { id: 'claude', label: 'Claude', dot: '#a855f7' },
-  { id: 'gemini', label: 'Gemini', dot: '#3b82f6' },
-  { id: 'vertex', label: 'Vertex AI', dot: '#60a5fa' },
+  { id: 'claude', label: 'Claude', dot: 'var(--s-a855f7)' },
+  { id: 'gemini', label: 'Gemini', dot: 'var(--s-3b82f6)' },
+  { id: 'vertex', label: 'Vertex AI', dot: 'var(--s-60a5fa)' },
 ];
 
 export default function AiProviderPanel() {
@@ -116,7 +116,7 @@ export default function AiProviderPanel() {
                 // Colour from the theme, never literals — so this follows the
                 // dark UI it sits in, and any future theme change.
                 background: on ? 'var(--bg-active, var(--bg-hover))' : 'var(--bg-input)',
-                border: `1px solid ${on ? 'var(--accent, #6366f1)' : 'var(--border-input)'}`,
+                border: `1px solid ${on ? 'var(--accent, var(--s-6366f1))' : 'var(--border-input)'}`,
                 color: on ? 'var(--text-primary, var(--text))' : 'var(--text-secondary, var(--text-muted))',
               }}
             >
@@ -207,12 +207,12 @@ export default function AiProviderPanel() {
         </button>
 
         {result && (
-          <span style={{ color: result.ok ? '#22c55e' : '#f87171', fontWeight: 600, fontSize: 14 }}>
+          <span style={{ color: result.ok ? 'var(--s-22c55e)' : 'var(--s-f87171)', fontWeight: 600, fontSize: 14 }}>
             {result.ok ? '✓ ' : '✗ '}{result.message}
           </span>
         )}
         {!result && !cfg.ready && cfg.reason && (
-          <span style={{ color: '#fbbf24', fontWeight: 600, fontSize: 14 }}>⚠ {cfg.reason}</span>
+          <span style={{ color: 'var(--s-fbbf24)', fontWeight: 600, fontSize: 14 }}>⚠ {cfg.reason}</span>
         )}
       </div>
 
@@ -229,7 +229,7 @@ export default function AiProviderPanel() {
         }}>{result.detail}</pre>
       )}
 
-      {error && <p style={{ color: '#f87171', marginTop: 10, fontSize: 14 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--s-f87171)', marginTop: 10, fontSize: 14 }}>{error}</p>}
     </section>
   );
 }

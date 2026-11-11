@@ -83,9 +83,9 @@ export default function StaleConnectorBanner() {
       position: 'sticky',
       top: 0, left: 0, right: 0,
       zIndex: 1500,
-      background: '#7f1d1d',
-      borderBottom: '1px solid #b91c1c',
-      color: '#fee2e2',
+      background: 'var(--t-7f1d1d)',
+      borderBottom: '1px solid var(--s-b91c1c)',
+      color: 'var(--n-fee2e2)',
       padding: '10px 16px',
       fontSize: 13,
       lineHeight: 1.4,
@@ -101,7 +101,7 @@ export default function StaleConnectorBanner() {
             ? `${stale[0].name} not syncing`
             : `${stale.length} connectors not syncing`}
         </strong>{' '}
-        <span style={{ color: '#fecaca' }}>
+        <span style={{ color: 'var(--s-fecaca)' }}>
           {stale.slice(0, 4).map((s, i) => (
             <span key={s.id}>
               {i > 0 ? ', ' : ' — '}
@@ -111,14 +111,14 @@ export default function StaleConnectorBanner() {
           {stale.length > 4 && <span>, +{stale.length - 4} more</span>}
         </span>
         {isOAuthTestingPattern && (
-          <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--s-fca5a5)', marginTop: 4 }}>
             All Google connectors stale together = OAuth Testing-mode 7-day expiry. One-time fix: switch consent screen to Internal in GCP.
           </div>
         )}
       </div>
       <Link to="/connectors" style={{
         background: '#fecaca',
-        color: '#7f1d1d',
+        color: 'var(--s-7f1d1d)',
         padding: '6px 14px',
         borderRadius: 6,
         textDecoration: 'none',
@@ -127,8 +127,8 @@ export default function StaleConnectorBanner() {
       }}>Reconnect</Link>
       <button onClick={snooze} style={{
         background: 'transparent',
-        border: '1px solid #fca5a5',
-        color: '#fecaca',
+        border: '1px solid var(--s-fca5a5)',
+        color: 'var(--s-fecaca)',
         padding: '6px 10px',
         borderRadius: 6,
         cursor: 'pointer',

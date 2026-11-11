@@ -17,22 +17,22 @@ import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 
 const SECTIONS = [
-  { key: 'pending', label: 'Pending Approval', color: '#f59e0b' },
-  { key: 'active',  label: 'Active Memories',  color: '#4ade80' },
-  { key: 'feedback', label: 'Recent Feedback', color: '#60a5fa' },
-  { key: 'audit',   label: 'Audit Feed',       color: '#a78bfa' },
+  { key: 'pending', label: 'Pending Approval', color: 'var(--s-f59e0b)' },
+  { key: 'active',  label: 'Active Memories',  color: 'var(--s-4ade80)' },
+  { key: 'feedback', label: 'Recent Feedback', color: 'var(--s-60a5fa)' },
+  { key: 'audit',   label: 'Audit Feed',       color: 'var(--s-a78bfa)' },
 ];
 
 const SENSITIVITY_COLORS = {
-  low: '#666', normal: '#888', sensitive: '#f59e0b', critical: '#ef4444',
+  low: 'var(--n-666666)', normal: 'var(--n-888888)', sensitive: 'var(--s-f59e0b)', critical: 'var(--s-ef4444)',
 };
 
 const FEEDBACK_TYPE_COLORS = {
-  helpful: '#4ade80',
-  incorrect: '#ef4444', hallucinated: '#ef4444', privacy_concern: '#ef4444',
-  incomplete: '#f59e0b', too_generic: '#f59e0b', wrong_priority: '#f59e0b',
-  wrong_tone: '#f59e0b', wrong_language: '#f59e0b', cross_channel_tone_issue: '#f59e0b',
-  parity_issue: '#f59e0b', too_long: '#888', too_short: '#888',
+  helpful: 'var(--s-4ade80)',
+  incorrect: 'var(--s-ef4444)', hallucinated: 'var(--s-ef4444)', privacy_concern: 'var(--s-ef4444)',
+  incomplete: 'var(--s-f59e0b)', too_generic: 'var(--s-f59e0b)', wrong_priority: 'var(--s-f59e0b)',
+  wrong_tone: 'var(--s-f59e0b)', wrong_language: 'var(--s-f59e0b)', cross_channel_tone_issue: 'var(--s-f59e0b)',
+  parity_issue: 'var(--s-f59e0b)', too_long: 'var(--n-888888)', too_short: 'var(--n-888888)',
 };
 
 export default function BrainLearningTab({ user, msg, setMsg }) {
@@ -118,14 +118,14 @@ export default function BrainLearningTab({ user, msg, setMsg }) {
   }
 
   if (loading && !pendingMemories.length && !activeMemories.length) {
-    return <div style={{ color: '#888', padding: 20 }}>Loading learning data…</div>;
+    return <div style={{ color: 'var(--n-888888)', padding: 20 }}>Loading learning data…</div>;
   }
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Brain Learning Center</h2>
-        <p style={{ color: '#888', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ color: 'var(--n-888888)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
           Brain proposes memories and the audit feed shows everything risky it does. Nothing
           becomes "active" memory without explicit approval here.
         </p>
@@ -146,7 +146,7 @@ export default function BrainLearningTab({ user, msg, setMsg }) {
               style={{
                 padding: '6px 14px', fontSize: 12, borderRadius: 6,
                 background: isActive ? s.color : 'transparent',
-                color: isActive ? '#0e1116' : s.color,
+                color: isActive ? 'var(--n-0e1116)' : s.color,
                 border: '1px solid ' + s.color,
                 cursor: 'pointer', fontWeight: 600,
               }}
@@ -159,8 +159,8 @@ export default function BrainLearningTab({ user, msg, setMsg }) {
           onClick={load}
           style={{
             padding: '6px 14px', fontSize: 12, borderRadius: 6,
-            background: 'transparent', color: '#999',
-            border: '1px solid #444', cursor: 'pointer', marginLeft: 'auto',
+            background: 'transparent', color: 'var(--n-999999)',
+            border: '1px solid var(--n-444444)', cursor: 'pointer', marginLeft: 'auto',
           }}
         >
           Refresh
@@ -217,18 +217,18 @@ export default function BrainLearningTab({ user, msg, setMsg }) {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                    background: (FEEDBACK_TYPE_COLORS[f.feedbackType] || '#888') + '22',
-                    color: FEEDBACK_TYPE_COLORS[f.feedbackType] || '#888',
+                    background: `color-mix(in srgb, ${FEEDBACK_TYPE_COLORS[f.feedbackType] || 'var(--n-888888)'} 13.3333%, transparent)`,
+                    color: FEEDBACK_TYPE_COLORS[f.feedbackType] || 'var(--n-888888)',
                   }}>{f.feedbackType}</span>
-                  <span style={{ fontSize: 11, color: '#666' }}>
+                  <span style={{ fontSize: 11, color: 'var(--n-666666)' }}>
                     {new Date(f.createdAt).toLocaleString()} · user {f.userId}
                   </span>
                 </div>
                 {f.feedbackComment && (
-                  <div style={{ fontSize: 13, color: '#ccc', marginBottom: 4 }}>"{f.feedbackComment}"</div>
+                  <div style={{ fontSize: 13, color: 'var(--n-cccccc)', marginBottom: 4 }}>"{f.feedbackComment}"</div>
                 )}
                 {f.interaction?.userPrompt && (
-                  <div style={{ fontSize: 11, color: '#666', fontStyle: 'italic' }}>
+                  <div style={{ fontSize: 11, color: 'var(--n-666666)', fontStyle: 'italic' }}>
                     On: "{f.interaction.userPrompt.slice(0, 80)}…" ({f.interaction.surface})
                   </div>
                 )}
@@ -249,22 +249,22 @@ export default function BrainLearningTab({ user, msg, setMsg }) {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <span style={{
                     padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                    background: kindColor(e.kind) + '22', color: kindColor(e.kind),
+                    background: `color-mix(in srgb, ${kindColor(e.kind)} 13.3333%, transparent)`, color: kindColor(e.kind),
                   }}>{e.kind.replace(/_/g, ' ')}</span>
                   {e.riskLevel && (
                     <span style={{
                       padding: '1px 6px', borderRadius: 3, fontSize: 10,
-                      background: (e.riskLevel === 'critical' ? '#ef4444' : '#f59e0b') + '22',
-                      color: e.riskLevel === 'critical' ? '#ef4444' : '#f59e0b',
+                      background: `color-mix(in srgb, ${e.riskLevel === 'critical' ? '#ef4444' : '#f59e0b'} 13.3333%, transparent)`,
+                      color: e.riskLevel === 'critical' ? 'var(--s-ef4444)' : 'var(--s-f59e0b)',
                     }}>{e.riskLevel.toUpperCase()}</span>
                   )}
-                  <span style={{ fontSize: 11, color: '#666', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: 11, color: 'var(--n-666666)', marginLeft: 'auto' }}>
                     {new Date(e.at).toLocaleString()}
                   </span>
                 </div>
-                <div style={{ fontSize: 13, color: '#ccc', marginTop: 4 }}>{e.summary}</div>
+                <div style={{ fontSize: 13, color: 'var(--n-cccccc)', marginTop: 4 }}>{e.summary}</div>
                 {e.userId && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>user {e.userId}</div>
+                  <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 2 }}>user {e.userId}</div>
                 )}
               </div>
             ))
@@ -279,24 +279,24 @@ function MemoryCard({ memory: m, actions }) {
   return (
     <div style={card()}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 4 }}>
-        <strong style={{ fontSize: 14, color: '#eee' }}>{m.title}</strong>
+        <strong style={{ fontSize: 14, color: 'var(--n-eeeeee)' }}>{m.title}</strong>
         <span style={{
           padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-          background: '#444', color: '#bbb',
+          background: 'var(--n-444444)', color: 'var(--n-bbbbbb)',
         }}>{m.memoryScope}</span>
         <span style={{
           padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-          background: (SENSITIVITY_COLORS[m.sensitivityLevel] || '#666') + '22',
-          color: SENSITIVITY_COLORS[m.sensitivityLevel] || '#666',
+          background: `color-mix(in srgb, ${SENSITIVITY_COLORS[m.sensitivityLevel] || 'var(--n-666666)'} 13.3333%, transparent)`,
+          color: SENSITIVITY_COLORS[m.sensitivityLevel] || 'var(--n-666666)',
         }}>{m.sensitivityLevel}</span>
         {m.confidenceScore > 0 && (
-          <span style={{ fontSize: 11, color: '#666' }}>
+          <span style={{ fontSize: 11, color: 'var(--n-666666)' }}>
             conf {Number(m.confidenceScore).toFixed(2)}
           </span>
         )}
       </div>
-      <div style={{ fontSize: 13, color: '#ccc', marginBottom: 6, lineHeight: 1.5 }}>{m.content}</div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#666' }}>
+      <div style={{ fontSize: 13, color: 'var(--n-cccccc)', marginBottom: 6, lineHeight: 1.5 }}>{m.content}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: 'var(--n-666666)' }}>
         <span>type: {m.memoryType}</span>
         <span>·</span>
         <span>source: {m.sourceType || '?'}</span>
@@ -312,13 +312,13 @@ function MemoryCard({ memory: m, actions }) {
 
 function card() {
   return {
-    background: '#1a1a1a', border: '1px solid #333', borderRadius: 8,
+    background: 'var(--n-1a1a1a)', border: '1px solid var(--n-333333)', borderRadius: 8,
     padding: '12px 14px', marginBottom: 8,
   };
 }
 
 function empty() {
-  return { color: '#666', padding: 30, textAlign: 'center', fontSize: 13 };
+  return { color: 'var(--n-666666)', padding: 30, textAlign: 'center', fontSize: 13 };
 }
 
 function btn(variant) {
@@ -327,19 +327,19 @@ function btn(variant) {
     cursor: 'pointer', fontWeight: 600,
   };
   if (variant === 'approve') {
-    return { ...base, background: '#4ade8022', borderColor: '#4ade80', color: '#4ade80' };
+    return { ...base, background: 'color-mix(in srgb, var(--s-4ade80) 13.3333%, transparent)', borderColor: 'var(--s-4ade80)', color: 'var(--s-4ade80)' };
   }
   if (variant === 'reject') {
-    return { ...base, background: '#ef444422', borderColor: '#ef4444', color: '#ef4444' };
+    return { ...base, background: 'color-mix(in srgb, var(--s-ef4444) 13.3333%, transparent)', borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' };
   }
-  return { ...base, background: 'transparent', borderColor: '#666', color: '#999' };
+  return { ...base, background: 'transparent', borderColor: 'var(--n-666666)', color: 'var(--n-999999)' };
 }
 
 function kindColor(kind) {
-  if (kind === 'memory_approved') return '#4ade80';
-  if (kind === 'memory_rejected') return '#ef4444';
-  if (kind === 'memory_archived') return '#888';
-  if (kind === 'interaction') return '#f59e0b';
-  if (kind === 'feedback') return '#60a5fa';
-  return '#888';
+  if (kind === 'memory_approved') return 'var(--s-4ade80)';
+  if (kind === 'memory_rejected') return 'var(--s-ef4444)';
+  if (kind === 'memory_archived') return 'var(--n-888888)';
+  if (kind === 'interaction') return 'var(--s-f59e0b)';
+  if (kind === 'feedback') return 'var(--s-60a5fa)';
+  return 'var(--n-888888)';
 }

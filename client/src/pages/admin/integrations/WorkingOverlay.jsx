@@ -50,7 +50,7 @@ export default function WorkingOverlay({ open, title, stage, startedAt }) {
       }}>
         <div style={{
           width: 34, height: 34, margin: '0 auto 14px', borderRadius: '50%',
-          border: '3px solid var(--border)', borderTopColor: '#cc6b4a',
+          border: '3px solid var(--border)', borderTopColor: 'var(--s-cc6b4a)',
           animation: 'integSpin 0.9s linear infinite',
         }} />
         <style>{'@keyframes integSpin { to { transform: rotate(360deg); } }'}</style>

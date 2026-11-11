@@ -206,7 +206,7 @@ export default function WikiPage() {
               />
             ))}
             {opMsg && (
-              <div style={{ fontSize: 12, color: opMsg.startsWith('Error') ? '#fca5a5' : '#4ade80', padding: '8px 12px' }}>
+              <div style={{ fontSize: 12, color: opMsg.startsWith('Error') ? 'var(--s-fca5a5)' : 'var(--s-4ade80)', padding: '8px 12px' }}>
                 {opMsg}
               </div>
             )}
@@ -248,7 +248,7 @@ export default function WikiPage() {
                 border: '1px solid rgba(220,38,38,0.35)',
                 borderRadius: 8, fontSize: 13,
               }}>
-                <div style={{ marginBottom: 6, fontWeight: 600, color: '#fca5a5' }}>
+                <div style={{ marginBottom: 6, fontWeight: 600, color: 'var(--s-fca5a5)' }}>
                   ⚠️ PERMANENT DELETE — irreversible
                 </div>
                 <div style={{ marginBottom: 8, color: 'var(--text-muted)', fontSize: 12 }}>
@@ -262,7 +262,7 @@ export default function WikiPage() {
                   autoFocus
                   style={{
                     width: '100%', padding: '6px 8px',
-                    background: 'var(--bg-1, #0d1117)', border: '1px solid var(--border, #28323e)',
+                    background: 'var(--bg-1, var(--n-0d1117))', border: '1px solid var(--border, var(--n-28323e))',
                     borderRadius: 4, color: 'var(--text)', fontSize: 13, fontFamily: 'monospace',
                   }}
                 />
@@ -357,7 +357,7 @@ function WikiRow({ page, onOpen, onArchive, onDelete }) {
               title="Semantic similarity to your search (higher = closer meaning)"
               style={{
                 fontSize: 10, padding: '2px 7px', borderRadius: 10,
-                background: 'rgba(74,222,128,0.12)', color: '#4ade80',
+                background: 'rgba(74,222,128,0.12)', color: 'var(--s-4ade80)',
                 fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap',
               }}
             >
@@ -369,7 +369,7 @@ function WikiRow({ page, onOpen, onArchive, onDelete }) {
               title="Shared with everyone in this tenant"
               style={{
                 fontSize: 10, padding: '2px 8px', borderRadius: 10,
-                background: 'rgba(96,165,250,0.14)', color: '#60a5fa',
+                background: 'rgba(96,165,250,0.14)', color: 'var(--s-60a5fa)',
                 textTransform: 'uppercase', letterSpacing: '.5px', whiteSpace: 'nowrap',
               }}
             >👥 tenant</span>
@@ -378,7 +378,7 @@ function WikiRow({ page, onOpen, onArchive, onDelete }) {
               title="Private to your account"
               style={{
                 fontSize: 10, padding: '2px 8px', borderRadius: 10,
-                background: 'rgba(168,85,247,0.14)', color: '#a855f7',
+                background: 'rgba(168,85,247,0.14)', color: 'var(--s-a855f7)',
                 textTransform: 'uppercase', letterSpacing: '.5px', whiteSpace: 'nowrap',
               }}
             >🔒 mine</span>
@@ -421,7 +421,7 @@ function WikiRow({ page, onOpen, onArchive, onDelete }) {
               onClick={(ev) => { ev.stopPropagation(); onDelete(page); }}
               style={{
                 fontSize: 11, padding: '3px 9px', borderRadius: 6,
-                background: 'transparent', color: '#fca5a5',
+                background: 'transparent', color: 'var(--s-fca5a5)',
                 border: '1px solid rgba(220,38,38,0.4)', cursor: 'pointer',
               }}
               title="Delete — IRREVERSIBLE. Brain forgets this page entirely."

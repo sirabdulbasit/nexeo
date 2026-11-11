@@ -218,14 +218,14 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
           {/* Create Client — Full Form (Info + License) */}
           {showCreateTenant && (
             <div className="admin-create-form">
-              <h3 style={{ fontSize: 14, color: '#e8e8e0', marginBottom: 12 }}>Client Information</h3>
+              <h3 style={{ fontSize: 14, color: 'var(--n-e8e8e0)', marginBottom: 12 }}>Client Information</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="settings-field"><label>Company Name *</label><input value={nc.name} onChange={e => setNc(c => ({ ...c, name: e.target.value }))} placeholder="Pakistan State Oil" /></div>
                 <div className="settings-field"><label>Domain</label><input value={nc.domain} onChange={e => setNc(c => ({ ...c, domain: e.target.value }))} placeholder="pso.com.pk" /></div>
               </div>
-              <p style={{ fontSize: 11, color: '#888', margin: '4px 0 16px' }}>Client number auto-generated from name</p>
+              <p style={{ fontSize: 11, color: 'var(--n-888888)', margin: '4px 0 16px' }}>Client number auto-generated from name</p>
 
-              <h3 style={{ fontSize: 14, color: '#e8e8e0', marginBottom: 12, paddingTop: 12, borderTop: '1px solid #333' }}>License Allocation</h3>
+              <h3 style={{ fontSize: 14, color: 'var(--n-e8e8e0)', marginBottom: 12, paddingTop: 12, borderTop: '1px solid var(--n-333333)' }}>License Allocation</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
                 <div className="settings-field"><label>AD Seats (${priceMap['AD'] || '?'}/seat)</label><input type="number" min="0" value={nc.adminSeats} onChange={e => setNc(c => ({ ...c, adminSeats: parseInt(e.target.value) || 0 }))} /></div>
                 <div className="settings-field"><label>ST Seats (${priceMap['ST'] || '?'}/seat)</label><input type="number" min="0" value={nc.standardSeats} onChange={e => setNc(c => ({ ...c, standardSeats: parseInt(e.target.value) || 0 }))} /></div>
@@ -247,8 +247,8 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                 const gross = calcGross();
                 const disc = gross * (nc.discount / 100);
                 return (
-                  <div style={{ background: '#1a1a1a', borderRadius: 8, padding: 12, margin: '10px 0', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#888' }}>Gross: ${gross.toLocaleString()}{nc.discount > 0 ? ` − ${nc.discount}%` : ''}</span>
+                  <div style={{ background: 'var(--n-1a1a1a)', borderRadius: 8, padding: 12, margin: '10px 0', fontSize: 13, display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--n-888888)' }}>Gross: ${gross.toLocaleString()}{nc.discount > 0 ? ` − ${nc.discount}%` : ''}</span>
                     <span style={{ color: 'var(--accent)', fontWeight: 700 }}>Net: ${(gross - disc).toLocaleString()}/period</span>
                   </div>
                 );
@@ -327,7 +327,7 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                 </div>
                 <div className="settings-field"><label>Department</label><input value={newUser.department} onChange={e => setNewUser(u => ({ ...u, department: e.target.value }))} placeholder="Optional" /></div>
               </div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#bbb', marginTop: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--n-bbbbbb)', marginTop: 8 }}>
                 <input
                   type="checkbox"
                   id="sendInvite"
@@ -339,19 +339,19 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
               </label>
               {/* Demo user toggle — when on, account auto-suspends at the
                   chosen expiry (reversible; admin can extend or hard-delete). */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#bbb', marginTop: 8 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--n-bbbbbb)', marginTop: 8 }}>
                 <input
                   type="checkbox"
                   id="isDemo"
                   checked={isDemo}
                   onChange={(e) => setIsDemo(e.target.checked)}
-                  style={{ accentColor: '#f59e0b' }}
+                  style={{ accentColor: 'var(--s-f59e0b)' }}
                 />
                 Demo user (auto-suspend at expiry)
               </label>
               {isDemo && (
-                <div style={{ background: '#1a1610', border: '1px solid #f59e0b44', borderRadius: 8, padding: 10, marginTop: 6 }}>
-                  <div style={{ fontSize: 12, color: '#f59e0b', marginBottom: 8 }}>
+                <div style={{ background: 'var(--n-1a1610)', border: '1px solid color-mix(in srgb, var(--s-f59e0b) 26.6667%, transparent)', borderRadius: 8, padding: 10, marginTop: 6 }}>
+                  <div style={{ fontSize: 12, color: 'var(--s-f59e0b)', marginBottom: 8 }}>
                     Expires at — pick a date OR set days from now. Account auto-suspends at this time (reversible).
                   </div>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', flexWrap: 'wrap' }}>
@@ -365,7 +365,7 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                         style={{ width: '100%' }}
                       />
                     </div>
-                    <div style={{ color: '#666', fontSize: 12, padding: '0 4px 6px' }}>or</div>
+                    <div style={{ color: 'var(--n-666666)', fontSize: 12, padding: '0 4px 6px' }}>or</div>
                     <div className="settings-field" style={{ flex: '0 0 140px', marginBottom: 0 }}>
                       <label style={{ fontSize: 11 }}>Days from now</label>
                       <select
@@ -402,8 +402,8 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                     <td>{u.department || '—'}</td>
                     <td>
                       {u.isActive
-                        ? <span style={{ color: '#4ade80', fontSize: 11, fontWeight: 600 }}>● Active</span>
-                        : <span style={{ color: '#f59e0b', fontSize: 11, fontWeight: 600 }}>◌ Suspended</span>}
+                        ? <span style={{ color: 'var(--s-4ade80)', fontSize: 11, fontWeight: 600 }}>● Active</span>
+                        : <span style={{ color: 'var(--s-f59e0b)', fontSize: 11, fontWeight: 600 }}>◌ Suspended</span>}
                       {u.expiresAt && (() => {
                         const ms = new Date(u.expiresAt).getTime() - Date.now();
                         const days = Math.ceil(ms / (1000 * 60 * 60 * 24));
@@ -411,7 +411,7 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                         return (
                           <div style={{
                             fontSize: 10, marginTop: 2,
-                            color: expired ? '#ef4444' : days <= 3 ? '#f59e0b' : '#888',
+                            color: expired ? 'var(--s-ef4444)' : days <= 3 ? 'var(--s-f59e0b)' : 'var(--n-888888)',
                           }}>
                             {expired
                               ? `⌛ Demo expired ${Math.abs(days)}d ago`
@@ -487,7 +487,7 @@ function SuspendButton({ userId, userName, onAfter, setMsg }) {
     <>
       <button
         className="admin-action"
-        style={{ borderColor: '#f59e0b', color: '#f59e0b' }}
+        style={{ borderColor: 'var(--s-f59e0b)', color: 'var(--s-f59e0b)' }}
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -513,7 +513,7 @@ function ReactivateButton({ userId, userName, onAfter, setMsg }) {
   return (
     <button
       className="admin-action"
-      style={{ borderColor: '#4ade80', color: '#4ade80' }}
+      style={{ borderColor: 'var(--s-4ade80)', color: 'var(--s-4ade80)' }}
       disabled={busy}
       onClick={async () => {
         setBusy(true);
@@ -540,7 +540,7 @@ function DeleteUserButton({ user, onAfter, setMsg }) {
     return (
       <button
         className="admin-action"
-        style={{ borderColor: '#ef4444', color: '#ef4444' }}
+        style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}
         onClick={() => setOpen(true)}
         title="Permanently delete user + all data (NOT reversible)"
       >
@@ -554,13 +554,13 @@ function DeleteUserButton({ user, onAfter, setMsg }) {
         value={confirmText}
         onChange={e => setConfirmText(e.target.value)}
         placeholder={expected}
-        style={{ fontSize: 11, padding: '2px 6px', minWidth: 220, background: '#1a1010', border: '1px solid #ef4444', color: '#fca5a5' }}
+        style={{ fontSize: 11, padding: '2px 6px', minWidth: 220, background: 'var(--n-1a1010)', border: '1px solid var(--s-ef4444)', color: 'var(--s-fca5a5)' }}
       />
       <button
         className="admin-action"
         style={{
-          borderColor: '#ef4444',
-          color: '#ef4444',
+          borderColor: 'var(--s-ef4444)',
+          color: 'var(--s-ef4444)',
           opacity: confirmText === expected && !busy ? 1 : 0.4,
         }}
         disabled={confirmText !== expected || busy}
@@ -601,7 +601,7 @@ function InviteButton({ userId, onInvite }) {
       onClick={handle}
       disabled={sending}
       title="Send invitation email"
-      style={sent ? { borderColor: '#4ade80', color: '#4ade80' } : sending ? { opacity: 0.5 } : {}}
+      style={sent ? { borderColor: 'var(--s-4ade80)', color: 'var(--s-4ade80)' } : sending ? { opacity: 0.5 } : {}}
     >
       {sending ? 'Sending...' : sent ? 'Sent ✓' : 'Invite'}
     </button>
@@ -638,7 +638,7 @@ function ClientConfigSection({ user, tenants }) {
 
       <SmtpHealthCheck clientNumber={effectiveClient} />
 
-      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(136,136,136,0.08)', border: '1px dashed rgba(136,136,136,0.3)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(var(--n-888888-rgb),0.08)', border: '1px dashed rgba(var(--n-888888-rgb),0.3)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)' }}>
         Looking for FACL folder setup + scribe? That moved to the <strong>Client Connectors</strong> tab.
       </div>
     </>
@@ -669,7 +669,7 @@ function SmtpHealthCheck({ clientNumber }) {
     }
   };
 
-  const colour = !result ? 'var(--text-muted)' : result.ok ? '#4ade80' : '#f87171';
+  const colour = !result ? 'var(--text-muted)' : result.ok ? 'var(--s-4ade80)' : 'var(--s-f87171)';
   const bg = !result ? 'rgba(136,136,136,0.06)' : result.ok ? 'rgba(74,222,128,0.08)' : 'rgba(248,113,113,0.10)';
   const border = !result ? 'rgba(136,136,136,0.3)' : result.ok ? 'rgba(74,222,128,0.45)' : 'rgba(248,113,113,0.55)';
 
@@ -852,7 +852,7 @@ function ClientConnectorsSection({ user, tenants }) {
         </div>
         <button
           className="admin-action"
-          style={{ background: needs || configured > 0 ? '#cc6b4a' : 'transparent', color: needs || configured > 0 ? '#fff' : 'var(--text-muted)', borderColor: '#cc6b4a', fontWeight: 600 }}
+          style={{ background: needs || configured > 0 ? '#cc6b4a' : 'transparent', color: needs || configured > 0 ? '#fff' : 'var(--text-muted)', borderColor: 'var(--s-cc6b4a)', fontWeight: 600 }}
           disabled={busySlug === '__all__' || anyRunning || configured === 0}
           onClick={scribeAll}
         >
@@ -913,25 +913,25 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
   // "1 error" / etc.
   let pill;
   if (running) {
-    pill = { text: 'Scribing…', color: '#f59e0b' };
+    pill = { text: 'Scribing…', color: 'var(--s-f59e0b)' };
   } else if (liveBlocked) {
-    pill = { text: 'Coming soon', color: '#9ba0aa' };
+    pill = { text: 'Coming soon', color: 'var(--n-9ba0aa)' };
   } else if (ok) {
     if (hasErrors) {
-      pill = { text: `⚠ ${last.updated} of ${last.scanned} · ${last.errors} err`, color: '#ef4444' };
+      pill = { text: `⚠ ${last.updated} of ${last.scanned} · ${last.errors} err`, color: 'var(--s-ef4444)' };
     } else if ((last?.scanned ?? 0) === 0) {
-      pill = { text: `✓ folder is empty`, color: '#9ba0aa' };
+      pill = { text: `✓ folder is empty`, color: 'var(--n-9ba0aa)' };
     } else if ((last?.updated ?? 0) === 0) {
-      pill = { text: `✓ no scribeable files (${last.skipped} skipped)`, color: '#9ba0aa' };
+      pill = { text: `✓ no scribeable files (${last.skipped} skipped)`, color: 'var(--n-9ba0aa)' };
     } else {
-      pill = { text: `✓ ${last.updated} of ${last.scanned} scribed`, color: '#4ade80' };
+      pill = { text: `✓ ${last.updated} of ${last.scanned} scribed`, color: 'var(--s-4ade80)' };
     }
   } else if (item.scribeable) {
-    pill = { text: 'Ready to scribe', color: '#f59e0b' };
+    pill = { text: 'Ready to scribe', color: 'var(--s-f59e0b)' };
   } else if (item.connected) {
-    pill = { text: 'Connected · folder needed', color: '#f59e0b' };
+    pill = { text: 'Connected · folder needed', color: 'var(--s-f59e0b)' };
   } else {
-    pill = { text: 'Not connected', color: '#9ba0aa' };
+    pill = { text: 'Not connected', color: 'var(--n-9ba0aa)' };
   }
   // Tooltip with the full breakdown — visible on hover for power users.
   const pillTooltip = ok && last
@@ -948,7 +948,7 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{item.name}</div>
-            <span title={pillTooltip} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: pill.color + '22', color: pill.color, fontWeight: 600 }}>{pill.text}</span>
+            <span title={pillTooltip} style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: `color-mix(in srgb, ${pill.color} 13.3333%, transparent)`, color: pill.color, fontWeight: 600 }}>{pill.text}</span>
           </div>
           {item.connected && item.connectionDetail?.userEmail && (
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>
@@ -971,7 +971,7 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
           )}
           {item.scribeStatus === 'error' && item.scribeError && (
             <div style={{
-              fontSize: 11, color: '#ef4444', marginTop: 3,
+              fontSize: 11, color: 'var(--s-ef4444)', marginTop: 3,
               padding: '4px 8px', background: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.3)', borderRadius: 6,
             }}>
@@ -990,7 +990,7 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
                 📂 Folder contains <strong>{item.preview.total}</strong> item{item.preview.total === 1 ? '' : 's'}
                 {item.preview.subfolders > 0 && ` (incl. ${item.preview.subfolders} subfolder${item.preview.subfolders === 1 ? '' : 's'})`}
                 {' · '}
-                <strong style={{ color: '#4ade80' }}>{item.preview.scribeable}</strong> scribeable
+                <strong style={{ color: 'var(--s-4ade80)' }}>{item.preview.scribeable}</strong> scribeable
               </div>
               <div style={{ marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {item.preview.byKind.docs > 0 && <span>📄 {item.preview.byKind.docs} doc{item.preview.byKind.docs === 1 ? '' : 's'}</span>}
@@ -1009,7 +1009,7 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
           )}
           {item.previewError && !item.preview && (
             <div style={{
-              fontSize: 11, color: '#f59e0b', marginTop: 6,
+              fontSize: 11, color: 'var(--s-f59e0b)', marginTop: 6,
               padding: '4px 8px', background: 'rgba(245,158,11,0.08)',
               border: '1px solid rgba(245,158,11,0.3)', borderRadius: 6,
             }}>
@@ -1024,7 +1024,7 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
         </div>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {!item.connected && !liveBlocked && (
-            <button className="admin-action" disabled={busy} onClick={onConnect} style={{ background: '#cc6b4a', color: '#fff', borderColor: '#cc6b4a' }}>
+            <button className="admin-action" disabled={busy} onClick={onConnect} style={{ background: '#cc6b4a', color: '#fff', borderColor: 'var(--s-cc6b4a)' }}>
               Connect
             </button>
           )}
@@ -1035,12 +1035,12 @@ function ClientConnectorCard({ item, busy, onConnect, onReconnect, onFolder, onT
                 className="admin-action"
                 disabled={busy}
                 onClick={onFolder}
-                style={item.scribeable ? {} : { background: '#cc6b4a', color: '#fff', borderColor: '#cc6b4a' }}
+                style={item.scribeable ? {} : { background: '#cc6b4a', color: '#fff', borderColor: 'var(--s-cc6b4a)' }}
               >
                 {item.folderId ? 'Change folder' : 'Set folder'}
               </button>
               <button className="admin-action" disabled={busy} onClick={onReconnect}>Re-connect</button>
-              <button className="admin-action" disabled={busy} onClick={onDisconnect} style={{ color: '#ef4444', borderColor: '#ef4444' }}>Disconnect</button>
+              <button className="admin-action" disabled={busy} onClick={onDisconnect} style={{ color: 'var(--s-ef4444)', borderColor: 'var(--s-ef4444)' }}>Disconnect</button>
             </>
           )}
         </div>
@@ -1064,7 +1064,7 @@ function FolderModal({ item, onCancel, onSave, busy }) {
         </div>
         <div className="settings-field" style={{ marginBottom: 12 }}>
           <label style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-            Folder ID <span style={{ color: '#ef4444' }}>*</span>
+            Folder ID <span style={{ color: 'var(--s-ef4444)' }}>*</span>
           </label>
           <input
             value={folderId}
@@ -1088,7 +1088,7 @@ function FolderModal({ item, onCancel, onSave, busy }) {
         </div>
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
           <button className="admin-action" onClick={onCancel} disabled={busy}>Cancel</button>
-          <button className="admin-action" disabled={busy || !folderId.trim()} onClick={() => onSave(folderId.trim(), indexFile.trim())} style={{ background: '#cc6b4a', color: '#fff', borderColor: '#cc6b4a' }}>
+          <button className="admin-action" disabled={busy || !folderId.trim()} onClick={() => onSave(folderId.trim(), indexFile.trim())} style={{ background: '#cc6b4a', color: '#fff', borderColor: 'var(--s-cc6b4a)' }}>
             {busy ? 'Saving…' : 'Save folder'}
           </button>
         </div>
@@ -1139,11 +1139,11 @@ function ClientDriveConnector({ clientNumber }) {
   const err = state.scribeStatus === 'error';
 
   const statusPill = running
-    ? { text: 'Scribing…', color: '#f59e0b' }
-    : ok ? { text: `✓ ${state.docCount} docs`, color: '#4ade80' }
-    : err ? { text: 'Error', color: '#ef4444' }
-    : hasFolder ? { text: 'Configured', color: '#9ba0aa' }
-    : { text: 'Folder not set', color: '#9ba0aa' };
+    ? { text: 'Scribing…', color: 'var(--s-f59e0b)' }
+    : ok ? { text: `✓ ${state.docCount} docs`, color: 'var(--s-4ade80)' }
+    : err ? { text: 'Error', color: 'var(--s-ef4444)' }
+    : hasFolder ? { text: 'Configured', color: 'var(--n-9ba0aa)' }
+    : { text: 'Folder not set', color: 'var(--n-9ba0aa)' };
 
   const lastScribed = state.lastScribedAt ? new Date(state.lastScribedAt) : null;
   const lastWhen = lastScribed ? humanAgo(Date.now() - lastScribed.getTime()) : 'never';
@@ -1155,7 +1155,7 @@ function ClientDriveConnector({ clientNumber }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
             Google Drive · Tenant knowledge (FACL)
-            <span style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: statusPill.color + '22', color: statusPill.color, fontWeight: 600 }}>
+            <span style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: `color-mix(in srgb, ${statusPill.color} 13.3333%, transparent)`, color: statusPill.color, fontWeight: 600 }}>
               {statusPill.text}
             </span>
           </div>
@@ -1166,7 +1166,7 @@ function ClientDriveConnector({ clientNumber }) {
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <button className="admin-action" onClick={runTest} disabled={busy || !hasFolder}>Test</button>
-          <button className="admin-action" onClick={runScribe} disabled={busy || !hasFolder || running} style={{ background: '#cc6b4a', color: '#fff', borderColor: '#cc6b4a' }}>
+          <button className="admin-action" onClick={runScribe} disabled={busy || !hasFolder || running} style={{ background: '#cc6b4a', color: '#fff', borderColor: 'var(--s-cc6b4a)' }}>
             {running ? 'Scribing…' : '🧠 Scribe now'}
           </button>
         </div>
@@ -1185,8 +1185,8 @@ function ClientDriveConnector({ clientNumber }) {
         <div style={{
           marginTop: 8, fontSize: 12, padding: '8px 10px', borderRadius: 6,
           background: msg.kind === 'ok' ? 'rgba(74,222,128,0.08)' : 'rgba(239,68,68,0.08)',
-          border: `1px solid ${msg.kind === 'ok' ? '#4ade80' : '#ef4444'}`,
-          color: msg.kind === 'ok' ? '#4ade80' : '#ef4444',
+          border: `1px solid ${msg.kind === 'ok' ? 'var(--s-4ade80)' : 'var(--s-ef4444)'}`,
+          color: msg.kind === 'ok' ? 'var(--s-4ade80)' : 'var(--s-ef4444)',
         }}>{msg.text}</div>
       )}
       {state.lastSummary && (
@@ -1207,7 +1207,7 @@ function ClientComingSoonConnector({ name, icon, note }) {
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
             {name} · Tenant knowledge
-            <span style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(136,136,136,0.15)', color: '#9ba0aa', fontWeight: 600 }}>
+            <span style={{ marginLeft: 10, fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(var(--n-888888-rgb),0.15)', color: 'var(--n-9ba0aa)', fontWeight: 600 }}>
               Coming soon
             </span>
           </div>
@@ -1292,16 +1292,16 @@ function EditUserPanel({ user: u, availableTiers = [], isSuperAdmin, onUpdate, o
     } catch (err) { onMsg('Disconnect failed'); }
   };
 
-  const inputStyle = { width: '100%', padding: '6px 10px', fontSize: 13, background: '#2a2a2a', border: '1px solid #444', borderRadius: 6, color: '#eee' };
+  const inputStyle = { width: '100%', padding: '6px 10px', fontSize: 13, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', borderRadius: 6, color: 'var(--n-eeeeee)' };
 
   return (
-    <div style={{ background: '#1a1a1a', padding: 16, borderTop: '2px solid #cc6b4a' }}>
+    <div style={{ background: 'var(--n-1a1a1a)', padding: 16, borderTop: '2px solid var(--s-cc6b4a)' }}>
       {/* ── User Details ── */}
-      <h4 style={{ color: '#cc6b4a', margin: '0 0 12px 0', fontSize: 14 }}>Edit User: {u.name}</h4>
+      <h4 style={{ color: 'var(--s-cc6b4a)', margin: '0 0 12px 0', fontSize: 14 }}>Edit User: {u.name}</h4>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Name</label><input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Department</label><input style={inputStyle} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>User Type</label>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Name</label><input style={inputStyle} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Department</label><input style={inputStyle} value={form.department} onChange={e => setForm(f => ({ ...f, department: e.target.value }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>User Type</label>
           <select style={inputStyle} value={form.userType} onChange={e => setForm(f => ({ ...f, userType: e.target.value }))}>
             {isSuperAdmin && <option value="SA">SA — SuperAdmin</option>}
             {isSuperAdmin && <option value="AD">AD — Admin</option>}
@@ -1312,23 +1312,23 @@ function EditUserPanel({ user: u, availableTiers = [], isSuperAdmin, onUpdate, o
         </div>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 12 }}>
-        <div><label style={{ fontSize: 11, color: '#888' }}>City</label><input style={inputStyle} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Contact Number</label><input style={inputStyle} value={form.contactNumber} onChange={e => setForm(f => ({ ...f, contactNumber: e.target.value }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Job Description</label><input style={inputStyle} value={form.jobDescription} onChange={e => setForm(f => ({ ...f, jobDescription: e.target.value }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>City</label><input style={inputStyle} value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Contact Number</label><input style={inputStyle} value={form.contactNumber} onChange={e => setForm(f => ({ ...f, contactNumber: e.target.value }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Job Description</label><input style={inputStyle} value={form.jobDescription} onChange={e => setForm(f => ({ ...f, jobDescription: e.target.value }))} /></div>
       </div>
       <button className="settings-btn" onClick={saveUser} disabled={saving} style={{ marginBottom: 16 }}>
         {saving ? 'Saving...' : 'Save User Details'}
       </button>
 
       {/* ── Email & Calendar Integration ── */}
-      <div style={{ borderTop: '1px solid #333', paddingTop: 12 }}>
-        <h4 style={{ color: '#cc6b4a', margin: '0 0 10px 0', fontSize: 14 }}>Email & Calendar Integration</h4>
+      <div style={{ borderTop: '1px solid var(--n-333333)', paddingTop: 12 }}>
+        <h4 style={{ color: 'var(--s-cc6b4a)', margin: '0 0 10px 0', fontSize: 14 }}>Email & Calendar Integration</h4>
 
         {intStatus === null ? (
-          <p style={{ color: '#888', fontSize: 12 }}>Loading...</p>
+          <p style={{ color: 'var(--n-888888)', fontSize: 12 }}>Loading...</p>
         ) : !intStatus.connected ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ color: '#888', fontSize: 13 }}>Not connected</span>
+            <span style={{ color: 'var(--n-888888)', fontSize: 13 }}>Not connected</span>
             <button className="settings-btn" onClick={connectGoogle} style={{ padding: '6px 16px', fontSize: 12 }}>
               Connect Google (Gmail + Calendar)
             </button>
@@ -1340,33 +1340,33 @@ function EditUserPanel({ user: u, availableTiers = [], isSuperAdmin, onUpdate, o
                 display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
                 background: intStatus.status === 'active' ? '#4ade80' : intStatus.status === 'expired' ? '#f59e0b' : '#ef4444',
               }} />
-              <span style={{ fontSize: 13, color: '#eee' }}>
+              <span style={{ fontSize: 13, color: 'var(--n-eeeeee)' }}>
                 {intStatus.provider === 'google' ? 'Google' : 'Microsoft'} — {intStatus.email}
               </span>
-              <span style={{ fontSize: 11, color: '#888' }}>({intStatus.scopes})</span>
+              <span style={{ fontSize: 11, color: 'var(--n-888888)' }}>({intStatus.scopes})</span>
               <span style={{
                 fontSize: 11, padding: '2px 8px', borderRadius: 10,
                 background: intStatus.status === 'active' ? 'rgba(74,222,128,0.15)' : 'rgba(239,68,68,0.15)',
-                color: intStatus.status === 'active' ? '#4ade80' : '#ef4444',
+                color: intStatus.status === 'active' ? 'var(--s-4ade80)' : 'var(--s-ef4444)',
               }}>
                 {intStatus.status}
               </span>
             </div>
 
             {intStatus.error && (
-              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 8, fontSize: 12, color: '#ef4444' }}>
+              <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px 12px', marginBottom: 8, fontSize: 12, color: 'var(--s-ef4444)' }}>
                 Error: {intStatus.error}
               </div>
             )}
 
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="admin-action" onClick={testConnection} disabled={testing} style={{ borderColor: '#4ade80', color: '#4ade80' }}>
+              <button className="admin-action" onClick={testConnection} disabled={testing} style={{ borderColor: 'var(--s-4ade80)', color: 'var(--s-4ade80)' }}>
                 {testing ? 'Testing...' : 'Test Connection'}
               </button>
-              <button className="admin-action" onClick={connectGoogle} style={{ borderColor: '#f59e0b', color: '#f59e0b' }}>
+              <button className="admin-action" onClick={connectGoogle} style={{ borderColor: 'var(--s-f59e0b)', color: 'var(--s-f59e0b)' }}>
                 Reconnect
               </button>
-              <button className="admin-action" onClick={disconnectGoogle} style={{ borderColor: '#ef4444', color: '#ef4444' }}>
+              <button className="admin-action" onClick={disconnectGoogle} style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}>
                 Disconnect
               </button>
             </div>
@@ -1399,11 +1399,11 @@ function TenantRow({ tenant: t, onToggle, onSaved, setMsg }) {
     return (
       <tr>
         <td><strong>{t.clientNumber}</strong></td>
-        <td><input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--accent)', borderRadius: 6, color: '#fff' }} /></td>
-        <td><input value={domain} onChange={e => setDomain(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 12, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 6, color: '#bbb' }} placeholder="domain.com" /></td>
+        <td><input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--accent)', borderRadius: 6, color: 'var(--n-ffffff)' }} /></td>
+        <td><input value={domain} onChange={e => setDomain(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 12, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 6, color: 'var(--n-bbbbbb)' }} placeholder="domain.com" /></td>
         <td>{t.userCount}</td>
-        <td>{t.license ? <span style={{ fontSize: 11 }}>{t.license.adminSeats}AD/{t.license.standardSeats}ST/{t.license.basicSeats}BS</span> : <span style={{ color: '#888', fontSize: 11 }}>None</span>}</td>
-        <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? '#4ade80' : '#ef4444', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
+        <td>{t.license ? <span style={{ fontSize: 11 }}>{t.license.adminSeats}AD/{t.license.standardSeats}ST/{t.license.basicSeats}BS</span> : <span style={{ color: 'var(--n-888888)', fontSize: 11 }}>None</span>}</td>
+        <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? 'var(--s-4ade80)' : 'var(--s-ef4444)', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
         <td><span className={`badge-type ${t.isActive ? 'type-ST' : 'type-SA'}`}>{t.isActive ? 'Active' : 'Inactive'}</span></td>
         <td style={{ display: 'flex', gap: 4 }}>
           <button className="admin-action" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={save}>Save</button>
@@ -1417,10 +1417,10 @@ function TenantRow({ tenant: t, onToggle, onSaved, setMsg }) {
     <tr>
       <td><strong>{t.clientNumber}</strong></td>
       <td>{t.name}</td>
-      <td style={{ fontSize: 12, color: '#888' }}>{t.domain || '—'}</td>
+      <td style={{ fontSize: 12, color: 'var(--n-888888)' }}>{t.domain || '—'}</td>
       <td>{t.userCount}</td>
-      <td>{t.license ? <span style={{ fontSize: 11 }}>{t.license.adminSeats}AD/{t.license.standardSeats}ST/{t.license.basicSeats}BS</span> : <span style={{ color: '#888', fontSize: 11 }}>None</span>}</td>
-      <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? '#4ade80' : '#ef4444', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
+      <td>{t.license ? <span style={{ fontSize: 11 }}>{t.license.adminSeats}AD/{t.license.standardSeats}ST/{t.license.basicSeats}BS</span> : <span style={{ color: 'var(--n-888888)', fontSize: 11 }}>None</span>}</td>
+      <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? 'var(--s-4ade80)' : 'var(--s-ef4444)', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
       <td><span className={`badge-type ${t.isActive ? 'type-ST' : 'type-SA'}`} style={{ cursor: 'pointer' }} onClick={() => onToggle(t.clientNumber, t.isActive)}>{t.isActive ? 'Active' : 'Inactive'}</span></td>
       <td><button className="admin-action" onClick={() => setEditing(true)}>Edit</button></td>
     </tr>

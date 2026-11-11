@@ -27,7 +27,7 @@ export default function LoginPage() {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: 'radial-gradient(ellipse at top, #1a1416 0%, var(--bg-0) 60%)',
+    background: 'radial-gradient(ellipse at top, var(--n-1a1416) 0%, var(--bg-0) 60%)',
     padding: 'var(--s-5)',
   };
   const cardStyle = {

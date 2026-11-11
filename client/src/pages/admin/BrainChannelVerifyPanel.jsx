@@ -176,7 +176,7 @@ export default function BrainChannelVerifyPanel({ user }) {
                 {r && (
                   <span style={{
                     marginLeft: 'auto', fontSize: 11, fontWeight: 600,
-                    color: r.ok ? '#22c55e' : '#ef4444',
+                    color: r.ok ? 'var(--s-22c55e)' : 'var(--s-ef4444)',
                   }}>
                     {r.ok ? '✓ delivered' : '✗ failed'}
                   </span>
@@ -200,7 +200,7 @@ export default function BrainChannelVerifyPanel({ user }) {
                 {inFlight ? <><span className="btn-spinner" />Running…</> : `Run ${t.label}`}
               </button>
               {r && (
-                <div style={{ marginTop: 6, fontSize: 11, color: r.ok ? '#9bd9a0' : '#f0a3a0' }}>
+                <div style={{ marginTop: 6, fontSize: 11, color: r.ok ? 'var(--s-9bd9a0)' : 'var(--s-f0a3a0)' }}>
                   {r.message}
                 </div>
               )}
@@ -250,7 +250,7 @@ export default function BrainChannelVerifyPanel({ user }) {
                 border: '1px solid var(--border)',
                 background: m.status === 'sent' ? 'rgba(34,197,94,0.04)'
                   : m.status === 'partial' ? 'rgba(245,158,11,0.04)'
-                  : m.status === 'suppressed' ? 'rgba(152,160,168,0.04)'
+                  : m.status === 'suppressed' ? 'rgba(var(--n-98a0a8-rgb),0.04)'
                   : 'rgba(217,83,79,0.04)',
                 display: 'grid',
                 gridTemplateColumns: 'auto 1fr auto',
@@ -259,11 +259,11 @@ export default function BrainChannelVerifyPanel({ user }) {
                 <span style={{
                   padding: '1px 6px', borderRadius: 4,
                   background: m.status === 'sent' ? 'rgba(34,197,94,0.18)'
-                    : m.status === 'suppressed' ? 'rgba(152,160,168,0.18)'
+                    : m.status === 'suppressed' ? 'rgba(var(--n-98a0a8-rgb),0.18)'
                     : 'rgba(217,83,79,0.18)',
-                  color: m.status === 'sent' ? '#9bd9a0'
+                  color: m.status === 'sent' ? 'var(--s-9bd9a0)'
                     : m.status === 'suppressed' ? 'var(--text-muted)'
-                    : '#f0a3a0',
+                    : 'var(--s-f0a3a0)',
                   textTransform: 'uppercase', fontWeight: 600, letterSpacing: '.3px',
                   whiteSpace: 'nowrap',
                 }}>
@@ -278,7 +278,7 @@ export default function BrainChannelVerifyPanel({ user }) {
                   </div>
                   <div style={{ color: 'var(--text-muted)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {m.summary}
-                    {m.error && <span style={{ color: '#f0a3a0' }}> · {m.error}</span>}
+                    {m.error && <span style={{ color: 'var(--s-f0a3a0)' }}> · {m.error}</span>}
                   </div>
                 </div>
                 <span style={{ color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>

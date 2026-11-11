@@ -5,7 +5,7 @@ import api from '../services/api';
 
 const s = {
   wrapper: { height: '100vh', overflow: 'hidden', position: 'relative', background: 'var(--bg-1)' },
-  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' },
+  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: 'var(--n-333333) transparent' },
   fadeHint: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, var(--bg-1))', pointerEvents: 'none', zIndex: 10, transition: 'opacity 0.3s' },
   page: { padding: '24px 32px', maxWidth: 1500 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
@@ -13,7 +13,7 @@ const s = {
   btnPrimary: { background: '#cc6b4a', color: '#fff' },
   btnOutline: { background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' },
   btnSmall: { padding: '4px 10px', fontSize: 'var(--fs-xs)' },
-  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: color + '22', color }),
+  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13.3333%, transparent)`, color }),
   card: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 8, cursor: 'pointer', transition: 'border-color 0.2s' },
   input: { width: '100%', background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 12px', borderRadius: 8, fontSize: 'var(--fs-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
   label: { display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: 4, marginTop: 14 },
@@ -21,14 +21,14 @@ const s = {
   modalBody: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 500, maxHeight: '80vh', overflow: 'auto' },
   tab: (active) => ({ padding: '6px 14px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 'var(--fs-sm)', fontWeight: 500, fontFamily: 'inherit', background: active ? '#cc6b4a' : 'transparent', color: active ? '#fff' : 'var(--text-muted)', marginRight: 4 }),
   stats: { display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' },
-  statCard: (color) => ({ background: 'var(--bg-2)', border: `1px solid ${color}33`, borderRadius: 10, padding: '12px 18px', minWidth: 100, textAlign: 'center' }),
+  statCard: (color) => ({ background: 'var(--bg-2)', border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`, borderRadius: 10, padding: '12px 18px', minWidth: 100, textAlign: 'center' }),
   statNum: { fontSize: 'var(--fs-2xl)', fontWeight: 700, color: 'var(--text)' },
   statLabel: { fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: 2 },
   empty: { textAlign: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 'var(--fs-base)' },
 };
 
-const PRIORITY_COLORS = { critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#888' };
-const STATUS_COLORS = { open: '#3b82f6', in_progress: '#f59e0b', delegated: '#a855f7', blocked: '#ef4444', done: '#4ade80', overdue: '#ef4444' };
+const PRIORITY_COLORS = { critical: 'var(--s-ef4444)', high: 'var(--s-f59e0b)', medium: 'var(--s-3b82f6)', low: 'var(--n-888888)' };
+const STATUS_COLORS = { open: 'var(--s-3b82f6)', in_progress: 'var(--s-f59e0b)', delegated: 'var(--s-a855f7)', blocked: 'var(--s-ef4444)', done: 'var(--s-4ade80)', overdue: 'var(--s-ef4444)' };
 const TYPE_ICONS = { task: '✓', email: '✉', delegation: '→', alert: '⚠', erp: '📊', okr: '🎯', risk: '⚡' };
 
 function lifecycleLabel(item) {
@@ -235,7 +235,7 @@ export default function OpenItemsPage() {
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
             <button
-              style={{ ...s.btn, background: '#f59e0b', color: '#000', borderColor: '#f59e0b', opacity: cleanupApplying ? 0.7 : 1 }}
+              style={{ ...s.btn, background: '#f59e0b', color: '#000', borderColor: 'var(--s-f59e0b)', opacity: cleanupApplying ? 0.7 : 1 }}
               disabled={cleanupApplying}
               onClick={async () => {
                 setCleanupApplying(true);
@@ -256,11 +256,11 @@ export default function OpenItemsPage() {
       {/* Stats */}
       {stats && (
         <div style={s.stats}>
-          <div style={s.statCard('#3b82f6')}><div style={s.statNum}>{stats.total}</div><div style={s.statLabel}>Total Open</div></div>
-          <div style={s.statCard('#ef4444')}><div style={{ ...s.statNum, color: '#ef4444' }}>{stats.byPriority?.critical || 0}</div><div style={s.statLabel}>Critical</div></div>
-          <div style={s.statCard('#f59e0b')}><div style={{ ...s.statNum, color: '#f59e0b' }}>{stats.byPriority?.high || 0}</div><div style={s.statLabel}>High</div></div>
-          <div style={s.statCard('#a855f7')}><div style={{ ...s.statNum, color: '#a855f7' }}>{stats.byStatus?.delegated || 0}</div><div style={s.statLabel}>Delegated</div></div>
-          <div style={s.statCard('#4ade80')}><div style={{ ...s.statNum, color: '#4ade80' }}>{stats.byStatus?.done || 0}</div><div style={s.statLabel}>Done</div></div>
+          <div style={s.statCard('var(--s-3b82f6)')}><div style={s.statNum}>{stats.total}</div><div style={s.statLabel}>Total Open</div></div>
+          <div style={s.statCard('var(--s-ef4444)')}><div style={{ ...s.statNum, color: 'var(--s-ef4444)' }}>{stats.byPriority?.critical || 0}</div><div style={s.statLabel}>Critical</div></div>
+          <div style={s.statCard('var(--s-f59e0b)')}><div style={{ ...s.statNum, color: 'var(--s-f59e0b)' }}>{stats.byPriority?.high || 0}</div><div style={s.statLabel}>High</div></div>
+          <div style={s.statCard('var(--s-a855f7)')}><div style={{ ...s.statNum, color: 'var(--s-a855f7)' }}>{stats.byStatus?.delegated || 0}</div><div style={s.statLabel}>Delegated</div></div>
+          <div style={s.statCard('var(--s-4ade80)')}><div style={{ ...s.statNum, color: 'var(--s-4ade80)' }}>{stats.byStatus?.done || 0}</div><div style={s.statLabel}>Done</div></div>
         </div>
       )}
 
@@ -316,7 +316,7 @@ export default function OpenItemsPage() {
               title="Snooze all selected items"
             >Snooze</button>
             <button
-              style={{ ...s.btn, background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.55)', color: '#fca5a5', opacity: bulkBusy ? 0.7 : 1 }}
+              style={{ ...s.btn, background: 'rgba(239,68,68,0.18)', border: '1px solid rgba(239,68,68,0.55)', color: 'var(--s-fca5a5)', opacity: bulkBusy ? 0.7 : 1 }}
               disabled={bulkBusy}
               onClick={bulkMarkWrong}
               title="Mark as not relevant — Brain learns to stop creating these"
@@ -358,13 +358,13 @@ export default function OpenItemsPage() {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                   <span style={{ fontSize: 14 }}>{TYPE_ICONS[item.type] || '•'}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#eee' }}>{item.title}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--n-eeeeee)' }}>{item.title}</span>
                   <span style={s.badge(PRIORITY_COLORS[item.priority])}>{item.priority}</span>
                   <span style={s.badge(STATUS_COLORS[item.status])}>{item.status.replace('_', ' ')}</span>
-                  {lifecycleLabel(item) && <span style={s.badge('#22c55e')}>Nexeo: {lifecycleLabel(item)}</span>}
+                  {lifecycleLabel(item) && <span style={s.badge('var(--s-22c55e)')}>Nexeo: {lifecycleLabel(item)}</span>}
                 </div>
-                {item.description && <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{item.description.substring(0, 120)}{item.description.length > 120 ? '...' : ''}</div>}
-                <div style={{ fontSize: 11, color: '#666', marginTop: 6, display: 'flex', gap: 12 }}>
+                {item.description && <div style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: 2 }}>{item.description.substring(0, 120)}{item.description.length > 120 ? '...' : ''}</div>}
+                <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 6, display: 'flex', gap: 12 }}>
                   {item.sourceFeed && <span>Source: {item.sourceFeed}</span>}
                   {item.dueDate && <span>Due: {new Date(item.dueDate).toLocaleDateString()}</span>}
                   {item.delegateeName && <span>Delegated to: {item.delegateeName}</span>}
@@ -380,7 +380,7 @@ export default function OpenItemsPage() {
                 )}
                 {item.status !== 'done' && item.status !== 'closed' && (
                   <button
-                    style={{ ...s.btn, ...s.btnSmall, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: '#fca5a5' }}
+                    style={{ ...s.btn, ...s.btnSmall, background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.4)', color: 'var(--s-fca5a5)' }}
                     onClick={() => markWrongSingle(item.id)}
                     title="Not relevant — Brain learns to stop creating these"
                   >✕ Wrong</button>
@@ -399,7 +399,7 @@ export default function OpenItemsPage() {
       {showCreate && (
         <div style={s.modal} onClick={() => setShowCreate(false)}>
           <div style={s.modalBody} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#eee', marginBottom: 16 }}>Create Open Item</div>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--n-eeeeee)', marginBottom: 16 }}>Create Open Item</div>
             <label style={s.label}>Title *</label>
             <input style={s.input} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="What needs to be done?" />
             <label style={s.label}>Description</label>
@@ -435,16 +435,16 @@ export default function OpenItemsPage() {
         <div style={s.modal} onClick={() => setSelectedItem(null)}>
           <div style={s.modalBody} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#eee' }}>{selectedItem.title}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--n-eeeeee)' }}>{selectedItem.title}</div>
               <button style={{ ...s.btn, ...s.btnOutline }} onClick={() => setSelectedItem(null)}>✕</button>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <span style={s.badge(PRIORITY_COLORS[selectedItem.priority])}>{selectedItem.priority}</span>
               <span style={s.badge(STATUS_COLORS[selectedItem.status])}>{selectedItem.status.replace('_', ' ')}</span>
-              <span style={s.badge('#888')}>{selectedItem.type}</span>
+              <span style={s.badge('var(--n-888888)')}>{selectedItem.type}</span>
             </div>
-            {selectedItem.description && <div style={{ fontSize: 13, color: '#ccc', marginBottom: 12, lineHeight: 1.5 }}>{selectedItem.description}</div>}
-            <div style={{ fontSize: 12, color: '#888', display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {selectedItem.description && <div style={{ fontSize: 13, color: 'var(--n-cccccc)', marginBottom: 12, lineHeight: 1.5 }}>{selectedItem.description}</div>}
+            <div style={{ fontSize: 12, color: 'var(--n-888888)', display: 'flex', flexDirection: 'column', gap: 4 }}>
               {selectedItem.sourceFeed && <div>Source: {selectedItem.sourceFeed}</div>}
               {selectedItem.dueDate && <div>Due: {new Date(selectedItem.dueDate).toLocaleDateString()}</div>}
               {selectedItem.delegateeName && <div>Delegated to: {selectedItem.delegateeName} {selectedItem.delegateeEmail ? `(${selectedItem.delegateeEmail})` : ''}</div>}
@@ -453,22 +453,22 @@ export default function OpenItemsPage() {
             </div>
             {selectedItem.metadata?.actionLifecycle && (
               <div style={{ marginTop: 16, padding: 12, border: '1px solid rgba(34,197,94,0.3)', borderRadius: 8, background: 'rgba(34,197,94,0.05)' }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#86efac', marginBottom: 8 }}>Nexeo Living Follow-up</div>
-                <div style={{ fontSize: 12, color: '#aaa', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--s-86efac)', marginBottom: 8 }}>Nexeo Living Follow-up</div>
+                <div style={{ fontSize: 12, color: 'var(--n-aaaaaa)', display: 'flex', flexDirection: 'column', gap: 5 }}>
                   <div>Phase: {lifecycleLabel(selectedItem)}</div>
                   {selectedItem.metadata.actionLifecycle.nextFollowUpAt && <div>Next follow-up: {new Date(selectedItem.metadata.actionLifecycle.nextFollowUpAt).toLocaleString()}</div>}
                   <div>Unanswered attempts: {selectedItem.metadata.actionLifecycle.unansweredAttempts ?? 0}</div>
                   <div>Missed commitments: {selectedItem.metadata.actionLifecycle.missedCommitments ?? 0}</div>
                   {selectedItem.metadata.actionLifecycle.currentDelayReason && <div>Latest delay reason: {selectedItem.metadata.actionLifecycle.currentDelayReason}</div>}
-                  {selectedItem.metadata.actionLifecycle.needsUserIntervention && <div style={{ color: '#fca5a5' }}>User intervention required: {selectedItem.metadata.actionLifecycle.interventionReason || 'Nexeo detected a blocker.'}</div>}
+                  {selectedItem.metadata.actionLifecycle.needsUserIntervention && <div style={{ color: 'var(--s-fca5a5)' }}>User intervention required: {selectedItem.metadata.actionLifecycle.interventionReason || 'Nexeo detected a blocker.'}</div>}
                 </div>
               </div>
             )}
             {selectedItem.delegationTrail?.length > 0 && (
               <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#888', marginBottom: 6 }}>Delegation Trail</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--n-888888)', marginBottom: 6 }}>Delegation Trail</div>
                 {selectedItem.delegationTrail.map((d, i) => (
-                  <div key={i} style={{ fontSize: 12, color: '#aaa', padding: '4px 0', borderBottom: '1px solid #2a2a2a' }}>
+                  <div key={i} style={{ fontSize: 12, color: 'var(--n-aaaaaa)', padding: '4px 0', borderBottom: '1px solid var(--n-2a2a2a)' }}>
                     → {d.delegatedTo} at {new Date(d.delegatedAt).toLocaleString()} {d.note ? `— ${d.note}` : ''}
                   </div>
                 ))}

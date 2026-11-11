@@ -64,12 +64,12 @@ function LicensesTab({ msg, setMsg }) {
           <tbody>
             {tenants.map(t => (
               <tr key={t.clientNumber}>
-                <td><strong>{t.clientNumber}</strong><br/><span style={{ fontSize: 11, color: '#888' }}>{t.name}</span></td>
+                <td><strong>{t.clientNumber}</strong><br/><span style={{ fontSize: 11, color: 'var(--n-888888)' }}>{t.name}</span></td>
                 <td>{t.license?.adminSeats ?? '—'}</td>
                 <td>{t.license?.standardSeats ?? '—'}</td>
                 <td>{t.license?.basicSeats ?? '—'}</td>
                 <td>{t.license ? `$${Number(t.license.netAmount).toLocaleString()}` : '—'}</td>
-                <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? '#4ade80' : '#ef4444', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
+                <td>{t.expiry ? <span style={{ color: new Date(t.expiry) > new Date() ? 'var(--s-4ade80)' : 'var(--s-ef4444)', fontSize: 12 }}>{new Date(t.expiry).toLocaleDateString()}</span> : '—'}</td>
                 <td><button className="admin-action" onClick={() => openEditor(t)}>Edit</button></td>
               </tr>
             ))}
@@ -101,14 +101,14 @@ function LicensesTab({ msg, setMsg }) {
               <div className="settings-field"><label>End Date</label><input type="date" value={licenseForm.endDate} onChange={e => setLicenseForm(f => ({ ...f, endDate: e.target.value }))} /></div>
             </div>
             {(() => { const { gross, disc, net } = calcTotal(); return (
-              <div style={{ background: '#1a1a1a', borderRadius: 8, padding: 14, margin: '16px 0', fontSize: 13 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#888' }}><span>Gross</span><span>${gross.toLocaleString()}</span></div>
-                {disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: '#4ade80' }}><span>Discount ({licenseForm.discount}%)</span><span>-${disc.toLocaleString()}</span></div>}
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 700, fontSize: 15, marginTop: 6, paddingTop: 6, borderTop: '1px solid #333' }}><span>Net Amount</span><span>${net.toLocaleString()}/period</span></div>
+              <div style={{ background: 'var(--n-1a1a1a)', borderRadius: 8, padding: 14, margin: '16px 0', fontSize: 13 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--n-888888)' }}><span>Gross</span><span>${gross.toLocaleString()}</span></div>
+                {disc > 0 && <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--s-4ade80)' }}><span>Discount ({licenseForm.discount}%)</span><span>-${disc.toLocaleString()}</span></div>}
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--accent)', fontWeight: 700, fontSize: 15, marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--n-333333)' }}><span>Net Amount</span><span>${net.toLocaleString()}/period</span></div>
               </div>
             ); })()}
             <div style={{ display: 'flex', gap: 10 }}>
-              <button className="settings-btn" onClick={() => setEditLicense(null)} style={{ flex: 1, background: '#333' }}>Cancel</button>
+              <button className="settings-btn" onClick={() => setEditLicense(null)} style={{ flex: 1, background: 'var(--n-333333)' }}>Cancel</button>
               <button className="settings-btn" onClick={saveLicense} style={{ flex: 1 }}>Save License</button>
             </div>
           </div>
@@ -118,7 +118,7 @@ function LicensesTab({ msg, setMsg }) {
       {/* License Pricing — now managed in User Tiers tab */}
       <section className="settings-section">
         <h2>License Pricing</h2>
-        <p style={{ color: '#888', fontSize: 13 }}>Pricing is now managed per tier in the <strong>User Tiers</strong> tab. Each tier defines its own price/seat along with all feature settings.</p>
+        <p style={{ color: 'var(--n-888888)', fontSize: 13 }}>Pricing is now managed per tier in the <strong>User Tiers</strong> tab. Each tier defines its own price/seat along with all feature settings.</p>
       </section>
     </>
   );
@@ -134,7 +134,7 @@ function PriceRow({ price, onSave }) {
       <tr>
         <td><span className={`badge-type type-${price.roleType}`}>{price.roleType}</span></td>
         <td><strong>${Number(price.pricePerSeat)}</strong></td>
-        <td style={{ fontSize: 12, color: '#888' }}>{price.description}</td>
+        <td style={{ fontSize: 12, color: 'var(--n-888888)' }}>{price.description}</td>
         <td><button className="admin-action" onClick={() => setEditing(true)}>Edit</button></td>
       </tr>
     );
@@ -143,8 +143,8 @@ function PriceRow({ price, onSave }) {
   return (
     <tr>
       <td><span className={`badge-type type-${price.roleType}`}>{price.roleType}</span></td>
-      <td><input type="number" min="0" step="0.01" value={val} onChange={e => setVal(parseFloat(e.target.value) || 0)} style={{ width: 80, padding: '4px 8px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--accent)', borderRadius: 6, color: '#fff' }} /></td>
-      <td><input value={desc} onChange={e => setDesc(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 12, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 6, color: '#bbb' }} /></td>
+      <td><input type="number" min="0" step="0.01" value={val} onChange={e => setVal(parseFloat(e.target.value) || 0)} style={{ width: 80, padding: '4px 8px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--accent)', borderRadius: 6, color: 'var(--n-ffffff)' }} /></td>
+      <td><input value={desc} onChange={e => setDesc(e.target.value)} style={{ width: '100%', padding: '4px 8px', fontSize: 12, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 6, color: 'var(--n-bbbbbb)' }} /></td>
       <td style={{ display: 'flex', gap: 4 }}>
         <button className="admin-action" style={{ borderColor: 'var(--accent)', color: 'var(--accent)' }} onClick={() => { onSave(price.roleType, val, desc); setEditing(false); }}>Save</button>
         <button className="admin-action" onClick={() => setEditing(false)}>Cancel</button>

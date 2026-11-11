@@ -4,26 +4,26 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 
 const s = {
-  wrapper: { height: '100vh', overflow: 'hidden', position: 'relative', background: '#111' },
-  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' },
-  fadeHint: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, #111)', pointerEvents: 'none', zIndex: 10, transition: 'opacity 0.3s' },
+  wrapper: { height: '100vh', overflow: 'hidden', position: 'relative', background: 'var(--n-111111)' },
+  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: 'var(--n-333333) transparent' },
+  fadeHint: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, var(--n-111111))', pointerEvents: 'none', zIndex: 10, transition: 'opacity 0.3s' },
   page: { padding: '20px 24px', maxWidth: 900, margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   btn: { padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, fontFamily: 'inherit' },
   btnPrimary: { background: '#cc6b4a', color: '#fff' },
-  btnOutline: { background: 'transparent', border: '1px solid #555', color: '#aaa' },
+  btnOutline: { background: 'transparent', border: '1px solid var(--n-555555)', color: 'var(--n-aaaaaa)' },
   btnSuccess: { background: '#4ade80', color: '#111' },
-  tab: (active) => ({ padding: '8px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', background: active ? '#cc6b4a' : 'transparent', color: active ? '#fff' : '#888', marginRight: 4 }),
-  section: { background: '#1e1e1e', border: '1px solid #333', borderRadius: 10, padding: 20, marginBottom: 16 },
-  sectionTitle: { fontSize: 15, fontWeight: 600, color: '#eee', marginBottom: 12 },
-  sectionDesc: { fontSize: 12, color: '#888', marginBottom: 16 },
-  input: { width: '100%', background: '#2a2a2a', border: '1px solid #444', color: '#eee', padding: '8px 12px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', background: '#2a2a2a', border: '1px solid #444', color: '#eee', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', minHeight: 150, resize: 'vertical', lineHeight: 1.6 },
-  label: { display: 'block', fontSize: 12, color: '#888', marginBottom: 4, marginTop: 14 },
+  tab: (active) => ({ padding: '8px 18px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: 'inherit', background: active ? '#cc6b4a' : 'transparent', color: active ? '#fff' : 'var(--n-888888)', marginRight: 4 }),
+  section: { background: 'var(--n-1e1e1e)', border: '1px solid var(--n-333333)', borderRadius: 10, padding: 20, marginBottom: 16 },
+  sectionTitle: { fontSize: 15, fontWeight: 600, color: 'var(--n-eeeeee)', marginBottom: 12 },
+  sectionDesc: { fontSize: 12, color: 'var(--n-888888)', marginBottom: 16 },
+  input: { width: '100%', background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', padding: '8px 12px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', padding: '10px 14px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box', minHeight: 150, resize: 'vertical', lineHeight: 1.6 },
+  label: { display: 'block', fontSize: 12, color: 'var(--n-888888)', marginBottom: 4, marginTop: 14 },
   row: { display: 'flex', gap: 12, alignItems: 'flex-end' },
-  ruleCard: { background: '#252525', border: '1px solid #333', borderRadius: 8, padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: color + '22', color }),
-  msg: (type) => ({ padding: '8px 14px', background: type === 'success' ? '#4ade8022' : '#25252', border: `1px solid ${type === 'success' ? '#4ade80' : '#444'}`, borderRadius: 8, marginBottom: 12, color: type === 'success' ? '#4ade80' : '#eee', fontSize: 13 }),
+  ruleCard: { background: 'var(--n-252525)', border: '1px solid var(--n-333333)', borderRadius: 8, padding: 12, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13.3333%, transparent)`, color }),
+  msg: (type) => ({ padding: '8px 14px', background: type === 'success' ? 'color-mix(in srgb, var(--s-4ade80) 13.3333%, transparent)' : '#25252', border: `1px solid ${type === 'success' ? 'var(--s-4ade80)' : 'var(--n-444444)'}`, borderRadius: 8, marginBottom: 12, color: type === 'success' ? 'var(--s-4ade80)' : 'var(--n-eeeeee)', fontSize: 13 }),
 };
 
 export default function BrainConfigPage() {
@@ -131,7 +131,7 @@ export default function BrainConfigPage() {
     { key: 'poApprovalHours', label: 'PO Approval Hours', desc: 'Unapproved PO age before alert', default: 72 },
   ];
 
-  if (loading) return <div style={{ ...s.page, textAlign: 'center', color: '#666', paddingTop: 60 }}>Loading brain config...</div>;
+  if (loading) return <div style={{ ...s.page, textAlign: 'center', color: 'var(--n-666666)', paddingTop: 60 }}>Loading brain config...</div>;
 
   return (
     <div style={s.wrapper}>
@@ -140,8 +140,8 @@ export default function BrainConfigPage() {
       <div style={s.header}>
         <div>
           <button style={{ ...s.btn, ...s.btnOutline, marginRight: 10 }} onClick={() => navigate('/')}>← Back to Chat</button>
-          <span style={{ fontSize: 20, fontWeight: 700, color: '#eee' }}>My Brain</span>
-          <span style={{ fontSize: 12, color: '#888', marginLeft: 12 }}>Personal AI Configuration</span>
+          <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--n-eeeeee)' }}>My Brain</span>
+          <span style={{ fontSize: 12, color: 'var(--n-888888)', marginLeft: 12 }}>Personal AI Configuration</span>
         </div>
       </div>
 
@@ -191,7 +191,7 @@ export default function BrainConfigPage() {
           <label style={s.label}>Briefing Sections</label>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {ALL_BRIEFING_SECTIONS.map(sec => (
-              <label key={sec.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: briefingSections.includes(sec.id) ? '#2a2a2a' : 'transparent', borderRadius: 6 }}>
+              <label key={sec.id} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: briefingSections.includes(sec.id) ? 'var(--n-2a2a2a)' : 'transparent', borderRadius: 6 }}>
                 <input
                   type="checkbox"
                   checked={briefingSections.includes(sec.id)}
@@ -202,8 +202,8 @@ export default function BrainConfigPage() {
                   }}
                 />
                 <div>
-                  <div style={{ fontSize: 13, color: '#eee' }}>{sec.label}</div>
-                  <div style={{ fontSize: 11, color: '#888' }}>{sec.desc}</div>
+                  <div style={{ fontSize: 13, color: 'var(--n-eeeeee)' }}>{sec.label}</div>
+                  <div style={{ fontSize: 11, color: 'var(--n-888888)' }}>{sec.desc}</div>
                 </div>
               </label>
             ))}
@@ -248,7 +248,7 @@ export default function BrainConfigPage() {
                   value={alertThresholds[f.key] ?? f.default}
                   onChange={e => setAlertThresholds({ ...alertThresholds, [f.key]: Number(e.target.value) })}
                 />
-                <div style={{ fontSize: 10, color: '#666', marginTop: 2 }}>{f.desc}</div>
+                <div style={{ fontSize: 10, color: 'var(--n-666666)', marginTop: 2 }}>{f.desc}</div>
               </div>
             ))}
           </div>
@@ -269,7 +269,7 @@ export default function BrainConfigPage() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {AUTOMATION_LEVELS.map(level => (
-              <label key={level.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '12px 14px', background: automationLevel === level.value ? '#2a2a2a' : 'transparent', border: automationLevel === level.value ? '1px solid #cc6b4a' : '1px solid #333', borderRadius: 8 }}>
+              <label key={level.value} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', padding: '12px 14px', background: automationLevel === level.value ? 'var(--n-2a2a2a)' : 'transparent', border: automationLevel === level.value ? '1px solid var(--s-cc6b4a)' : '1px solid var(--n-333333)', borderRadius: 8 }}>
                 <input
                   type="radio"
                   name="automationLevel"
@@ -278,8 +278,8 @@ export default function BrainConfigPage() {
                   style={{ marginTop: 2 }}
                 />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: '#eee' }}>{level.label}</div>
-                  <div style={{ fontSize: 12, color: '#888', marginTop: 2 }}>{level.desc}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--n-eeeeee)' }}>{level.label}</div>
+                  <div style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: 2 }}>{level.desc}</div>
                 </div>
               </label>
             ))}
@@ -302,20 +302,20 @@ export default function BrainConfigPage() {
           </div>
 
           {/* Status display */}
-          <div style={{ background: '#252525', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+          <div style={{ background: 'var(--n-252525)', borderRadius: 8, padding: 16, marginBottom: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 13, color: '#888', marginBottom: 4 }}>Engine Status</div>
-                <div style={{ fontSize: 16, fontWeight: 600, color: engineStatus?.running ? '#f59e0b' : '#4ade80' }}>
+                <div style={{ fontSize: 13, color: 'var(--n-888888)', marginBottom: 4 }}>Engine Status</div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: engineStatus?.running ? 'var(--s-f59e0b)' : 'var(--s-4ade80)' }}>
                   {engineStatus?.running ? '⟳ Running...' : '● Ready'}
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 12, color: '#888' }}>
+                <div style={{ fontSize: 12, color: 'var(--n-888888)' }}>
                   Last run: {engineStatus?.lastRun ? `${Math.round((Date.now() - new Date(engineStatus.lastRun).getTime()) / 3600000)}h ago` : 'Never'}
                 </div>
                 {engineStatus?.nextRun && (
-                  <div style={{ fontSize: 12, color: '#888' }}>
+                  <div style={{ fontSize: 12, color: 'var(--n-888888)' }}>
                     Next run: in {Math.max(0, Math.round((new Date(engineStatus.nextRun).getTime() - Date.now()) / 3600000))}h
                   </div>
                 )}
@@ -342,7 +342,7 @@ export default function BrainConfigPage() {
             <option value="0 */6 * * *">Every 6 hours</option>
             <option value="0 */12 * * *">Every 12 hours</option>
           </select>
-          <div style={{ fontSize: 10, color: '#666', marginTop: 4 }}>When the engine runs, it ingests all your connected feeds, classifies items, scores priorities, and generates delegation messages.</div>
+          <div style={{ fontSize: 10, color: 'var(--n-666666)', marginTop: 4 }}>When the engine runs, it ingests all your connected feeds, classifies items, scores priorities, and generates delegation messages.</div>
         </div>
       )}
     </div>

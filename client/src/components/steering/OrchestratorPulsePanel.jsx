@@ -1366,7 +1366,7 @@ export default function OrchestratorPulsePanel() {
               const b = data.iteration_budget_s || 2400;
               const over = t && t > b;
               return (
-                <span style={over ? { color: 'var(--warn, #fbbf24)' } : undefined}>
+                <span style={over ? { color: 'var(--warn, var(--s-fbbf24))' } : undefined}>
                   {t ? fmtDur(t) : 'idle'}{t ? ` of ${Math.round(b / 60)}m` : ''}
                   {over ? ' · over budget' : ''}
                 </span>

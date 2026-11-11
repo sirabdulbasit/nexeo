@@ -132,7 +132,7 @@ export default function LlmSpendTab({ user }) {
                         <td style={numTd}>{fmt(b.inTokens)}</td>
                         <td style={numTd}>{fmt(b.outTokens)}</td>
                         <td style={numTd}>{fmt(b.tokens)}</td>
-                        <td style={{ ...numTd, color: 'var(--accent, #c2410c)' }}>{fmtUsd(b.usd)}</td>
+                        <td style={{ ...numTd, color: 'var(--accent, var(--s-c2410c))' }}>{fmtUsd(b.usd)}</td>
                         <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                           {b.byUser.map((u) => `#${u.userId} ${fmtUsd(u.usd)}`).join(' · ')}
                         </td>
@@ -186,7 +186,7 @@ export default function LlmSpendTab({ user }) {
                         <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>
                           {Object.entries(u.byPurpose).map(([p, n]) => `${p}:${n}`).join(' · ')}
                         </td>
-                        <td style={{ ...td, fontWeight: 600, color: u.estimatedCostUsd > 0.1 ? '#f59e0b' : 'var(--text)' }}>
+                        <td style={{ ...td, fontWeight: 600, color: u.estimatedCostUsd > 0.1 ? 'var(--s-f59e0b)' : 'var(--text)' }}>
                           {fmtUsd(u.estimatedCostUsd)}
                         </td>
                       </tr>
@@ -212,11 +212,11 @@ const td = { padding: '10px 12px', fontSize: 13 };
 function StatCard({ label, value, highlight }) {
   return (
     <div style={{
-      background: 'var(--bg-2)', border: `1px solid ${highlight ? '#cc6b4a' : 'var(--border)'}`,
+      background: 'var(--bg-2)', border: `1px solid ${highlight ? 'var(--s-cc6b4a)' : 'var(--border)'}`,
       borderRadius: 8, padding: '12px 16px',
     }}>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: highlight ? '#cc6b4a' : 'var(--text)', marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: highlight ? 'var(--s-cc6b4a)' : 'var(--text)', marginTop: 4 }}>{value}</div>
     </div>
   );
 }

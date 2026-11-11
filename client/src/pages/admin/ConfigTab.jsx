@@ -77,12 +77,12 @@ function LogoUploader() {
         <img
           src={preview || currentLogoUrl}
           alt="Logo"
-          style={{ width: 64, height: 64, borderRadius: 12, border: '1px solid #333', objectFit: 'contain', background: '#1a1a1a' }}
+          style={{ width: 64, height: 64, borderRadius: 12, border: '1px solid var(--n-333333)', objectFit: 'contain', background: 'var(--n-1a1a1a)' }}
           onError={(e) => { e.target.src = '/tmc-logo.png'; }}
         />
         <div style={{ flex: 1 }}>
-          <input type="file" accept="image/*" onChange={handleFile} style={{ fontSize: 12, color: '#888' }} />
-          <p style={{ fontSize: 11, color: '#666', marginTop: 4 }}>PNG or SVG, max 2MB. Shown on login, chat, and emails.</p>
+          <input type="file" accept="image/*" onChange={handleFile} style={{ fontSize: 12, color: 'var(--n-888888)' }} />
+          <p style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>PNG or SVG, max 2MB. Shown on login, chat, and emails.</p>
         </div>
         {preview && (
           <button className="settings-btn" onClick={upload} disabled={saving}>
@@ -137,7 +137,7 @@ function DisplayDefaultsSection() {
   return (
     <section className="settings-section">
       <h2>🔤 Display Defaults</h2>
-      <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+      <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
         Sets the default interface text size for <strong>every user in this tenant</strong>. Individual users can still set a personal override in Settings → Display, which wins over this.
       </p>
       <div className="settings-field">
@@ -158,7 +158,7 @@ function DisplayDefaultsSection() {
             </button>
           ))}
         </div>
-        {msg && <div style={{ fontSize: 12, color: '#4ade80', marginTop: 8 }}>{msg}</div>}
+        {msg && <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 8 }}>{msg}</div>}
       </div>
     </section>
   );
@@ -221,7 +221,7 @@ function DataManagementSection() {
 
       <section className="settings-section">
         <h2>Select Client</h2>
-        <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} style={{ width: '100%', padding: '8px 12px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 8, color: '#e8e8e0' }}>
+        <select value={selectedClient} onChange={e => setSelectedClient(e.target.value)} style={{ width: '100%', padding: '8px 12px', fontSize: 13, background: 'var(--bg-input)', border: '1px solid var(--border-input)', borderRadius: 8, color: 'var(--n-e8e8e0)' }}>
           <option value="">All Clients</option>
           {tenants.map(t => <option key={t.clientNumber} value={t.clientNumber}>{t.clientNumber} — {t.name}</option>)}
         </select>
@@ -272,9 +272,9 @@ function DataManagementSection() {
 
       {preview && (
         <section className="settings-section" style={{ borderColor: 'rgba(239,68,68,0.3)' }}>
-          <h2 style={{ color: '#ef4444' }}>Purge Preview — {selectedClient || 'ALL CLIENTS'}</h2>
+          <h2 style={{ color: 'var(--s-ef4444)' }}>Purge Preview — {selectedClient || 'ALL CLIENTS'}</h2>
           <div className="admin-cards">
-            {preview.map(p => <div className="admin-card" key={p.table} style={{ borderColor: p.count > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)' }}><div className="admin-card-value" style={{ color: p.count > 0 ? '#ef4444' : '#888' }}>{p.count}</div><div className="admin-card-label">{p.label}</div></div>)}
+            {preview.map(p => <div className="admin-card" key={p.table} style={{ borderColor: p.count > 0 ? 'rgba(239,68,68,0.3)' : 'var(--border)' }}><div className="admin-card-value" style={{ color: p.count > 0 ? 'var(--s-ef4444)' : 'var(--n-888888)' }}>{p.count}</div><div className="admin-card-label">{p.label}</div></div>)}
           </div>
           <button className="settings-btn danger" onClick={() => setShowConfirm(true)} style={{ width: '100%', marginTop: 12 }}>Purge {totalSelected} Records</button>
         </section>
@@ -283,11 +283,11 @@ function DataManagementSection() {
       {showConfirm && (
         <div className="purge-modal-overlay">
           <div className="purge-modal">
-            <h3 style={{ color: '#ef4444' }}>Confirm Purge</h3>
+            <h3 style={{ color: 'var(--s-ef4444)' }}>Confirm Purge</h3>
             <p>Permanently delete <strong>{totalSelected}</strong> records from <strong>{selectedClient || 'ALL CLIENTS'}</strong>?</p>
-            <p style={{ color: '#ef4444', fontWeight: 600, fontSize: 13, marginTop: 10 }}>This cannot be undone.</p>
+            <p style={{ color: 'var(--s-ef4444)', fontWeight: 600, fontSize: 13, marginTop: 10 }}>This cannot be undone.</p>
             <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-              <button className="settings-btn" onClick={() => setShowConfirm(false)} style={{ flex: 1, background: '#333' }}>Cancel</button>
+              <button className="settings-btn" onClick={() => setShowConfirm(false)} style={{ flex: 1, background: 'var(--n-333333)' }}>Cancel</button>
               <button className="settings-btn danger" onClick={handlePurge} disabled={purging} style={{ flex: 1 }}>{purging ? 'Purging...' : 'Confirm'}</button>
             </div>
           </div>

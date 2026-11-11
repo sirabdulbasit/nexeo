@@ -323,7 +323,7 @@ export default function ContactsPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 'var(--fs-2xl, 24px)' }}>Contacts</h1>
-            <p style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 'var(--fs-sm, 13px)', margin: '4px 0 0', maxWidth: 720 }}>
+            <p style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 'var(--fs-sm, 13px)', margin: '4px 0 0', maxWidth: 720 }}>
               Set importance stars (★ 0–5) to tell Brain which people matter most. Higher stars = higher
               priority on every message they send. Auto-discovered from feed; import more from Google/Outlook
               or add manually.
@@ -365,7 +365,7 @@ export default function ContactsPage() {
             <div style={{ marginBottom: 6, fontWeight: 600 }}>
               Take ownership of every visible contact?
             </div>
-            <div style={{ marginBottom: 8, color: 'var(--text-muted, #98a0a8)', fontSize: 12 }}>
+            <div style={{ marginBottom: 8, color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12 }}>
               Repoints every contact row in your tenant that you can see to your account
               so you get the Normal / Public / Private chips on every row. Doesn't delete,
               doesn't change scope, doesn't re-discover. Safe to repeat.
@@ -381,9 +381,9 @@ export default function ContactsPage() {
               placeholder={user?.email}
               style={{
                 width: '100%', padding: '6px 8px',
-                background: 'var(--bg-1, #0d1117)',
-                border: '1px solid var(--border, #28323e)',
-                borderRadius: 4, color: 'var(--text, #e6e8eb)', fontSize: 13,
+                background: 'var(--bg-1, var(--n-0d1117))',
+                border: '1px solid var(--border, var(--n-28323e))',
+                borderRadius: 4, color: 'var(--text, var(--n-e6e8eb))', fontSize: 13,
               }}
             />
             <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -397,7 +397,7 @@ export default function ContactsPage() {
                   setReclaimFlow(null);
                 }}
                 style={{
-                  padding: '6px 12px', background: '#a78bfa', color: '#1a1a2e',
+                  padding: '6px 12px', background: '#a78bfa', color: 'var(--s-1a1a2e)',
                   border: 0, borderRadius: 4, fontSize: 13, fontWeight: 600,
                   cursor: reclaimFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 'pointer' : 'not-allowed',
                   opacity: reclaimFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 1 : 0.4,
@@ -410,8 +410,8 @@ export default function ContactsPage() {
                 onClick={() => setReclaimFlow(null)}
                 style={{
                   padding: '6px 12px', background: 'transparent',
-                  color: 'var(--text-muted, #98a0a8)',
-                  border: '1px solid var(--border, #28323e)',
+                  color: 'var(--text-muted, var(--n-98a0a8))',
+                  border: '1px solid var(--border, var(--n-28323e))',
                   borderRadius: 4, fontSize: 13, cursor: 'pointer',
                 }}
               >
@@ -432,7 +432,7 @@ export default function ContactsPage() {
             <div style={{ marginBottom: 6, fontWeight: 600 }}>
               Reset all contacts and rebuild from feed?
             </div>
-            <div style={{ marginBottom: 8, color: 'var(--text-muted, #98a0a8)', fontSize: 12 }}>
+            <div style={{ marginBottom: 8, color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12 }}>
               This deletes every contact you own, then re-discovers them from the last 90 days of
               feed activity (Gmail, WhatsApp, Calendar). Brain dedupes by phone/email content on
               the rebuild, so duplicates won't come back. Mark-inactive flags are NOT preserved.
@@ -449,9 +449,9 @@ export default function ContactsPage() {
               placeholder={user?.email}
               style={{
                 width: '100%', padding: '6px 8px',
-                background: 'var(--bg-1, #0d1117)',
-                border: '1px solid var(--border, #28323e)',
-                borderRadius: 4, color: 'var(--text, #e6e8eb)', fontSize: 13,
+                background: 'var(--bg-1, var(--n-0d1117))',
+                border: '1px solid var(--border, var(--n-28323e))',
+                borderRadius: 4, color: 'var(--text, var(--n-e6e8eb))', fontSize: 13,
               }}
             />
             <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -465,7 +465,7 @@ export default function ContactsPage() {
                   setResetFlow(null);
                 }}
                 style={{
-                  padding: '6px 12px', background: resetBusy ? '#7a1f1f' : '#dc2626', color: '#fff',
+                  padding: '6px 12px', background: resetBusy ? 'var(--t-7a1f1f)' : '#dc2626', color: 'var(--n-ffffff)',
                   border: 0, borderRadius: 4, fontSize: 13,
                   cursor: resetBusy ? 'wait' : (resetFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 'pointer' : 'not-allowed'),
                   opacity: resetBusy ? 0.7 : (resetFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 1 : 0.4),
@@ -478,8 +478,8 @@ export default function ContactsPage() {
                 onClick={() => setResetFlow(null)}
                 style={{
                   padding: '6px 12px', background: 'transparent',
-                  color: 'var(--text-muted, #98a0a8)',
-                  border: '1px solid var(--border, #28323e)',
+                  color: 'var(--text-muted, var(--n-98a0a8))',
+                  border: '1px solid var(--border, var(--n-28323e))',
                   borderRadius: 4, fontSize: 13, cursor: 'pointer',
                 }}
               >
@@ -526,7 +526,7 @@ export default function ContactsPage() {
               <div style={{ display: 'flex', gap: 6 }}>
                 <button
                   onClick={applyCleanup} disabled={cleanupApplying}
-                  style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #f59e0b', background: '#f59e0b', color: '#000', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+                  style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--s-f59e0b)', background: '#f59e0b', color: '#000', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
                 >{cleanupApplying ? 'Applying…' : 'Apply'}</button>
                 <button
                   onClick={() => setCleanupPreview(null)}
@@ -556,8 +556,8 @@ export default function ContactsPage() {
       {/* Filter bar */}
       <div style={{
         display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
-        padding: '12px 14px', border: '1px solid var(--border, #28323e)',
-        borderRadius: 10, marginBottom: 16, background: 'var(--panel, #141a22)',
+        padding: '12px 14px', border: '1px solid var(--border, var(--n-28323e))',
+        borderRadius: 10, marginBottom: 16, background: 'var(--panel, var(--n-141a22))',
       }}>
         <input
           type="search"
@@ -587,9 +587,9 @@ export default function ContactsPage() {
         <div style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
           {[
             { value: '',        label: 'All',        accent: 'var(--accent)', bg: 'rgba(214,109,60,0.15)' },
-            { value: 'public',  label: '🌐 Public',   accent: '#4fa9ff',       bg: 'rgba(79,169,255,0.18)' },
-            { value: 'normal',  label: 'Normal',     accent: '#b8c4cf',       bg: 'rgba(184,196,207,0.14)' },
-            { value: 'private', label: '🔒 Private', accent: '#c084fc',       bg: 'rgba(192,132,252,0.16)' },
+            { value: 'public',  label: '🌐 Public',   accent: 'var(--s-4fa9ff)',       bg: 'rgba(79,169,255,0.18)' },
+            { value: 'normal',  label: 'Normal',     accent: 'var(--n-b8c4cf)',       bg: 'rgba(var(--n-b8c4cf-rgb),0.14)' },
+            { value: 'private', label: '🔒 Private', accent: 'var(--s-c084fc)',       bg: 'rgba(192,132,252,0.16)' },
           ].map((opt) => (
             <button
               key={opt.value}
@@ -611,15 +611,15 @@ export default function ContactsPage() {
                 fontWeight: 600,
                 cursor: 'pointer',
                 background: visibility === opt.value ? opt.bg : 'transparent',
-                color: visibility === opt.value ? opt.accent : 'var(--text-muted, #98a0a8)',
-                border: `1px solid ${visibility === opt.value ? opt.accent : 'var(--border, #28323e)'}`,
+                color: visibility === opt.value ? opt.accent : 'var(--text-muted, var(--n-98a0a8))',
+                border: `1px solid ${visibility === opt.value ? opt.accent : 'var(--border, var(--n-28323e))'}`,
               }}
             >
               {opt.label}
             </button>
           ))}
         </div>
-        <span style={{ marginLeft: 'auto', color: 'var(--text-muted, #98a0a8)', fontSize: 12 }}>
+        <span style={{ marginLeft: 'auto', color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12 }}>
           Showing {entities.length}{total > entities.length ? ` of ${total}` : ''} contacts
         </span>
       </div>
@@ -632,9 +632,9 @@ export default function ContactsPage() {
         {[5, 4, 3, 2, 1, 0].map((n) => (
           <span key={n} style={{
             padding: '4px 10px', borderRadius: 999,
-            border: '1px solid var(--border, #28323e)',
-            color: n >= 4 ? '#f0a14a' : n === 0 ? 'var(--text-muted, #98a0a8)' : 'var(--text, #e6e8eb)',
-            background: 'var(--panel-2, #1b232d)',
+            border: '1px solid var(--border, var(--n-28323e))',
+            color: n >= 4 ? 'var(--s-f0a14a)' : n === 0 ? 'var(--text-muted, var(--n-98a0a8))' : 'var(--text, var(--n-e6e8eb))',
+            background: 'var(--panel-2, var(--n-1b232d))',
           }}>
             {n === 0 ? 'Unrated' : `★ ${n}`}: {counts[n] ?? 0}
           </span>
@@ -642,13 +642,13 @@ export default function ContactsPage() {
       </div>
 
       {error && (
-        <div style={{ color: '#d9534f', padding: 12, marginBottom: 16, border: '1px solid #d9534f', borderRadius: 8 }}>
+        <div style={{ color: 'var(--s-d9534f)', padding: 12, marginBottom: 16, border: '1px solid var(--s-d9534f)', borderRadius: 8 }}>
           {error}
         </div>
       )}
 
       {loading && entities.length === 0 ? (
-        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted, #98a0a8)' }}>Loading contacts…</div>
+        <div style={{ padding: 48, textAlign: 'center', color: 'var(--text-muted, var(--n-98a0a8))' }}>Loading contacts…</div>
       ) : entities.length === 0 ? (
         <EmptyState onRefresh={triggerSweep} />
       ) : (
@@ -769,15 +769,15 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
   const { tenantName } = useAuth();
   return (
     <div style={{
-      border: '1px solid var(--border, #28323e)', borderRadius: 10,
+      border: '1px solid var(--border, var(--n-28323e))', borderRadius: 10,
       // overflowX:auto so the action buttons on the right (Public/Normal/
       // Private/Mark inactive/Delete) stay reachable on narrower
       // viewports. Previous `overflow: hidden` was clipping them off.
-      overflowX: 'auto', background: 'var(--panel, #141a22)',
+      overflowX: 'auto', background: 'var(--panel, var(--n-141a22))',
     }}>
       <table style={{ minWidth: 980, width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
-          <tr style={{ background: 'var(--panel-2, #1b232d)', textAlign: 'left' }}>
+          <tr style={{ background: 'var(--panel-2, var(--n-1b232d))', textAlign: 'left' }}>
             <Th>Stars</Th>
             <Th>Name</Th>
             <Th>Email</Th>
@@ -809,7 +809,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
             <tr
               key={e.id}
               style={{
-                borderTop: '1px solid var(--border, #28323e)',
+                borderTop: '1px solid var(--border, var(--n-28323e))',
                 // Subtle muted background for non-public rows so scope
                 // is scannable. Muted (Private) gets a slightly stronger
                 // purple tint so the user can see at a glance which
@@ -817,14 +817,14 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                 background: isMuted
                   ? 'rgba(192,132,252,0.05)'
                   : !isPublic
-                    ? 'rgba(155,155,155,0.04)'
+                    ? 'rgba(var(--n-9b9b9b-rgb),0.04)'
                     : 'transparent',
               }}
             >
               <Td>
                 {starsDisabled ? (
                   <span
-                    style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 14, cursor: 'help' }}
+                    style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 14, cursor: 'help' }}
                     title={isMuted
                       ? 'Private (Brain-muted) contacts cannot be starred. Stars are a tenant-shared signal.'
                       : "Stars are a tenant-shared signal. Make this contact Public to rate them."}
@@ -843,7 +843,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                 />
                 {isPublic && (
                   <span
-                    style={pillStyle('#4fa9ff', 'rgba(79,169,255,0.12)')}
+                    style={pillStyle('var(--s-4fa9ff)', 'rgba(79,169,255,0.12)')}
                     title="Public — visible to every user in your tenant. Brain on."
                   >
                     🌐 Public
@@ -851,7 +851,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                 )}
                 {isMuted && (
                   <span
-                    style={pillStyle('#c084fc', 'rgba(192,132,252,0.14)')}
+                    style={pillStyle('var(--s-c084fc)', 'rgba(192,132,252,0.14)')}
                     title="Private — Brain ignores this contact entirely. Out of My Attention, no WhatsApp brain, no Day Brief, no Open Items."
                   >
                     🔇 Private
@@ -865,7 +865,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                     + phone all linked under one linkedPersonId). */}
                 {e.linkedPersonId && (
                   <span
-                    style={pillStyle('#a78bfa', 'rgba(167,139,250,0.14)')}
+                    style={pillStyle('var(--s-a78bfa)', 'rgba(167,139,250,0.14)')}
                     title="Linked to other identifiers under one person — Brain treats these as the same contact"
                   >
                     🔗 Linked
@@ -887,7 +887,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                         type="button"
                         onClick={() => onLinkContacts?.([e.id, ...sibIds])}
                         style={{
-                          ...pillStyle('#f59e0b', 'rgba(245,158,11,0.14)'),
+                          ...pillStyle('var(--s-f59e0b)', 'rgba(245,158,11,0.14)'),
                           cursor: 'pointer',
                           border: '1px solid rgba(245,158,11,0.4)',
                         }}
@@ -904,7 +904,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                           typed: '',
                         })}
                         style={{
-                          ...pillStyle('#dc2626', 'rgba(220,38,38,0.10)'),
+                          ...pillStyle('var(--s-dc2626)', 'rgba(220,38,38,0.10)'),
                           cursor: 'pointer',
                           border: '1px solid rgba(220,38,38,0.35)',
                         }}
@@ -923,12 +923,12 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                   interchangeable when one had only an email and the other
                   only a phone. */}
               <Td>
-                <span style={{ color: 'var(--text-muted, #98a0a8)' }}>
+                <span style={{ color: 'var(--text-muted, var(--n-98a0a8))' }}>
                   {e.email || '—'}
                 </span>
               </Td>
               <Td>
-                <span style={{ color: 'var(--text-muted, #98a0a8)' }}>
+                <span style={{ color: 'var(--text-muted, var(--n-98a0a8))' }}>
                   {e.phone || '—'}
                 </span>
               </Td>
@@ -938,11 +938,11 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
               <Td align="right">
                 {e.relationshipStrength != null
                   ? <span>{Math.round(e.relationshipStrength * 100)}%</span>
-                  : <span style={{ color: 'var(--text-muted, #98a0a8)' }}>—</span>}
+                  : <span style={{ color: 'var(--text-muted, var(--n-98a0a8))' }}>—</span>}
               </Td>
               <Td align="right">{e.weeklyVolume ?? 0}</Td>
               <Td>
-                <span style={{ color: 'var(--text-muted, #98a0a8)' }}>
+                <span style={{ color: 'var(--text-muted, var(--n-98a0a8))' }}>
                   {fmtRelative(e.lastSeen ?? e.lastUpdatedAt)}
                 </span>
               </Td>
@@ -970,8 +970,8 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                         padding: '4px 8px',
                         borderRadius: 6,
                         background: 'transparent',
-                        color: 'var(--text-muted, #98a0a8)',
-                        border: '1px solid var(--border, #28323e)',
+                        color: 'var(--text-muted, var(--n-98a0a8))',
+                        border: '1px solid var(--border, var(--n-28323e))',
                         cursor: 'pointer',
                         fontSize: 12,
                       }}
@@ -989,7 +989,7 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
                         padding: '4px 8px',
                         borderRadius: 6,
                         background: 'transparent',
-                        color: '#fca5a5',
+                        color: 'var(--s-fca5a5)',
                         border: '1px solid rgba(220,38,38,0.4)',
                         cursor: 'pointer',
                         fontSize: 12,
@@ -1016,12 +1016,12 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
           border: '1px solid rgba(220, 38, 38, 0.3)',
           borderRadius: 6,
           fontSize: 13,
-          color: 'var(--text, #e6e8eb)',
+          color: 'var(--text, var(--n-e6e8eb))',
         }}>
           <div style={{ marginBottom: 8, fontWeight: 600 }}>
             Merge {mergeFlow.secondaryIds.length} row(s) into <strong>"{mergeFlow.primaryTitle}"</strong>?
           </div>
-          <div style={{ marginBottom: 8, color: 'var(--text-muted, #98a0a8)', fontSize: 12 }}>
+          <div style={{ marginBottom: 8, color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12 }}>
             Other row(s) will be deleted. Email, phone, channels, and stars merge into "{mergeFlow.primaryTitle}".
             sender_history references repointed. Not reversible.
           </div>
@@ -1037,10 +1037,10 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
             style={{
               width: '100%',
               padding: '6px 8px',
-              background: 'var(--bg-1, #0d1117)',
-              border: '1px solid var(--border, #28323e)',
+              background: 'var(--bg-1, var(--n-0d1117))',
+              border: '1px solid var(--border, var(--n-28323e))',
               borderRadius: 4,
-              color: 'var(--text, #e6e8eb)',
+              color: 'var(--text, var(--n-e6e8eb))',
               fontSize: 13,
             }}
           />
@@ -1077,8 +1077,8 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
               style={{
                 padding: '6px 12px',
                 background: 'transparent',
-                color: 'var(--text-muted, #98a0a8)',
-                border: '1px solid var(--border, #28323e)',
+                color: 'var(--text-muted, var(--n-98a0a8))',
+                border: '1px solid var(--border, var(--n-28323e))',
                 borderRadius: 4,
                 fontSize: 13,
                 cursor: 'pointer',
@@ -1098,12 +1098,12 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
           border: '1px solid rgba(220, 38, 38, 0.3)',
           borderRadius: 6,
           fontSize: 13,
-          color: 'var(--text, #e6e8eb)',
+          color: 'var(--text, var(--n-e6e8eb))',
         }}>
           <div style={{ marginBottom: 8, fontWeight: 600 }}>
             Hard delete <strong>"{deleteFlow.title}"</strong>?
           </div>
-          <div style={{ marginBottom: 8, color: 'var(--text-muted, #98a0a8)', fontSize: 12 }}>
+          <div style={{ marginBottom: 8, color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12 }}>
             Removes the row entirely. If this contact messages you again,
             Brain will create a fresh contact row from the feed event.
             If you want sticky suppression (Brain never re-creates this
@@ -1120,9 +1120,9 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
             placeholder={deleteFlow.title}
             style={{
               width: '100%', padding: '6px 8px',
-              background: 'var(--bg-1, #0d1117)',
-              border: '1px solid var(--border, #28323e)',
-              borderRadius: 4, color: 'var(--text, #e6e8eb)', fontSize: 13,
+              background: 'var(--bg-1, var(--n-0d1117))',
+              border: '1px solid var(--border, var(--n-28323e))',
+              borderRadius: 4, color: 'var(--text, var(--n-e6e8eb))', fontSize: 13,
             }}
           />
           <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
@@ -1149,8 +1149,8 @@ function ContactsTable({ entities, onSetStars, visibility = '', onLinkContacts, 
               onClick={() => setDeleteFlow(null)}
               style={{
                 padding: '6px 12px', background: 'transparent',
-                color: 'var(--text-muted, #98a0a8)',
-                border: '1px solid var(--border, #28323e)',
+                color: 'var(--text-muted, var(--n-98a0a8))',
+                border: '1px solid var(--border, var(--n-28323e))',
                 borderRadius: 4, fontSize: 13, cursor: 'pointer',
               }}
             >
@@ -1212,8 +1212,8 @@ function ScopeSelector({ id, scope, hasEmail }) {
           padding: '3px 8px',
           borderRadius: 4,
           background: active ? bg : 'transparent',
-          color: active ? accent : 'var(--text-muted, #98a0a8)',
-          border: `1px solid ${active ? accent : 'var(--border, #444)'}`,
+          color: active ? accent : 'var(--text-muted, var(--n-98a0a8))',
+          border: `1px solid ${active ? accent : 'var(--border, var(--n-444444))'}`,
           cursor: busy ? 'wait' : 'pointer',
           fontSize: 11,
           whiteSpace: 'nowrap',
@@ -1226,18 +1226,18 @@ function ScopeSelector({ id, scope, hasEmail }) {
   return (
     <span style={{ display: 'inline-flex', flexDirection: 'column', gap: 2 }}>
       <span style={{ display: 'inline-flex', gap: 4 }}>
-        {opt('normal',  'Normal',     '#b8c4cf', 'rgba(184,196,207,0.14)',
+        {opt('normal',  'Normal',     'var(--n-b8c4cf)', 'rgba(184,196,207,0.14)',
           'Normal — default. Only you see this contact. Brain processes interactions.')}
         {/* Public is only meaningful for email-identified contacts.
             Phone-only (WhatsApp) rows can't be shared as tenant
             contacts — a phone number is personal, not directory-grade. */}
-        {hasEmail && opt('tenant',  '🌐 Public',  '#4fa9ff', 'rgba(79,169,255,0.12)',
+        {hasEmail && opt('tenant',  '🌐 Public',  'var(--s-4fa9ff)', 'rgba(79,169,255,0.12)',
           'Make this contact visible to every user in your tenant. Brain on.')}
-        {opt('private', '🔇 Private', '#c084fc', 'rgba(192,132,252,0.14)',
+        {opt('private', '🔇 Private', 'var(--s-c084fc)', 'rgba(192,132,252,0.14)',
           'Mute Brain on this contact — out of My Attention, no WhatsApp brain processing, no Day Brief surfacing.')}
       </span>
       {err && (
-        <span style={{ color: '#d9534f', fontSize: 10 }}>{err}</span>
+        <span style={{ color: 'var(--s-d9534f)', fontSize: 10 }}>{err}</span>
       )}
     </span>
   );
@@ -1250,7 +1250,7 @@ function InactiveButton({ id, title }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   if (busy) {
-    return <span style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 11 }}>marking…</span>;
+    return <span style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 11 }}>marking…</span>;
   }
   if (confirming) {
     return (
@@ -1264,13 +1264,13 @@ function InactiveButton({ id, title }) {
               window.dispatchEvent(new CustomEvent('contacts:reload'));
             } catch { setBusy(false); setConfirming(false); }
           }}
-          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: '#fca5a5', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
+          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.5)', color: 'var(--s-fca5a5)', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
           title={`Mark "${title}" inactive — Brain will not re-create it from feed events`}
         >Confirm</button>
         <button
           type="button"
           onClick={() => setConfirming(false)}
-          style={{ background: 'transparent', border: '1px solid var(--border, #28323e)', color: 'var(--text-muted, #98a0a8)', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
+          style={{ background: 'transparent', border: '1px solid var(--border, var(--n-28323e))', color: 'var(--text-muted, var(--n-98a0a8))', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
         >Cancel</button>
       </span>
     );
@@ -1279,7 +1279,7 @@ function InactiveButton({ id, title }) {
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      style={{ background: 'transparent', border: '1px solid var(--border, #28323e)', color: 'var(--text-muted, #98a0a8)', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
+      style={{ background: 'transparent', border: '1px solid var(--border, var(--n-28323e))', color: 'var(--text-muted, var(--n-98a0a8))', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
       title="Mark inactive — Brain will not re-create this contact from feed events. Reversible."
     >Mark inactive</button>
   );
@@ -1325,9 +1325,9 @@ function EditableName({ id, title, bold }) {
           maxLength={280}
           disabled={busy}
           style={{
-            background: 'var(--bg-2, #0f1418)',
-            border: '1px solid var(--accent, #d66d3c)',
-            color: 'var(--text, #e6e8eb)',
+            background: 'var(--bg-2, var(--n-0f1418))',
+            border: '1px solid var(--accent, var(--s-d66d3c))',
+            color: 'var(--text, var(--n-e6e8eb))',
             padding: '2px 6px',
             fontSize: 13,
             borderRadius: 4,
@@ -1344,7 +1344,7 @@ function EditableName({ id, title, bold }) {
           type="button"
           onClick={() => { setEditing(false); setDraft(title); }}
           disabled={busy}
-          style={{ background: 'transparent', border: '1px solid var(--border, #28323e)', color: 'var(--text-muted, #98a0a8)', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
+          style={{ background: 'transparent', border: '1px solid var(--border, var(--n-28323e))', color: 'var(--text-muted, var(--n-98a0a8))', padding: '2px 8px', fontSize: 11, borderRadius: 4, cursor: 'pointer' }}
         >Cancel</button>
       </span>
     );
@@ -1354,7 +1354,7 @@ function EditableName({ id, title, bold }) {
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} className="ui-editable-name">
       <Link
         to={`/contacts/${encodeURIComponent(id)}`}
-        style={{ color: 'var(--text, #e6e8eb)', textDecoration: 'none', fontWeight: bold ? 600 : 400 }}
+        style={{ color: 'var(--text, var(--n-e6e8eb))', textDecoration: 'none', fontWeight: bold ? 600 : 400 }}
       >
         {title}
       </Link>
@@ -1365,7 +1365,7 @@ function EditableName({ id, title, bold }) {
         title="Rename contact"
         style={{
           background: 'transparent', border: 0, padding: 2, cursor: 'pointer',
-          color: 'var(--text-muted, #98a0a8)', display: 'inline-flex', alignItems: 'center',
+          color: 'var(--text-muted, var(--n-98a0a8))', display: 'inline-flex', alignItems: 'center',
           opacity: 0.5, transition: 'opacity 120ms',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.opacity = 1; }}
@@ -1408,7 +1408,7 @@ function StarRating({ value, onChange }) {
             style={{
               background: 'transparent', border: 0, padding: '2px 1px',
               cursor: 'pointer', fontSize: 16, lineHeight: 1,
-              color: isFilled ? '#f0a14a' : 'var(--border, #3a4452)',
+              color: isFilled ? 'var(--s-f0a14a)' : 'var(--border, var(--n-3a4452))',
               transition: 'transform 80ms',
               transform: hover === n ? 'scale(1.15)' : 'scale(1)',
             }}
@@ -1427,10 +1427,10 @@ function StarRating({ value, onChange }) {
 // (someone who emails AND whatsapps) get multiple chips.
 function SourcePill({ source, channels = [] }) {
   const importMap = {
-    manual:             { label: 'Manual',    bg: 'rgba(240,161,74,0.18)',  fg: '#f0a14a' },
-    google_contacts:    { label: 'Google',    bg: 'rgba(76,175,80,0.18)',   fg: '#5fbe61' },
-    microsoft_contacts: { label: 'Outlook',   bg: 'rgba(0,120,212,0.20)',   fg: '#3fa3e8' },
-    odoo_mirror:        { label: 'Odoo',      bg: 'rgba(160,40,160,0.18)',  fg: '#c971c9' },
+    manual:             { label: 'Manual',    bg: 'rgba(240,161,74,0.18)',  fg: 'var(--s-f0a14a)' },
+    google_contacts:    { label: 'Google',    bg: 'rgba(76,175,80,0.18)',   fg: 'var(--s-5fbe61)' },
+    microsoft_contacts: { label: 'Outlook',   bg: 'rgba(0,120,212,0.20)',   fg: 'var(--s-3fa3e8)' },
+    odoo_mirror:        { label: 'Odoo',      bg: 'rgba(160,40,160,0.18)',  fg: 'var(--s-c971c9)' },
   };
   // Explicit imports always show their label first (they were intentional).
   if (importMap[source]) {
@@ -1440,30 +1440,30 @@ function SourcePill({ source, channels = [] }) {
   // Auto-discovered → show channel(s). Empty channels = older row that
   // hasn't been seen since the channel-tracking landed.
   const channelMap = {
-    gmail:             { label: 'Gmail',     bg: 'rgba(217,83,79,0.16)',   fg: '#e87574' },
-    outlook:           { label: 'Outlook',   bg: 'rgba(0,120,212,0.20)',   fg: '#3fa3e8' },
-    whatsapp:          { label: 'WhatsApp',  bg: 'rgba(37,211,102,0.18)',  fg: '#3fc97e' },
-    gcal:              { label: 'Cal',       bg: 'rgba(160,131,231,0.20)', fg: '#a684ff' },
-    outlook_calendar:  { label: 'Outlook Cal', bg: 'rgba(0,120,212,0.18)', fg: '#3fa3e8' },
-    gchat:             { label: 'GChat',     bg: 'rgba(76,175,80,0.18)',   fg: '#5fbe61' },
-    slack:             { label: 'Slack',     bg: 'rgba(154,73,170,0.20)',  fg: '#c075d8' },
-    ms_teams:          { label: 'Teams',     bg: 'rgba(98,100,167,0.22)',  fg: '#8b8df0' },
-    onedrive_personal: { label: 'OneDrive',  bg: 'rgba(0,120,212,0.16)',   fg: '#3fa3e8' },
-    gtasks:            { label: 'Tasks',     bg: 'rgba(76,175,80,0.18)',   fg: '#5fbe61' },
-    crm:               { label: 'CRM',       bg: 'rgba(160,40,160,0.18)',  fg: '#c971c9' },
-    manual:            { label: 'Manual',    bg: 'rgba(240,161,74,0.18)',  fg: '#f0a14a' },
+    gmail:             { label: 'Gmail',     bg: 'rgba(217,83,79,0.16)',   fg: 'var(--s-e87574)' },
+    outlook:           { label: 'Outlook',   bg: 'rgba(0,120,212,0.20)',   fg: 'var(--s-3fa3e8)' },
+    whatsapp:          { label: 'WhatsApp',  bg: 'rgba(37,211,102,0.18)',  fg: 'var(--s-3fc97e)' },
+    gcal:              { label: 'Cal',       bg: 'rgba(160,131,231,0.20)', fg: 'var(--s-a684ff)' },
+    outlook_calendar:  { label: 'Outlook Cal', bg: 'rgba(0,120,212,0.18)', fg: 'var(--s-3fa3e8)' },
+    gchat:             { label: 'GChat',     bg: 'rgba(76,175,80,0.18)',   fg: 'var(--s-5fbe61)' },
+    slack:             { label: 'Slack',     bg: 'rgba(154,73,170,0.20)',  fg: 'var(--s-c075d8)' },
+    ms_teams:          { label: 'Teams',     bg: 'rgba(98,100,167,0.22)',  fg: 'var(--s-8b8df0)' },
+    onedrive_personal: { label: 'OneDrive',  bg: 'rgba(0,120,212,0.16)',   fg: 'var(--s-3fa3e8)' },
+    gtasks:            { label: 'Tasks',     bg: 'rgba(76,175,80,0.18)',   fg: 'var(--s-5fbe61)' },
+    crm:               { label: 'CRM',       bg: 'rgba(160,40,160,0.18)',  fg: 'var(--s-c971c9)' },
+    manual:            { label: 'Manual',    bg: 'rgba(240,161,74,0.18)',  fg: 'var(--s-f0a14a)' },
   };
   if (channels.length === 0) {
-    return <span style={pillStyle('#98a0a8', 'rgba(152,160,168,0.15)', 'inline')}>Auto</span>;
+    return <span style={pillStyle('var(--n-98a0a8)', 'rgba(152,160,168,0.15)', 'inline')}>Auto</span>;
   }
   return (
     <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
       {channels.slice(0, 3).map((c) => {
-        const cfg = channelMap[c] ?? { label: c, bg: 'rgba(152,160,168,0.15)', fg: '#98a0a8' };
+        const cfg = channelMap[c] ?? { label: c, bg: 'rgba(var(--n-98a0a8-rgb),0.15)', fg: 'var(--n-98a0a8)' };
         return <span key={c} style={pillStyle(cfg.fg, cfg.bg, 'inline')}>{cfg.label}</span>;
       })}
       {channels.length > 3 && (
-        <span style={pillStyle('#98a0a8', 'rgba(152,160,168,0.15)', 'inline')}>+{channels.length - 3}</span>
+        <span style={pillStyle('var(--n-98a0a8)', 'rgba(152,160,168,0.15)', 'inline')}>+{channels.length - 3}</span>
       )}
     </span>
   );
@@ -1473,11 +1473,11 @@ function EmptyState({ onRefresh }) {
   return (
     <div style={{
       padding: 64, textAlign: 'center',
-      border: '1px dashed var(--border, #28323e)', borderRadius: 10,
-      background: 'var(--panel, #141a22)',
+      border: '1px dashed var(--border, var(--n-28323e))', borderRadius: 10,
+      background: 'var(--panel, var(--n-141a22))',
     }}>
       <h3 style={{ margin: 0, fontSize: 16 }}>No contacts yet</h3>
-      <p style={{ color: 'var(--text-muted, #98a0a8)', maxWidth: 460, margin: '12px auto' }}>
+      <p style={{ color: 'var(--text-muted, var(--n-98a0a8))', maxWidth: 460, margin: '12px auto' }}>
         Brain auto-discovers contacts from your feed (emails, WhatsApp, calendar). Once messages start flowing,
         people will appear here. You can also click <em>Refresh from feed</em> to sweep now.
       </p>
@@ -1492,7 +1492,7 @@ function Th({ children, align = 'left' }) {
   return (
     <th style={{
       padding: '10px 12px', fontWeight: 500, textAlign: align,
-      color: 'var(--text-muted, #98a0a8)', fontSize: 12,
+      color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12,
       textTransform: 'uppercase', letterSpacing: '.5px',
     }}>{children}</th>
   );
@@ -1511,21 +1511,21 @@ function pillStyle(fg, bg, layout = 'spaced') {
 }
 const inputStyle = {
   flex: '1 1 200px', minWidth: 200,
-  background: 'var(--panel-2, #1b232d)', color: 'var(--text, #e6e8eb)',
-  border: '1px solid var(--border, #28323e)', borderRadius: 6,
+  background: 'var(--panel-2, var(--n-1b232d))', color: 'var(--text, var(--n-e6e8eb))',
+  border: '1px solid var(--border, var(--n-28323e))', borderRadius: 6,
   padding: '6px 10px', fontSize: 13,
 };
 const selectStyle = {
-  background: 'var(--panel-2, #1b232d)', color: 'var(--text, #e6e8eb)',
-  border: '1px solid var(--border, #28323e)', borderRadius: 6,
+  background: 'var(--panel-2, var(--n-1b232d))', color: 'var(--text, var(--n-e6e8eb))',
+  border: '1px solid var(--border, var(--n-28323e))', borderRadius: 6,
   padding: '6px 10px', fontSize: 13, cursor: 'pointer',
 };
 function btnStyle(disabled, variant = 'primary') {
   if (variant === 'subtle') {
     return {
-      background: 'var(--panel-2, #1b232d)',
-      color: disabled ? 'var(--text-muted, #98a0a8)' : 'var(--text, #e6e8eb)',
-      border: '1px solid var(--border, #28323e)',
+      background: 'var(--panel-2, var(--n-1b232d))',
+      color: disabled ? 'var(--text-muted, var(--n-98a0a8))' : 'var(--text, var(--n-e6e8eb))',
+      border: '1px solid var(--border, var(--n-28323e))',
       borderRadius: 6,
       padding: '8px 14px', fontSize: 13,
       cursor: disabled ? 'not-allowed' : 'pointer',
@@ -1533,8 +1533,8 @@ function btnStyle(disabled, variant = 'primary') {
     };
   }
   return {
-    background: disabled ? 'var(--panel-2, #1b232d)' : 'var(--accent, #4fa9ff)',
-    color: disabled ? 'var(--text-muted, #98a0a8)' : '#0e1116',
+    background: disabled ? 'var(--panel-2, var(--n-1b232d))' : 'var(--accent, #4fa9ff)',
+    color: disabled ? 'var(--text-muted, var(--n-98a0a8))' : 'var(--n-0e1116)',
     border: 'none', borderRadius: 6,
     padding: '8px 14px', fontSize: 13,
     cursor: disabled ? 'not-allowed' : 'pointer',
@@ -1597,20 +1597,20 @@ function AddContactModal({ isAdmin, onClose, onSaved, notify }) {
         onClick={(e) => e.stopPropagation()}
         onSubmit={onSubmit}
         style={{
-          background: 'var(--panel, #141a22)', color: 'var(--text, #e6e8eb)',
-          border: '1px solid var(--border, #28323e)', borderRadius: 12,
+          background: 'var(--panel, var(--n-141a22))', color: 'var(--text, var(--n-e6e8eb))',
+          border: '1px solid var(--border, var(--n-28323e))', borderRadius: 12,
           padding: 24, width: '100%', maxWidth: 520,
           boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
         }}
       >
         <h2 style={{ margin: '0 0 4px', fontSize: 18 }}>Add contact</h2>
-        <p style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 12, margin: '0 0 18px' }}>
+        <p style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12, margin: '0 0 18px' }}>
           Brain will create a canonical page for this person. Stars + recent activity get
           attached automatically as messages flow in.
         </p>
 
         {error && (
-          <div style={{ background: 'rgba(217,83,79,0.12)', border: '1px solid #d9534f', color: '#ff8a87', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
+          <div style={{ background: 'rgba(217,83,79,0.12)', border: '1px solid var(--s-d9534f)', color: 'var(--s-ff8a87)', padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -1641,7 +1641,7 @@ function AddContactModal({ isAdmin, onClose, onSaved, notify }) {
         </FormField>
 
         {isAdmin && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 13, color: 'var(--text-muted, #98a0a8)' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 13, color: 'var(--text-muted, var(--n-98a0a8))' }}>
             <input
               type="checkbox"
               checked={form.forceTenantShared}
@@ -1665,7 +1665,7 @@ function AddContactModal({ isAdmin, onClose, onSaved, notify }) {
 function FormField({ label, required, children }) {
   return (
     <label style={{ display: 'block', marginBottom: 12 }}>
-      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted, #98a0a8)', marginBottom: 4 }}>
+      <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted, var(--n-98a0a8))', marginBottom: 4 }}>
         {label}{required ? ' *' : ''}
       </span>
       {children}
@@ -1675,8 +1675,8 @@ function FormField({ label, required, children }) {
 
 const modalInputStyle = {
   width: '100%', boxSizing: 'border-box',
-  background: 'var(--panel-2, #1b232d)', color: 'var(--text, #e6e8eb)',
-  border: '1px solid var(--border, #28323e)', borderRadius: 6,
+  background: 'var(--panel-2, var(--n-1b232d))', color: 'var(--text, var(--n-e6e8eb))',
+  border: '1px solid var(--border, var(--n-28323e))', borderRadius: 6,
   padding: '8px 10px', fontSize: 14,
   fontFamily: 'inherit',
 };
@@ -1697,10 +1697,10 @@ function ToastStack({ toasts, onDismiss }) {
     }}>
       {toasts.map((t) => {
         const palette = {
-          ok:    { bg: 'rgba(76,175,80,0.18)',  border: '#4caf50', fg: '#9bd9a0' },
-          warn:  { bg: 'rgba(240,161,74,0.18)', border: '#f0a14a', fg: '#f4c594' },
-          error: { bg: 'rgba(217,83,79,0.20)',  border: '#d9534f', fg: '#f0a3a0' },
-        }[t.kind] ?? { bg: 'rgba(79,169,255,0.16)', border: '#4fa9ff', fg: '#a8d0fc' };
+          ok:    { bg: 'rgba(76,175,80,0.18)',  border: 'var(--s-4caf50)', fg: 'var(--s-9bd9a0)' },
+          warn:  { bg: 'rgba(240,161,74,0.18)', border: 'var(--s-f0a14a)', fg: 'var(--s-f4c594)' },
+          error: { bg: 'rgba(217,83,79,0.20)',  border: 'var(--s-d9534f)', fg: 'var(--s-f0a3a0)' },
+        }[t.kind] ?? { bg: 'rgba(79,169,255,0.16)', border: 'var(--s-4fa9ff)', fg: 'var(--s-a8d0fc)' };
         return (
           <button
             key={t.id}

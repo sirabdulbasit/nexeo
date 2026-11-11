@@ -110,13 +110,13 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
     enabled: personalTypes.filter((t) => enabledMap[t.id]).length,
   }), [personalTypes, enabledMap]);
 
-  if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading connectors…</div>;
+  if (loading) return <div style={{ color: 'var(--n-888888)', padding: 20 }}>Loading connectors…</div>;
 
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: '0 0 6px', fontSize: 18 }}>Connector Eligibility</h2>
-        <p style={{ color: '#888', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
+        <p style={{ color: 'var(--n-888888)', fontSize: 13, margin: 0, lineHeight: 1.5 }}>
           Pick which personal connectors your users can see on their <code>/connectors</code> page.
           Disabled connectors are hidden entirely — users won't even see the card.
           Changes apply immediately, no restart needed.
@@ -128,10 +128,10 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         marginBottom: 16, gap: 12, flexWrap: 'wrap',
       }}>
-        <div style={{ display: 'flex', gap: 16, fontSize: 13, color: '#aaa' }}>
-          <span><strong style={{ color: '#4ade80' }}>{counts.enabled}</strong> enabled</span>
-          <span><strong style={{ color: '#666' }}>{counts.total - counts.enabled}</strong> hidden</span>
-          <span><strong style={{ color: '#aaa' }}>{counts.total}</strong> total</span>
+        <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'var(--n-aaaaaa)' }}>
+          <span><strong style={{ color: 'var(--s-4ade80)' }}>{counts.enabled}</strong> enabled</span>
+          <span><strong style={{ color: 'var(--n-666666)' }}>{counts.total - counts.enabled}</strong> hidden</span>
+          <span><strong style={{ color: 'var(--n-aaaaaa)' }}>{counts.total}</strong> total</span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[
@@ -145,8 +145,8 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
               style={{
                 padding: '5px 12px', fontSize: 12, borderRadius: 6,
                 background: filter === opt.v ? '#cc6b4a' : 'transparent',
-                color: filter === opt.v ? '#fff' : '#aaa',
-                border: '1px solid ' + (filter === opt.v ? '#cc6b4a' : '#444'),
+                color: filter === opt.v ? '#fff' : 'var(--n-aaaaaa)',
+                border: '1px solid ' + (filter === opt.v ? 'var(--s-cc6b4a)' : 'var(--n-444444)'),
                 cursor: 'pointer',
               }}
             >
@@ -159,15 +159,15 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
             placeholder="Filter by name…"
             style={{
               padding: '5px 10px', fontSize: 12, borderRadius: 6,
-              background: '#1a1a1a', border: '1px solid #444',
-              color: '#ccc', width: 160,
+              background: 'var(--n-1a1a1a)', border: '1px solid var(--n-444444)',
+              color: 'var(--n-cccccc)', width: 160,
             }}
           />
         </div>
       </div>
 
       {grouped.length === 0 ? (
-        <div style={{ color: '#666', padding: 30, textAlign: 'center', fontSize: 13 }}>
+        <div style={{ color: 'var(--n-666666)', padding: 30, textAlign: 'center', fontSize: 13 }}>
           No connectors match the current filter.
         </div>
       ) : (
@@ -175,11 +175,11 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
           <div key={cat} style={{ marginBottom: 24 }}>
             <div style={{
               fontSize: 11, textTransform: 'uppercase', letterSpacing: 1,
-              color: '#888', marginBottom: 8, paddingBottom: 4,
-              borderBottom: '1px solid #333',
+              color: 'var(--n-888888)', marginBottom: 8, paddingBottom: 4,
+              borderBottom: '1px solid var(--n-333333)',
             }}>
               {CATEGORY_LABEL[cat] || cat}
-              <span style={{ marginLeft: 8, color: '#555' }}>
+              <span style={{ marginLeft: 8, color: 'var(--n-555555)' }}>
                 ({types.filter((t) => enabledMap[t.id]).length}/{types.length})
               </span>
             </div>
@@ -193,8 +193,8 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '10px 12px', borderRadius: 8,
-                      border: '1px solid ' + (en ? '#4ade8044' : '#333'),
-                      background: en ? '#0d2415' : '#1a1a1a',
+                      border: '1px solid ' + (en ? 'color-mix(in srgb, var(--s-4ade80) 26.6667%, transparent)' : 'var(--n-333333)'),
+                      background: en ? 'var(--t-0d2415)' : 'var(--n-1a1a1a)',
                       cursor: saving ? 'wait' : 'pointer',
                       opacity: saving ? 0.7 : 1,
                     }}
@@ -204,17 +204,17 @@ export default function ConnectorsAdminTab({ user, msg, setMsg }) {
                       checked={en}
                       disabled={saving}
                       onChange={(e) => toggle(t.id, e.target.checked)}
-                      style={{ cursor: saving ? 'wait' : 'pointer', accentColor: '#4ade80' }}
+                      style={{ cursor: saving ? 'wait' : 'pointer', accentColor: 'var(--s-4ade80)' }}
                     />
                     <div style={{ minWidth: 0, flex: 1 }}>
                       <div style={{
-                        color: en ? '#dfd' : '#ccc',
+                        color: en ? 'var(--s-ddffdd)' : 'var(--n-cccccc)',
                         fontSize: 13, fontWeight: 500,
                         overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                       }}>
                         {t.name}
                       </div>
-                      <div style={{ color: '#666', fontSize: 11 }}>
+                      <div style={{ color: 'var(--n-666666)', fontSize: 11 }}>
                         {t.slug}
                         {t.authMethod ? ` · ${t.authMethod}` : ''}
                       </div>

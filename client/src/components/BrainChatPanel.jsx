@@ -349,7 +349,7 @@ function Bubble({ role, intent, sources, error, children, onSourceClick, feedbac
       )}
       {retry?.applied && (
         <div style={{
-          fontSize: 10, color: '#a5b4fc', fontWeight: 600,
+          fontSize: 10, color: 'var(--s-a5b4fc)', fontWeight: 600,
           marginTop: 6,
           padding: '2px 6px',
           background: 'rgba(99,102,241,0.12)',
@@ -403,8 +403,8 @@ function PanelOverlay({ panel, onClose }) {
         style={{
           width: 'min(640px, 92vw)',
           maxHeight: '82vh',
-          background: 'var(--bg-1, #1a1a1a)',
-          border: '1px solid var(--border, #333)',
+          background: 'var(--bg-1, var(--n-1a1a1a))',
+          border: '1px solid var(--border, var(--n-333333))',
           borderRadius: 'var(--r-lg, 10px)',
           display: 'flex', flexDirection: 'column',
           boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
@@ -412,10 +412,10 @@ function PanelOverlay({ panel, onClose }) {
       >
         <div style={{
           padding: '14px 18px',
-          borderBottom: '1px solid var(--border, #333)',
+          borderBottom: '1px solid var(--border, var(--n-333333))',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-md, 14px)', fontWeight: 600, color: 'var(--text, #eee)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 'var(--fs-md, 14px)', fontWeight: 600, color: 'var(--text, var(--n-eeeeee))' }}>
             <span>{panelIconFor(panel.kind)}</span>
             <span>{panel.title}</span>
           </div>
@@ -424,7 +424,7 @@ function PanelOverlay({ panel, onClose }) {
             onClick={onClose}
             aria-label="Close"
             style={{
-              background: 'transparent', border: 0, color: 'var(--text-dim, #888)',
+              background: 'transparent', border: 0, color: 'var(--text-dim, var(--n-888888))',
               fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: 4,
             }}
           >×</button>
@@ -433,7 +433,7 @@ function PanelOverlay({ panel, onClose }) {
           {panel.kind === 'open_items_list' ? (
             <OpenItemsPanelBody itemIds={panel.itemIds} />
           ) : (
-            <div style={{ color: 'var(--text-dim, #888)', fontSize: 13 }}>
+            <div style={{ color: 'var(--text-dim, var(--n-888888))', fontSize: 13 }}>
               Panel kind "{panel.kind}" isn't rendered yet.
             </div>
           )}
@@ -466,20 +466,20 @@ function OpenItemsPanelBody({ itemIds }) {
     return () => { alive = false; };
   }, [itemIds]);
 
-  if (err) return <div style={{ color: 'var(--danger, #f87171)', fontSize: 13 }}>{err}</div>;
-  if (items === null) return <div style={{ color: 'var(--text-dim, #888)', fontSize: 13 }}>Loading…</div>;
-  if (items.length === 0) return <div style={{ color: 'var(--text-dim, #888)', fontSize: 13 }}>Nothing to show.</div>;
+  if (err) return <div style={{ color: 'var(--danger, var(--s-f87171))', fontSize: 13 }}>{err}</div>;
+  if (items === null) return <div style={{ color: 'var(--text-dim, var(--n-888888))', fontSize: 13 }}>Loading…</div>;
+  if (items.length === 0) return <div style={{ color: 'var(--text-dim, var(--n-888888))', fontSize: 13 }}>Nothing to show.</div>;
 
-  const priorityColor = (p) => p === 'critical' ? '#f87171' : p === 'high' ? '#fb923c' : p === 'medium' ? '#fbbf24' : '#9ca3af';
+  const priorityColor = (p) => p === 'critical' ? 'var(--s-f87171)' : p === 'high' ? 'var(--s-fb923c)' : p === 'medium' ? 'var(--s-fbbf24)' : 'var(--n-9ca3af)';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {items.map((it) => (
         <div key={it.id} style={{
           padding: '10px 12px',
-          border: '1px solid var(--border, #333)',
+          border: '1px solid var(--border, var(--n-333333))',
           borderRadius: 'var(--r-md, 8px)',
-          background: 'var(--bg-2, #222)',
+          background: 'var(--bg-2, var(--n-222222))',
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
             <div style={{
@@ -488,10 +488,10 @@ function OpenItemsPanelBody({ itemIds }) {
               borderRadius: 3, flexShrink: 0,
             }} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text, #eee)', wordBreak: 'break-word' }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: 'var(--text, var(--n-eeeeee))', wordBreak: 'break-word' }}>
                 {it.title}
               </div>
-              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-dim, #888)', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 4, fontSize: 11, color: 'var(--text-dim, var(--n-888888))', display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 <span>{it.status}</span>
                 {it.priority && <span>· {it.priority}</span>}
                 {it.dueDate && <span>· due {new Date(it.dueDate).toISOString().slice(0, 10)}</span>}

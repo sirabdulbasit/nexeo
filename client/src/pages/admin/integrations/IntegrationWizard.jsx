@@ -118,7 +118,7 @@ export default function IntegrationWizard({ integrationId, initialStep = 1, setM
                 flex: '1 1 140px',
                 textAlign: 'left',
                 padding: '8px 12px',
-                background: active ? C.accent + '22' : 'var(--bg-2)',
+                background: active ? `color-mix(in srgb, ${C.accent} 13.3333%, transparent)` : 'var(--bg-2)',
                 border: `1px solid ${active ? C.accent : 'var(--border)'}`,
                 color: active ? C.accent : reachable ? 'var(--text)' : 'var(--text-muted)',
                 ...(reachable ? null : s.disabled),

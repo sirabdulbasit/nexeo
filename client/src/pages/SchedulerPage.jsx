@@ -93,7 +93,7 @@ export default function SchedulerPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <h2>My Tasks ({tasks.length})</h2>
-              <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Schedule any prompt — {displayName} will run it and email you the result</p>
+              <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: 2 }}>Schedule any prompt — {displayName} will run it and email you the result</p>
             </div>
             <button className="settings-btn" onClick={() => { setShowCreate(true); setEditingTask(null); }}>+ New Task</button>
           </div>
@@ -111,11 +111,11 @@ export default function SchedulerPage() {
 
         {tasks.length === 0 && !showCreate ? (
           <section className="settings-section" style={{ textAlign: 'center', padding: 40 }}>
-            <p style={{ fontSize: 15, color: '#888', marginBottom: 12 }}>No scheduled tasks yet</p>
-            <p style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>
+            <p style={{ fontSize: 15, color: 'var(--n-888888)', marginBottom: 12 }}>No scheduled tasks yet</p>
+            <p style={{ fontSize: 13, color: 'var(--n-666666)', marginBottom: 16 }}>
               Write any prompt and schedule it — {displayName} will run it automatically and email you.
             </p>
-            <p style={{ fontSize: 12, color: '#555', marginBottom: 16 }}>
+            <p style={{ fontSize: 12, color: 'var(--n-555555)', marginBottom: 16 }}>
               Examples:<br/>
               "Send me critical project risks every Monday at 9am"<br/>
               "Email revenue dashboard as PDF on the 1st of every month"<br/>
@@ -126,43 +126,43 @@ export default function SchedulerPage() {
         ) : (
           <div>
             {tasks.map(task => (
-              <section className="settings-section" key={task.id} style={{ borderColor: task.isActive ? 'var(--border)' : 'rgba(255,255,255,0.05)', opacity: task.isActive ? 1 : 0.6 }}>
+              <section className="settings-section" key={task.id} style={{ borderColor: task.isActive ? 'var(--border)' : 'rgba(var(--n-ffffff-rgb),0.05)', opacity: task.isActive ? 1 : 0.6 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <h3 style={{ margin: 0, fontSize: 14 }}>{task.title}</h3>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: task.isActive ? 'rgba(74,222,128,0.15)' : 'rgba(255,255,255,0.05)', color: task.isActive ? '#4ade80' : '#666' }}>
+                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: task.isActive ? 'rgba(74,222,128,0.15)' : 'rgba(var(--n-ffffff-rgb),0.05)', color: task.isActive ? 'var(--s-4ade80)' : 'var(--n-666666)' }}>
                         {task.isActive ? 'Active' : 'Paused'}
                       </span>
                     </div>
-                    <p style={{ fontSize: 13, color: '#aaa', margin: '4px 0', fontStyle: 'italic' }}>"{task.prompt}"</p>
-                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: '#666', marginTop: 6, flexWrap: 'wrap' }}>
+                    <p style={{ fontSize: 13, color: 'var(--n-aaaaaa)', margin: '4px 0', fontStyle: 'italic' }}>"{task.prompt}"</p>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 11, color: 'var(--n-666666)', marginTop: 6, flexWrap: 'wrap' }}>
                       <span>Runs: {describeCron(task.cronExpression)}</span>
                       {task.lastRunAt && <span>Last: {timeAgo(task.lastRunAt)}</span>}
                       <span>Emails: {task.notifySelf ? 'me' : ''}{task.notifyEmail ? (task.notifySelf ? ' + ' : '') + task.notifyEmail : ''}</span>
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    <button className="admin-action" onClick={() => runNow(task.id)} disabled={running === task.id} style={{ borderColor: '#4ade80', color: '#4ade80' }}>
+                    <button className="admin-action" onClick={() => runNow(task.id)} disabled={running === task.id} style={{ borderColor: 'var(--s-4ade80)', color: 'var(--s-4ade80)' }}>
                       {running === task.id ? '...' : 'Run'}
                     </button>
                     <button className="admin-action" onClick={() => { setEditingTask(task); setShowCreate(false); }}>Edit</button>
-                    <button className="admin-action" onClick={() => toggleTask(task)} style={{ borderColor: task.isActive ? '#f59e0b' : '#4ade80', color: task.isActive ? '#f59e0b' : '#4ade80' }}>
+                    <button className="admin-action" onClick={() => toggleTask(task)} style={{ borderColor: task.isActive ? 'var(--s-f59e0b)' : 'var(--s-4ade80)', color: task.isActive ? 'var(--s-f59e0b)' : 'var(--s-4ade80)' }}>
                       {task.isActive ? 'Pause' : 'Resume'}
                     </button>
                     {confirmDeleteId === task.id ? (
                       <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                        <button className="admin-action" onClick={() => deleteTask(task.id)} style={{ borderColor: '#ef4444', color: '#ef4444' }}>Yes</button>
+                        <button className="admin-action" onClick={() => deleteTask(task.id)} style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}>Yes</button>
                         <button className="admin-action" onClick={() => setConfirmDeleteId(null)}>No</button>
                       </span>
                     ) : (
-                      <button className="admin-action" onClick={() => setConfirmDeleteId(task.id)} style={{ borderColor: '#ef4444', color: '#ef4444' }}>Del</button>
+                      <button className="admin-action" onClick={() => setConfirmDeleteId(task.id)} style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}>Del</button>
                     )}
                   </div>
                 </div>
 
                 {task.lastError && (
-                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '6px 10px', marginTop: 8, fontSize: 11, color: '#ef4444' }}>
+                  <div style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '6px 10px', marginTop: 8, fontSize: 11, color: 'var(--s-ef4444)' }}>
                     Error: {task.lastError}
                   </div>
                 )}
@@ -170,7 +170,7 @@ export default function SchedulerPage() {
                 {task.lastResult && (
                   <details style={{ marginTop: 8 }}>
                     <summary style={{ fontSize: 12, color: 'var(--accent)', cursor: 'pointer' }}>View last result</summary>
-                    <div style={{ background: '#1a1a1a', borderRadius: 8, padding: 12, marginTop: 6, fontSize: 12, color: '#bbb', maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
+                    <div style={{ background: 'var(--n-1a1a1a)', borderRadius: 8, padding: 12, marginTop: 6, fontSize: 12, color: 'var(--n-bbbbbb)', maxHeight: 200, overflow: 'auto', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
                       {task.lastResult}
                     </div>
                   </details>
@@ -235,7 +235,7 @@ function TaskForm({ task, userEmail, onSave, onCancel, onMsg }) {
     setSaving(false);
   };
 
-  const inputStyle = { width: '100%', padding: '8px 12px', fontSize: 13, background: '#2a2a2a', border: '1px solid #444', borderRadius: 8, color: '#eee', fontFamily: 'inherit' };
+  const inputStyle = { width: '100%', padding: '8px 12px', fontSize: 13, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', borderRadius: 8, color: 'var(--n-eeeeee)', fontFamily: 'inherit' };
 
   return (
     <section className="settings-section" style={{ borderColor: 'var(--accent)' }}>
@@ -253,7 +253,7 @@ function TaskForm({ task, userEmail, onSave, onCancel, onMsg }) {
 
       {/* Title (auto-filled) */}
       <div className="settings-field">
-        <label>Task Name <span style={{ color: '#666', fontWeight: 400 }}>(auto-filled from prompt)</span></label>
+        <label>Task Name <span style={{ color: 'var(--n-666666)', fontWeight: 400 }}>(auto-filled from prompt)</span></label>
         <input style={inputStyle} value={title} onChange={e => setTitle(e.target.value)} placeholder="Auto-generated from your prompt" />
       </div>
 
@@ -296,14 +296,14 @@ function TaskForm({ task, userEmail, onSave, onCancel, onMsg }) {
         </div>
       )}
 
-      <p style={{ fontSize: 11, color: '#666', marginBottom: 12 }}>
-        Schedule: <strong style={{ color: '#aaa' }}>{describeCron(buildCron(interval, time, dayOfWeek, dayOfMonth))}</strong>
+      <p style={{ fontSize: 11, color: 'var(--n-666666)', marginBottom: 12 }}>
+        Schedule: <strong style={{ color: 'var(--n-aaaaaa)' }}>{describeCron(buildCron(interval, time, dayOfWeek, dayOfMonth))}</strong>
       </p>
 
       {/* Email */}
       <div className="settings-field">
         <label>Email Results To</label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#bbb', marginBottom: 6 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--n-bbbbbb)', marginBottom: 6 }}>
           <input type="checkbox" checked={notifySelf} onChange={e => setNotifySelf(e.target.checked)} style={{ accentColor: 'var(--accent)' }} />
           My email ({userEmail})
         </label>
@@ -312,7 +312,7 @@ function TaskForm({ task, userEmail, onSave, onCancel, onMsg }) {
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-        <button className="settings-btn" onClick={onCancel} style={{ flex: 1, background: '#333' }}>Cancel</button>
+        <button className="settings-btn" onClick={onCancel} style={{ flex: 1, background: 'var(--n-333333)' }}>Cancel</button>
         <button className="settings-btn" onClick={save} disabled={saving} style={{ flex: 1 }}>
           {saving ? 'Saving...' : task ? 'Update Task' : 'Schedule Task'}
         </button>

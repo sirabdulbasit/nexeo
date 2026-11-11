@@ -74,8 +74,8 @@ function ToastStack({ toasts, onDismiss }) {
               t.kind === 'error'   ? 'var(--danger-dim, rgba(239,68,68,0.16))' :
               'var(--bg-2)',
             border: '1px solid ' + (
-              t.kind === 'success' ? 'var(--success, #4ade80)' :
-              t.kind === 'error'   ? 'var(--danger, #ef4444)' :
+              t.kind === 'success' ? 'var(--success, var(--s-4ade80))' :
+              t.kind === 'error'   ? 'var(--danger, var(--s-ef4444))' :
               'var(--border)'
             ),
             color: 'var(--text)',
@@ -193,11 +193,11 @@ function channelIcon(itemType) {
 /** Channel colour for the little source-logo badge on each attention card. */
 function channelColor(itemType) {
   return ({
-    email: { bg: 'rgba(234, 67, 53, 0.15)', fg: '#ea4335' },        // Gmail red
-    whatsapp: { bg: 'rgba(37, 211, 102, 0.15)', fg: '#25d366' },    // WhatsApp green
-    meeting: { bg: 'rgba(66, 133, 244, 0.15)', fg: '#4285f4' },     // Calendar blue
-    task: { bg: 'rgba(251, 188, 4, 0.15)', fg: '#fbbc04' },         // Tasks amber
-  })[itemType] ?? { bg: 'rgba(136, 136, 136, 0.15)', fg: '#888' };
+    email: { bg: 'rgba(234, 67, 53, 0.15)', fg: 'var(--s-ea4335)' },        // Gmail red
+    whatsapp: { bg: 'rgba(37, 211, 102, 0.15)', fg: 'var(--s-25d366)' },    // WhatsApp green
+    meeting: { bg: 'rgba(66, 133, 244, 0.15)', fg: 'var(--s-4285f4)' },     // Calendar blue
+    task: { bg: 'rgba(251, 188, 4, 0.15)', fg: 'var(--s-fbbc04)' },         // Tasks amber
+  })[itemType] ?? { bg: 'rgba(var(--n-888888-rgb), 0.15)', fg: 'var(--n-888888)' };
 }
 
 function channelLabel(itemType) {
@@ -318,7 +318,7 @@ function BrokenConnectorBanner({ broken, onReconnect }) {
       <div style={{ display: 'flex', gap: 'var(--s-3)', alignItems: 'flex-start' }}>
         <div style={{ fontSize: 22, lineHeight: 1 }}>⚠️</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: '#fca5a5' }}>
+          <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 600, color: 'var(--s-fca5a5)' }}>
             {broken.length === 1 ? '1 connection is broken.' : `${broken.length} connections are broken.`}
           </div>
           <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)', marginTop: 2 }}>
@@ -329,7 +329,7 @@ function BrokenConnectorBanner({ broken, onReconnect }) {
               <div key={b.slug} style={{
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 gap: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)',
-                background: 'rgba(255,255,255,0.03)', borderRadius: 8,
+                background: 'rgba(var(--n-ffffff-rgb),0.03)', borderRadius: 8,
               }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{b.name || b.slug}</div>
@@ -520,7 +520,7 @@ function ConnectorGapBanner({ gaps, onConnect }) {
           {required.length > 0 && (
             <div style={{ marginTop: 'var(--s-3)', display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
               {required.map((g) => (
-                <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)', background: 'rgba(255,255,255,0.03)', borderRadius: 8 }}>
+                <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)', background: 'rgba(var(--n-ffffff-rgb),0.03)', borderRadius: 8 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{g.label}</div>
                     <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2 }}>{g.why}</div>
@@ -543,7 +543,7 @@ function ConnectorGapBanner({ gaps, onConnect }) {
               </summary>
               <div style={{ marginTop: 'var(--s-2)', display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
                 {optional.map((g) => (
-                  <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)', background: 'rgba(255,255,255,0.02)', borderRadius: 8 }}>
+                  <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)', background: 'rgba(var(--n-ffffff-rgb),0.02)', borderRadius: 8 }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{g.label}</div>
                       <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)', marginTop: 2 }}>{g.why}</div>
@@ -1042,7 +1042,7 @@ export default function DayBriefPage() {
           position: 'fixed', right: 'var(--s-6)', bottom: 'calc(var(--s-6) + env(safe-area-inset-bottom, 0px) + 64px)',
           width: 52, height: 52, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--accent), #8b3a1e)',
-          color: '#fff', border: 0, cursor: 'pointer',
+          color: 'var(--n-ffffff)', border: 0, cursor: 'pointer',
           display: 'grid', placeItems: 'center', fontSize: 22,
           boxShadow: 'var(--shadow-lg)', zIndex: 90,
         }}
@@ -1068,7 +1068,7 @@ export default function DayBriefPage() {
         }}>
           <div style={{ fontSize: 22, lineHeight: 1, paddingTop: 2 }}>⚠️</div>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ color: '#fca5a5', fontWeight: 'var(--fw-semibold)', fontSize: 'var(--fs-sm)' }}>
+            <div style={{ color: 'var(--s-fca5a5)', fontWeight: 'var(--fw-semibold)', fontSize: 'var(--fs-sm)' }}>
               {connectorHealth.unhealthy.length === 1
                 ? `${connectorHealth.unhealthy[0].label} not syncing`
                 : `${connectorHealth.unhealthy.length} connectors not syncing`}
@@ -1124,7 +1124,7 @@ export default function DayBriefPage() {
               style={{
                 background: 'transparent',
                 border: '1px solid rgba(125,211,252,0.5)',
-                color: '#7dd3fc',
+                color: 'var(--s-7dd3fc)',
                 padding: '6px 12px', borderRadius: 'var(--r-sm)',
                 fontSize: 'var(--fs-xs)', cursor: 'pointer',
                 fontWeight: 'var(--fw-medium)',
@@ -1319,7 +1319,7 @@ export default function DayBriefPage() {
               <>
                 {attentionCritical.length > 0 && attentionTab !== 'risks' && (
                   <>
-                    <div style={{ fontSize: 'var(--fs-xs)', color: '#ef4444', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', marginTop: 'var(--s-2)' }}>
+                    <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.5px', marginTop: 'var(--s-2)' }}>
                       🔴 Critical · {attentionCritical.length}
                     </div>
                     {attentionCritical.map((item) => (
@@ -1507,16 +1507,16 @@ function CriticalityReasons({ criticality }) {
   const composite = typeof criticality.composite === 'number'
     ? `${Math.round(criticality.composite * 100)}/100`
     : null;
-  const bandColor = criticality.band === 'critical' ? '#ef4444'
-    : criticality.band === 'high' ? '#f59e0b'
-    : '#94a3b8';
+  const bandColor = criticality.band === 'critical' ? 'var(--s-ef4444)'
+    : criticality.band === 'high' ? 'var(--s-f59e0b)'
+    : 'var(--s-94a3b8)';
   return (
     <div style={{ marginTop: 6 }}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         style={{
-          background: 'transparent', border: `1px solid ${bandColor}40`,
+          background: 'transparent', border: `1px solid color-mix(in srgb, ${bandColor} 25.098%, transparent)`,
           color: bandColor, padding: '2px 8px', fontSize: 11,
           borderRadius: 4, cursor: 'pointer', display: 'inline-flex',
           alignItems: 'center', gap: 4,
@@ -1639,7 +1639,7 @@ function Section({ id, title, sub, icon, help, defaultOpen = false, right, child
           marginLeft: -14, marginRight: -14,
           borderRadius: 'var(--border-radius-md, 8px)',
           border: '1px solid var(--border)',
-          background: open ? 'transparent' : 'var(--panel, #141a22)',
+          background: open ? 'transparent' : 'var(--panel, var(--n-141a22))',
           transition: 'background 140ms, border-color 140ms',
         }}
       >
@@ -1649,7 +1649,7 @@ function Section({ id, title, sub, icon, help, defaultOpen = false, right, child
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             width: 24, height: 24, flexShrink: 0,
             borderRadius: 6,
-            background: 'var(--bg-2, rgba(255,255,255,0.04))',
+            background: 'var(--bg-2, rgba(var(--n-ffffff-rgb),0.04))',
             border: '1px solid var(--border)',
             color: 'var(--accent)',
             transform: open ? 'rotate(0)' : 'rotate(-90deg)',
@@ -1698,7 +1698,7 @@ function Section({ id, title, sub, icon, help, defaultOpen = false, right, child
       )}
       {showHelp && (
         <div style={{
-          background: 'var(--panel-2, #1b232d)',
+          background: 'var(--panel-2, var(--n-1b232d))',
           borderLeft: '3px solid var(--accent)',
           borderRadius: 'var(--border-radius-md, 6px)',
           padding: 'var(--s-3) var(--s-4)',
@@ -1820,7 +1820,7 @@ function AttentionTabs({ counts, active, onChange }) {
                 : 'transparent',
               color: isEmpty && !isActive
                 ? 'var(--text-muted)'
-                : (isRisks && isActive ? '#ef4444' : 'var(--text)'),
+                : (isRisks && isActive ? 'var(--s-ef4444)' : 'var(--text)'),
               fontSize: 'var(--fs-sm)',
               fontWeight: isActive ? 600 : 400,
               cursor: isEmpty && !isActive ? 'default' : 'pointer',
@@ -1837,7 +1837,7 @@ function AttentionTabs({ counts, active, onChange }) {
               fontSize: 'var(--fs-xs)',
               padding: '1px 6px',
               borderRadius: 999,
-              background: isActive ? 'rgba(0,0,0,0.2)' : 'var(--bg-2, rgba(255,255,255,0.05))',
+              background: isActive ? 'rgba(0,0,0,0.2)' : 'var(--bg-2, rgba(var(--n-ffffff-rgb),0.05))',
               color: 'inherit',
               minWidth: 18,
               textAlign: 'center',
@@ -1985,7 +1985,7 @@ function InboxBrowser({ source, label, onClose, initialQuery }) {
             // server stamps `action` on each Gmail row when there's a
             // matching decision_log or userRepliedThread flag.
             const actionPill = it.action ? (() => {
-              const verbColor = it.action.who === 'you' ? '#7dd3fc' : 'var(--accent)';
+              const verbColor = it.action.who === 'you' ? 'var(--s-7dd3fc)' : 'var(--accent)';
               const stampLabel = it.action.at ? formatDateTime(it.action.at) : '';
               return (
                 <span
@@ -1994,7 +1994,7 @@ function InboxBrowser({ source, label, onClose, initialQuery }) {
                     fontSize: 10, fontWeight: 700,
                     color: verbColor,
                     border: `1px solid ${verbColor}`,
-                    background: `${verbColor}1a`,
+                    background: `color-mix(in srgb, ${verbColor} 10.1961%, transparent)`,
                     padding: '2px 6px', borderRadius: 999,
                     whiteSpace: 'nowrap',
                     textTransform: 'uppercase', letterSpacing: '.04em',
@@ -2240,7 +2240,7 @@ function ThreadPreviewModal({
               background: 'rgba(248,113,113,0.10)',
               border: '1px solid rgba(248,113,113,0.55)',
               borderRadius: 'var(--r-md)',
-              color: '#f87171', fontSize: 'var(--fs-sm)',
+              color: 'var(--s-f87171)', fontSize: 'var(--fs-sm)',
             }}>
               {err}
             </div>
@@ -2301,7 +2301,7 @@ function ThreadPreviewModal({
                     fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginBottom: 6,
                     gap: 'var(--s-2)', flexWrap: 'wrap',
                   }}>
-                    <span style={{ fontWeight: 'var(--fw-semibold)', color: m.from === 'me' ? '#7dd3fc' : 'var(--text)' }}>
+                    <span style={{ fontWeight: 'var(--fw-semibold)', color: m.from === 'me' ? 'var(--s-7dd3fc)' : 'var(--text)' }}>
                       {m.from === 'me' ? 'You' : (m.fromName || 'Sender')}
                     </span>
                     <span>{m.timestamp ? new Date(m.timestamp).toLocaleString() : ''}</span>
@@ -2546,7 +2546,7 @@ function VoiceCommandModal({ feedEventId, onClose, onDone, notify }) {
             <div style={{
               padding: 'var(--s-3)', marginBottom: 'var(--s-3)',
               background: 'rgba(248,113,113,0.10)', border: '1px solid rgba(248,113,113,0.55)',
-              borderRadius: 'var(--r-md)', color: '#f87171', fontSize: 'var(--fs-sm)',
+              borderRadius: 'var(--r-md)', color: 'var(--s-f87171)', fontSize: 'var(--fs-sm)',
             }}>{error}</div>
           )}
 
@@ -2594,7 +2594,7 @@ function VoiceCommandModal({ feedEventId, onClose, onDone, notify }) {
               >
                 ⏹
               </button>
-              <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-semibold)', color: '#dc2626' }}>
+              <div style={{ fontSize: 'var(--fs-lg)', fontWeight: 'var(--fw-semibold)', color: 'var(--s-dc2626)' }}>
                 {fmtSec(recSeconds)}
               </div>
               <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-sm)' }}>
@@ -2750,7 +2750,7 @@ function VoiceCommandModal({ feedEventId, onClose, onDone, notify }) {
           )}
 
           {phase === 'done' && (
-            <div style={{ textAlign: 'center', padding: 'var(--s-6)', color: '#4ade80' }}>
+            <div style={{ textAlign: 'center', padding: 'var(--s-6)', color: 'var(--s-4ade80)' }}>
               <div style={{ fontSize: 'var(--fs-2xl)' }}>✓</div>
               <div style={{ marginTop: 'var(--s-2)' }}>Done.</div>
             </div>
@@ -2906,7 +2906,7 @@ function InlineVoiceStrip({ feedEventId, onClose, onDone, notify }) {
             display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
             background: '#dc2626', animation: 'pulse 1.2s ease-in-out infinite',
           }} />
-          <span style={{ color: '#dc2626', fontWeight: 600 }}>Recording</span>
+          <span style={{ color: 'var(--s-dc2626)', fontWeight: 600 }}>Recording</span>
           <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{fmtSec(secs)}</span>
           <span style={{ color: 'var(--text-dim)', fontSize: 'var(--fs-xs)' }}>· speak in any language</span>
           <div style={{ flex: 1 }} />
@@ -2947,7 +2947,7 @@ function InlineVoiceStrip({ feedEventId, onClose, onDone, notify }) {
           <div style={{ color: 'var(--text-muted)', fontSize: 'var(--fs-xs)' }}>
             📝 I heard: <span style={{ color: 'var(--text)' }}>"{preview.transcript}"</span>
           </div>
-          <div style={{ color: '#fbbf24', fontSize: 'var(--fs-xs)' }}>
+          <div style={{ color: 'var(--s-fbbf24)', fontSize: 'var(--fs-xs)' }}>
             Couldn't pick out a specific action. Save as a note, or re-record with: "reply saying X" / "delegate to Y" / "schedule meeting".
           </div>
           <div style={{ display: 'flex', gap: 'var(--s-2)', justifyContent: 'flex-end' }}>
@@ -2975,16 +2975,16 @@ function InlineVoiceStrip({ feedEventId, onClose, onDone, notify }) {
 
       {phase === 'error' && (
         <>
-          <span style={{ color: '#f87171' }}>✗</span>
-          <span style={{ color: '#f87171', flex: 1 }}>{error}</span>
+          <span style={{ color: 'var(--s-f87171)' }}>✗</span>
+          <span style={{ color: 'var(--s-f87171)', flex: 1 }}>{error}</span>
           <Button size="sm" variant="ghost" onClick={onClose}>Close</Button>
         </>
       )}
 
       {phase === 'done' && (
         <>
-          <span style={{ color: '#4ade80', fontSize: 18 }}>✓</span>
-          <span style={{ color: '#4ade80' }}>Done.</span>
+          <span style={{ color: 'var(--s-4ade80)', fontSize: 18 }}>✓</span>
+          <span style={{ color: 'var(--s-4ade80)' }}>Done.</span>
         </>
       )}
     </div>
@@ -3063,12 +3063,12 @@ function AskBrain() {
  */
 function BriefAccountability({ brainActions, handled, byBucket, searchQuery, onOverride, notify }) {
   const BUCKET_META = {
-    auto_rule: { label: 'Auto-rule fired',         color: '#7dd3fc' },
-    auto_noise: { label: 'Bulk / newsletter',      color: '#a3a3a3' },
-    auto_self: { label: 'You sent this',           color: '#a3a3a3' },
-    auto_high_confidence: { label: 'Brain knew what to do', color: '#fbbf24' },
-    auto_decided: { label: 'You already decided',  color: '#86efac' },
-    auto_cc_only: { label: 'CC only — FYI',        color: '#94a3b8' },
+    auto_rule: { label: 'Auto-rule fired',         color: 'var(--s-7dd3fc)' },
+    auto_noise: { label: 'Bulk / newsletter',      color: 'var(--n-a3a3a3)' },
+    auto_self: { label: 'You sent this',           color: 'var(--n-a3a3a3)' },
+    auto_high_confidence: { label: 'Brain knew what to do', color: 'var(--s-fbbf24)' },
+    auto_decided: { label: 'You already decided',  color: 'var(--s-86efac)' },
+    auto_cc_only: { label: 'CC only — FYI',        color: 'var(--s-94a3b8)' },
   };
 
   // Apply the My Attention search to Brief items too — same haystack
@@ -3799,7 +3799,7 @@ function SuggestedRulesRow({ feedEventId, rules, busy, setBusy, setActedAction, 
       borderRadius: 'var(--r-md)',
       display: 'flex', flexDirection: 'column', gap: 6,
     }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: '#c7d2fe' }}>
+      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: 'var(--s-c7d2fe)' }}>
         Your standing rule matches
       </div>
       {rules.slice(0, 3).map((r) => {
@@ -3966,7 +3966,7 @@ function AttentionCard({ item, onDecided, notify, drafts = [] }) {
                 title={`You rated this sender ${item.senderStars}/5 — ${item.senderStars >= 4 ? 'never auto-archived; band floored at high+' : item.senderStars >= 3 ? 'criticality band floored at medium+' : 'tracked but no auto-prioritisation'}`}
                 style={{
                   fontSize: 'var(--fs-xs)',
-                  color: item.senderStars >= 4 ? '#fbbf24' : 'var(--text-muted)',
+                  color: item.senderStars >= 4 ? 'var(--s-fbbf24)' : 'var(--text-muted)',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                 }}
@@ -4064,7 +4064,7 @@ function AttentionCard({ item, onDecided, notify, drafts = [] }) {
               <div style={{
                 marginTop: 8,
                 padding: 'var(--s-2) var(--s-3)',
-                background: 'var(--bg-1, rgba(255,255,255,0.03))',
+                background: 'var(--bg-1, rgba(var(--n-ffffff-rgb),0.03))',
                 borderRadius: 'var(--r-sm)',
                 fontSize: 'var(--fs-xs)',
                 display: 'flex', flexDirection: 'column', gap: 6,
@@ -4133,7 +4133,7 @@ function AttentionCard({ item, onDecided, notify, drafts = [] }) {
               </div>
               {item.meeting.conflicts && item.meeting.conflicts.length > 0 && (
                 <div style={{
-                  fontSize: 'var(--fs-xs)', color: '#ef4444',
+                  fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)',
                   background: 'rgba(239,68,68,0.08)',
                   border: '1px solid rgba(239,68,68,0.25)',
                   borderRadius: 6, padding: '6px 10px',
@@ -4141,14 +4141,14 @@ function AttentionCard({ item, onDecided, notify, drafts = [] }) {
                 }}>
                   <div><strong>⚠ Conflicts with:</strong></div>
                   {item.meeting.conflicts.map((c, i) => (
-                    <div key={i} style={{ paddingLeft: 18, color: '#fca5a5' }}>
+                    <div key={i} style={{ paddingLeft: 18, color: 'var(--s-fca5a5)' }}>
                       · {c.summary} ({formatTimeRange(c.start, c.end)})
                     </div>
                   ))}
                 </div>
               )}
               {item.meeting.isFree === true && (
-                <div style={{ fontSize: 'var(--fs-xs)', color: '#4ade80' }}>✓ You're free during this window</div>
+                <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--s-4ade80)' }}>✓ You're free during this window</div>
               )}
             </div>
           )}
@@ -4737,7 +4737,7 @@ function MoreActionsMenu({ item, busy, decide, openPicker, hide, notify, onDecid
                   width: '100%', textAlign: 'left',
                   padding: '8px 10px', background: 'transparent',
                   border: 0, borderRadius: 'var(--r-sm)',
-                  color: opt.danger ? '#fca5a5' : 'var(--text)',
+                  color: opt.danger ? 'var(--s-fca5a5)' : 'var(--text)',
                   fontSize: 'var(--fs-sm)', cursor: busy ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}
@@ -5009,8 +5009,8 @@ function DraftCard({ draft, onAction, notify }) {
   };
 
   const channelColor = isWhatsApp
-    ? { bg: 'rgba(37, 211, 102, 0.15)', fg: '#25d366' }
-    : { bg: 'rgba(234, 67, 53, 0.15)', fg: '#ea4335' };
+    ? { bg: 'rgba(37, 211, 102, 0.15)', fg: 'var(--s-25d366)' }
+    : { bg: 'rgba(234, 67, 53, 0.15)', fg: 'var(--s-ea4335)' };
   const channelIconName = isWhatsApp ? 'message-circle' : 'mail';
   const toLabel = isWhatsApp
     ? (draft.to || 'WhatsApp chat')
@@ -5281,9 +5281,9 @@ function BrainCognitiveSection({ cognitive, onRerun, notify }) {
   if (!displayBody && obs.length === 0) return null;
 
   const urgencyColor = (u) =>
-    u >= 0.6 ? { bg: 'rgba(239,68,68,0.12)', fg: '#f87171' } :
-    u >= 0.4 ? { bg: 'rgba(245,158,11,0.12)', fg: '#f59e0b' } :
-               { bg: 'rgba(156,163,175,0.12)', fg: 'var(--text-muted)' };
+    u >= 0.6 ? { bg: 'rgba(239,68,68,0.12)', fg: 'var(--s-f87171)' } :
+    u >= 0.4 ? { bg: 'rgba(245,158,11,0.12)', fg: 'var(--s-f59e0b)' } :
+               { bg: 'rgba(var(--n-9ca3af-rgb),0.12)', fg: 'var(--text-muted)' };
 
   return (
     <Section

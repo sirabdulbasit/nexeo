@@ -255,7 +255,7 @@ export default function FeedbackButtons({
         </span>
       )}
       {error && (
-        <span style={{ fontSize: size - 3, color: '#f87171' }}>{error}</span>
+        <span style={{ fontSize: size - 3, color: 'var(--s-f87171)' }}>{error}</span>
       )}
     </div>
   );
@@ -291,11 +291,11 @@ function btn(variant, compact) {
     fontWeight: 600,
   };
   if (variant === 'primary') {
-    return { ...base, background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.5)', color: '#c7d2fe' };
+    return { ...base, background: 'rgba(99,102,241,0.15)', borderColor: 'rgba(99,102,241,0.5)', color: 'var(--s-c7d2fe)' };
   }
   if (variant === 'chip') {
     return { ...base, fontSize: compact ? 10 : 11, padding: compact ? '3px 8px' : '4px 10px',
-      background: 'rgba(255,255,255,0.04)', borderColor: 'var(--border)', color: 'var(--text)', fontWeight: 500 };
+      background: 'rgba(var(--n-ffffff-rgb),0.04)', borderColor: 'var(--border)', color: 'var(--text)', fontWeight: 500 };
   }
   return { ...base, background: 'transparent', borderColor: 'var(--border)', color: 'var(--text-muted)' };
 }

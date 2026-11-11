@@ -3,6 +3,7 @@
  * Imports tokens.css; import this once at app entry.
  */
 @import './tokens.css';
+@import './theme-colors.css';
 
 *, *::before, *::after {
   box-sizing: border-box;

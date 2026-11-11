@@ -10,7 +10,7 @@
 import { useState } from 'react';
 
 export const C = {
-  accent: '#cc6b4a', ok: '#4ade80', warn: '#f59e0b', bad: '#ef4444', info: '#3b82f6', grey: '#888',
+  accent: 'var(--s-cc6b4a)', ok: 'var(--s-4ade80)', warn: 'var(--s-f59e0b)', bad: 'var(--s-ef4444)', info: 'var(--s-3b82f6)', grey: 'var(--n-888888)',
 };
 
 export const s = {
@@ -21,10 +21,10 @@ export const s = {
   label: { display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: 4, marginTop: 12 },
   input: { width: '100%', background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 12px', borderRadius: 8, fontSize: 'var(--fs-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
   btn: { padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 'var(--fs-sm)', fontWeight: 500, fontFamily: 'inherit' },
-  btnPrimary: { background: C.accent, color: '#fff' },
+  btnPrimary: { background: C.accent, color: 'var(--n-ffffff)' },
   btnOutline: { background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' },
   btnSuccess: { background: C.ok, color: 'var(--bg-1)' },
-  btnDanger: { background: C.bad, color: '#fff' },
+  btnDanger: { background: C.bad, color: 'var(--n-ffffff)' },
   btnSmall: { padding: '4px 10px', fontSize: 12 },
   disabled: { opacity: 0.45, cursor: 'not-allowed' },
   sectionTitle: { fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, margin: '18px 0 8px', paddingBottom: 6, borderBottom: '1px solid var(--border)' },
@@ -33,9 +33,9 @@ export const s = {
   td: { padding: '7px 8px', borderBottom: '1px solid var(--border)', color: 'var(--text)', verticalAlign: 'top' },
   tdNum: { padding: '7px 8px', borderBottom: '1px solid var(--border)', color: 'var(--text)', textAlign: 'right', fontVariantNumeric: 'tabular-nums', verticalAlign: 'top' },
   mono: { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: 12 },
-  error: { padding: '8px 12px', background: C.bad + '22', border: '1px solid ' + C.bad, borderRadius: 8, color: C.bad, fontSize: 'var(--fs-sm)', marginTop: 10 },
-  success: { padding: '8px 12px', background: C.ok + '22', border: '1px solid ' + C.ok, borderRadius: 8, color: C.ok, fontSize: 'var(--fs-sm)', marginTop: 10 },
-  warnBox: { padding: '8px 12px', background: C.warn + '22', border: '1px solid ' + C.warn, borderRadius: 8, color: C.warn, fontSize: 'var(--fs-sm)', marginTop: 10 },
+  error: { padding: '8px 12px', background: `color-mix(in srgb, ${C.bad} 13.3333%, transparent)`, border: '1px solid ' + C.bad, borderRadius: 8, color: C.bad, fontSize: 'var(--fs-sm)', marginTop: 10 },
+  success: { padding: '8px 12px', background: `color-mix(in srgb, ${C.ok} 13.3333%, transparent)`, border: '1px solid ' + C.ok, borderRadius: 8, color: C.ok, fontSize: 'var(--fs-sm)', marginTop: 10 },
+  warnBox: { padding: '8px 12px', background: `color-mix(in srgb, ${C.warn} 13.3333%, transparent)`, border: '1px solid ' + C.warn, borderRadius: 8, color: C.warn, fontSize: 'var(--fs-sm)', marginTop: 10 },
   row: { display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' },
 };
 
@@ -51,9 +51,9 @@ export const vm = {
   grid2: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 },
   divider: { marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 14 },
   notes: { background: 'var(--bg-1)', borderRadius: 9, padding: '12px 14px', margin: '10px 0', fontSize: 'var(--fs-sm)', lineHeight: 1.7, color: 'var(--text)' },
-  ok: { background: C.ok + '1a', color: C.ok, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
-  bad: { background: C.bad + '1a', color: C.bad, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
-  amber: { background: C.warn + '1a', color: C.warn, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
+  ok: { background: `color-mix(in srgb, ${C.ok} 10.1961%, transparent)`, color: C.ok, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
+  bad: { background: `color-mix(in srgb, ${C.bad} 10.1961%, transparent)`, color: C.bad, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
+  amber: { background: `color-mix(in srgb, ${C.warn} 10.1961%, transparent)`, color: C.warn, borderRadius: 8, padding: '10px 13px', fontSize: 'var(--fs-sm)', marginTop: 12 },
   choiceTitle: { fontWeight: 700, fontSize: 'var(--fs-sm)', color: 'var(--text)' },
   footer: { display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' },
 };
@@ -62,14 +62,14 @@ export function choiceCard(selected, disabled = false) {
   return {
     display: 'block', borderRadius: 9, padding: '12px 14px', cursor: disabled ? 'not-allowed' : 'pointer',
     border: selected ? '1px solid ' + C.accent : '1px solid var(--border)',
-    background: selected ? C.accent + '14' : 'var(--bg-1)',
+    background: selected ? `color-mix(in srgb, ${C.accent} 7.8431%, transparent)` : 'var(--bg-1)',
     ...(disabled && !selected ? { opacity: 0.5 } : null),
   };
 }
 
 export function pill(tone = 'acc') {
   const col = tone === 'ok' ? C.ok : tone === 'warn' ? C.warn : C.accent;
-  return { display: 'inline-block', padding: '2px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: col + '22', color: col };
+  return { display: 'inline-block', padding: '2px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600, background: `color-mix(in srgb, ${col} 13.3333%, transparent)`, color: col };
 }
 
 export function btn(kind = 'outline', { small = false, disabled = false } = {}) {
@@ -81,7 +81,7 @@ export function Pill({ color = C.grey, children, title }) {
   return (
     <span title={title} style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-      background: color + '22', color, whiteSpace: 'nowrap',
+      background: `color-mix(in srgb, ${color} 13.3333%, transparent)`, color, whiteSpace: 'nowrap',
     }}>{children}</span>
   );
 }

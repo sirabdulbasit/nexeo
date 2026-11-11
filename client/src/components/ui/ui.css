@@ -83,7 +83,7 @@
   font-size: var(--fs-sm);
   font-weight: var(--fw-semibold);
   flex-shrink: 0;
-  background: linear-gradient(135deg, #4a5065, #2a2e3a);
+  background: linear-gradient(135deg, var(--t-4a5065), var(--n-2a2e3a));
   color: var(--text);
   text-transform: uppercase;
 }
@@ -272,7 +272,7 @@
   pointer-events: none;
   transition: opacity 140ms ease, transform 140ms ease;
   z-index: var(--z-dropdown);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(var(--n-ffffff-rgb), 0.04) inset;
 }
 /* Arrow callout pointing back at the icon */
 .ui-rail-tooltip::before {

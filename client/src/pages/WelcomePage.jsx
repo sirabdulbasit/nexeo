@@ -23,7 +23,7 @@ const COL = {
   muted: 'var(--text-muted)',
   dim: 'var(--text-dim)',
   accent: 'var(--accent)',
-  star: '#f0a574',
+  star: 'var(--s-f0a574)',
 };
 
 export default function WelcomePage() {
@@ -45,7 +45,7 @@ export default function WelcomePage() {
 
         <Step n={1} title="Set up — 3 minutes" lead="Once. Then Nexeo runs in the background.">
           <SubStep label="Connect your accounts">
-            On the <em>Connectors</em> tab, click <strong>Connect</strong> for Gmail, Google Calendar, and WhatsApp. You'll be redirected to Google / Meta to grant access; come back and the connector flips to <Pill color="#4ade80">Live</Pill>.
+            On the <em>Connectors</em> tab, click <strong>Connect</strong> for Gmail, Google Calendar, and WhatsApp. You'll be redirected to Google / Meta to grant access; come back and the connector flips to <Pill color="var(--s-4ade80)">Live</Pill>.
             <Tip>Until WhatsApp is paired, Nexeo has no outbound channel. Day Brief still works in the browser — you just won't get proactive pings.</Tip>
           </SubStep>
           <SubStep label="Set quiet hours + language">
@@ -122,13 +122,13 @@ export default function WelcomePage() {
         </Step>
 
         <Step n={5} title="The 3 actions on every item" lead="Three buttons, three different signals.">
-          <ActionRow color="#4ade80" symbol="✓" name="Done"
+          <ActionRow color="var(--s-4ade80)" symbol="✓" name="Done"
             meaning="I completed this work."
             signal="Positive: this kind of item is real and useful." />
-          <ActionRow color="#f59e0b" symbol="⏸" name="Snooze"
+          <ActionRow color="var(--s-f59e0b)" symbol="⏸" name="Snooze"
             meaning="Not now, ask me later."
             signal="Neutral: defer without judgment." />
-          <ActionRow color="#ef4444" symbol="✕" name="Wrong"
+          <ActionRow color="var(--s-ef4444)" symbol="✕" name="Wrong"
             meaning="This row should never have existed."
             signal="Negative: don't create these. After 3 from the same sender + topic in 14 days, Nexeo stops creating future ones automatically." />
           <Tip>
@@ -246,7 +246,7 @@ function SurfaceCard({ icon, name, what, do_ }) {
     <div style={{
       display: 'grid', gridTemplateColumns: '40px 1fr', gap: 14,
       padding: '12px 14px', marginBottom: 10,
-      background: 'rgba(255,255,255,0.02)', border: `1px solid ${COL.border}`, borderRadius: 8,
+      background: 'rgba(var(--n-ffffff-rgb),0.02)', border: `1px solid ${COL.border}`, borderRadius: 8,
     }}>
       <div style={{ fontSize: 22, lineHeight: '24px' }}>{icon}</div>
       <div>
@@ -277,7 +277,7 @@ function ActionRow({ color, symbol, name, meaning, signal }) {
     <div style={{
       display: 'grid', gridTemplateColumns: '40px 100px 1fr', gap: 14, alignItems: 'baseline',
       padding: '10px 12px', marginBottom: 8,
-      background: 'rgba(255,255,255,0.02)', border: `1px solid ${color}33`, borderLeft: `3px solid ${color}`, borderRadius: 6,
+      background: 'rgba(var(--n-ffffff-rgb),0.02)', border: `1px solid color-mix(in srgb, ${color} 20%, transparent)`, borderLeft: `3px solid ${color}`, borderRadius: 6,
     }}>
       <span style={{ fontSize: 22, color, textAlign: 'center', fontWeight: 600 }}>{symbol}</span>
       <strong style={{ color: COL.text, fontSize: 14 }}>{name}</strong>
@@ -295,7 +295,7 @@ function Two({ children }) {
 function Half({ title, children }) {
   return (
     <div style={{
-      padding: '12px 14px', background: 'rgba(255,255,255,0.02)',
+      padding: '12px 14px', background: 'rgba(var(--n-ffffff-rgb),0.02)',
       border: `1px solid ${COL.border}`, borderRadius: 8,
     }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: COL.text, marginBottom: 6 }}>{title}</div>
@@ -331,7 +331,7 @@ function Pill({ color, children }) {
     <span style={{
       display: 'inline-block', padding: '1px 8px', borderRadius: 999,
       fontSize: 11, fontWeight: 600,
-      background: `${color}22`, color, marginLeft: 4,
+      background: `color-mix(in srgb, ${color} 13.3333%, transparent)`, color, marginLeft: 4,
     }}>{children}</span>
   );
 }
@@ -360,7 +360,7 @@ function FooterCTA({ onClose }) {
         </div>
       </div>
       <button onClick={onClose}
-              style={{ background: COL.accent, color: '#fff', border: 0, padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+              style={{ background: COL.accent, color: 'var(--n-ffffff)', border: 0, padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
         Open Day Brief →
       </button>
     </div>
@@ -369,7 +369,7 @@ function FooterCTA({ onClose }) {
 
 const tableStyle = { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 4 };
 const Th = ({ children }) => (
-  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COL.dim, fontSize: 12, background: 'rgba(255,255,255,0.03)' }}>{children}</th>
+  <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: COL.dim, fontSize: 12, background: 'rgba(var(--n-ffffff-rgb),0.03)' }}>{children}</th>
 );
 const tdStyle = { padding: '10px', verticalAlign: 'top' };
 const ulStyle = { margin: '4px 0 0', paddingLeft: 18, color: COL.muted, fontSize: 13.5, lineHeight: 1.7 };

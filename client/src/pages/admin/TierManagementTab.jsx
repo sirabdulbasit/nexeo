@@ -37,7 +37,7 @@ function TierManagementTab({ msg, setMsg }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
             <h2>User Tiers ({tiers.length})</h2>
-            <p style={{ fontSize: 12, color: '#888', marginTop: 2 }}>Define how AI responds for each user type — same data, different presentation</p>
+            <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: 2 }}>Define how AI responds for each user type — same data, different presentation</p>
           </div>
           <button className="settings-btn" onClick={() => { setShowCreate(true); setEditTier(null); }}>+ New Tier</button>
         </div>
@@ -58,30 +58,30 @@ function TierManagementTab({ msg, setMsg }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <h3 style={{ margin: 0 }}>{t.tier_name}</h3>
                 <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 10, background: 'rgba(204,107,74,0.15)', color: 'var(--accent)' }}>{t.tier_code}</span>
-                <span style={{ fontSize: 11, color: '#888' }}>${Number(t.price_per_seat).toFixed(0)}/seat</span>
+                <span style={{ fontSize: 11, color: 'var(--n-888888)' }}>${Number(t.price_per_seat).toFixed(0)}/seat</span>
               </div>
-              <p style={{ fontSize: 12, color: '#888', margin: '4px 0' }}>{t.description}</p>
-              <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#666', flexWrap: 'wrap', marginTop: 6 }}>
-                <span>Style: <strong style={{ color: '#aaa' }}>{t.response_style}</strong></span>
-                <span>Words: <strong style={{ color: '#aaa' }}>{t.max_response_words}</strong></span>
-                <span>Tokens: <strong style={{ color: '#aaa' }}>{t.max_output_tokens}</strong></span>
-                <span>Queries: <strong style={{ color: '#aaa' }}>{t.max_queries_per_day === 0 ? '∞' : t.max_queries_per_day}/day</strong></span>
-                {t.allow_widgets && <span style={{ color: '#4ade80' }}>Widgets</span>}
-                {t.allow_charts && <span style={{ color: '#4ade80' }}>Charts</span>}
-                {t.allow_export && <span style={{ color: '#4ade80' }}>Export</span>}
-                {t.allow_email_read && <span style={{ color: '#3b82f6' }}>Email</span>}
-                {t.allow_calendar_read && <span style={{ color: '#3b82f6' }}>Calendar</span>}
+              <p style={{ fontSize: 12, color: 'var(--n-888888)', margin: '4px 0' }}>{t.description}</p>
+              <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--n-666666)', flexWrap: 'wrap', marginTop: 6 }}>
+                <span>Style: <strong style={{ color: 'var(--n-aaaaaa)' }}>{t.response_style}</strong></span>
+                <span>Words: <strong style={{ color: 'var(--n-aaaaaa)' }}>{t.max_response_words}</strong></span>
+                <span>Tokens: <strong style={{ color: 'var(--n-aaaaaa)' }}>{t.max_output_tokens}</strong></span>
+                <span>Queries: <strong style={{ color: 'var(--n-aaaaaa)' }}>{t.max_queries_per_day === 0 ? '∞' : t.max_queries_per_day}/day</strong></span>
+                {t.allow_widgets && <span style={{ color: 'var(--s-4ade80)' }}>Widgets</span>}
+                {t.allow_charts && <span style={{ color: 'var(--s-4ade80)' }}>Charts</span>}
+                {t.allow_export && <span style={{ color: 'var(--s-4ade80)' }}>Export</span>}
+                {t.allow_email_read && <span style={{ color: 'var(--s-3b82f6)' }}>Email</span>}
+                {t.allow_calendar_read && <span style={{ color: 'var(--s-3b82f6)' }}>Calendar</span>}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 6 }}>
               <button className="admin-action" onClick={() => { setEditTier(t); setShowCreate(false); }}>Edit</button>
               {confirmDeleteCode === t.tier_code ? (
                 <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
-                  <button className="admin-action" onClick={() => deleteTier(t.tier_code)} style={{ borderColor: '#ef4444', color: '#ef4444' }}>Yes</button>
+                  <button className="admin-action" onClick={() => deleteTier(t.tier_code)} style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}>Yes</button>
                   <button className="admin-action" onClick={() => setConfirmDeleteCode(null)}>No</button>
                 </span>
               ) : (
-                <button className="admin-action" onClick={() => setConfirmDeleteCode(t.tier_code)} style={{ borderColor: '#ef4444', color: '#ef4444' }}>Del</button>
+                <button className="admin-action" onClick={() => setConfirmDeleteCode(t.tier_code)} style={{ borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}>Del</button>
               )}
             </div>
           </div>
@@ -120,8 +120,8 @@ function TierForm({ tier, onSave, onCancel }) {
     is_active: tier?.is_active ?? true,
   });
 
-  const inputStyle = { width: '100%', padding: '6px 10px', fontSize: 13, background: '#2a2a2a', border: '1px solid #444', borderRadius: 6, color: '#eee' };
-  const sectionHeader = (title) => <h4 style={{ color: '#aaa', fontSize: 12, margin: '14px 0 8px', borderTop: '1px solid #333', paddingTop: 10 }}>{title}</h4>;
+  const inputStyle = { width: '100%', padding: '6px 10px', fontSize: 13, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', borderRadius: 6, color: 'var(--n-eeeeee)' };
+  const sectionHeader = (title) => <h4 style={{ color: 'var(--n-aaaaaa)', fontSize: 12, margin: '14px 0 8px', borderTop: '1px solid var(--n-333333)', paddingTop: 10 }}>{title}</h4>;
 
   return (
     <section className="settings-section" style={{ borderColor: 'var(--accent)' }}>
@@ -129,20 +129,20 @@ function TierForm({ tier, onSave, onCancel }) {
 
       {sectionHeader('Tier Identity')}
       <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px 80px', gap: 10, marginBottom: 12 }}>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Code *</label><input style={inputStyle} value={form.tier_code} onChange={e => setForm(f => ({ ...f, tier_code: e.target.value.toUpperCase() }))} placeholder="EX" maxLength={5} disabled={!!tier} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Name *</label><input style={inputStyle} value={form.tier_name} onChange={e => setForm(f => ({ ...f, tier_name: e.target.value }))} placeholder="Executive" /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Price/Seat</label><input type="number" style={inputStyle} value={form.price_per_seat} onChange={e => setForm(f => ({ ...f, price_per_seat: parseFloat(e.target.value) || 0 }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Currency</label>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Code *</label><input style={inputStyle} value={form.tier_code} onChange={e => setForm(f => ({ ...f, tier_code: e.target.value.toUpperCase() }))} placeholder="EX" maxLength={5} disabled={!!tier} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Name *</label><input style={inputStyle} value={form.tier_name} onChange={e => setForm(f => ({ ...f, tier_name: e.target.value }))} placeholder="Executive" /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Price/Seat</label><input type="number" style={inputStyle} value={form.price_per_seat} onChange={e => setForm(f => ({ ...f, price_per_seat: parseFloat(e.target.value) || 0 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Currency</label>
           <select style={inputStyle} value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
             <option value="USD">USD</option><option value="PKR">PKR</option><option value="SAR">SAR</option><option value="AED">AED</option>
           </select>
         </div>
       </div>
-      <div><label style={{ fontSize: 11, color: '#888' }}>Description</label><textarea style={{ ...inputStyle, minHeight: 40 }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe what this tier provides to users..." /></div>
+      <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Description</label><textarea style={{ ...inputStyle, minHeight: 40 }} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Describe what this tier provides to users..." /></div>
 
       {sectionHeader('AI Response Presentation')}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 8 }}>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Response Style</label>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Response Style</label>
           <select style={inputStyle} value={form.response_style} onChange={e => setForm(f => ({ ...f, response_style: e.target.value }))}>
             <option value="brief">Brief — 2-3 sentences, facts only</option>
             <option value="moderate">Moderate — bullets, key insights</option>
@@ -150,11 +150,11 @@ function TierForm({ tier, onSave, onCancel }) {
             <option value="comprehensive">Comprehensive — dashboards, strategy, recommendations</option>
           </select>
         </div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Max Words per Response</label><input type="number" style={inputStyle} value={form.max_response_words} onChange={e => setForm(f => ({ ...f, max_response_words: parseInt(e.target.value) || 500 }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Max AI Output Tokens</label><input type="number" style={inputStyle} value={form.max_output_tokens} onChange={e => setForm(f => ({ ...f, max_output_tokens: parseInt(e.target.value) || 2048 }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>AI Providers</label><input style={inputStyle} value={form.allowed_providers} onChange={e => setForm(f => ({ ...f, allowed_providers: e.target.value }))} placeholder="gemini-flash,gemini" /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Max Words per Response</label><input type="number" style={inputStyle} value={form.max_response_words} onChange={e => setForm(f => ({ ...f, max_response_words: parseInt(e.target.value) || 500 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Max AI Output Tokens</label><input type="number" style={inputStyle} value={form.max_output_tokens} onChange={e => setForm(f => ({ ...f, max_output_tokens: parseInt(e.target.value) || 2048 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>AI Providers</label><input style={inputStyle} value={form.allowed_providers} onChange={e => setForm(f => ({ ...f, allowed_providers: e.target.value }))} placeholder="gemini-flash,gemini" /></div>
       </div>
-      <p style={{ fontSize: 10, color: '#555', margin: '0 0 4px' }}>Brief: "47 projects, 3 at risk" | Moderate: bullets + key highlights | Detailed: full tables + drill-links | Comprehensive: interactive dashboards + strategic advice</p>
+      <p style={{ fontSize: 10, color: 'var(--n-555555)', margin: '0 0 4px' }}>Brief: "47 projects, 3 at risk" | Moderate: bullets + key highlights | Detailed: full tables + drill-links | Comprehensive: interactive dashboards + strategic advice</p>
 
       {sectionHeader('Output Formats')}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr', gap: 8, marginBottom: 8 }}>
@@ -164,14 +164,14 @@ function TierForm({ tier, onSave, onCancel }) {
           { key: 'allow_widgets', label: 'Interactive Dashboards' },
           { key: 'allow_export', label: 'Export / Download' },
         ].map(opt => (
-          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#bbb', cursor: 'pointer' }}>
+          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--n-bbbbbb)', cursor: 'pointer' }}>
             <input type="checkbox" checked={form[opt.key]} onChange={e => setForm(f => ({ ...f, [opt.key]: e.target.checked }))} style={{ accentColor: 'var(--accent)' }} />
             {opt.label}
           </label>
         ))}
       </div>
       {form.allow_export && (
-        <div style={{ marginBottom: 8 }}><label style={{ fontSize: 11, color: '#888' }}>Export Formats</label>
+        <div style={{ marginBottom: 8 }}><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Export Formats</label>
           <select style={inputStyle} value={form.export_formats} onChange={e => setForm(f => ({ ...f, export_formats: e.target.value }))}>
             <option value="csv">CSV only</option>
             <option value="csv,pdf">CSV + PDF</option>
@@ -188,8 +188,8 @@ function TierForm({ tier, onSave, onCancel }) {
           { key: 'allow_calendar_read', label: 'View Calendar' },
           { key: 'allow_calendar_write', label: 'Create/Modify Events' },
         ].map(opt => (
-          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#bbb', cursor: 'pointer' }}>
-            <input type="checkbox" checked={form[opt.key]} onChange={e => setForm(f => ({ ...f, [opt.key]: e.target.checked }))} style={{ accentColor: '#3b82f6' }} />
+          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--n-bbbbbb)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={form[opt.key]} onChange={e => setForm(f => ({ ...f, [opt.key]: e.target.checked }))} style={{ accentColor: 'var(--s-3b82f6)' }} />
             {opt.label}
           </label>
         ))}
@@ -197,9 +197,9 @@ function TierForm({ tier, onSave, onCancel }) {
 
       {sectionHeader('Usage Limits')}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 8 }}>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Queries per Day (0 = unlimited)</label><input type="number" style={inputStyle} value={form.max_queries_per_day} onChange={e => setForm(f => ({ ...f, max_queries_per_day: parseInt(e.target.value) || 0 }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Scheduled Tasks (0 = unlimited)</label><input type="number" style={inputStyle} value={form.max_scheduled_tasks} onChange={e => setForm(f => ({ ...f, max_scheduled_tasks: parseInt(e.target.value) || 0 }))} /></div>
-        <div><label style={{ fontSize: 11, color: '#888' }}>Sort Order</label><input type="number" style={inputStyle} value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Queries per Day (0 = unlimited)</label><input type="number" style={inputStyle} value={form.max_queries_per_day} onChange={e => setForm(f => ({ ...f, max_queries_per_day: parseInt(e.target.value) || 0 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Scheduled Tasks (0 = unlimited)</label><input type="number" style={inputStyle} value={form.max_scheduled_tasks} onChange={e => setForm(f => ({ ...f, max_scheduled_tasks: parseInt(e.target.value) || 0 }))} /></div>
+        <div><label style={{ fontSize: 11, color: 'var(--n-888888)' }}>Sort Order</label><input type="number" style={inputStyle} value={form.sort_order} onChange={e => setForm(f => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} /></div>
       </div>
 
       {sectionHeader('Additional Features')}
@@ -210,15 +210,15 @@ function TierForm({ tier, onSave, onCancel }) {
           { key: 'allow_weather', label: 'Weather on Welcome' },
           { key: 'is_active', label: 'Tier Active' },
         ].map(opt => (
-          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#bbb', cursor: 'pointer' }}>
-            <input type="checkbox" checked={form[opt.key]} onChange={e => setForm(f => ({ ...f, [opt.key]: e.target.checked }))} style={{ accentColor: opt.key === 'is_active' ? '#4ade80' : 'var(--accent)' }} />
+          <label key={opt.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--n-bbbbbb)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={form[opt.key]} onChange={e => setForm(f => ({ ...f, [opt.key]: e.target.checked }))} style={{ accentColor: opt.key === 'is_active' ? 'var(--s-4ade80)' : 'var(--accent)' }} />
             {opt.label}
           </label>
         ))}
       </div>
 
       <div style={{ display: 'flex', gap: 10 }}>
-        <button className="settings-btn" onClick={onCancel} style={{ flex: 1, background: '#333' }}>Cancel</button>
+        <button className="settings-btn" onClick={onCancel} style={{ flex: 1, background: 'var(--n-333333)' }}>Cancel</button>
         <button className="settings-btn" onClick={() => onSave(form.tier_code, form)} style={{ flex: 1 }}>{tier ? 'Update Tier' : 'Create Tier'}</button>
       </div>
     </section>

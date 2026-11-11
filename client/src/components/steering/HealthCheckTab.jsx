@@ -356,7 +356,7 @@ export default function HealthCheckTab() {
             {!showFull && adminOnlyTracked.length > 0 && (
               <div style={{
                 marginTop: 'var(--s-3)', padding: '8px 12px',
-                background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)',
+                background: 'rgba(var(--n-ffffff-rgb),0.03)', border: '1px solid var(--border)',
                 borderRadius: 6, fontSize: 'var(--fs-xs)', color: 'var(--text-muted)',
                 maxWidth: 480, lineHeight: 1.45,
               }}>
@@ -415,7 +415,7 @@ export default function HealthCheckTab() {
       {/* Warnings */}
       {warnings.length > 0 && (
         <>
-          <h2 style={{ margin: '0 0 var(--s-3)', fontSize: 'var(--fs-lg)', color: 'var(--warning, #f59e0b)' }}>
+          <h2 style={{ margin: '0 0 var(--s-3)', fontSize: 'var(--fs-lg)', color: 'var(--warning, var(--s-f59e0b))' }}>
             Warnings
           </h2>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)', marginBottom: 'var(--s-5)' }}>
@@ -642,9 +642,9 @@ function tabBtn(active) {
   return {
     padding: '4px 12px',
     borderRadius: 999,
-    border: `1px solid ${active ? 'var(--accent, #cc6b4a)' : 'var(--border)'}`,
+    border: `1px solid ${active ? 'var(--accent, var(--s-cc6b4a))' : 'var(--border)'}`,
     background: active ? 'rgba(204,107,74,0.15)' : 'transparent',
-    color: active ? 'var(--accent, #cc6b4a)' : 'var(--text-muted)',
+    color: active ? 'var(--accent, var(--s-cc6b4a))' : 'var(--text-muted)',
     fontSize: 'var(--fs-xs)',
     fontWeight: 500,
     cursor: 'pointer',

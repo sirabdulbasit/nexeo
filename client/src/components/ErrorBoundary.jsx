@@ -19,14 +19,14 @@ export default class ErrorBoundary extends React.Component {
       return (
         <div style={{
           display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-          height: '100vh', background: '#1a1a1a', color: '#e8e8e0', fontFamily: 'inherit',
+          height: '100vh', background: 'var(--n-1a1a1a)', color: 'var(--n-e8e8e0)', fontFamily: 'inherit',
         }}>
           <div style={{
             maxWidth: 440, textAlign: 'center', padding: 32,
-            background: '#222', borderRadius: 16, border: '1px solid #333',
+            background: 'var(--n-222222)', borderRadius: 16, border: '1px solid var(--n-333333)',
           }}>
             <h2 style={{ margin: '0 0 12px', fontSize: 20 }}>Something went wrong</h2>
-            <p style={{ color: '#888', fontSize: 14, marginBottom: 20 }}>
+            <p style={{ color: 'var(--n-888888)', fontSize: 14, marginBottom: 20 }}>
               An unexpected error occurred. Please refresh the page to continue.
             </p>
             <button

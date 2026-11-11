@@ -235,7 +235,7 @@ function RuleRow({ rule, onChange }) {
       {error && (
         <div style={{
           marginTop: 6, padding: '6px 10px',
-          fontSize: 'var(--fs-xs)', color: '#ef4444',
+          fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)',
           background: 'rgba(239,68,68,0.08)',
           border: '1px solid rgba(239,68,68,0.3)',
           borderRadius: 'var(--r-sm)',
@@ -244,7 +244,7 @@ function RuleRow({ rule, onChange }) {
           <span>✗ {error}</span>
           <button
             onClick={() => setError(null)}
-            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+            style={{ background: 'none', border: 'none', color: 'var(--s-ef4444)', cursor: 'pointer', fontSize: 14 }}
             aria-label="Dismiss"
           >×</button>
         </div>
@@ -381,7 +381,7 @@ function DecisionsTab() {
             {rowError?.id === d.id && (
               <div style={{
                 marginTop: 6, padding: '6px 10px',
-                fontSize: 'var(--fs-xs)', color: '#ef4444',
+                fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)',
                 background: 'rgba(239,68,68,0.08)',
                 border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: 'var(--r-sm)',
@@ -390,7 +390,7 @@ function DecisionsTab() {
                 <span>✗ {rowError.message}</span>
                 <button
                   onClick={() => setRowError(null)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--s-ef4444)', cursor: 'pointer', fontSize: 14 }}
                   aria-label="Dismiss"
                 >×</button>
               </div>
@@ -508,7 +508,7 @@ function DelegationsTab() {
                 marginTop: 6,
                 padding: '6px 10px',
                 fontSize: 'var(--fs-xs)',
-                color: '#ef4444',
+                color: 'var(--s-ef4444)',
                 background: 'rgba(239,68,68,0.08)',
                 border: '1px solid rgba(239,68,68,0.3)',
                 borderRadius: 'var(--r-sm)',
@@ -517,7 +517,7 @@ function DelegationsTab() {
                 <span>✗ {rowError.message}</span>
                 <button
                   onClick={() => setRowError(null)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                  style={{ background: 'none', border: 'none', color: 'var(--s-ef4444)', cursor: 'pointer', fontSize: 14 }}
                   aria-label="Dismiss"
                 >×</button>
               </div>
@@ -545,7 +545,7 @@ function DangerZone({ label, count, confirmPhrase, explainer, onConfirm }) {
       marginBottom: 'var(--s-3)',
       padding: '8px 12px',
       background: open ? 'var(--danger-dim, rgba(239,68,68,0.08))' : 'var(--bg-2)',
-      border: '1px solid ' + (open ? 'var(--danger, #ef4444)' : 'var(--border)'),
+      border: '1px solid ' + (open ? 'var(--danger, var(--s-ef4444))' : 'var(--border)'),
       borderRadius: 'var(--r-md)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
@@ -601,7 +601,7 @@ function DangerZone({ label, count, confirmPhrase, explainer, onConfirm }) {
           {error && (
             <div style={{
               marginTop: 8, padding: '6px 10px',
-              fontSize: 'var(--fs-xs)', color: '#ef4444',
+              fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)',
               background: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.3)',
               borderRadius: 'var(--r-sm)',
@@ -610,7 +610,7 @@ function DangerZone({ label, count, confirmPhrase, explainer, onConfirm }) {
               <span>✗ {error}</span>
               <button
                 onClick={() => setError(null)}
-                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                style={{ background: 'none', border: 'none', color: 'var(--s-ef4444)', cursor: 'pointer', fontSize: 14 }}
                 aria-label="Dismiss"
               >×</button>
             </div>
@@ -727,7 +727,7 @@ function LearnedPreferencesTab() {
         <div style={{
           padding: '8px 12px', marginBottom: 12,
           background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.4)',
-          borderRadius: 6, color: '#fca5a5', fontSize: 13,
+          borderRadius: 6, color: 'var(--s-fca5a5)', fontSize: 13,
         }}>{error}</div>
       )}
 
@@ -807,7 +807,7 @@ function LearnedPreferencesTab() {
           </div>
           <button
             type="button" onClick={resetAll} disabled={busyId === 'reset'}
-            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #f59e0b', background: '#f59e0b', color: '#000', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
+            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--s-f59e0b)', background: '#f59e0b', color: '#000', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}
           >{busyId === 'reset' ? 'Resetting…' : 'Yes, reset'}</button>
           <button
             type="button" onClick={() => setResetConfirm(false)}
@@ -880,7 +880,7 @@ function LearnedPreferencesTab() {
                       <button
                         type="button" onClick={() => toggleActive(r)} disabled={busyId === r.id}
                         title={r.active ? 'Click to disable (Brain stops using this rule)' : 'Click to re-enable'}
-                        style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)', background: r.active ? 'rgba(74,222,128,0.15)' : 'transparent', color: r.active ? '#4ade80' : 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
+                        style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid var(--border)', background: r.active ? 'rgba(74,222,128,0.15)' : 'transparent', color: r.active ? 'var(--s-4ade80)' : 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}
                       >{r.active ? 'Active' : 'Inactive'}</button>
                       <button
                         type="button" onClick={() => setEditing({ id: r.id, ruleText: r.ruleText })}
@@ -888,7 +888,7 @@ function LearnedPreferencesTab() {
                       >Edit</button>
                       <button
                         type="button" onClick={() => deleteRule(r.id)} disabled={busyId === r.id}
-                        style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: '#fca5a5', cursor: 'pointer', fontSize: 11 }}
+                        style={{ padding: '4px 10px', borderRadius: 4, border: '1px solid rgba(239,68,68,0.3)', background: 'transparent', color: 'var(--s-fca5a5)', cursor: 'pointer', fontSize: 11 }}
                       >Delete</button>
                     </>
                   )}
@@ -947,7 +947,7 @@ function PromptsTab() {
         borderRadius: 'var(--r-md)', fontSize: 'var(--fs-xs)', color: 'var(--text)',
         display: 'flex', alignItems: 'flex-start', gap: 8,
       }}>
-        <Icon name="alert-triangle" size={14} color="#f59e0b" />
+        <Icon name="alert-triangle" size={14} color="var(--s-f59e0b)" />
         <div style={{ flex: 1 }}>
           <strong>Compose Hints is being phased out.</strong> Use <em>Standing
           Instructions</em> instead — Brain parses your rule into a structured
@@ -1027,7 +1027,7 @@ function PromptsTab() {
           {saveError && (
             <div style={{
               marginTop: 8, padding: '6px 10px',
-              fontSize: 'var(--fs-xs)', color: '#ef4444',
+              fontSize: 'var(--fs-xs)', color: 'var(--s-ef4444)',
               background: 'rgba(239,68,68,0.08)',
               border: '1px solid rgba(239,68,68,0.3)',
               borderRadius: 'var(--r-sm)',
@@ -1036,7 +1036,7 @@ function PromptsTab() {
               <span>✗ {saveError}</span>
               <button
                 onClick={() => setSaveError(null)}
-                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 14 }}
+                style={{ background: 'none', border: 'none', color: 'var(--s-ef4444)', cursor: 'pointer', fontSize: 14 }}
                 aria-label="Dismiss"
               >×</button>
             </div>
@@ -1163,7 +1163,7 @@ function RiskRadarTab() {
       </div>
 
       {error && (
-        <div style={{ background: 'rgba(217,83,79,0.16)', border: '1px solid #d9534f', color: '#f0a3a0', padding: 8, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
+        <div style={{ background: 'rgba(217,83,79,0.16)', border: '1px solid var(--s-d9534f)', color: 'var(--s-f0a3a0)', padding: 8, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
           {error}
         </div>
       )}
@@ -1255,7 +1255,7 @@ function RuleCard({ rule, actions, disabled }) {
   return (
     <div style={{
       padding: '12px 14px', border: '1px solid var(--border)', borderRadius: 8,
-      background: disabled ? 'rgba(255,255,255,0.02)' : 'var(--panel, #141a22)',
+      background: disabled ? 'rgba(var(--n-ffffff-rgb),0.02)' : 'var(--panel, var(--n-141a22))',
       opacity: disabled ? 0.55 : 1,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -1269,7 +1269,7 @@ function RuleCard({ rule, actions, disabled }) {
           {rule.description && (
             <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 4 }}>{rule.description}</div>
           )}
-          <div style={{ marginTop: 8, padding: '6px 8px', background: 'var(--bg-2, rgba(255,255,255,0.03))', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', overflowX: 'auto' }}>
+          <div style={{ marginTop: 8, padding: '6px 8px', background: 'var(--bg-2, rgba(var(--n-ffffff-rgb),0.03))', borderRadius: 4, fontSize: 11, color: 'var(--text-muted)', fontFamily: 'monospace', overflowX: 'auto' }}>
             {summarisePredicate(rule.predicate)}
           </div>
           {rule.suggestedAction && (
@@ -1292,10 +1292,10 @@ function RuleCard({ rule, actions, disabled }) {
 
 function SeverityPill({ severity }) {
   const map = {
-    high:   { bg: 'rgba(217,83,79,0.18)',  fg: '#f0a3a0' },
-    medium: { bg: 'rgba(240,161,74,0.18)', fg: '#f4c594' },
-    low:    { bg: 'rgba(152,160,168,0.15)', fg: 'var(--text-muted)' },
-  }[severity] ?? { bg: 'rgba(152,160,168,0.15)', fg: 'var(--text-muted)' };
+    high:   { bg: 'rgba(217,83,79,0.18)',  fg: 'var(--s-f0a3a0)' },
+    medium: { bg: 'rgba(240,161,74,0.18)', fg: 'var(--s-f4c594)' },
+    low:    { bg: 'rgba(var(--n-98a0a8-rgb),0.15)', fg: 'var(--text-muted)' },
+  }[severity] ?? { bg: 'rgba(var(--n-98a0a8-rgb),0.15)', fg: 'var(--text-muted)' };
   return (
     <span style={{ padding: '1px 8px', borderRadius: 999, background: map.bg, color: map.fg, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px' }}>
       {severity}
@@ -1314,9 +1314,9 @@ function SourcePill({ source }) {
 
 function pillBtnStyle(kind) {
   const palette = {
-    enable:   { bg: 'rgba(76,175,80,0.18)',  fg: '#9bd9a0', border: 'rgba(76,175,80,0.4)' },
-    disable:  { bg: 'rgba(240,161,74,0.18)', fg: '#f4c594', border: 'rgba(240,161,74,0.4)' },
-    delete:   { bg: 'rgba(217,83,79,0.18)',  fg: '#f0a3a0', border: 'rgba(217,83,79,0.4)' },
+    enable:   { bg: 'rgba(76,175,80,0.18)',  fg: 'var(--s-9bd9a0)', border: 'rgba(76,175,80,0.4)' },
+    disable:  { bg: 'rgba(240,161,74,0.18)', fg: 'var(--s-f4c594)', border: 'rgba(240,161,74,0.4)' },
+    delete:   { bg: 'rgba(217,83,79,0.18)',  fg: 'var(--s-f0a3a0)', border: 'rgba(217,83,79,0.4)' },
   }[kind] ?? { bg: 'transparent', fg: 'var(--text)', border: 'var(--border)' };
   return {
     padding: '4px 10px', borderRadius: 6, fontSize: 12,
@@ -1392,7 +1392,7 @@ function AddRiskRuleModal({ onClose, onSaved }) {
       zIndex: 100, padding: 16,
     }}>
       <form onClick={(e) => e.stopPropagation()} onSubmit={submit} style={{
-        background: 'var(--panel, #141a22)', color: 'var(--text)',
+        background: 'var(--panel, var(--n-141a22))', color: 'var(--text)',
         border: '1px solid var(--border)', borderRadius: 12,
         padding: 24, width: '100%', maxWidth: 640,
         maxHeight: '90vh', overflowY: 'auto',
@@ -1404,7 +1404,7 @@ function AddRiskRuleModal({ onClose, onSaved }) {
         </p>
 
         {error && (
-          <div style={{ background: 'rgba(217,83,79,0.16)', border: '1px solid #d9534f', color: '#f0a3a0', padding: 8, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
+          <div style={{ background: 'rgba(217,83,79,0.16)', border: '1px solid var(--s-d9534f)', color: 'var(--s-f0a3a0)', padding: 8, borderRadius: 6, marginBottom: 12, fontSize: 13 }}>
             {error}
           </div>
         )}
@@ -1487,7 +1487,7 @@ function ModalField({ label, hint, children }) {
 
 const modalInput = {
   width: '100%', boxSizing: 'border-box',
-  background: 'var(--bg-2, #1b232d)', color: 'var(--text)',
+  background: 'var(--bg-2, var(--n-1b232d))', color: 'var(--text)',
   border: '1px solid var(--border)', borderRadius: 6,
   padding: '8px 10px', fontSize: 13,
   fontFamily: 'inherit',
@@ -1502,12 +1502,12 @@ const modalInput = {
 // update_request) with subject + condition + action + due-date.
 
 const KIND_COLOR = {
-  standing_rule:  { bg: 'rgba(59,130,246,0.14)',  fg: '#60a5fa' },
-  watchpoint:     { bg: 'rgba(239,68,68,0.14)',   fg: '#f87171' },
-  follow_up:      { bg: 'rgba(245,158,11,0.14)',  fg: '#f59e0b' },
-  scheduled:      { bg: 'rgba(168,85,247,0.14)',  fg: '#c084fc' },
-  todo:           { bg: 'rgba(34,197,94,0.14)',   fg: '#4ade80' },
-  update_request: { bg: 'rgba(14,165,233,0.14)',  fg: '#38bdf8' },
+  standing_rule:  { bg: 'rgba(59,130,246,0.14)',  fg: 'var(--s-60a5fa)' },
+  watchpoint:     { bg: 'rgba(239,68,68,0.14)',   fg: 'var(--s-f87171)' },
+  follow_up:      { bg: 'rgba(245,158,11,0.14)',  fg: 'var(--s-f59e0b)' },
+  scheduled:      { bg: 'rgba(168,85,247,0.14)',  fg: 'var(--s-c084fc)' },
+  todo:           { bg: 'rgba(34,197,94,0.14)',   fg: 'var(--s-4ade80)' },
+  update_request: { bg: 'rgba(14,165,233,0.14)',  fg: 'var(--s-38bdf8)' },
 };
 
 function StandingInstructionsTab() {
@@ -1595,7 +1595,7 @@ function StandingInstructionsTab() {
                 padding: '6px 10px', fontSize: 'var(--fs-xs)', fontWeight: 600,
                 border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer',
                 background: scope === 'client' ? 'rgba(59,130,246,0.18)' : 'transparent',
-                color: scope === 'client' ? '#60a5fa' : 'var(--text-muted)',
+                color: scope === 'client' ? 'var(--s-60a5fa)' : 'var(--text-muted)',
               }}
               title="Rule applies to every user in the tenant"
             >Client rule</button>
@@ -1606,7 +1606,7 @@ function StandingInstructionsTab() {
                 padding: '6px 10px', fontSize: 'var(--fs-xs)', fontWeight: 600,
                 border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer',
                 background: scope === 'user' ? 'rgba(34,197,94,0.18)' : 'transparent',
-                color: scope === 'user' ? '#4ade80' : 'var(--text-muted)',
+                color: scope === 'user' ? 'var(--s-4ade80)' : 'var(--text-muted)',
               }}
               title="Rule applies only to you"
             >My rule</button>
@@ -1633,7 +1633,7 @@ function StandingInstructionsTab() {
         <div style={{
           marginBottom: 'var(--s-3)', padding: '8px 12px',
           background: toast.kind === 'error' ? 'rgba(217,83,79,0.16)' : toast.kind === 'success' ? 'rgba(34,197,94,0.16)' : 'rgba(59,130,246,0.16)',
-          border: '1px solid ' + (toast.kind === 'error' ? '#d9534f' : toast.kind === 'success' ? '#22c55e' : '#3b82f6'),
+          border: '1px solid ' + (toast.kind === 'error' ? 'var(--s-d9534f)' : toast.kind === 'success' ? 'var(--s-22c55e)' : 'var(--s-3b82f6)'),
           color: 'var(--text)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-xs)',
         }}>{toast.text}</div>
       )}
@@ -1649,7 +1649,7 @@ function StandingInstructionsTab() {
           {clientList.length > 0 && (
             <InstructionGroup
               label={`Client rules · ${clientList.length}`}
-              labelColor="#60a5fa"
+              labelColor="var(--s-60a5fa)"
               note={!isAdmin ? '(tenant-wide, admin-managed)' : null}
             >
               {clientList.map((ins) => (
@@ -1662,7 +1662,7 @@ function StandingInstructionsTab() {
             </InstructionGroup>
           )}
           {userList.length > 0 && (
-            <InstructionGroup label={`My rules · ${userList.length}`} labelColor="#4ade80">
+            <InstructionGroup label={`My rules · ${userList.length}`} labelColor="var(--s-4ade80)">
               {userList.map((ins) => (
                 <InstructionRow
                   key={ins.id} ins={ins}
@@ -1698,7 +1698,7 @@ function InstructionGroup({ label, labelColor, note, children }) {
 }
 
 function InstructionRow({ ins, canEdit, onStatus }) {
-  const c = KIND_COLOR[ins.kind] ?? { bg: 'rgba(156,163,175,0.14)', fg: 'var(--text-muted)' };
+  const c = KIND_COLOR[ins.kind] ?? { bg: 'rgba(var(--n-9ca3af-rgb),0.14)', fg: 'var(--text-muted)' };
   return (
     <div style={{
       padding: '10px 12px', background: 'var(--bg-2)',

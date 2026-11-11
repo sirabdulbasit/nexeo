@@ -2,26 +2,26 @@ import { useState, useEffect, useRef } from 'react';
 import api from '../../services/api';
 
 const s = {
-  section: { background: '#1e1e1e', border: '1px solid #333', borderRadius: 10, padding: 20, marginBottom: 16 },
-  sectionTitle: { fontSize: 14, fontWeight: 600, color: '#e8e8e0', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
-  label: { display: 'block', fontSize: 12, color: '#888', marginBottom: 4, marginTop: 12 },
-  input: { width: '100%', background: '#2a2a2a', border: '1px solid #444', color: '#eee', padding: '8px 12px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' },
+  section: { background: 'var(--n-1e1e1e)', border: '1px solid var(--n-333333)', borderRadius: 10, padding: 20, marginBottom: 16 },
+  sectionTitle: { fontSize: 14, fontWeight: 600, color: 'var(--n-e8e8e0)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: { display: 'block', fontSize: 12, color: 'var(--n-888888)', marginBottom: 4, marginTop: 12 },
+  input: { width: '100%', background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', padding: '8px 12px', borderRadius: 8, fontSize: 13, fontFamily: 'inherit' },
   btn: { padding: '8px 18px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: 'inherit' },
   btnPrimary: { background: '#cc6b4a', color: '#fff' },
   btnDanger: { background: '#ef4444', color: '#fff' },
-  btnOutline: { background: 'transparent', border: '1px solid #555', color: '#aaa' },
+  btnOutline: { background: 'transparent', border: '1px solid var(--n-555555)', color: 'var(--n-aaaaaa)' },
   statusDot: (color) => ({ width: 10, height: 10, borderRadius: '50%', background: color, display: 'inline-block', marginRight: 8 }),
   badge: { display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 500 },
   row: { display: 'flex', gap: 10, alignItems: 'center', marginTop: 8 },
-  progress: { height: 6, background: '#333', borderRadius: 3, flex: 1 },
+  progress: { height: 6, background: 'var(--n-333333)', borderRadius: 3, flex: 1 },
   progressFill: (pct) => ({ height: '100%', borderRadius: 3, background: pct > 80 ? '#ef4444' : '#cc6b4a', width: `${Math.min(pct, 100)}%` }),
   qrBox: { textAlign: 'center', padding: 20, background: '#fff', borderRadius: 12, display: 'inline-block' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 12, marginTop: 8 },
-  th: { background: '#2a2a2a', color: '#e8e8e0', textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #cc6b4a', fontSize: 11, textTransform: 'uppercase' },
-  td: { padding: '7px 10px', borderBottom: '1px solid #2a2a2a', color: '#bbb' },
+  th: { background: 'var(--n-2a2a2a)', color: 'var(--n-e8e8e0)', textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid var(--s-cc6b4a)', fontSize: 11, textTransform: 'uppercase' },
+  td: { padding: '7px 10px', borderBottom: '1px solid var(--n-2a2a2a)', color: 'var(--n-bbbbbb)' },
 };
 
-const STATUS_COLORS = { connected: '#4ade80', connecting: '#f59e0b', init_timeout: '#ef4444', disconnected: '#666', error: '#ef4444', not_configured: '#666' };
+const STATUS_COLORS = { connected: 'var(--s-4ade80)', connecting: 'var(--s-f59e0b)', init_timeout: 'var(--s-ef4444)', disconnected: 'var(--n-666666)', error: 'var(--s-ef4444)', not_configured: 'var(--n-666666)' };
 
 export default function WhatsAppTab({ user, msg, setMsg }) {
   // ── Tenant selector (SuperAdmin can pick which client to configure) ──
@@ -306,7 +306,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
     }
   }
 
-  if (loading) return <div style={{ color: '#888', padding: 20 }}>Loading WhatsApp config...</div>;
+  if (loading) return <div style={{ color: 'var(--n-888888)', padding: 20 }}>Loading WhatsApp config...</div>;
 
   const st = status?.status || 'not_configured';
 
@@ -315,17 +315,17 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
       {/* ── Company WhatsApp Number (paired phone) ───────────── */}
       <div style={s.section}>
         <div style={s.sectionTitle}>Company WhatsApp Number</div>
-        <p style={{ color: '#888', fontSize: 12, marginBottom: 8 }}>
+        <p style={{ color: 'var(--n-888888)', fontSize: 12, marginBottom: 8 }}>
           The phone whose WhatsApp account scans the QR code. Users will see this
           number when Brain messages them. Use a spare SIM — not your main account.
         </p>
         <label style={s.label}>WhatsApp Number (E.164 format) *</label>
         <input style={{
           ...s.input, maxWidth: 300,
-          borderColor: companyNumber && !/^\+\d{10,15}$/.test(companyNumber.replace(/[\s-]/g, '')) ? '#ef4444' : '#444',
+          borderColor: companyNumber && !/^\+\d{10,15}$/.test(companyNumber.replace(/[\s-]/g, '')) ? 'var(--s-ef4444)' : 'var(--n-444444)',
         }} value={companyNumber} onChange={e => setCompanyNumber(e.target.value)} placeholder="+923001234567" />
         {companyNumber && !/^\+\d{10,15}$/.test(companyNumber.replace(/[\s-]/g, '')) && (
-          <p style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Invalid format. Must start with + followed by 10-15 digits. Example: +923001234567</p>
+          <p style={{ fontSize: 11, color: 'var(--s-ef4444)', marginTop: 4 }}>Invalid format. Must start with + followed by 10-15 digits. Example: +923001234567</p>
         )}
       </div>
 
@@ -359,13 +359,13 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
               a static dot for up to 8 seconds. */}
           <span
             className={(st === 'connecting' || testing || connecting) ? 'status-dot-pulse' : ''}
-            style={{ ...s.statusDot(STATUS_COLORS[st] || '#666'), color: STATUS_COLORS[st] || '#666' }}
+            style={{ ...s.statusDot(STATUS_COLORS[st] || 'var(--n-666666)'), color: STATUS_COLORS[st] || 'var(--n-666666)' }}
           />
-          <span style={{ fontWeight: 600, color: '#eee', textTransform: 'uppercase' }}>
+          <span style={{ fontWeight: 600, color: 'var(--n-eeeeee)', textTransform: 'uppercase' }}>
             {testing ? 'testing…' : connecting && st !== 'connecting' ? 'connecting…' : st}
           </span>
-          {status?.connected_number && <span style={{ color: '#888', marginLeft: 8 }}>{status.connected_number}</span>}
-          {status?.connected_at && <span style={{ color: '#555', fontSize: 11, marginLeft: 8 }}>Since {new Date(status.connected_at).toLocaleString()}</span>}
+          {status?.connected_number && <span style={{ color: 'var(--n-888888)', marginLeft: 8 }}>{status.connected_number}</span>}
+          {status?.connected_at && <span style={{ color: 'var(--n-555555)', fontSize: 11, marginLeft: 8 }}>Since {new Date(status.connected_at).toLocaleString()}</span>}
         </div>
 
         {/* QR Code display (webjs connecting) */}
@@ -374,14 +374,14 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
             <div style={s.qrBox}>
               <img src={qrCode} alt="QR Code" style={{ width: 250, height: 250 }} />
             </div>
-            <p style={{ color: '#888', fontSize: 12, marginTop: 8 }}>Open WhatsApp → Linked Devices → Link a Device → Scan this QR</p>
-            <p style={{ color: '#555', fontSize: 11 }}>QR refreshes automatically every 3 seconds</p>
+            <p style={{ color: 'var(--n-888888)', fontSize: 12, marginTop: 8 }}>Open WhatsApp → Linked Devices → Link a Device → Scan this QR</p>
+            <p style={{ color: 'var(--n-555555)', fontSize: 11 }}>QR refreshes automatically every 3 seconds</p>
           </div>
         )}
 
         {/* Error display */}
         {(st === 'error' || st === 'init_timeout') && status?.last_error && (
-          <div style={{ marginTop: 8, padding: 10, background: '#2a1a1a', border: '1px solid #ef4444', borderRadius: 8, color: '#ef4444', fontSize: 12 }}>
+          <div style={{ marginTop: 8, padding: 10, background: 'var(--n-2a1a1a)', border: '1px solid var(--s-ef4444)', borderRadius: 8, color: 'var(--s-ef4444)', fontSize: 12 }}>
             {status.last_error}
           </div>
         )}
@@ -409,7 +409,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
           )}
           {st === 'init_timeout' && (
             <button
-              style={{ ...s.btn, ...s.btnOutline, borderColor: '#f59e0b', color: '#f59e0b' }}
+              style={{ ...s.btn, ...s.btnOutline, borderColor: 'var(--s-f59e0b)', color: 'var(--s-f59e0b)' }}
               onClick={() => setShowResetPairing(true)}
               disabled={resetting}
             >
@@ -435,7 +435,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
                 </button>
               ) : (
                 <>
-                  <span style={{ color: '#ef4444', fontSize: 12, marginRight: 6 }}>Are you sure?</span>
+                  <span style={{ color: 'var(--s-ef4444)', fontSize: 12, marginRight: 6 }}>Are you sure?</span>
                   <button
                     style={{ ...s.btn, ...s.btnDanger, fontSize: 11, padding: '4px 12px', opacity: disconnecting ? 0.85 : 1 }}
                     onClick={() => { setConfirmDisconnect(false); handleDisconnect(); }}
@@ -454,7 +454,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
                 </>
               )}
               <button
-                style={{ ...s.btn, ...s.btnOutline, borderColor: '#f59e0b', color: '#f59e0b' }}
+                style={{ ...s.btn, ...s.btnOutline, borderColor: 'var(--s-f59e0b)', color: 'var(--s-f59e0b)' }}
                 onClick={() => setShowResetPairing(true)}
                 disabled={disconnecting || resetting}
                 title="Change the paired WhatsApp number"
@@ -468,20 +468,20 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
         {/* ── Reset Pairing — typed-phrase confirmation panel ────── */}
         {showResetPairing && (
           <div style={{
-            marginTop: 12, padding: 12, background: '#1a1410',
-            border: '1px solid #f59e0b', borderRadius: 6,
+            marginTop: 12, padding: 12, background: 'var(--n-1a1410)',
+            border: '1px solid var(--s-f59e0b)', borderRadius: 6,
           }}>
-            <div style={{ color: '#f59e0b', fontWeight: 600, marginBottom: 6 }}>
+            <div style={{ color: 'var(--s-f59e0b)', fontWeight: 600, marginBottom: 6 }}>
               Change WhatsApp Number
             </div>
-            <div style={{ color: '#ccc', fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
+            <div style={{ color: 'var(--n-cccccc)', fontSize: 12, marginBottom: 10, lineHeight: 1.5 }}>
               This unpairs the current phone ({status?.connected_number || 'unknown'}) and clears the saved session
               so a fresh QR code can be scanned with a new phone.
               <br /><br />
-              <strong style={{ color: '#fbbf24' }}>BEFORE pressing Reset:</strong> on the currently-paired phone,
+              <strong style={{ color: 'var(--s-fbbf24)' }}>BEFORE pressing Reset:</strong> on the currently-paired phone,
               open WhatsApp → Settings → Linked Devices → tap the Nexeo entry → <strong>Log out</strong>.
               <br /><br />
-              Type <strong style={{ color: '#fbbf24' }}>RESET</strong> below to confirm.
+              Type <strong style={{ color: 'var(--s-fbbf24)' }}>RESET</strong> below to confirm.
             </div>
             <input
               style={{ ...s.input, maxWidth: 200, marginRight: 8 }}
@@ -518,7 +518,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
           <div style={s.sectionTitle}>Send Test Message</div>
           <label style={s.label}>Phone Number (E.164 format)</label>
           <input style={s.input} value={testNumber} onChange={e => setTestNumber(e.target.value)} placeholder="+923001234567" />
-          <p style={{ color: '#888', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
+          <p style={{ color: 'var(--n-888888)', fontSize: 12, marginTop: 8, lineHeight: 1.5 }}>
             Message: "This is a test message from Nexeo. WhatsApp is configured correctly. — Sent via Nexeo Admin Panel"
           </p>
           <div style={{ ...s.row, marginTop: 12 }}>
@@ -549,7 +549,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
             <button style={{ ...s.btn, ...s.btnOutline, fontSize: 11 }} onClick={loadAll}>Refresh</button>
             {messages.length > 0 && (
               <button
-                style={{ ...s.btn, ...s.btnOutline, fontSize: 11, borderColor: '#ef4444', color: '#ef4444' }}
+                style={{ ...s.btn, ...s.btnOutline, fontSize: 11, borderColor: 'var(--s-ef4444)', color: 'var(--s-ef4444)' }}
                 onClick={() => setShowClearLog(true)}
                 disabled={clearing}
                 title="Delete all message logs for this tenant"
@@ -561,12 +561,12 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
         </div>
         {showClearLog && (
           <div style={{
-            marginTop: 8, padding: 10, background: '#1a1010',
-            border: '1px solid #ef4444', borderRadius: 6,
+            marginTop: 8, padding: 10, background: 'var(--n-1a1010)',
+            border: '1px solid var(--s-ef4444)', borderRadius: 6,
           }}>
-            <div style={{ color: '#ef4444', fontSize: 12, marginBottom: 8 }}>
+            <div style={{ color: 'var(--s-ef4444)', fontSize: 12, marginBottom: 8 }}>
               Permanently delete <strong>all {messages.length}+ message logs</strong> for this tenant.
-              Type <strong style={{ color: '#fca5a5' }}>CLEAR</strong> to confirm.
+              Type <strong style={{ color: 'var(--s-fca5a5)' }}>CLEAR</strong> to confirm.
             </div>
             <input
               style={{ ...s.input, maxWidth: 160, marginRight: 6 }}
@@ -596,7 +596,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
           </div>
         )}
         {messages.length === 0 ? (
-          <p style={{ color: '#555', fontSize: 12 }}>No messages yet</p>
+          <p style={{ color: 'var(--n-555555)', fontSize: 12 }}>No messages yet</p>
         ) : (
           <div style={{ maxHeight: 300, overflowY: 'auto' }}>
             <table style={s.table}>
@@ -629,11 +629,11 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
                     <td style={{ ...s.td, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.content?.slice(0, 60)}</td>
                     <td style={s.td}>
                       <span style={{ ...s.badge,
-                        background: m.status === 'sent' ? '#4ade8022' : m.status === 'failed' ? '#ef444422' : m.status === 'queued' ? '#f59e0b22' : '#33333366',
-                        color: m.status === 'sent' ? '#4ade80' : m.status === 'failed' ? '#ef4444' : m.status === 'queued' ? '#f59e0b' : '#888',
+                        background: m.status === 'sent' ? 'color-mix(in srgb, var(--s-4ade80) 13.3333%, transparent)' : m.status === 'failed' ? 'color-mix(in srgb, var(--s-ef4444) 13.3333%, transparent)' : m.status === 'queued' ? 'color-mix(in srgb, var(--s-f59e0b) 13.3333%, transparent)' : 'color-mix(in srgb, var(--n-333333) 40%, transparent)',
+                        color: m.status === 'sent' ? 'var(--s-4ade80)' : m.status === 'failed' ? 'var(--s-ef4444)' : m.status === 'queued' ? 'var(--s-f59e0b)' : 'var(--n-888888)',
                       }}>{m.status}</span>
                     </td>
-                    <td style={{ ...s.td, fontSize: 11, color: '#555' }}>{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</td>
+                    <td style={{ ...s.td, fontSize: 11, color: 'var(--n-555555)' }}>{m.created_at ? new Date(m.created_at).toLocaleString() : ''}</td>
                     <td style={s.td}>
                       {m.status === 'queued' && m.requires_approval && (
                         <>
@@ -658,7 +658,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
                         </>
                       ) : (
                         <button
-                          style={{ ...s.btn, ...s.btnOutline, fontSize: 10, padding: '2px 8px', borderColor: '#666', color: '#999' }}
+                          style={{ ...s.btn, ...s.btnOutline, fontSize: 10, padding: '2px 8px', borderColor: 'var(--n-666666)', color: 'var(--n-999999)' }}
                           onClick={() => setConfirmDeleteId(m.id)}
                           title="Delete this row from the log"
                         >
@@ -678,7 +678,7 @@ export default function WhatsAppTab({ user, msg, setMsg }) {
       <div style={s.section}>
         <div style={s.sectionTitle}>Active WhatsApp Sessions</div>
         {sessions.length === 0 ? (
-          <p style={{ color: '#555', fontSize: 12 }}>No active conversations</p>
+          <p style={{ color: 'var(--n-555555)', fontSize: 12 }}>No active conversations</p>
         ) : (
           <table style={s.table}>
             <thead>

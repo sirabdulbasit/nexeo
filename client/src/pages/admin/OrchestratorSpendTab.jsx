@@ -57,9 +57,9 @@ export default function OrchestratorSpendTab() {
      bands sit below it. Amber and red are reserved for the two states worth acting on; safe is
      deliberately quiet green rather than a badge, so the eye goes to the exceptions. */
   const VERDICT = {
-    safe:  { label: 'safe',   color: '#3fb950', bg: 'rgba(63,185,80,0.10)' },
-    watch: { label: 'watch',  color: '#f59e0b', bg: 'rgba(245,158,11,0.12)' },
-    high:  { label: 'HIGH',   color: '#ef4444', bg: 'rgba(239,68,68,0.14)' },
+    safe:  { label: 'safe',   color: 'var(--s-3fb950)', bg: 'rgba(63,185,80,0.10)' },
+    watch: { label: 'watch',  color: 'var(--s-f59e0b)', bg: 'rgba(245,158,11,0.12)' },
+    high:  { label: 'HIGH',   color: 'var(--s-ef4444)', bg: 'rgba(239,68,68,0.14)' },
   };
 
   // A reading with no age reads as "now". These figures can be days old, so they carry theirs.
@@ -175,7 +175,7 @@ export default function OrchestratorSpendTab() {
                         <td style={{ ...td, fontWeight: 600 }}>{w.label}</td>
                         <td style={{ ...td, ...numTd }}>{fmt(w.runs)}</td>
                         <td style={{ ...td, ...numTd, fontWeight: 600 }}>{fmt(w.tokens)}</td>
-                        <td style={{ ...td, ...numTd, color: hot ? '#f59e0b' : 'var(--text)' }}>
+                        <td style={{ ...td, ...numTd, color: hot ? 'var(--s-f59e0b)' : 'var(--text)' }}>
                           {w.sharePoints == null
                             ? <span style={{ color: 'var(--text-muted)' }}>not measurable</span>
                             : `~${w.sharePoints}%`}
@@ -184,8 +184,8 @@ export default function OrchestratorSpendTab() {
                           {!rep ? <span style={{ color: 'var(--text-muted)' }}>—</span> : (
                             <>
                               <span style={{
-                                color: rep.status === 'rejected' ? '#ef4444'
-                                  : rep.status === 'allowed_warning' ? '#f59e0b' : 'var(--text-muted)',
+                                color: rep.status === 'rejected' ? 'var(--s-ef4444)'
+                                  : rep.status === 'allowed_warning' ? 'var(--s-f59e0b)' : 'var(--text-muted)',
                                 fontWeight: rep.status === 'allowed' ? 400 : 600,
                               }}>{rep.status || '—'}</span>
                               {' · '}
@@ -193,7 +193,7 @@ export default function OrchestratorSpendTab() {
                                 ? <span style={{ color: 'var(--text-muted)' }}>under 75% (not reported)</span>
                                 : <strong>{Math.round(rep.utilization * 100)}% used</strong>}
                               {rep.rejectedRuns > 0 && (
-                                <span style={{ color: '#ef4444' }}>{` · ${rep.rejectedRuns} run${rep.rejectedRuns === 1 ? '' : 's'} blocked`}</span>
+                                <span style={{ color: 'var(--s-ef4444)' }}>{` · ${rep.rejectedRuns} run${rep.rejectedRuns === 1 ? '' : 's'} blocked`}</span>
                               )}
                               {/* HOW OLD THE READING IS. Claude only speaks when it is past its
                                   warning threshold, so the last figure can be days old — the
@@ -201,7 +201,7 @@ export default function OrchestratorSpendTab() {
                                   written. A percentage with no timestamp reads as "now", and a
                                   stale one would be the most misleading number on the page. */}
                               {ageOf(rep.observedAt) && (
-                                <span style={{ color: ageOf(rep.observedAt).stale ? '#f59e0b' : 'var(--text-muted)' }}>
+                                <span style={{ color: ageOf(rep.observedAt).stale ? 'var(--s-f59e0b)' : 'var(--text-muted)' }}>
                                   {` · read ${ageOf(rep.observedAt).text}`}
                                 </span>
                               )}
@@ -215,7 +215,7 @@ export default function OrchestratorSpendTab() {
               </table>
               <div style={{ padding: '8px 12px', fontSize: 11, color: 'var(--text-muted)', borderTop: '1px solid var(--border)' }}>
                 {report.subscription.windows.some((w) => w.approxRunsExcluded > 0) && (
-                  <div style={{ marginBottom: 4, color: '#f59e0b' }}>
+                  <div style={{ marginBottom: 4, color: 'var(--s-f59e0b)' }}>
                     {report.subscription.windows.reduce((n, w) => Math.max(n, w.approxRunsExcluded), 0)}
                     {' '}run(s) excluded from these totals: they ended without a result event, so their
                     token counts are per-turn fallbacks that overstate by roughly 2.3x. Counting them
@@ -292,11 +292,11 @@ export default function OrchestratorSpendTab() {
                           {/* An asterisk, because otherwise the share looks too low for the token
                               count beside it and there is no way to tell why. */}
                           {b.approxRunsExcluded > 0 && (
-                            <span style={{ color: '#f59e0b', marginLeft: 4 }}
+                            <span style={{ color: 'var(--s-f59e0b)', marginLeft: 4 }}
                                   title={`${b.approxRunsExcluded} run(s) excluded — token counts not vouched for by a result event`}>*</span>
                           )}
                         </td>
-                        <td style={{ ...numTd, color: 'var(--accent, #c2410c)' }}>{fmtUsd(b.usd)}</td>
+                        <td style={{ ...numTd, color: 'var(--accent, var(--s-c2410c))' }}>{fmtUsd(b.usd)}</td>
                         <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                           {b.bySeat.map((s) => `${s.seat} ${fmtUsd(s.usd)}`).join(' · ')}
                         </td>
@@ -346,7 +346,7 @@ export default function OrchestratorSpendTab() {
                       <td style={{ ...td, ...numTd, color: 'var(--text-muted)' }}>{fmt(s.cacheReadTokens)}</td>
                       <td style={{ ...td, ...numTd }}>{fmt(s.tokens)}</td>
                       <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{s.models.join(' · ')}</td>
-                      <td style={{ ...td, ...numTd, fontWeight: 600, color: '#cc6b4a' }}>{fmtUsd(s.usd)}</td>
+                      <td style={{ ...td, ...numTd, fontWeight: 600, color: 'var(--s-cc6b4a)' }}>{fmtUsd(s.usd)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -391,7 +391,7 @@ export default function OrchestratorSpendTab() {
                       <td style={{ ...td, ...numTd }}>{fmt(t.outTokens)}</td>
                       <td style={{ ...td, ...numTd }}>{fmt(t.tokens)}</td>
                       <td style={{ ...td, fontSize: 11, color: 'var(--text-muted)' }}>{t.seats.join(' · ')}</td>
-                      <td style={{ ...td, ...numTd, fontWeight: 600, color: '#cc6b4a' }}>{fmtUsd(t.usd)}</td>
+                      <td style={{ ...td, ...numTd, fontWeight: 600, color: 'var(--s-cc6b4a)' }}>{fmtUsd(t.usd)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -409,7 +409,7 @@ export default function OrchestratorSpendTab() {
               rather than printed as a $0.00 row, which would be a false reading of the bill. */}
           {report.unmeasured?.length > 0 && (
             <div style={{ marginTop: 12, fontSize: 12, color: 'var(--text-muted)' }}>
-              <strong style={{ color: '#f59e0b' }}>Not measured:</strong>{' '}
+              <strong style={{ color: 'var(--s-f59e0b)' }}>Not measured:</strong>{' '}
               {report.unmeasured.join(', ')} — these seats ran but emitted no usage events, so
               their cost is unknown. Not zero.
             </div>
@@ -433,11 +433,11 @@ const td = { padding: '10px 12px', fontSize: 13 };
 function StatCard({ label, value, sub, highlight }) {
   return (
     <div style={{
-      background: 'var(--bg-2)', border: `1px solid ${highlight ? '#cc6b4a' : 'var(--border)'}`,
+      background: 'var(--bg-2)', border: `1px solid ${highlight ? 'var(--s-cc6b4a)' : 'var(--border)'}`,
       borderRadius: 8, padding: '12px 16px',
     }}>
       <div style={{ fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: highlight ? '#cc6b4a' : 'var(--text)', marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: highlight ? 'var(--s-cc6b4a)' : 'var(--text)', marginTop: 4 }}>{value}</div>
       {sub && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{sub}</div>}
     </div>
   );

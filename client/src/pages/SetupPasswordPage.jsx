@@ -73,7 +73,7 @@ export default function SetupPasswordPage() {
             <img src="/api/health/logo" alt="TMC" className="login-logo" />
             <h1 className="login-title">Set Up Your Account</h1>
           </div>
-          <p style={{ textAlign: 'center', color: '#888' }}>Verifying invitation...</p>
+          <p style={{ textAlign: 'center', color: 'var(--n-888888)' }}>Verifying invitation...</p>
         </div>
       </div>
     );
@@ -91,7 +91,7 @@ export default function SetupPasswordPage() {
           <div className="login-error" style={{ marginBottom: 16 }}>
             {info?.error || 'This invitation link is invalid or has expired.'}
           </div>
-          <p style={{ fontSize: 13, color: '#888', textAlign: 'center' }}>
+          <p style={{ fontSize: 13, color: 'var(--n-888888)', textAlign: 'center' }}>
             Please contact your administrator to get a new invitation.
           </p>
         </div>
@@ -111,8 +111,8 @@ export default function SetupPasswordPage() {
           </div>
           <div style={{ textAlign: 'center', margin: '20px 0' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>&#10003;</div>
-            <p style={{ color: '#4ade80', fontWeight: 600, marginBottom: 8 }}>Your password has been set successfully.</p>
-            <p style={{ color: '#888', fontSize: 13 }}>Redirecting to login...</p>
+            <p style={{ color: 'var(--s-4ade80)', fontWeight: 600, marginBottom: 8 }}>Your password has been set successfully.</p>
+            <p style={{ color: 'var(--n-888888)', fontSize: 13 }}>Redirecting to login...</p>
           </div>
         </div>
       </div>
@@ -129,8 +129,8 @@ export default function SetupPasswordPage() {
           <p className="login-subtitle">Welcome, {info.name}</p>
         </div>
 
-        <div style={{ background: '#252525', borderRadius: 8, padding: 12, marginBottom: 20, fontSize: 13 }}>
-          <div style={{ color: '#888' }}>Email: <span style={{ color: '#e8e8e0' }}>{info.email}</span></div>
+        <div style={{ background: 'var(--n-252525)', borderRadius: 8, padding: 12, marginBottom: 20, fontSize: 13 }}>
+          <div style={{ color: 'var(--n-888888)' }}>Email: <span style={{ color: 'var(--n-e8e8e0)' }}>{info.email}</span></div>
         </div>
 
         <form onSubmit={handleSubmit} className="login-form">
@@ -158,7 +158,7 @@ export default function SetupPasswordPage() {
             <label htmlFor="confirm">Confirm Password</label>
             <input id="confirm" type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} placeholder="Re-enter your password" required autoComplete="new-password" />
             {confirmPassword.length > 0 && password !== confirmPassword && (
-              <div style={{ fontSize: 12, color: '#ef4444', marginTop: 4 }}>Passwords do not match</div>
+              <div style={{ fontSize: 12, color: 'var(--s-ef4444)', marginTop: 4 }}>Passwords do not match</div>
             )}
           </div>
 

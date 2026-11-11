@@ -80,17 +80,17 @@ export default function ContactDetailPage() {
 
   return (
     <div style={{ padding: 'var(--s-6, 24px) var(--s-8, 32px)', maxWidth: 920 }}>
-      <Link to="/contacts" style={{ color: 'var(--accent, #4fa9ff)', textDecoration: 'none', fontSize: 13 }}>
+      <Link to="/contacts" style={{ color: 'var(--accent, var(--s-4fa9ff))', textDecoration: 'none', fontSize: 13 }}>
         ← Back to contacts
       </Link>
 
       <header style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 'var(--fs-2xl, 24px)' }}>{entity.title}</h1>
-          <p style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 13, margin: '4px 0 0' }}>
+          <p style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 13, margin: '4px 0 0' }}>
             {meta.email ?? meta.phone ?? id}
             {meta.scope === 'tenant' && (
-              <span style={{ marginLeft: 10, padding: '1px 8px', borderRadius: 999, background: 'rgba(79,169,255,0.15)', color: '#4fa9ff', fontSize: 11 }}>
+              <span style={{ marginLeft: 10, padding: '1px 8px', borderRadius: 999, background: 'rgba(79,169,255,0.15)', color: 'var(--s-4fa9ff)', fontSize: 11 }}>
                 Tenant-shared
               </span>
             )}
@@ -99,8 +99,8 @@ export default function ContactDetailPage() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <DetailStars value={stars} onChange={onSetStars} />
           <button onClick={onRefresh} disabled={refreshing} style={{
-            background: refreshing ? 'var(--panel-2, #1b232d)' : 'var(--accent, #4fa9ff)',
-            color: refreshing ? 'var(--text-muted, #98a0a8)' : '#0e1116',
+            background: refreshing ? 'var(--panel-2, var(--n-1b232d))' : 'var(--accent, #4fa9ff)',
+            color: refreshing ? 'var(--text-muted, var(--n-98a0a8))' : 'var(--n-0e1116)',
             border: 0, borderRadius: 6, padding: '8px 14px', fontSize: 13,
             cursor: refreshing ? 'not-allowed' : 'pointer', fontWeight: 500,
           }}>
@@ -112,14 +112,14 @@ export default function ContactDetailPage() {
       {/* Markdown body — Brain reads exactly this */}
       <article style={{
         marginTop: 24, padding: '20px 24px',
-        background: 'var(--panel, #141a22)', border: '1px solid var(--border, #28323e)',
+        background: 'var(--panel, var(--n-141a22))', border: '1px solid var(--border, var(--n-28323e))',
         borderRadius: 10, lineHeight: 1.6, fontSize: 14,
         whiteSpace: 'pre-wrap',
       }}>
         {entity.bodyMarkdown || '(No body — auto-enrich pending)'}
       </article>
 
-      <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted, #98a0a8)' }}>
+      <div style={{ marginTop: 16, fontSize: 12, color: 'var(--text-muted, var(--n-98a0a8))' }}>
         Last updated by <strong>{entity.lastUpdatedBy ?? '—'}</strong> at {new Date(entity.lastUpdatedAt).toLocaleString()}
         {meta.last_enriched_at && (
           <> · Last enriched {new Date(meta.last_enriched_at).toLocaleString()}</>
@@ -141,10 +141,10 @@ function DetailToastStack({ toasts, onDismiss }) {
     }}>
       {toasts.map((t) => {
         const palette = {
-          ok:    { bg: 'rgba(76,175,80,0.18)',  border: '#4caf50', fg: '#9bd9a0' },
-          warn:  { bg: 'rgba(240,161,74,0.18)', border: '#f0a14a', fg: '#f4c594' },
-          error: { bg: 'rgba(217,83,79,0.20)',  border: '#d9534f', fg: '#f0a3a0' },
-        }[t.kind] ?? { bg: 'rgba(79,169,255,0.16)', border: '#4fa9ff', fg: '#a8d0fc' };
+          ok:    { bg: 'rgba(76,175,80,0.18)',  border: 'var(--s-4caf50)', fg: 'var(--s-9bd9a0)' },
+          warn:  { bg: 'rgba(240,161,74,0.18)', border: 'var(--s-f0a14a)', fg: 'var(--s-f4c594)' },
+          error: { bg: 'rgba(217,83,79,0.20)',  border: 'var(--s-d9534f)', fg: 'var(--s-f0a3a0)' },
+        }[t.kind] ?? { bg: 'rgba(79,169,255,0.16)', border: 'var(--s-4fa9ff)', fg: 'var(--s-a8d0fc)' };
         return (
           <button
             key={t.id}
@@ -173,7 +173,7 @@ function DetailStars({ value, onChange }) {
   const display = hover || value;
   return (
     <div onMouseLeave={() => setHover(0)} style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
-      <span style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 12, marginRight: 6 }}>Importance</span>
+      <span style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12, marginRight: 6 }}>Importance</span>
       {[1, 2, 3, 4, 5].map((n) => {
         const filled = n <= display;
         return (
@@ -184,7 +184,7 @@ function DetailStars({ value, onChange }) {
             style={{
               background: 'transparent', border: 0, padding: 2, cursor: 'pointer',
               fontSize: 22, lineHeight: 1,
-              color: filled ? '#f0a14a' : 'var(--border, #3a4452)',
+              color: filled ? 'var(--s-f0a14a)' : 'var(--border, var(--n-3a4452))',
               transition: 'transform 80ms',
               transform: hover === n ? 'scale(1.2)' : 'scale(1)',
             }}
@@ -194,7 +194,7 @@ function DetailStars({ value, onChange }) {
           </button>
         );
       })}
-      <span style={{ color: 'var(--text-muted, #98a0a8)', fontSize: 12, marginLeft: 6 }}>
+      <span style={{ color: 'var(--text-muted, var(--n-98a0a8))', fontSize: 12, marginLeft: 6 }}>
         {value > 0 ? `${value}/5` : 'Unrated'}
       </span>
     </div>
@@ -203,6 +203,6 @@ function DetailStars({ value, onChange }) {
 
 function Centered({ children }) {
   return (
-    <div style={{ padding: 64, textAlign: 'center', color: 'var(--text-muted, #98a0a8)' }}>{children}</div>
+    <div style={{ padding: 64, textAlign: 'center', color: 'var(--text-muted, var(--n-98a0a8))' }}>{children}</div>
   );
 }

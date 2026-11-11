@@ -275,7 +275,7 @@ export default function WhatsAppNotifierTab() {
           </Field>
         </div>
 
-        <div style={{ marginTop: 'var(--s-4)', padding: 'var(--s-3)', background: 'var(--bg-1, #0d1117)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-xs)', lineHeight: 1.7 }}>
+        <div style={{ marginTop: 'var(--s-4)', padding: 'var(--s-3)', background: 'var(--bg-1, var(--n-0d1117))', border: '1px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-xs)', lineHeight: 1.7 }}>
           <div style={{ fontWeight: 'var(--fw-semibold)', color: 'var(--accent)', marginBottom: 6 }}>Setup steps on Meta side (do these once)</div>
           <ol style={{ margin: 0, paddingLeft: 18 }}>
             <li>Click <b>Generate</b> above → copy the verify token</li>

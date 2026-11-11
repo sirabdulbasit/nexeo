@@ -5,17 +5,17 @@ import api from '../services/api';
 
 const s = {
   wrapper: { height: '100vh', overflow: 'hidden', position: 'relative', background: 'var(--bg-1)' },
-  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: '#333 transparent' },
+  scrollArea: { height: '100%', overflowY: 'auto', paddingBottom: 60, scrollbarWidth: 'thin', scrollbarColor: 'var(--n-333333) transparent' },
   fadeHint: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 60, background: 'linear-gradient(transparent, var(--bg-1))', pointerEvents: 'none', zIndex: 10, transition: 'opacity 0.3s' },
   page: { padding: '24px 32px', maxWidth: 1400 },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   card: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 12 },
-  cardConnected: { borderColor: '#4ade80' },
-  cardConfigured: { borderColor: '#f59e0b' },
-  cardError: { borderColor: '#ef4444' },
+  cardConnected: { borderColor: 'var(--s-4ade80)' },
+  cardConfigured: { borderColor: 'var(--s-f59e0b)' },
+  cardError: { borderColor: 'var(--s-ef4444)' },
   name: { fontSize: 'var(--fs-base)', fontWeight: 600, color: 'var(--text)' },
   desc: { fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: 2 },
-  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: color + '22', color, marginLeft: 8 }),
+  badge: (color) => ({ display: 'inline-block', padding: '2px 8px', borderRadius: 10, fontSize: 10, fontWeight: 600, background: `color-mix(in srgb, ${color} 13.3333%, transparent)`, color, marginLeft: 8 }),
   btn: { padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 'var(--fs-sm)', fontWeight: 500, fontFamily: 'inherit' },
   btnPrimary: { background: '#cc6b4a', color: '#fff' },
   btnOutline: { background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-muted)' },
@@ -30,9 +30,9 @@ const s = {
   input: { width: '100%', background: 'var(--bg-1)', border: '1px solid var(--border)', color: 'var(--text)', padding: '8px 12px', borderRadius: 8, fontSize: 'var(--fs-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
   label: { display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginBottom: 4, marginTop: 10 },
   modal: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '20px 16px', overflow: 'auto' },
-  modalBody: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: '#333 transparent', margin: 'auto' },
-  error: { padding: '8px 12px', background: '#ef444422', border: '1px solid #ef4444', borderRadius: 8, color: '#ef4444', fontSize: 'var(--fs-sm)', marginTop: 10 },
-  success: { padding: '8px 12px', background: '#4ade8022', border: '1px solid #4ade80', borderRadius: 8, color: '#4ade80', fontSize: 'var(--fs-sm)', marginTop: 10 },
+  modalBody: { background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: '100%', maxWidth: 560, maxHeight: '90vh', overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'var(--n-333333) transparent', margin: 'auto' },
+  error: { padding: '8px 12px', background: 'color-mix(in srgb, var(--s-ef4444) 13.3333%, transparent)', border: '1px solid var(--s-ef4444)', borderRadius: 8, color: 'var(--s-ef4444)', fontSize: 'var(--fs-sm)', marginTop: 10 },
+  success: { padding: '8px 12px', background: 'color-mix(in srgb, var(--s-4ade80) 13.3333%, transparent)', border: '1px solid var(--s-4ade80)', borderRadius: 8, color: 'var(--s-4ade80)', fontSize: 'var(--fs-sm)', marginTop: 10 },
   infoMsg: { padding: '8px 14px', borderRadius: 8, marginBottom: 12, fontSize: 'var(--fs-sm)' },
 };
 
@@ -456,7 +456,7 @@ export default function ConnectorsPage() {
     : connectors;
   visibleConnectors.forEach(c => { const cat = c.category || 'other'; if (!grouped[cat]) grouped[cat] = []; grouped[cat].push(c); });
 
-  const STATUS_LABEL = { connected: { text: 'Connected', color: '#4ade80' }, configured: { text: 'Configured', color: '#f59e0b' }, error: { text: 'Error', color: '#ef4444' } };
+  const STATUS_LABEL = { connected: { text: 'Connected', color: 'var(--s-4ade80)' }, configured: { text: 'Configured', color: 'var(--s-f59e0b)' }, error: { text: 'Error', color: 'var(--s-ef4444)' } };
 
   return (
     <div style={s.wrapper}>
@@ -465,16 +465,16 @@ export default function ConnectorsPage() {
         <div style={s.header}>
           <div>
             <button style={{ ...s.btn, ...s.btnOutline, marginRight: 10 }} onClick={() => navigate('/')}>← Back to Chat</button>
-            <span style={{ fontSize: 20, fontWeight: 700, color: '#eee' }}>My Connectors</span>
+            <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--n-eeeeee)' }}>My Connectors</span>
             <span
-              style={{ ...s.badge('#4ade80'), cursor: 'pointer', outline: connectedOnly ? '2px solid #4ade80' : 'none' }}
+              style={{ ...s.badge('var(--s-4ade80)'), cursor: 'pointer', outline: connectedOnly ? '2px solid var(--s-4ade80)' : 'none' }}
               onClick={() => setConnectedOnly(true)}
               title="Show only connected connectors"
             >
               {connectors.filter(c => c.userConnector?.status === 'connected').length} Connected
             </span>
             <span
-              style={{ ...s.badge('#888'), cursor: 'pointer', outline: !connectedOnly ? '2px solid #888' : 'none' }}
+              style={{ ...s.badge('var(--n-888888)'), cursor: 'pointer', outline: !connectedOnly ? '2px solid var(--n-888888)' : 'none' }}
               onClick={() => setConnectedOnly(false)}
               title="Show all connectors"
             >
@@ -485,8 +485,8 @@ export default function ConnectorsPage() {
             <button
               style={{
                 ...s.btn,
-                background: syncingAll ? '#4a2730' : '#e94560',
-                color: '#fff', border: 'none',
+                background: syncingAll ? 'var(--t-4a2730)' : '#e94560',
+                color: 'var(--n-ffffff)', border: 'none',
                 opacity: syncingAll ? 0.7 : 1,
                 cursor: syncingAll ? 'not-allowed' : 'pointer',
                 fontWeight: 600,
@@ -500,7 +500,7 @@ export default function ConnectorsPage() {
           </div>
         </div>
 
-        {msg && <div style={{ ...s.infoMsg, background: msgType === 'success' ? '#4ade8022' : msgType === 'error' ? '#ef444422' : '#88888822', border: `1px solid ${msgType === 'success' ? '#4ade80' : msgType === 'error' ? '#ef4444' : '#888'}`, color: msgType === 'success' ? '#4ade80' : msgType === 'error' ? '#ef4444' : '#aaa' }}>{msg}</div>}
+        {msg && <div style={{ ...s.infoMsg, background: msgType === 'success' ? 'color-mix(in srgb, var(--s-4ade80) 13.3333%, transparent)' : msgType === 'error' ? 'color-mix(in srgb, var(--s-ef4444) 13.3333%, transparent)' : 'color-mix(in srgb, var(--n-888888) 13.3333%, transparent)', border: `1px solid ${msgType === 'success' ? 'var(--s-4ade80)' : msgType === 'error' ? 'var(--s-ef4444)' : 'var(--n-888888)'}`, color: msgType === 'success' ? 'var(--s-4ade80)' : msgType === 'error' ? 'var(--s-ef4444)' : 'var(--n-aaaaaa)' }}>{msg}</div>}
 
         {/* Attachment backfill progress — shown while Brain is
             retro-processing your connected mailbox. Disappears once
@@ -522,7 +522,7 @@ export default function ConnectorsPage() {
                 {' '}~{humaniseEta(backfill.etaSeconds)} remaining ·
                 {' '}runs in the background — you can leave this page, Brain will keep working.
               </div>
-              <div style={{ marginTop: 6, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{ marginTop: 6, height: 6, borderRadius: 3, background: 'rgba(var(--n-ffffff-rgb),0.08)', overflow: 'hidden' }}>
                 <div style={{
                   height: '100%',
                   width: `${Math.min(100, Math.round((backfill.processed / Math.max(1, backfill.totalEvents)) * 100))}%`,
@@ -583,9 +583,9 @@ export default function ConnectorsPage() {
                       </strong>
                       <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)', marginTop: 4, display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                         <span>📥 <strong style={{ color: 'var(--text)' }}>{totals.fetched}</strong> fetched</span>
-                        <span>💾 <strong style={{ color: '#4ade80' }}>{totals.ingested}</strong> saved</span>
+                        <span>💾 <strong style={{ color: 'var(--s-4ade80)' }}>{totals.ingested}</strong> saved</span>
                         {totals.duplicates > 0 && <span>↻ <strong>{totals.duplicates}</strong> dupes</span>}
-                        {totals.errors > 0 && <span style={{ color: '#ef4444' }}>✗ {totals.errors} errors</span>}
+                        {totals.errors > 0 && <span style={{ color: 'var(--s-ef4444)' }}>✗ {totals.errors} errors</span>}
                         <span>⏱ {elapsedLabel}</span>
                       </div>
                     </>
@@ -610,7 +610,7 @@ export default function ConnectorsPage() {
                               borderRadius: 12,
                               background: 'rgba(204,107,74,0.18)',
                               border: '1px solid rgba(204,107,74,0.45)',
-                              color: '#cc6b4a',
+                              color: 'var(--s-cc6b4a)',
                               fontWeight: 600,
                             }}
                           >
@@ -700,7 +700,7 @@ export default function ConnectorsPage() {
                                   borderRadius: 10,
                                   background: 'rgba(204,107,74,0.18)',
                                   border: '1px solid rgba(204,107,74,0.45)',
-                                  color: '#cc6b4a',
+                                  color: 'var(--s-cc6b4a)',
                                   fontWeight: 700,
                                   letterSpacing: 0.3,
                                 }}
@@ -720,7 +720,7 @@ export default function ConnectorsPage() {
                                     borderRadius: 10,
                                     background: 'rgba(96,165,250,0.18)',
                                     border: '1px solid rgba(96,165,250,0.45)',
-                                    color: '#60a5fa',
+                                    color: 'var(--s-60a5fa)',
                                     fontWeight: 700,
                                     letterSpacing: 0.3,
                                     display: 'inline-flex',
@@ -728,7 +728,7 @@ export default function ConnectorsPage() {
                                     gap: 5,
                                   }}
                                 >
-                                  <span className="scribe-spinner" style={{ display: 'inline-block', width: 9, height: 9, border: '2px solid rgba(96,165,250,0.35)', borderTopColor: '#60a5fa', borderRadius: '50%' }} />
+                                  <span className="scribe-spinner" style={{ display: 'inline-block', width: 9, height: 9, border: '2px solid rgba(96,165,250,0.35)', borderTopColor: 'var(--s-60a5fa)', borderRadius: '50%' }} />
                                   SCRIBING{counts ? ` ${counts}` : '…'}
                                 </span>
                               );
@@ -743,7 +743,7 @@ export default function ConnectorsPage() {
                                   borderRadius: 10,
                                   background: 'rgba(74,222,128,0.12)',
                                   border: '1px solid rgba(74,222,128,0.35)',
-                                  color: '#4ade80',
+                                  color: 'var(--s-4ade80)',
                                   fontWeight: 700,
                                   letterSpacing: 0.3,
                                 }}
@@ -751,10 +751,10 @@ export default function ConnectorsPage() {
                             )}
                           </div>
                           <div style={s.desc}>{c.description}</div>
-                          {st === 'connected' && <div style={{ fontSize: 11, color: '#4ade80', marginTop: 4 }}>Connected {c.userConnector?.lastSyncAt ? `• Last sync: ${new Date(c.userConnector.lastSyncAt).toLocaleString()}` : ''}</div>}
-                          {st === 'error' && c.userConnector?.errorMessage && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4 }}>Error: {c.userConnector.errorMessage}</div>}
+                          {st === 'connected' && <div style={{ fontSize: 11, color: 'var(--s-4ade80)', marginTop: 4 }}>Connected {c.userConnector?.lastSyncAt ? `• Last sync: ${new Date(c.userConnector.lastSyncAt).toLocaleString()}` : ''}</div>}
+                          {st === 'error' && c.userConnector?.errorMessage && <div style={{ fontSize: 11, color: 'var(--s-ef4444)', marginTop: 4 }}>Error: {c.userConnector.errorMessage}</div>}
                         {testResult[c.id] && (
-                          <div style={{ fontSize: 11, marginTop: 4, color: testResult[c.id].success ? '#4ade80' : '#ef4444' }}>
+                          <div style={{ fontSize: 11, marginTop: 4, color: testResult[c.id].success ? 'var(--s-4ade80)' : 'var(--s-ef4444)' }}>
                             {testResult[c.id].success ? `✓ ${testResult[c.id].detail}` : `✗ ${testResult[c.id].error}`}
                           </div>
                         )}
@@ -810,10 +810,10 @@ export default function ConnectorsPage() {
         <div style={s.modal} onClick={() => setModal(null)}>
           <div style={s.modalBody} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#eee' }}>Configure {modal.name}</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--n-eeeeee)' }}>Configure {modal.name}</div>
               <button style={{ ...s.btn, ...s.btnOutline, padding: '4px 10px' }} onClick={() => setModal(null)}>✕</button>
             </div>
-            <div style={{ fontSize: 12, color: '#888', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 12, color: 'var(--n-888888)', marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>{modal.description}</span>
               <button style={{ ...s.btn, ...s.btnOutline, fontSize: 11, flexShrink: 0, marginLeft: 12 }} onClick={() => window.open(`/connector-guide?slug=${modal.slug}`, '_blank')}>? How to get credentials</button>
             </div>
@@ -823,37 +823,37 @@ export default function ConnectorsPage() {
               <>
                 {/* Managed: tenant/admin has already configured an OAuth app — user just clicks Connect. */}
                 {modal.tenantOauthAvailable ? (
-                  <div style={{ background: '#252525', borderRadius: 8, padding: 16, marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, color: '#4ade80', marginBottom: 4 }}>
+                  <div style={{ background: 'var(--n-252525)', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, color: 'var(--s-4ade80)', marginBottom: 4 }}>
                       OAuth is managed by your organization.
                     </div>
-                    <div style={{ fontSize: 12, color: '#888' }}>
+                    <div style={{ fontSize: 12, color: 'var(--n-888888)' }}>
                       Click Connect to authorize your {modal.name} account — no credentials to enter.
                     </div>
                   </div>
                 ) : form._prefilled ? (
-                  <div style={{ background: '#252525', borderRadius: 8, padding: 16, marginBottom: 12 }}>
-                    <div style={{ fontSize: 13, color: '#4ade80', marginBottom: 4 }}>
+                  <div style={{ background: 'var(--n-252525)', borderRadius: 8, padding: 16, marginBottom: 12 }}>
+                    <div style={{ fontSize: 13, color: 'var(--s-4ade80)', marginBottom: 4 }}>
                       <strong>{form._siblingName}</strong> is already connected. Same credentials will be used automatically.
                     </div>
-                    <div style={{ fontSize: 12, color: '#888' }}>
+                    <div style={{ fontSize: 12, color: 'var(--n-888888)' }}>
                       Just click Connect below — no need to enter Client ID/Secret again.
                     </div>
                   </div>
                 ) : (
                   <>
-                    <label style={s.label}>Client ID <span style={{ color: '#ef4444' }}>*</span></label>
+                    <label style={s.label}>Client ID <span style={{ color: 'var(--s-ef4444)' }}>*</span></label>
                     <input style={s.input} type="text" value={form.clientId || ''} onChange={e => setForm({ ...form, clientId: e.target.value })} placeholder="Paste your Client ID here" />
 
-                    <label style={s.label}>Client Secret <span style={{ color: '#ef4444' }}>*</span></label>
+                    <label style={s.label}>Client Secret <span style={{ color: 'var(--s-ef4444)' }}>*</span></label>
                     <input style={s.input} type="password" value={form.clientSecret || ''} onChange={e => setForm({ ...form, clientSecret: e.target.value })} placeholder="Paste your Client Secret here" />
 
-                    <label style={s.label}>Redirect URI <span style={{ color: '#666', fontWeight: 400 }}>(copy this and add to your app settings)</span></label>
+                    <label style={s.label}>Redirect URI <span style={{ color: 'var(--n-666666)', fontWeight: 400 }}>(copy this and add to your app settings)</span></label>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <input style={{ ...s.input, background: '#1a1a1a', color: '#999', flex: 1, fontSize: 11 }} type="text" readOnly value={redirectUri || 'Loading...'} onClick={e => { e.target.select(); navigator.clipboard?.writeText(e.target.value); }} />
+                      <input style={{ ...s.input, background: 'var(--n-1a1a1a)', color: 'var(--n-999999)', flex: 1, fontSize: 11 }} type="text" readOnly value={redirectUri || 'Loading...'} onClick={e => { e.target.select(); navigator.clipboard?.writeText(e.target.value); }} />
                       <button style={{ ...s.btn, ...s.btnOutline, flexShrink: 0 }} onClick={() => { navigator.clipboard?.writeText(redirectUri); flash('Copied!', 'success'); }}>Copy</button>
                     </div>
-                    <div style={{ fontSize: 10, color: '#555', marginTop: 2 }}>Add this URL as a redirect URI in your Google Console / Azure / provider settings before clicking Connect.</div>
+                    <div style={{ fontSize: 10, color: 'var(--n-555555)', marginTop: 2 }}>Add this URL as a redirect URI in your Google Console / Azure / provider settings before clicking Connect.</div>
                   </>
                 )}
 
@@ -889,10 +889,10 @@ export default function ConnectorsPage() {
               <>
                 {/* Step indicator */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-                  <div style={{ flex: 1, padding: '6px 0', textAlign: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, background: !saved ? '#cc6b4a22' : '#333', color: !saved ? '#cc6b4a' : '#666', border: !saved ? '1px solid #cc6b4a' : '1px solid #333' }}>
+                  <div style={{ flex: 1, padding: '6px 0', textAlign: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, background: !saved ? 'color-mix(in srgb, var(--s-cc6b4a) 13.3333%, transparent)' : 'var(--n-333333)', color: !saved ? 'var(--s-cc6b4a)' : 'var(--n-666666)', border: !saved ? '1px solid var(--s-cc6b4a)' : '1px solid var(--n-333333)' }}>
                     1. Enter Credentials
                   </div>
-                  <div style={{ flex: 1, padding: '6px 0', textAlign: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, background: saved ? '#cc6b4a22' : '#333', color: saved ? '#cc6b4a' : '#666', border: saved ? '1px solid #cc6b4a' : '1px solid #333' }}>
+                  <div style={{ flex: 1, padding: '6px 0', textAlign: 'center', borderRadius: 6, fontSize: 12, fontWeight: 600, background: saved ? 'color-mix(in srgb, var(--s-cc6b4a) 13.3333%, transparent)' : 'var(--n-333333)', color: saved ? 'var(--s-cc6b4a)' : 'var(--n-666666)', border: saved ? '1px solid var(--s-cc6b4a)' : '1px solid var(--n-333333)' }}>
                     2. Test & Connect
                   </div>
                 </div>
@@ -902,7 +902,7 @@ export default function ConnectorsPage() {
                   <>
                     {getFields(modal).map(f => (
                       <div key={f.n}>
-                        <label style={s.label}>{f.l} {f.r && <span style={{ color: '#ef4444' }}>*</span>}</label>
+                        <label style={s.label}>{f.l} {f.r && <span style={{ color: 'var(--s-ef4444)' }}>*</span>}</label>
                         <input style={s.input} type={f.t} value={form[f.n] || ''} onChange={e => setForm({ ...form, [f.n]: e.target.value })} placeholder={f.placeholder || f.l} />
                       </div>
                     ))}
@@ -915,11 +915,11 @@ export default function ConnectorsPage() {
                 ) : (
                   /* Step 2: Test & Connect */
                   <>
-                    <div style={{ background: '#252525', borderRadius: 8, padding: 14, marginBottom: 12 }}>
-                      <div style={{ fontSize: 12, color: '#888', marginBottom: 8 }}>Saved credentials:</div>
+                    <div style={{ background: 'var(--n-252525)', borderRadius: 8, padding: 14, marginBottom: 12 }}>
+                      <div style={{ fontSize: 12, color: 'var(--n-888888)', marginBottom: 8 }}>Saved credentials:</div>
                       {getFields(modal).map(f => (
-                        <div key={f.n} style={{ fontSize: 13, color: '#ccc', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#888' }}>{f.l}:</span>
+                        <div key={f.n} style={{ fontSize: 13, color: 'var(--n-cccccc)', marginBottom: 4, display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: 'var(--n-888888)' }}>{f.l}:</span>
                           <span>{f.t === 'password' ? '••••••••' : (form[f.n] || '—')}</span>
                         </div>
                       ))}

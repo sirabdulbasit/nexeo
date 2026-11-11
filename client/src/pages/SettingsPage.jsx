@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import api from '../services/api';
 import SuziDesktopSection from '../components/SuziDesktopSection';
 
@@ -97,15 +98,15 @@ export default function SettingsPage() {
         {msg && <div className={`settings-msg ${msg.includes('Failed') || msg.includes('incorrect') ? 'error' : ''}`}>{msg}</div>}
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid #333' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--n-333333)' }}>
           {tabs.map((t) => (
             <button
               key={t.id}
               onClick={() => setTab(t.id)}
               style={{
                 padding: '8px 14px', background: 'transparent', border: 0, cursor: 'pointer',
-                color: tab === t.id ? '#cc6b4a' : '#888',
-                borderBottom: tab === t.id ? '2px solid #cc6b4a' : '2px solid transparent',
+                color: tab === t.id ? 'var(--s-cc6b4a)' : 'var(--n-888888)',
+                borderBottom: tab === t.id ? '2px solid var(--s-cc6b4a)' : '2px solid transparent',
                 fontSize: 13, textTransform: 'uppercase', letterSpacing: '.5px',
               }}
             >
@@ -154,7 +155,7 @@ export default function SettingsPage() {
                 tailor outputs. Was "Personalization"; renamed 2026-05-18. */}
             <section className="settings-section">
               <h2>Context Brain knows about you</h2>
-              <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+              <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
                 Brain reads these when composing messages, drafting replies, or briefing your day.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -165,7 +166,7 @@ export default function SettingsPage() {
                 <div className="settings-field">
                   <label>Contact number</label>
                   <input value={profile.contactNumber} onChange={e => setProfile(p => ({ ...p, contactNumber: e.target.value }))} placeholder="e.g. +92 300 1234567" />
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+                  <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
                     Brain pings you here by default. Override on the Brain tab if you want a different number.
                   </div>
                 </div>
@@ -194,7 +195,7 @@ export default function SettingsPage() {
                     </label>
                   ))}
                 </div>
-                <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>
+                <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 6 }}>
                   Brain uses this to pick correct pronouns ("she" / "he") and Urdu verb endings ("aap aayi" / "aap aaye") when referring to you. Default: female.
                 </div>
               </div>
@@ -247,7 +248,7 @@ export default function SettingsPage() {
 
             <section className="settings-section">
               <h2>Sign out</h2>
-              <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+              <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
                 End this session on this device. You'll need to log in again to use Brain.
               </p>
               <button className="settings-btn danger" onClick={handleLogout}>Sign Out</button>
@@ -381,7 +382,7 @@ function BrainChannelSection({ user }) {
 
       <section className="settings-section">
         <h2>Brain notifications</h2>
-        <p style={{ color: '#888', fontSize: 13, marginTop: -4, marginBottom: 12 }}>
+        <p style={{ color: 'var(--n-888888)', fontSize: 13, marginTop: -4, marginBottom: 12 }}>
           Brain reaches you on WhatsApp via the company number. By default Brain runs silently and saves everything for the next Day Brief; only items above your boldness threshold ping you mid-day.
         </p>
 
@@ -392,9 +393,9 @@ function BrainChannelSection({ user }) {
           background: 'rgba(34,197,94,0.08)',
           border: '1px solid rgba(34,197,94,0.4)',
           borderRadius: 8,
-          fontSize: 12, lineHeight: 1.5, color: '#d1fae5',
+          fontSize: 12, lineHeight: 1.5, color: 'var(--s-d1fae5)',
         }}>
-          <strong style={{ color: '#86efac' }}>Brain never replies as you.</strong> Brain cannot send messages from your personal WhatsApp number to anyone — not your colleagues, not your contacts, not on heuristic, not ever. Your contacts only hear from you when you explicitly send.
+          <strong style={{ color: 'var(--s-86efac)' }}>Brain never replies as you.</strong> Brain cannot send messages from your personal WhatsApp number to anyone — not your colleagues, not your contacts, not on heuristic, not ever. Your contacts only hear from you when you explicitly send.
         </div>
 
         {msg && <div className="settings-msg" style={{ marginBottom: 10 }}>{msg}</div>}
@@ -402,12 +403,12 @@ function BrainChannelSection({ user }) {
         <div className="settings-field">
           <label>WhatsApp number</label>
           {!overrideOpen ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#1f1f1f', border: '1px solid #333', borderRadius: 8 }}>
-              <span style={{ flex: 1, color: '#eee', fontSize: 13 }}>
-                Pinging on <strong>{registeredNumber || '(no number on file)'}</strong> <span style={{ color: '#666' }}>(your registered contact number)</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--n-1f1f1f)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
+              <span style={{ flex: 1, color: 'var(--n-eeeeee)', fontSize: 13 }}>
+                Pinging on <strong>{registeredNumber || '(no number on file)'}</strong> <span style={{ color: 'var(--n-666666)' }}>(your registered contact number)</span>
               </span>
               <button type="button" onClick={() => setOverrideOpen(true)}
-                style={{ background: 'transparent', border: '1px solid #444', color: '#ccc', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>
+                style={{ background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>
                 Use different number
               </button>
             </div>
@@ -420,7 +421,7 @@ function BrainChannelSection({ user }) {
                 style={{ flex: 1 }}
               />
               <button type="button" onClick={() => { setOverrideOpen(false); setWhatsappNumberOverride(''); }}
-                style={{ background: 'transparent', border: '1px solid #444', color: '#ccc', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
+                style={{ background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
                 Use registered
               </button>
             </div>
@@ -429,7 +430,7 @@ function BrainChannelSection({ user }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           <div className="settings-field">
-            <label>Quiet hours start <span style={{ color: '#666', fontWeight: 400 }}>(your timezone)</span></label>
+            <label>Quiet hours start <span style={{ color: 'var(--n-666666)', fontWeight: 400 }}>(your timezone)</span></label>
             <input type="time" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
           </div>
           <div className="settings-field">
@@ -444,13 +445,13 @@ function BrainChannelSection({ user }) {
             shared row with quiet hours. */}
         <div style={{
           marginTop: 8, padding: 14,
-          border: '1px solid #2f2f2f', borderRadius: 10, background: '#1a1a1a',
+          border: '1px solid var(--n-2f2f2f)', borderRadius: 10, background: 'var(--n-1a1a1a)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#eee', letterSpacing: 0.3, textTransform: 'uppercase' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--n-eeeeee)', letterSpacing: 0.3, textTransform: 'uppercase' }}>
               Day Brief delivery
             </div>
-            <div style={{ fontSize: 11, color: '#666' }}>via WhatsApp · bypasses quiet hours</div>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)' }}>via WhatsApp · bypasses quiet hours</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
@@ -461,7 +462,7 @@ function BrainChannelSection({ user }) {
             <div className="settings-field">
               <label>Timezone</label>
               <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
-                      style={{ width: '100%', padding: 8, background: '#2a2a2a', border: '1px solid #444', color: '#eee', borderRadius: 8, fontSize: 13 }}>
+                      style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
                 <option value="Asia/Karachi">Asia/Karachi (PKT, UTC+5)</option>
                 <option value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</option>
                 <option value="Asia/Riyadh">Asia/Riyadh (AST, UTC+3)</option>
@@ -480,7 +481,7 @@ function BrainChannelSection({ user }) {
           <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
             <button type="button" onClick={sendDayBriefNow} disabled={sendingBrief || !pingTarget}
               style={{
-                background: pingTarget ? '#e94560' : '#4a2730',
+                background: pingTarget ? '#e94560' : 'var(--t-4a2730)',
                 border: 'none', color: '#fff',
                 borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600,
                 cursor: pingTarget && !sendingBrief ? 'pointer' : 'not-allowed',
@@ -489,19 +490,19 @@ function BrainChannelSection({ user }) {
               {sendingBrief ? 'Composing & sending…' : 'Send Day Brief to my WhatsApp now'}
             </button>
             {!pingTarget && (
-              <span style={{ fontSize: 11, color: '#888' }}>
+              <span style={{ fontSize: 11, color: 'var(--n-888888)' }}>
                 Add a WhatsApp number above first.
               </span>
             )}
             {briefMsg && (
               <span style={{
                 fontSize: 12,
-                color: briefMsgKind === 'ok' ? '#4ade80' : briefMsgKind === 'err' ? '#fca5a5' : '#aaa',
+                color: briefMsgKind === 'ok' ? 'var(--s-4ade80)' : briefMsgKind === 'err' ? 'var(--s-fca5a5)' : 'var(--n-aaaaaa)',
               }}>{briefMsg}</span>
             )}
           </div>
 
-          <div style={{ fontSize: 11, color: '#666', marginTop: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 8 }}>
             Sends today's Day Brief immediately, same content the {dayBriefTime || '08:30'} cron will send. Skips the once-per-day gate so you can preview as many times as you want.
           </div>
 
@@ -512,17 +513,17 @@ function BrainChannelSection({ user }) {
           {briefPreview && (
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.3 }}>
+                <div style={{ fontSize: 11, color: 'var(--n-888888)', textTransform: 'uppercase', letterSpacing: 0.3 }}>
                   Preview · what Brain just composed
                 </div>
                 <button type="button" onClick={() => { setBriefPreview(''); setBriefMsg(''); }}
-                  style={{ background: 'transparent', border: 'none', color: '#888', fontSize: 11, cursor: 'pointer', padding: 0 }}>
+                  style={{ background: 'transparent', border: 'none', color: 'var(--n-888888)', fontSize: 11, cursor: 'pointer', padding: 0 }}>
                   Hide
                 </button>
               </div>
               <pre style={{
-                margin: 0, padding: 12, background: '#0f0f0f', border: '1px solid #2a2a2a',
-                borderRadius: 8, color: '#ddd', fontSize: 12.5, lineHeight: 1.55,
+                margin: 0, padding: 12, background: 'var(--n-0f0f0f)', border: '1px solid var(--n-2a2a2a)',
+                borderRadius: 8, color: 'var(--n-dddddd)', fontSize: 12.5, lineHeight: 1.55,
                 whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit',
                 maxHeight: 360, overflowY: 'auto',
               }}>{briefPreview}</pre>
@@ -532,7 +533,7 @@ function BrainChannelSection({ user }) {
 
         <div className="settings-field">
           <label>How bold should Brain be?</label>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 4, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 4, marginBottom: 10 }}>
             Confidence threshold for Brain to ping you outside Day Brief. Same dial drives what enters <em>My Attention</em> vs <em>Brief</em>.
           </div>
           <div style={{
@@ -555,8 +556,8 @@ function BrainChannelSection({ user }) {
                   style={{
                     textAlign: 'left',
                     padding: '14px 14px 12px',
-                    background: selected ? 'rgba(204,107,74,0.16)' : '#1f1f1f',
-                    border: `1px solid ${selected ? '#cc6b4a' : '#333'}`,
+                    background: selected ? 'rgba(204,107,74,0.16)' : 'var(--n-1f1f1f)',
+                    border: `1px solid ${selected ? 'var(--s-cc6b4a)' : 'var(--n-333333)'}`,
                     borderRadius: 10,
                     cursor: 'pointer',
                     color: 'inherit',
@@ -572,23 +573,23 @@ function BrainChannelSection({ user }) {
                       style={{
                         display: 'inline-block',
                         width: 14, height: 14, borderRadius: '50%',
-                        border: `2px solid ${selected ? '#fbbf24' : '#555'}`,
+                        border: `2px solid ${selected ? 'var(--s-fbbf24)' : 'var(--n-555555)'}`,
                         background: selected ? '#fbbf24' : 'transparent',
                         boxShadow: selected ? '0 0 0 3px rgba(251,191,36,0.18)' : 'none',
                         flexShrink: 0,
                       }}
                     />
                     <span style={{
-                      color: selected ? '#fbbf24' : '#eee',
+                      color: selected ? 'var(--s-fbbf24)' : 'var(--n-eeeeee)',
                       fontWeight: 600, fontSize: 14,
                       letterSpacing: 0.2,
                     }}>{o.t}</span>
                   </div>
-                  <div style={{ fontSize: 11.5, color: '#aaa', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: 11.5, color: 'var(--n-aaaaaa)', lineHeight: 1.5 }}>
                     {o.d}
                   </div>
                   <div style={{
-                    fontSize: 10, color: selected ? '#cc6b4a' : '#666',
+                    fontSize: 10, color: selected ? 'var(--s-cc6b4a)' : 'var(--n-666666)',
                     textTransform: 'uppercase', letterSpacing: 0.4,
                     marginTop: 'auto',
                   }}>
@@ -600,29 +601,29 @@ function BrainChannelSection({ user }) {
           </div>
         </div>
 
-        <h3 style={{ fontSize: 13, color: '#aaa', marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
+        <h3 style={{ fontSize: 13, color: 'var(--n-aaaaaa)', marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
           Opt-in
         </h3>
 
-        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundEnabled ? 'rgba(34,197,94,0.10)' : '#1f1f1f', border: `1px solid ${outboundEnabled ? 'rgba(34,197,94,0.5)' : '#444'}`, borderRadius: 8 }}>
+        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundEnabled ? 'rgba(34,197,94,0.10)' : 'var(--n-1f1f1f)', border: `1px solid ${outboundEnabled ? 'rgba(34,197,94,0.5)' : 'var(--n-444444)'}`, borderRadius: 8 }}>
           <input type="checkbox" id="outboundEnabled" checked={outboundEnabled} onChange={(e) => setOutboundEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
           <label htmlFor="outboundEnabled" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
-            <div style={{ color: outboundEnabled ? '#86efac' : '#eee', fontWeight: 600 }}>
+            <div style={{ color: outboundEnabled ? 'var(--s-86efac)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
               {outboundEnabled ? 'Brain may message me on WhatsApp' : 'Enable Brain to message me on WhatsApp'}
             </div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
               When enabled, Brain pings you for items it judges substantive enough to interrupt your day. Default: <strong>off</strong> — Brain stays in Day Brief.
             </div>
           </label>
         </div>
 
-        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundPaused ? 'rgba(239,68,68,0.10)' : '#1f1f1f', border: `1px solid ${outboundPaused ? 'rgba(239,68,68,0.5)' : '#333'}`, borderRadius: 8, marginTop: 8 }}>
+        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundPaused ? 'rgba(239,68,68,0.10)' : 'var(--n-1f1f1f)', border: `1px solid ${outboundPaused ? 'rgba(239,68,68,0.5)' : 'var(--n-333333)'}`, borderRadius: 8, marginTop: 8 }}>
           <input type="checkbox" id="outboundPaused" checked={outboundPaused} onChange={(e) => setOutboundPaused(e.target.checked)} style={{ width: 18, height: 18 }} />
           <label htmlFor="outboundPaused" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
-            <div style={{ color: outboundPaused ? '#fca5a5' : '#eee', fontWeight: 600 }}>
+            <div style={{ color: outboundPaused ? 'var(--s-fca5a5)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
               {outboundPaused ? 'Pause active — Brain is silent' : 'Temporarily pause (kill switch)'}
             </div>
-            <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
               Hard kill switch on top of the opt-in. Use during meetings, evenings, weekends — flip off when you want Brain back.
             </div>
           </label>
@@ -634,12 +635,12 @@ function BrainChannelSection({ user }) {
           </button>
           <button type="button" onClick={sendTestPing} disabled={pinging || !pingTarget}
             style={{
-              background: 'transparent', border: '1px solid #444', color: '#ccc',
+              background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)',
               borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: pingTarget ? 'pointer' : 'not-allowed',
             }}>
             {pinging ? 'Sending…' : 'Send test ping'}
           </button>
-          {pingMsg && <span style={{ fontSize: 12, color: pingMsg.startsWith('Sent') ? '#4ade80' : '#fca5a5' }}>{pingMsg}</span>}
+          {pingMsg && <span style={{ fontSize: 12, color: pingMsg.startsWith('Sent') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)' }}>{pingMsg}</span>}
         </div>
       </section>
     </>
@@ -667,10 +668,10 @@ function BrainAutonomyThresholds() {
 
   return (
     <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ padding: 10, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8 }}>
+      <div style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 13, fontWeight: 500 }}>Same decision repeated N times</div>
-          <div style={{ fontSize: 12, color: '#cc6b4a', fontWeight: 600 }}>
+          <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>
             {cfg.occurrences} time{cfg.occurrences === 1 ? '' : 's'}
           </div>
         </div>
@@ -678,28 +679,28 @@ function BrainAutonomyThresholds() {
           type="range" min="3" max="30" step="1"
           value={cfg.occurrences}
           onChange={(e) => persist({ ...cfg, occurrences: parseInt(e.target.value, 10) })}
-          style={{ width: '100%', marginTop: 6, accentColor: '#cc6b4a' }}
+          style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
         />
-        <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
           After you make the same decision this many times, Brain promotes the pattern so it can start handling it autonomously.
         </div>
       </div>
-      <div style={{ padding: 10, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8 }}>
+      <div style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 13, fontWeight: 500 }}>Required consistency</div>
-          <div style={{ fontSize: 12, color: '#cc6b4a', fontWeight: 600 }}>{Math.round(cfg.agreement * 100)}%</div>
+          <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>{Math.round(cfg.agreement * 100)}%</div>
         </div>
         <input
           type="range" min="0.7" max="1" step="0.01"
           value={cfg.agreement}
           onChange={(e) => persist({ ...cfg, agreement: parseFloat(e.target.value) })}
-          style={{ width: '100%', marginTop: 6, accentColor: '#cc6b4a' }}
+          style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
         />
-        <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
           Brain won't auto-promote a pattern where your choices were inconsistent. Raise this to be more cautious; lower to let Brain learn faster.
         </div>
       </div>
-      {saving && <div style={{ fontSize: 11, color: '#888' }}>Saving…</div>}
+      {saving && <div style={{ fontSize: 11, color: 'var(--n-888888)' }}>Saving…</div>}
     </div>
   );
 }
@@ -731,19 +732,19 @@ function PerChannelThresholds() {
       {channels.map((c) => {
         const v = values[c.key] ?? c.defaultFloor;
         return (
-          <div key={c.key} style={{ padding: 10, background: '#2a2a2a', border: '1px solid #333', borderRadius: 8 }}>
+          <div key={c.key} style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: 13, fontWeight: 500 }}>{c.label}</div>
-              <div style={{ fontSize: 12, color: '#cc6b4a', fontWeight: 600 }}>{Math.round(v * 100)}%</div>
+              <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>{Math.round(v * 100)}%</div>
             </div>
             <input
               type="range"
               min="0.5" max="1" step="0.01"
               value={v}
               onChange={(e) => setVal(c.key, parseFloat(e.target.value))}
-              style={{ width: '100%', marginTop: 6, accentColor: '#cc6b4a' }}
+              style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
             />
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>{c.note}</div>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>{c.note}</div>
           </div>
         );
       })}
@@ -783,7 +784,7 @@ function BrainNameSection() {
   return (
     <section className="settings-section">
       <h2>🧠 Your Brain</h2>
-      <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+      <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
         I'm <strong>{current}</strong> — your assistant. Give me a different name if you'd like; I'll answer to it everywhere.
       </p>
       <div className="settings-field">
@@ -800,7 +801,7 @@ function BrainNameSection() {
             {saving ? 'Saving…' : 'Save name'}
           </button>
         </div>
-        {msg && <div style={{ fontSize: 12, color: '#4ade80', marginTop: 6 }}>{msg}</div>}
+        {msg && <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 6 }}>{msg}</div>}
       </div>
     </section>
   );
@@ -828,6 +829,12 @@ const FONT_PRESETS = [
   { label: 'XL', value: 1.3 },
 ];
 
+const THEME_OPTIONS = [
+  { label: 'Dark', value: 'dark' },
+  { label: 'Light', value: 'light' },
+  { label: 'Match system', value: 'system' },
+];
+
 function fontPresetButtonStyle(active) {
   return active
     ? {
@@ -845,11 +852,32 @@ function DisplaySection({ fontScale, setFontScale, appDefaultFontScale, isOverri
   const current = Number(fontScale ?? 1);
   const clampedCurrent = Math.round(current * 100);
   const orgPct = Math.round(Number(appDefaultFontScale ?? 1) * 100);
+  const { preference: themePref, setPreference: setThemePref } = useTheme();
 
   return (
     <section className="settings-section">
       <h2>Display</h2>
-      <p style={{ fontSize: 12, color: '#666', marginTop: -4, marginBottom: 10 }}>
+
+      <div className="settings-field">
+        <label>Theme</label>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }} role="radiogroup" aria-label="Theme">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.value}
+              className="settings-btn"
+              role="radio"
+              aria-checked={themePref === o.value}
+              onClick={() => setThemePref(o.value)}
+              style={fontPresetButtonStyle(themePref === o.value)}
+            >{o.label}</button>
+          ))}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+          Saved on this browser. Match system follows your computer's light or dark setting.
+        </div>
+      </div>
+
+      <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
         Scale the interface text up or down. {isOverride
           ? <>You're using a personal override; organisation default is <strong>{orgPct}%</strong>.</>
           : <>You're using the organisation default (<strong>{orgPct}%</strong>).</>}
@@ -925,7 +953,7 @@ function OrganisationDefaultsSection({ appDefaultFontScale }) {
   return (
     <section className="settings-section">
       <h2>Organisation defaults</h2>
-      <p style={{ fontSize: 12, color: '#888', marginTop: -4, marginBottom: 14 }}>
+      <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -4, marginBottom: 14 }}>
         Tenant-wide settings that apply to every user. Individual users can
         still override these from their own Profile / Brain tab where
         applicable.
@@ -933,7 +961,7 @@ function OrganisationDefaultsSection({ appDefaultFontScale }) {
 
       <div className="settings-field">
         <label>Text size · {appDefaultPct}%</label>
-        <p style={{ fontSize: 12, color: '#666', marginTop: 2, marginBottom: 8 }}>
+        <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: 2, marginBottom: 8 }}>
           Default interface text size for every user. Users who set a personal
           override (Profile → Display) keep their override.
         </p>
@@ -948,7 +976,7 @@ function OrganisationDefaultsSection({ appDefaultFontScale }) {
             >{p.label}</button>
           ))}
         </div>
-        {defaultMsg && <div style={{ fontSize: 12, color: '#4ade80', marginTop: 8 }}>{defaultMsg}</div>}
+        {defaultMsg && <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 8 }}>{defaultMsg}</div>}
       </div>
     </section>
   );
@@ -1007,7 +1035,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
     <>
       <section className="settings-section">
         <h2>Open Items — lifecycle</h2>
-        <p style={{ fontSize: 12, color: '#888', marginTop: -6, marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
           How long items live, how often Brain chases delegations, when an item is
           considered stale.
         </p>
@@ -1017,7 +1045,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
             <label>Follow-up cadence (days)</label>
             <input type="number" min="1" max="30" value={s.followUpDays}
                    onChange={(e) => set('followUpDays', parseInt(e.target.value, 10) || 3)} />
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
               Default gap between delegation chase attempts. Brain may chase sooner
               or later based on signals (deadline, recipient activity) — this is the
               baseline.
@@ -1028,7 +1056,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
             <label>Auto-archive closed items after (days)</label>
             <input type="number" min="0" max="365" value={s.autoArchiveClosedAfterDays}
                    onChange={(e) => set('autoArchiveClosedAfterDays', parseInt(e.target.value, 10) || 0)} />
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
               0 = never. Closed items stay searchable but stop appearing in /open-items
               + Day Brief after this many days.
             </div>
@@ -1038,7 +1066,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
             <label>Stale threshold (days, 0 = off)</label>
             <input type="number" min="0" max="90" value={s.staleThresholdDays}
                    onChange={(e) => set('staleThresholdDays', parseInt(e.target.value, 10) || 0)} />
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
               No activity for this many days → Brain surfaces "Is this still alive?"
               instead of letting it sit indefinitely.
             </div>
@@ -1048,7 +1076,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
             <label>DRAFT expiry (days)</label>
             <input type="number" min="2" max="30" value={s.draftExpiryDays}
                    onChange={(e) => set('draftExpiryDays', parseInt(e.target.value, 10) || 6)} />
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
               DRAFT items (missing priority or deadline) expire after N daily asks.
               Default 6 — Brain asks days 0–4, warns on day 5, closes day 6.
             </div>
@@ -1057,12 +1085,12 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
           <div className="settings-field">
             <label>DRAFT ask channel</label>
             <select value={s.draftAskChannel} onChange={(e) => set('draftAskChannel', e.target.value)}
-                    style={{ width: '100%', padding: 8, background: '#2a2a2a', border: '1px solid #444', color: '#eee', borderRadius: 8, fontSize: 13 }}>
+                    style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
               <option value="whatsapp">WhatsApp only</option>
               <option value="email">Email only</option>
               <option value="both">Both</option>
             </select>
-            <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
               Where Brain asks you to fill in missing priority/deadline.
             </div>
           </div>
@@ -1070,7 +1098,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
           <div className="settings-field">
             <label>Default sort on /open-items</label>
             <select value={s.defaultSort} onChange={(e) => set('defaultSort', e.target.value)}
-                    style={{ width: '100%', padding: 8, background: '#2a2a2a', border: '1px solid #444', color: '#eee', borderRadius: 8, fontSize: 13 }}>
+                    style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
               <option value="priority">Priority</option>
               <option value="deadline">Deadline</option>
               <option value="recent">Most recent activity</option>
@@ -1082,7 +1110,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
 
       <section className="settings-section">
         <h2>Auto-creation — which sources Brain may create items from</h2>
-        <p style={{ fontSize: 12, color: '#888', marginTop: -6, marginBottom: 14 }}>
+        <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
           When off, Brain still detects the item internally but parks it as a
           suggestion in Day Brief for one-tap accept instead of creating it live.
           Useful while you're earning trust on a source.
@@ -1106,12 +1134,12 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
         <div className="settings-field" style={{ marginTop: 14 }}>
           <label>Criticality floor for auto-create</label>
           <select value={s.autoCreateCriticalityFloor} onChange={(e) => set('autoCreateCriticalityFloor', e.target.value)}
-                  style={{ width: '100%', padding: 8, background: '#2a2a2a', border: '1px solid #444', color: '#eee', borderRadius: 8, fontSize: 13 }}>
+                  style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
             <option value="all">All — auto-create at any criticality</option>
             <option value="medium">Medium and above</option>
             <option value="high">High and critical only</option>
           </select>
-          <div style={{ fontSize: 11, color: '#666', marginTop: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
             Brain's criticality call is LLM-judged from the message's substance.
             Below this floor, items become Day Brief suggestions instead of live items.
           </div>
@@ -1120,7 +1148,7 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
         <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save settings'}</button>
-        {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? '#4ade80' : '#f87171' }}>{msg}</span>}
+        {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? 'var(--s-4ade80)' : 'var(--s-f87171)' }}>{msg}</span>}
       </div>
 
       <PurgePanel isSuperAdmin={isSuperAdmin} clientNumber={clientNumber} />
@@ -1205,9 +1233,9 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
   };
 
   return (
-    <section className="settings-section" style={{ marginTop: 16, borderLeft: '3px solid #dc2626', paddingLeft: 12 }}>
-      <h2 style={{ color: '#fca5a5' }}>Purge data — destructive</h2>
-      <p style={{ fontSize: 12, color: '#888', marginTop: -6, marginBottom: 14 }}>
+    <section className="settings-section" style={{ marginTop: 16, borderLeft: '3px solid var(--s-dc2626)', paddingLeft: 12 }}>
+      <h2 style={{ color: 'var(--s-fca5a5)' }}>Purge data — destructive</h2>
+      <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
         Hard-deletes the selected open items. Cannot be undone. Pick a scope, hit
         Preview to see the count, then type the confirmation phrase exactly to fire.
       </p>
@@ -1228,10 +1256,10 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
                    onChange={(e) => { setScope({ ...scope, tenantWide: e.target.checked }); setPreview(null); setTyped(''); }}
                    style={{ marginTop: 2 }} />
             <div>
-              <div style={{ color: scope.tenantWide ? '#fbbf24' : '#eee', fontWeight: 600 }}>
+              <div style={{ color: scope.tenantWide ? 'var(--s-fbbf24)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
                 Across the entire tenant ({clientNumber || 'this tenant'}) — SA only
               </div>
-              <div style={{ fontSize: 11, color: '#888', marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
                 Off: operate only on items you personally own. On: operate on
                 every user's items in this tenant. Use this to clean up data
                 created by other users or by background pollers.
@@ -1243,7 +1271,7 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
 
       {/* Dead-item scopes — safe individually, safe combined */}
       <div style={{ marginBottom: 14, opacity: deadDisabled ? 0.4 : 1 }}>
-        <div style={{ fontSize: 12, color: '#aaa', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
+        <div style={{ fontSize: 12, color: 'var(--n-aaaaaa)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
           Dead items
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
@@ -1264,7 +1292,7 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
         <button type="button" onClick={selectAllDead} disabled={deadDisabled}
           style={{
             marginTop: 4, padding: '4px 10px', fontSize: 12,
-            background: 'transparent', border: '1px solid #444', color: '#ccc',
+            background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)',
             borderRadius: 6, cursor: deadDisabled ? 'not-allowed' : 'pointer',
           }}>
           Select all dead
@@ -1276,7 +1304,7 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
         marginBottom: 14, padding: 10, borderRadius: 8,
         background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.4)',
       }}>
-        <div style={{ fontSize: 12, color: '#fca5a5', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
+        <div style={{ fontSize: 12, color: 'var(--s-fca5a5)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
           Nuclear reset
         </div>
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '4px 0' }}>
@@ -1284,10 +1312,10 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
                  onChange={(e) => flipNuclear(e.target.checked)}
                  style={{ marginTop: 2 }} />
           <div>
-            <div style={{ color: '#fecaca', fontWeight: 600 }}>
+            <div style={{ color: 'var(--s-fecaca)', fontWeight: 600 }}>
               Everything — including active items
             </div>
-            <div style={{ fontSize: 11, color: '#fca5a5', marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: 'var(--s-fca5a5)', marginTop: 2 }}>
               ⚠ Deletes every open item for you, regardless of status.
               Active delegations Brain is currently chasing, DRAFT items
               awaiting your priority, NEW items not yet triaged — all gone.
@@ -1304,14 +1332,14 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
 
         {preview && preview.count > 0 && (
           <>
-            <div style={{ fontSize: 13, color: '#fca5a5' }}>
+            <div style={{ fontSize: 13, color: 'var(--s-fca5a5)' }}>
               {preview.count} item{preview.count === 1 ? '' : 's'} will be deleted. Type{' '}
-              <code style={{ background: '#2a2a2a', padding: '2px 6px', borderRadius: 4 }}>{preview.phrase}</code>{' '}
+              <code style={{ background: 'var(--n-2a2a2a)', padding: '2px 6px', borderRadius: 4 }}>{preview.phrase}</code>{' '}
               to confirm.
             </div>
             <input type="text" value={typed} onChange={(e) => setTyped(e.target.value)}
                    placeholder={preview.phrase}
-                   style={{ flex: '1 1 240px', minWidth: 200, padding: 8, background: '#2a2a2a', border: '1px solid #dc2626', color: '#eee', borderRadius: 8, fontSize: 13, fontFamily: 'monospace' }} />
+                   style={{ flex: '1 1 240px', minWidth: 200, padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--s-dc2626)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13, fontFamily: 'monospace' }} />
             <button className="settings-btn danger" onClick={runPurge}
                     disabled={working || typed !== preview.phrase}>
               {working ? 'Purging…' : 'Purge'}
@@ -1320,7 +1348,7 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
         )}
       </div>
 
-      {msg && <div style={{ fontSize: 12, color: msg.startsWith('Purged') ? '#4ade80' : '#fca5a5', marginTop: 10 }}>{msg}</div>}
+      {msg && <div style={{ fontSize: 12, color: msg.startsWith('Purged') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)', marginTop: 10 }}>{msg}</div>}
     </section>
   );
 }
@@ -1409,13 +1437,13 @@ function BrainResetSection() {
   return (
     <section className="settings-section" style={{ marginTop: 20 }}>
       <h2>Reset & Cleanup</h2>
-      <p style={{ fontSize: 13, color: '#aaa', marginTop: -6 }}>
+      <p style={{ fontSize: 13, color: 'var(--n-aaaaaa)', marginTop: -6 }}>
         Wipe Brain's working memory when iterations have left it confused. Open items, contacts, OAuth grants, and the foundation (prompt blocks, action definitions) are NEVER wiped. Archive tables retained for 7 days — restore via support if needed.
       </p>
 
       <div style={{ marginTop: 12 }}>
         {Object.keys(tierDescriptions).map((t) => (
-          <label key={t} style={{ display: 'block', padding: 8, marginBottom: 4, background: tier === t ? '#2a2a2a' : 'transparent', borderRadius: 6, cursor: 'pointer', border: tier === t ? '1px solid #cc6b4a' : '1px solid transparent' }}>
+          <label key={t} style={{ display: 'block', padding: 8, marginBottom: 4, background: tier === t ? 'var(--n-2a2a2a)' : 'transparent', borderRadius: 6, cursor: 'pointer', border: tier === t ? '1px solid var(--s-cc6b4a)' : '1px solid transparent' }}>
             <input
               type="radio"
               name="reset-tier"
@@ -1424,23 +1452,23 @@ function BrainResetSection() {
               style={{ marginRight: 8 }}
             />
             <strong>{tierDescriptions[t].label}</strong>
-            <div style={{ fontSize: 12, color: '#999', marginLeft: 24, marginTop: 4 }}>{tierDescriptions[t].blurb}</div>
+            <div style={{ fontSize: 12, color: 'var(--n-999999)', marginLeft: 24, marginTop: 4 }}>{tierDescriptions[t].blurb}</div>
           </label>
         ))}
       </div>
 
       {wipeMap && (
-        <div style={{ marginTop: 12, padding: 12, background: '#1a1a1a', borderRadius: 8, border: '1px solid #444' }}>
-          <div style={{ fontSize: 13, color: '#ddd', marginBottom: 6 }}><strong>What will be wiped:</strong></div>
+        <div style={{ marginTop: 12, padding: 12, background: 'var(--n-1a1a1a)', borderRadius: 8, border: '1px solid var(--n-444444)' }}>
+          <div style={{ fontSize: 13, color: 'var(--n-dddddd)', marginBottom: 6 }}><strong>What will be wiped:</strong></div>
           {Object.entries(wipeMap).map(([k, v]) => (
-            <div key={k} style={{ fontSize: 12, color: v > 0 ? '#fbbf24' : '#666' }}>
+            <div key={k} style={{ fontSize: 12, color: v > 0 ? 'var(--s-fbbf24)' : 'var(--n-666666)' }}>
               {k.replace(/_/g, ' ')}: <strong>{v}</strong>
             </div>
           ))}
-          <div style={{ fontSize: 12, color: '#4ade80', marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 8 }}>
             Preserved: account + OAuth grants, feed events (so you can re-ingest contacts via "Reset & rebuild" on Contacts), FACL docs and non-contact wiki pages, prompt blocks, action definitions.
             {tier === 'full' && (
-              <div style={{ marginTop: 4, color: '#fbbf24' }}>
+              <div style={{ marginTop: 4, color: 'var(--s-fbbf24)' }}>
                 ⚠️ Full Reset wipes open items + contacts. Re-run "Reset & rebuild" on Contacts page after to re-pull from feeds.
               </div>
             )}
@@ -1449,8 +1477,8 @@ function BrainResetSection() {
       )}
 
       <div style={{ marginTop: 16 }}>
-        <div style={{ fontSize: 13, color: '#fca5a5', marginBottom: 6 }}>
-          Type <code style={{ background: '#2a2a2a', padding: '2px 6px', borderRadius: 4 }}>{expectedPhrase}</code> to confirm
+        <div style={{ fontSize: 13, color: 'var(--s-fca5a5)', marginBottom: 6 }}>
+          Type <code style={{ background: 'var(--n-2a2a2a)', padding: '2px 6px', borderRadius: 4 }}>{expectedPhrase}</code> to confirm
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <input
@@ -1458,7 +1486,7 @@ function BrainResetSection() {
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             placeholder={expectedPhrase}
-            style={{ flex: '1 1 220px', minWidth: 200, padding: 8, background: '#2a2a2a', border: '1px solid #dc2626', color: '#eee', borderRadius: 8, fontFamily: 'monospace', fontSize: 13 }}
+            style={{ flex: '1 1 220px', minWidth: 200, padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--s-dc2626)', color: 'var(--n-eeeeee)', borderRadius: 8, fontFamily: 'monospace', fontSize: 13 }}
           />
           <button
             className="settings-btn danger"
@@ -1471,7 +1499,7 @@ function BrainResetSection() {
       </div>
 
       {msg && (
-        <div style={{ fontSize: 13, color: msg.startsWith('Reset complete') ? '#4ade80' : '#fca5a5', marginTop: 12 }}>
+        <div style={{ fontSize: 13, color: msg.startsWith('Reset complete') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)', marginTop: 12 }}>
           {msg}
         </div>
       )}
@@ -1480,13 +1508,13 @@ function BrainResetSection() {
         <div style={{ marginTop: 24 }}>
           <h3 style={{ fontSize: 14, marginBottom: 8 }}>Recent resets</h3>
           {history.slice(0, 10).map((h) => (
-            <div key={h.id} style={{ fontSize: 12, color: '#999', padding: '4px 0', borderBottom: '1px solid #2a2a2a' }}>
-              <span style={{ color: '#ddd' }}>{new Date(h.createdAt).toLocaleString()}</span>
+            <div key={h.id} style={{ fontSize: 12, color: 'var(--n-999999)', padding: '4px 0', borderBottom: '1px solid var(--n-2a2a2a)' }}>
+              <span style={{ color: 'var(--n-dddddd)' }}>{new Date(h.createdAt).toLocaleString()}</span>
               {' — '}
-              <span style={{ color: '#cc6b4a' }}>{h.tier}</span>
+              <span style={{ color: 'var(--s-cc6b4a)' }}>{h.tier}</span>
               {' — '}
               {Object.entries(h.wipedCounts ?? {}).map(([k, v]) => `${k.replace(/_/g, ' ')}=${v}`).join(', ')}
-              {h.archiveSuffix && <span style={{ color: '#666', marginLeft: 8 }}>(archive {h.archiveSuffix})</span>}
+              {h.archiveSuffix && <span style={{ color: 'var(--n-666666)', marginLeft: 8 }}>(archive {h.archiveSuffix})</span>}
             </div>
           ))}
         </div>

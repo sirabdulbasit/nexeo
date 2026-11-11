@@ -157,7 +157,7 @@ function BrainEvolution() {
 const evoRowStyle = {
   marginBottom: 12,
   paddingBottom: 6,
-  borderBottom: '1px solid var(--border, #333)',
+  borderBottom: '1px solid var(--border, var(--n-333333))',
 };
 const evoBtnStyle = { fontSize: 12, padding: '4px 12px', opacity: 0.85 };
 
