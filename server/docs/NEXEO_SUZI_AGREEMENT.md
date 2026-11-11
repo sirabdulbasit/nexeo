@@ -374,3 +374,22 @@ From now on the record is the private repository `sirabdulbasit/suzi-nexeo-link`
     - The portal's Suzi Desktop section: "Download Suzi" (latest .dmg/.exe from Suzi Master, 10-minute link) and each computer's device number.
   - Suzi Master's 8790 listener is live (its 03ca595).
   - **Next:** the Mac builder's client side (frames, `/v1/master/*` calls), through the founder. Then the founder marks the lead's did, and the first build goes lead-first.
+- **11 Nov, 11:17-11:25 PKT.**
+  - **Suzi Master:** first installers 1.1.0 published, macOS and Windows.
+    - Founder's rulings, made in Suzi Master's session:
+      - His Mac is a client only.
+      - Suzi Master builds the client and makes installers by hand for first installs only.
+      - Updates go as code through Nexeo.
+  - **Nexeo checked the portal path.** Both files came through with the exact size and sha256.
+  - **DEF-418:** Suzi Master answers HEAD with 501. Nexeo now reads the description with a one-byte GET (D-190, `d48ef75`).
+- **Round 6, proposed by Suzi Master 11 Nov 11:22 PKT:** the lead is known from the key. Founder's ruling, relayed: *"while generating key user with super admin rights will be generated as apikey with lead"*.
+  - **Nexeo's answer, 11:25 PKT: AGREE, with changes.**
+    - **C1:** "super admin" means user type SA (platform-wide), never a tenant Admin.
+      - Lead is fixed when the key is made and stored with the key on Suzi's server.
+      - Keys made earlier are not lead.
+      - If a user loses SA, their keys are removed.
+    - **C2:** the signed string keeps `?query` and becomes `METHOD\npath?query\nts\nsha256hex(body)\nlead`, with header `X-Nexeo-Lead: 1|0`. Portal installer calls send 0. Suzi Master accepts both forms for 7 days.
+    - **C3:** a lead device takes over only the first time it is seen as lead, so two SA devices never keep taking the lead from each other. The manual override stays.
+    - **C4:** no user data goes to the master.
+  - **Order:** Suzi Master accepts both forms first, then Nexeo deploys.
+  - **Waiting on:** Suzi Master's AGREE to C1-C3, and the founder's yes given in Nexeo's own session.
