@@ -92,6 +92,14 @@ describe('DEF-229 — the ordering that decides what he is told to do', () => {
       .toBe('auth_expired');
   });
 
+  it('a token from the old Google client (unauthorized_client) means reconnect, not permissions', () => {
+    // After the 11-11 move from TMCAI to nexeo-tmc every stored refresh token belongs to the old client and
+    // Google answers unauthorized_client. It contains "unauthorized", so the order is load-bearing again.
+    expect(classifyProviderError('unauthorized_client')).toBe('auth_expired');
+    expect(classifyProviderError('GaxiosError: unauthorized_client: Unauthorized')).toBe('auth_expired');
+    expect(classifyProviderError('401 unauthorized')).toBe('no_permission');
+  });
+
   it('a plain 403 is still permissions', () => {
     expect(classifyProviderError('403 insufficientPermissions')).toBe('no_permission');
   });

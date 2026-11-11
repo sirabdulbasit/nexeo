@@ -52,7 +52,9 @@ export type ProviderErrorKind =
 export function classifyProviderError(raw: string | null | undefined): ProviderErrorKind {
   const s = String(raw ?? '');
   if (!s.trim()) return 'unknown';
-  if (/oauth2\.googleapis\.com\/token|invalid_grant|invalid_token|Token has been expired|expired or revoked|refresh.*token/i.test(s)) {
+  // unauthorized_client: a token made by an earlier Google client (e.g. after the 11-11 move from TMCAI to
+  // nexeo-tmc) is refused. To the user that is the same thing: reconnect. Checked before 'unauthorized' below.
+  if (/oauth2\.googleapis\.com\/token|invalid_grant|unauthorized_client|invalid_token|Token has been expired|expired or revoked|refresh.*token/i.test(s)) {
     return 'auth_expired';
   }
   if (/insufficientPermissions|not authorized|unauthorized|403/i.test(s)) return 'no_permission';

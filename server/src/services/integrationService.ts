@@ -209,7 +209,8 @@ export async function getAuthenticatedClient(userId: number): Promise<{ client: 
             // dedupKey + dedupWindow handles this).
             try {
               const { brainContactsUser } = await import('./notifications/brainOutboundService');
-              const isExpiry = /invalid_grant|token has been expired|expired or revoked/i.test(errorMessage);
+              // unauthorized_client = a token from an earlier Google client (TMCAI → nexeo-tmc, 11-11): reconnect, same as expiry.
+              const isExpiry = /invalid_grant|unauthorized_client|token has been expired|expired or revoked/i.test(errorMessage);
               await brainContactsUser({
                 userId,
                 // The connector row that failed is this user's own row and

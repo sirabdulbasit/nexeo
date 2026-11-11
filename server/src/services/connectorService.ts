@@ -125,7 +125,7 @@ export async function listAvailableForUser(userId: number, clientNumber: string)
     include: { connectorType: true },
   });
 
-  // Single platform OAuth app (in tmcai-491811) — used by every tenant +
+  // Single platform OAuth app (in nexeo-tmc since 2026-11-11) — used by every tenant +
   // every user. Per-tenant BYO-OAuth was removed (see memory:
   // project_gcp_simplification). The Google-family slugs always inherit
   // the platform OAuth client when GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET
@@ -612,7 +612,9 @@ export async function getOAuthUrl(
   }
 
   // OAuth app credentials come from the platform-wide GCP project
-  // (`tmcai-491811`). Per-user / per-tenant BYO-OAuth was retired in
+  // (`nexeo-tmc` since 2026-11-11; before that the obsolete `tmcai-491811`,
+  // whose app sat in Testing and dropped every connection after 7 days).
+  // Per-user / per-tenant BYO-OAuth was retired in
   // 2026-05-04 — see memory `project_gcp_simplification.md`. Every
   // tenant + user shares the same `GOOGLE_CLIENT_ID` /
   // `GOOGLE_CLIENT_SECRET` from `.env`. User-only data lives in
