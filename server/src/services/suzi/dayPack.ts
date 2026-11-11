@@ -144,7 +144,9 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
   return out.slice(0, MAX_BRIEF_BLOCKS);
 }
 
-export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean }
+/** F-2.5: an email a rule of his has handled or prepared. Suzi lists these apart from the emails needing a reply. */
+export interface PackByRule { action: 'ready' | 'ignored' | 'delegated'; rule_id: string; person_name?: string; task_id?: string | null; at: string }
+export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
 function decodeEntities(t: string): string {
@@ -197,6 +199,30 @@ async function prepNotes(clientNumber: string, userId: number): Promise<Map<stri
   return new Map(rows.map((r) => [r.event_id, r.question]));
 }
 
+/**
+ * F-2.5: his Suzi email rules applied to the list. A delegate rule marks the email "ready" (nothing is sent until
+ * his one signed yes); an ignore rule marks it "ignored". Emails delegated by a rule in the last day are added as
+ * "delegated". Rules that can't be read leave the list as it was.
+ */
+async function withRules(clientNumber: string, userId: number, items: Array<{ email: PackEmail; address: string }>, now: Date, tz: string): Promise<PackEmail[]> {
+  const { suziEmailRules, ruleFor, delegatedByRule } = await import('./suziEmailRules');
+  const rules = await suziEmailRules(clientNumber, userId).catch(() => []);
+  const at = toZonedIso(now, tz);
+  const out = items.map(({ email, address }) => {
+    const r = rules.length ? ruleFor(rules, { from: address, subject: email.subject }) : null;
+    if (!r) return email;
+    return { ...email, by_rule: { action: r.kind === 'email_delegate' ? 'ready' as const : 'ignored' as const, rule_id: r.id, ...(r.person_name ? { person_name: r.person_name } : {}), at } };
+  });
+  const shown = new Set(out.map((e) => e.thread_id));
+  const done = await delegatedByRule(clientNumber, userId, new Date(now.getTime() - 24 * 3600_000));
+  for (const d of done) {
+    if (shown.has(d.thread_id)) continue;
+    shown.add(d.thread_id);
+    out.push({ thread_id: d.thread_id, from: '', subject: d.subject.slice(0, 200), preview: '', received_at: d.at, urgency: 'normal', by_rule: { action: 'delegated', rule_id: d.rule_id, person_name: d.person_name, task_id: d.task_id, at: d.at } });
+  }
+  return out;
+}
+
 export async function buildDayPack(clientNumber: string, userId: number, opts: { timezone?: string; now?: Date; phase2?: boolean } = {}): Promise<DayPack> {
   const tz = safeTimezone(opts.timezone);
   const now = opts.now ?? new Date();
@@ -235,7 +261,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     calendar: packCalendar(events, today, tz, prep),
     actions,
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
-    emails: attention.items.map((i) => ({ ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked })),
+    emails: await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
     emails_loading: attention.loading,
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },

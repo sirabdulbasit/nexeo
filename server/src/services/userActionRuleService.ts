@@ -326,36 +326,44 @@ export async function evaluateRulesForEvent(input: RuleMatchInput): Promise<Rule
     if (!r.isActive) continue;
     if (r.triggerKind !== 'inbound_any' && r.triggerKind !== input.triggerKind) continue;
 
+    const matched = ruleMatches(r, input);
+    if (!matched) continue;
+    out.push({ rule: r, matchedOn: matched });
+  }
+  return out;
+}
+
+/** One rule against one event: what it matched on, or null. Every condition must hold, and at least one is required. */
+export function ruleMatches(r: UserActionRule, input: Omit<RuleMatchInput, 'clientNumber' | 'userId' | 'triggerKind'>): string[] | null {
+  {
     const matched: string[] = [];
     const c = r.triggerCondition;
     if (c.sender) {
       const haystack = `${input.senderEmail ?? ''} ${input.senderName ?? ''}`.toLowerCase();
-      if (!haystack.includes(c.sender.toLowerCase())) continue;
+      if (!haystack.includes(c.sender.toLowerCase())) return null;
       matched.push(`sender~${c.sender}`);
     }
     if (c.senderDomain) {
       const dom = (input.senderDomain ?? '').toLowerCase();
-      if (!dom.includes(c.senderDomain.replace(/^@/, '').toLowerCase())) continue;
+      if (!dom.includes(c.senderDomain.replace(/^@/, '').toLowerCase())) return null;
       matched.push(`domain~${c.senderDomain}`);
     }
     if (c.subjectContains) {
-      if (!String(input.subject ?? '').toLowerCase().includes(c.subjectContains.toLowerCase())) continue;
+      if (!String(input.subject ?? '').toLowerCase().includes(c.subjectContains.toLowerCase())) return null;
       matched.push(`subject~${c.subjectContains}`);
     }
     if (c.archetype) {
-      if (input.archetype !== c.archetype) continue;
+      if (input.archetype !== c.archetype) return null;
       matched.push(`archetype=${c.archetype}`);
     }
     if (c.bodyContains) {
-      if (!String(input.body ?? '').toLowerCase().includes(c.bodyContains.toLowerCase())) continue;
+      if (!String(input.body ?? '').toLowerCase().includes(c.bodyContains.toLowerCase())) return null;
       matched.push(`body~${c.bodyContains}`);
     }
 
     // At least one condition required — refuse to match a rule with empty conditions.
-    if (matched.length === 0) continue;
-    out.push({ rule: r, matchedOn: matched });
+    return matched.length === 0 ? null : matched;
   }
-  return out;
 }
 
 /** Note that a rule fired (bumps counters). Idempotent on (ruleId, eventKey). */

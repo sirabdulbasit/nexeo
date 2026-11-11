@@ -98,17 +98,27 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
 export async function emailDelegate(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<Result> {
   if (!confirmed) return fail('needs_confirmation');
   const threadId = text(a.email_id) || text(a.thread_id);
-  const person = await personById(clientNumber, userId, text(a.person_id));
-  if (!person) return fail('not_found', 'no such person');
-  if (!person.email) return fail('no_email', 'delegating needs the person\'s email on record');
   const mail = await latestMail(clientNumber, userId, threadId);
   if (!mail) return fail('not_found');
+  // F-2.4: the "ready" batch sends {email_id} alone; the person comes from the rule that made it ready.
+  let personId = text(a.person_id);
+  let ruleId = text(a.rule_id);
+  if (!personId) {
+    const { suziEmailRules, ruleFor } = await import('./suziEmailRules');
+    const r = ruleFor((await suziEmailRules(clientNumber, userId)).filter((x) => x.kind === 'email_delegate'), { from: mail.senderEmail, subject: mail.subject });
+    if (!r?.person_id) return fail('rule_removed', 'no delegate rule matches this email any more');
+    personId = r.person_id;
+    ruleId = r.id;
+  }
+  const person = await personById(clientNumber, userId, personId);
+  if (!person) return fail('not_found', 'no such person');
+  if (!person.email) return fail('no_email', 'delegating needs the person\'s email on record');
   const fwd = await forwardEmail(clientNumber, userId, { thread_id: threadId, to: person.email, text: text(a.note) });
   if (!fwd.ok) return fwd;
   const draftId = (fwd.item as any).draft_id;
   const row = await prisma.agentAction.findFirst({ where: { id: parseInt(draftId, 10), clientNumber, userId } as any });
   if (row) {
-    const delegate = { thread_id: threadId, person_id: person.id, person_name: person.name, person_email: person.email, note: text(a.note), subject: mail.subject, rule_id: text(a.rule_id) || null };
+    const delegate = { thread_id: threadId, person_id: person.id, person_name: person.name, person_email: person.email, note: text(a.note), subject: mail.subject, rule_id: ruleId || null };
     await prisma.agentAction.update({ where: { id: row.id }, data: { input: { ...(row.input as any), delegate } as any } as any });
   }
   const sent = await saveToGmailDrafts(clientNumber, userId, { draft_id: draftId }, true, gate);

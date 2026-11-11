@@ -41,6 +41,11 @@ vi.mock('../src/services/suzi/suziEmail', () => ({
   latestMail: (...a: any[]) => latest(...a),
   runEmailOp: (...a: any[]) => emailOp(...a),
 }));
+const emailRules = vi.fn(async () => [] as any[]);
+vi.mock('../src/services/suzi/suziEmailRules', async () => {
+  const real: any = await vi.importActual('../src/services/suzi/suziEmailRules');
+  return { ...real, suziEmailRules: (...a: any[]) => emailRules(...a) };
+});
 vi.mock('../src/services/knowledge/brainPersonaService', () => ({ getBrainPersona: async () => ({ userFullName: 'Basit Ahmed' }) }));
 const create = vi.fn();
 const delegate = vi.fn();
@@ -137,6 +142,20 @@ describe('email.delegate (F-2.3)', () => {
     const r: any = await emailDelegate('T', 2, { thread_id: 'th9', person_id: 'p1' }, true, { signatureVerified: false, voiceScore: null });
     expect(latest.mock.calls[0][2]).toBe('th9');
     expect(r.item).toMatchObject({ state: 'saved', sent: false });
+  });
+  it('the ready batch: no person_id, the person and rule come from his delegate rule', async () => {
+    latest.mockResolvedValue({ id: 'fe1', subject: 'Quote for racks', senderEmail: 'sam@vendor.com' });
+    emailRules.mockResolvedValue([{ id: 'r1', kind: 'email_delegate', by: 'domain', value: 'vendor.com', person_id: 'p1', person_name: 'Ali Raza' }]);
+    const r: any = await emailDelegate('T', 2, { email_id: 'th9' }, true, SIGNED);
+    expect(person.mock.calls[0][2]).toBe('p1');
+    expect(updateAction.mock.calls[0][0].data.input.delegate).toMatchObject({ person_id: 'p1', rule_id: 'r1' });
+    expect(r.item.state).toBe('held');
+  });
+  it('the ready batch after the rule is gone: 409 rule_removed, nothing forwarded', async () => {
+    latest.mockResolvedValue({ id: 'fe1', subject: 'Quote', senderEmail: 'sam@vendor.com' });
+    emailRules.mockResolvedValue([]);
+    expect(await emailDelegate('T', 2, { email_id: 'th9' }, true, SIGNED)).toMatchObject({ ok: false, error: 'rule_removed' });
+    expect(fwd).not.toHaveBeenCalled();
   });
   it('needs his confirmation', async () => {
     expect(await emailDelegate('T', 2, { email_id: 'th9', person_id: 'p1' }, false, SIGNED)).toEqual({ ok: false, error: 'needs_confirmation' });

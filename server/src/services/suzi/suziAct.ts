@@ -26,8 +26,9 @@ import { EMAIL_OPS, runEmailOp } from './suziEmail';
 import { GAP_OPS, runGapOp } from './suziGaps';
 import { emailDelegate, taskCreate, taskForward } from './suziDelegate';
 import { CALENDAR_OPS, runCalendarOp } from './suziCalendar';
+import { ruleRemove, ruleSet } from './suziEmailRules';
 
-export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -62,6 +63,8 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   // F-2: create, forward (assign AND tell) and delegate an email. Telling goes through the send gate (suziDelegate).
   if (req.op === 'task.create') return taskCreate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'email.delegate') return emailDelegate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate);
+  if (req.op === 'rule.set') return ruleSet(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
+  if (req.op === 'rule.remove') return ruleRemove(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op === 'task.update' && req.args?.update === 'forward') return taskForward(clientNumber, userId, req.args, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'task.update') {
@@ -147,7 +150,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
   await audit({
     clientNumber, actorId: userId, actorKind: 'user',
     action: `suzi.act.${req.op}`,
-    subjectType: req.op.startsWith('email.') ? 'email' : req.op.startsWith('calendar.') ? 'calendar_event' : req.op.startsWith('gap.') ? 'suzi_gap' : 'open_item',
+    subjectType: req.op.startsWith('email.') ? 'email' : req.op.startsWith('calendar.') ? 'calendar_event' : req.op.startsWith('rule.') ? 'user_action_rule' : req.op.startsWith('gap.') ? 'suzi_gap' : 'open_item',
     subjectId: typeof req.args?.id === 'string' ? req.args.id : typeof req.args?.draft_id === 'string' ? req.args.draft_id : typeof req.args?.thread_id === 'string' ? req.args.thread_id : typeof req.args?.event_id === 'string' ? req.args.event_id : null,
     result: out.ok ? 'success' : 'failure',
     details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, signature_verified: req.signature_verified === true, ...(out.ok ? {} : { error: out.error }) },
