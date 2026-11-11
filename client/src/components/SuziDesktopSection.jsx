@@ -153,7 +153,7 @@ export default function SuziDesktopSection() {
   );
 }
 
-// Link T30: the latest installer from Suzi Master, for this computer first. Nothing is stored at Nexeo; the
+// Link T30: the latest installer from Suzi Master, for this computer's system only. Nothing is stored at Nexeo; the
 // download link lasts 10 minutes.
 function DownloadSuzi() {
   const [inst, setInst] = useState(null);
@@ -174,7 +174,9 @@ function DownloadSuzi() {
       setBusy(null);
     }
   };
-  const order = THIS_OS === 'windows' ? ['windows', 'macos'] : ['macos', 'windows'];
+  // Founder 11-11: show only the installer for this computer's system. Both only when the system is not
+  // recognised (Linux, a phone), so nobody is left without a choice.
+  const order = THIS_OS ? [THIS_OS] : ['macos', 'windows'];
   return (
     <section className="settings-section">
       <h2>Download Suzi</h2>
@@ -190,7 +192,7 @@ function DownloadSuzi() {
               <div key={os} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 <div>
                   <div style={{ fontWeight: 600 }}>
-                    {OS_NAME[os]}{os === THIS_OS ? <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 400 }}> · this computer</span> : null}
+                    {OS_NAME[os]}
                   </div>
                   <div style={{ fontSize: 12, color: '#999' }}>
                     {i.available
