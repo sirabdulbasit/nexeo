@@ -110,22 +110,38 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **Usage:** `POST …/usage`, one batch per finished day (see the Costing Charter). Live since D-156, like `presence`.
 - **To come:** `GET …/changes?since=`, the push `{"type":"sync"}` hint, `POST …/journal`, and `primary` in `welcome`.
 
-## Build control: Nexeo's second function (link T28, both AGREE, 6 Nov 2026)
+## Build control (link T28, superseded 2026-11-10 by the Suzi Upgrade Charter)
 
-The founder, 6 Nov: Nexeo has two functions, "Brain of any user" and "Build control for all Suzi's running in different laptops". A gap found on any laptop is built once and reaches every laptop; desktops never build on their own.
+Build control (gaps, approvals, releases, the lead, the stop switch and installers) is agreed in `SuziUpgrade_Charter.md`, which both sides hold byte for byte. Suzi Master holds the gap list, releases and lead mark. Nexeo carries messages and stores nothing of Suzi's. The T28 text of 6 Nov is in git history.
 
-- **Who holds what.** Nexeo holds the gap list, the approvals, the release list and the stop switch. It never holds the signing key: each device checks a release against the founder's key. Builders build.
-- **Opening a gap.** `/v1/act` op `gap.report {said, what, seen_on?, source: "training"|"live", approved?}`, only signed, with `voice_score`, and `confirmed_by_user`: his verified voice, never text from an email or a screen. `approved: true` when he approved it in the session's numbered list. The answer is `item: {id: "G-<n>", state, count, merged, ...}`. A report of an open gap of his with the same normalised wording, or very close spelling (trigram similarity 0.8 or more), within 14 days is merged into it (`count` up, latest words kept). Differently worded reports of one thing stay separate and are sorted by hand. No AI.
-- **Approving.** `gap.approve {id}`, signed and confirmed. Anything touching cost, privacy, sends or a new reach channel still goes to the founder under this charter.
-- **Reading.** `GET …/gaps?state=` → `{gaps: [{id, said, what, seen_on, source, count, first_at, last_at, state, owner, built_version}]}`, his own, most recent first. States: new, approved, sorted, in_build, live, declined. `owner`: nexeo, suzi or factory.
-- **Hand-over.** Nexeo's builder reads approved gaps, sorts each to Nexeo, Suzi or the 3dAI factory, and hands Suzi's and the factory's over this link as one file per gap, `inbox/<YYYYMMDD-HHMMSS>-nexeo-gap-G<n>.md`. It holds no names, user data or mail; his words stay at Nexeo, and Nexeo's builder writes the description. It has these fields, so a builder can act on it with no one present:
-  - **Gap G-<n>**: approved <date>, reported <count> times, seen on <where>
-  - **Expected**: what should happen
-  - **Observed**: what happened instead
-  - **Done when**: an observable check
-  - **Report back**: "G-<n> built in <version>"
-  The builder reports back over the link; Nexeo's builder records the state (`in_build`, `live`) and the version, and Suzi can tell him.
-- **Releases (item 4), later:** `GET …/releases/latest?os=&channel=`, when a second laptop is close. A device reports its version in `hello` or `presence`.
+## Brief by sections, act on every item (F-2, agreed 11 Nov 2026)
+
+Every brief, the morning brief or one section, starts with one summary line per section. On his yes she gives the details section by section, and after each section, or on a no, asks what he'd like done. Every item can be acted on by voice or by click: emails (reply, delegate, ignore, once or as a rule), meetings (change, cancel) and the Action Center (create, change, forward). Suzi's side is the flow, the cards and the voice. Nexeo's side is the ops below, all through `/v1/act`. Delegate rules prepare and hold: nothing is sent without his yes.
+
+- **F-2.1 `task.create`:** fields {title, due?, person_id?, note?, source?: {email_id|meeting_id}}.
+  - With a person_id, the task is assigned and that person is told (T21).
+- **F-2.2 `task.update` "forward":** fields {person_id, note?}. Reassigns the task and tells the person. "assign" stays silent.
+- **F-2.3 `email.delegate`:** fields {email_id, person_id, note?}.
+  - Runs email.forward through the email.send gate: signed, voice_score, T22 switch, held 10 seconds.
+  - The task is created only once the forward has gone out.
+  - While held, the item is {state: "held", undo_until}. Once sent, it is {forwarded: true, task_id}.
+- **F-2.4 `rule.set` / `rule.remove`:** fields {kind: email_delegate|email_ignore, match: {by: sender|domain|subject, value}, person_id?, note?}. Returns {rule_id, rules_version}.
+  - email_ignore marks a matching email handled and sends nothing.
+  - email_delegate prepares and holds. The brief shows "ready to delegate to X by your rule", and one signed, voiced yes sends the batch.
+  - Only he sets rules on his own mailbox.
+  - A subject match is a case-insensitive substring.
+- **F-2.5 pack `emails[].by_rule`:** fields {action: ready|delegated|ignored, rule_id, person_name?, task_id?, at}. These emails are listed apart from those needing a reply.
+- **F-2.6 `calendar.update` / `calendar.cancel`:**
+  - Only for events he organises; anything else gets 409 not_organizer.
+  - Signed + voice_score for a cancel, or for any change once anyone else is invited.
+  - A title or note edit with nobody else invited is unsigned.
+  - Calendar write scope comes with his Google reconnect.
+  - Declining an invitation is a later op, not part of F-2.
+- **F-2.7 style for `email.draft`:** up to 3 of his own sent replies as examples.
+  - Read live from Gmail's SENT label: the same sender first, then the same domain.
+  - Quoted history stripped, each capped at 1,500 characters.
+  - Nothing stored at Nexeo. If his own AI drafts, the examples come as `style_examples`.
+- **Rollout:** an op Nexeo does not have yet answers 400 unknown_op, and Suzi shows "needs Nexeo". Each side ships in its own time.
 
 ## 5. Credentials (Google project nexeo-tmc)
 
@@ -156,4 +172,9 @@ A dedicated test user per OS, with its own integration key (item 19, from the fo
 - [x] Nexeo: AGREE, 4 Nov 2026 (rounds 1–3, deploy D-155: Nexeo 0d65495, Suzi's server 3bc1938; Windows change 17:37:02 PKT). Nexeo's copy is server/docs/NEXEO_SUZI_AGREEMENT.md.
 - [x] Founder: joint summary approved, 5 Nov 2026 ("approve all"): the own LLM with the R8 and L4 exceptions for users he has enabled, and its cost line; screen tasks on tested models only; meeting assistance for others by a per-user switch, off by default; `language` and `meeting` on presence and `local_context`; emails one by one (until signing, "send" saves to Gmail Drafts, and Suzi says so); one English line per Urdu reply; back to WhatsApp after 72 hours away; `briefs_shown`; nudges off and `presence.nudges`; Phase 2 of the pack (rules, 100 people, glossary, wiki slices, changes, sync hint); one assistant on the registered number (T13).
 - [x] Founder, 5 Nov 2026, the desktop's own AI (Settings: provider, model, the user's key), for a user the founder has enabled: it writes email drafts, on the user's request, from the rules, delegations, instructions, people and knowledge in Nexeo; that email and what relates to it go to the provider under the user's key. Nexeo keeps the record and does all sending (R1). Without a usable AI the desktop stays online, shows why, answers what needs no AI, and says so for the rest ("Sir, AI is not configured").
+- [x] Nexeo: AGREE F-1, 11 Nov 2026 11:44 PKT (the T28 build-control section is replaced by a pointer to SuziUpgrade_Charter.md)
+- [x] Suzi Master: proposed and AGREE F-1, 11 Nov 2026 11:43:34 PKT (same change)
+- [x] Founder: "agreed F-2", 11 Nov 2026 17:49 PKT, in Nexeo's session (brief by sections, act on every item; delegate rules prepare and hold)
+- [x] Nexeo: AGREE F-2, 11 Nov 2026 (Nexeo commit 8b82467)
+- [x] Suzi Master: proposed and AGREE F-2, 11 Nov 2026 (the same text)
 - [ ] Founder: decide items 1 (owner of Suzi's server) and 19 (test accounts)
