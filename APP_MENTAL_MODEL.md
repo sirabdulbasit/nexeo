@@ -26,7 +26,18 @@ dead names; internal `brain_*` table and route names are kept deliberately for s
 - **Backend:** Node + TypeScript, Express. Entry `server/src/server.ts` → `app.ts`.
   Listens on **4002** (`server/src/config/env.ts:76`). Loads `.env` from its **cwd**, so
   pm2 must start from `server/`.
-- **Frontend:** React + Vite in `client/`.
+- **Frontend:** React + Vite in `client/`. Served by Apache straight from `client/dist`
+  (a client deploy = build from a clean export, back up `client/dist`, rsync the new build
+  in; no server restart).
+  - **Themes (since 2026-11-11):** Dark (default) / Light / Match system, chosen in
+    Settings → Display, saved per browser (`localStorage` `nexeo:theme`), applied as
+    `<html data-theme>` by `public/theme-init.js` before first paint and by
+    `src/context/ThemeContext.jsx`. Core tokens live in `src/styles/tokens.css` (light
+    values under `:root[data-theme="light"]`). Colours that were hard-coded in components
+    are variables generated into `src/styles/theme-colors.css` by
+    `client/scripts/theme-codemod.mjs` — run it (`node scripts/theme-codemod.mjs --write`
+    from `client/`) after adding hard-coded colours, or use the tokens directly.
+    Deliberately not themed: the printable Connector Guide (white paper) and logo artwork.
 - **Database:** PostgreSQL via Prisma (`server/prisma/`). Migrations are hand-written
   idempotent SQL; see Conventions.
 - **Background work:** jobs in `server/src/jobs/`, run through `jobRunner.protectedTick`
