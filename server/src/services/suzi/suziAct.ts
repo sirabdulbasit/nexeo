@@ -13,7 +13,8 @@
  *   - is AUDITED: the suzi_act_log row is the audit entry (its id is the `audit_id`), and a line
  *     also goes to audit_logs with the rest of the system's actions, including refusals.
  *
- * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign), whatsapp.to_user, the
+ * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign / forward), task.create, email.delegate
+ * (F-2, suziDelegate.ts), whatsapp.to_user, the
  * email session (suziEmail.ts; a signed send for a user on the switch is really sent, suziSend.ts), and
  * build control's gap.report / gap.approve (suziGaps.ts, link T28).
  */
@@ -23,8 +24,9 @@ import { audit } from '../auditLogService';
 import { applyFollowUp } from './suziActions';
 import { EMAIL_OPS, runEmailOp } from './suziEmail';
 import { GAP_OPS, runGapOp } from './suziGaps';
+import { emailDelegate, taskCreate, taskForward } from './suziDelegate';
 
-export const ACT_OPS = ['task.update', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -55,6 +57,11 @@ function statusOf(error: string): 400 | 403 | 404 | 409 {
 }
 
 async function runOp(clientNumber: string, userId: number, req: ActRequest): Promise<{ ok: true; item: unknown } | { ok: false; error: string; detail?: string }> {
+  const gate = { signatureVerified: req.signature_verified === true, voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null };
+  // F-2: create, forward (assign AND tell) and delegate an email. Telling goes through the send gate (suziDelegate).
+  if (req.op === 'task.create') return taskCreate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
+  if (req.op === 'email.delegate') return emailDelegate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate);
+  if (req.op === 'task.update' && req.args?.update === 'forward') return taskForward(clientNumber, userId, req.args, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'task.update') {
     const a = req.args ?? {};
     const r = await applyFollowUp(clientNumber, userId, {

@@ -31,7 +31,7 @@ const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): EmailOpResult => ({ ok: false, error, ...(detail ? { detail } : {}) });
 
 /** The thread's latest email. `thread_id` is Gmail's, or the feed event's when an email has no thread. */
-async function latestMail(clientNumber: string, userId: number, threadId: string): Promise<Mail | null> {
+export async function latestMail(clientNumber: string, userId: number, threadId: string): Promise<Mail | null> {
   if (!threadId) return null;
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id: string; subject: string | null; sender_email: string | null; thread_id: string | null }>>(
     `SELECT id, source_id, raw_payload->>'subject' AS subject, sender_email, raw_payload->>'threadId' AS thread_id FROM feed_events
@@ -61,7 +61,7 @@ export async function readThread(clientNumber: string, userId: number, threadId:
 }
 
 /** Drafting and sending for the user is never routed to Flash (Costing Charter, section 5). */
-async function writeWithModel(clientNumber: string, userId: number, task: string): Promise<string> {
+export async function writeWithModel(clientNumber: string, userId: number, task: string): Promise<string> {
   const { getSentSamples } = await import('../gmailService');
   const samples = (await getSentSamples(userId, 4).catch(() => ({ samples: [] as Array<{ subject: string; body: string; to: string }> }))).samples ?? [];
   const voice = samples.length >= 2
@@ -112,7 +112,7 @@ async function dropOlderDrafts(clientNumber: string, userId: number, threadId: s
 const ADDRESS = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
 const addressesOk = (v: string) => v.split(',').map((x) => x.trim()).every((x) => ADDRESS.test(x));
 
-async function saveNewDraft(clientNumber: string, userId: number, output: Record<string, unknown>, input: Record<string, unknown> = {}): Promise<EmailOpResult> {
+export async function saveNewDraft(clientNumber: string, userId: number, output: Record<string, unknown>, input: Record<string, unknown> = {}): Promise<EmailOpResult> {
   const row = await prisma.agentAction.create({
     data: {
       clientNumber, userId, actionType: DRAFT_TYPE, status: 'done', requiresApproval: false,
@@ -130,7 +130,7 @@ async function newEmail(clientNumber: string, userId: number, a: Args): Promise<
 }
 
 /** Attachments stay behind until forwarding really sends, and the answer says so rather than implying they went. */
-async function forwardEmail(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+export async function forwardEmail(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
   const to = text(a.to);
   if (!addressesOk(to)) return fail('bad_address');
   const mail = await latestMail(clientNumber, userId, text(a.thread_id));
@@ -188,13 +188,17 @@ export type SendGate = { signatureVerified: boolean; voiceScore: number | null }
 const UNSIGNED: SendGate = { signatureVerified: false, voiceScore: null };
 const GOING = new Set(['held', 'sending', 'sent']);
 
+// F-2.3: asked again, a draft that has gone says so; a delegate also gives the task made after it went.
 const heldAnswer = (draftId: unknown, o: any) => ({
   ok: true as const,
-  item: { draft_id: String(draftId), saved_to_gmail_drafts: true, sent: true, send_at: o.send.send_at, undo_until: o.send.undo_until, gmail_draft_id: o.gmailDraftId ?? null },
+  item: {
+    draft_id: String(draftId), saved_to_gmail_drafts: true, sent: true, state: o.send.state, send_at: o.send.send_at, undo_until: o.send.undo_until, gmail_draft_id: o.gmailDraftId ?? null,
+    ...(o.send.state === 'sent' && o.send.task_id ? { forwarded: true, task_id: o.send.task_id } : {}),
+  },
 });
 
 /** E6: saved to Drafts; saving twice gives the same draft. T22: a verified send for a user on the switch is held, then sent. */
-async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<EmailOpResult> {
+export async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<EmailOpResult> {
   if (!confirmed) return fail('needs_confirmation');
   if (gate.signatureVerified && gate.voiceScore === null) return fail('no_voice_score', 'a signed send needs voice_score');
   const draft = await ownDraft(clientNumber, userId, a.draft_id);

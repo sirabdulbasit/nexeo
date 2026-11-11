@@ -76,6 +76,9 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
   const s = await sendGmailDraft(r.user_id, r.gmail_draft_id);
   if (s.success) {
     await finish(id, r.client_number, r.user_id, 'sent', { sent_at: new Date().toISOString(), gmail_message_id: s.messageId ?? null });
+    // F-2: a note to a person marks the task told; a delegated email gets its task only now.
+    const { afterSuziSent } = await import('./suziDelegate');
+    await afterSuziSent(id, s.messageId ?? null).catch((e) => console.warn(`[suzi-send] after-send of ${id} failed: ${e?.message ?? e}`));
     return 'sent';
   }
   await finish(id, r.client_number, r.user_id, 'failed', { failed_at: new Date().toISOString(), error: String(s.error ?? 'Gmail did not send it').slice(0, 200) });
