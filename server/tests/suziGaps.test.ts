@@ -24,6 +24,8 @@ vi.mock('../src/db/prisma', () => ({
     suziActLog: { create: (...a: any[]) => logCreate(...a), findUnique: vi.fn(), update: vi.fn(async () => ({})) },
   },
 }));
+const movedFlag = vi.fn(async () => false);
+vi.mock('../src/services/featureFlagService', () => ({ isFeatureEnabled: (...a: any[]) => movedFlag(...a) }));
 vi.mock('../src/services/suzi/gatewayAdminClient', () => ({ verifyGatewaySecret: async (t: any) => t === 'right-secret' }));
 const auditFn = vi.fn();
 vi.mock('../src/services/auditLogService', () => ({ audit: (...a: any[]) => auditFn(...a) }));
@@ -38,6 +40,7 @@ const report = { said: 'that is wrong', what: 'the board should close', approved
 
 beforeEach(() => {
   for (const f of [query, userFindUnique, logCreate, auditFn]) f.mockReset();
+  movedFlag.mockReset(); movedFlag.mockResolvedValue(false);
   query.mockResolvedValue([]);
   userFindUnique.mockResolvedValue({ clientNumber: 'TMC-0001', isActive: true });
   logCreate.mockResolvedValue({ id: 'audit1' });
@@ -119,5 +122,20 @@ describe('no model', () => {
   it('suziGaps.ts calls no LLM', () => {
     const src = readFileSync(path.join(__dirname, '../src/services/suzi/suziGaps.ts'), 'utf8');
     expect(src).not.toMatch(/callLLM|llmRouter|gemini|anthropic/i);
+  });
+});
+
+describe('gaps moved to Suzi Master (SuziUpgrade Charter, founder 11 Nov)', () => {
+  it('with the switch on, gap.report and gap.approve answer moved and nothing is read or written', async () => {
+    movedFlag.mockResolvedValue(true);
+    expect(await runGapOp('T', 2, 'gap.report', report, signed)).toMatchObject({ ok: false, error: 'moved' });
+    expect(await runGapOp('T', 2, 'gap.approve', { id: 'G-7' }, signed)).toMatchObject({ ok: false, error: 'moved' });
+    expect(movedFlag).toHaveBeenCalledWith('T', 'feature_suzi_gaps_moved', false);
+    expect(query).not.toHaveBeenCalled();
+  });
+  it('with the switch off (the default), gaps are kept as before', async () => {
+    query.mockResolvedValue([row]);
+    const r: any = await runGapOp('T', 2, 'gap.approve', { id: 'G-7' }, signed);
+    expect(r.error).not.toBe('moved');
   });
 });

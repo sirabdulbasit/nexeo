@@ -119,7 +119,18 @@ async function approve(clientNumber: string, userId: number, a: Record<string, u
   return { ok: true, item: toGap(rows[0]) };
 }
 
+/**
+ * SuziUpgrade Charter (Gaps), founder 11 Nov: business information is Nexeo's; bugs, gaps and builds go to Suzi
+ * Master, which keeps the one gap list. Once its list is live (this switch, per tenant), Nexeo answers gap.* with
+ * `moved` and keeps nothing: the client sends gaps to the master through /v1/master/*.
+ */
+export const GAPS_MOVED = 'feature_suzi_gaps_moved';
+
 export async function runGapOp(clientNumber: string, userId: number, op: string, args: Record<string, unknown>, gate: GapGate): Promise<GapOpResult> {
+  if (GAP_OPS.includes(op as any)) {
+    const { isFeatureEnabled } = await import('../featureFlagService');
+    if (await isFeatureEnabled(clientNumber, GAPS_MOVED, false)) return { ok: false, error: 'moved', detail: 'gaps go to Suzi Master now' };
+  }
   if (op === 'gap.report') return report(clientNumber, userId, args ?? {}, gate);
   if (op === 'gap.approve') return approve(clientNumber, userId, args ?? {}, gate);
   return { ok: false, error: 'unknown_op' };
