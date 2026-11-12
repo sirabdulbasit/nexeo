@@ -475,6 +475,6 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **C6:** re-deriving never undoes his decisions. Accepted or skipped items stay; only new items are proposed. Minutes he edited by hand are kept, with the new version offered beside them. `updated: true` shows a silent "notes improved".
   - **C7:** `sources[].way` appears in `meeting.get` and `meetings_recorded[]`. There is no upload offer when `google_transcript` or `participant` is already present.
   - **F-4 is complete on both sides** (N1-N8, C1-C7, Way A scope) and waits only on the founder's "agree F-4".
-- **TMC infra, 12 Nov:** they confirmed the Workspace plan includes Meet transcripts, so Way A is available. Suzi Master has been told.
+- **TMC infra, 12 Nov:** they confirmed the Workspace plan includes Meet transcripts, so Way A is available. Suzi Master has NOT been told yet: its session was not running when this was sent.
   - **Pending with infra:** transcripts setting on (step 2) and the Nexeo client marked Trusted (step 3). Both can be scoped to a "Nexeo users" group, which is what we recommended.
   - **The setting only allows transcription.** A meeting is transcribed only when its host, or Nexeo under his rule, switches it on.
