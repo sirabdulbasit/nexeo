@@ -443,3 +443,9 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **Imperialsoft:** the GCP project nexeo-tmc has its topic and its push subscription, delivering to the push account `nexeo-meet-push@nexeo-tmc.iam.gserviceaccount.com`. Imperialsoft's full report is still awaited: the OAuth client ID, the publishing status and the scope classes.
   - **TMC infra (tmcltd.com):** asked for the Workspace plan (Business Standard or higher is needed), to turn transcripts on, and to mark Nexeo's client as Trusted.
 - **Waiting on:** Suzi Master's AGREE, and the founder's "agree F-4". **Nothing gets built until both arrive.**
+- **Suzi Master, 12 Nov: AGREE to N1-N7, with conditions C1-C4. Nexeo accepted all four, pending the founder.**
+  - **C1:** Way A follows F-4.3 exactly. The switch is off by default, Suzi asks for each meeting until there is a `meeting_attend` rule, and any meeting can be switched on or off by click or voice. A meeting he doesn't host gets `meeting.status not_covered` and no attempt.
+  - **C2:** statuses are `transcribing`, `transcript_ready`, `record_ready`, `not_covered` and `failed {reason}`.
+  - **C3:** F-4.10 adds "Google's own copy under Way A is the host's, in his Drive." Our 12-month limit and our delete do not reach that copy. The founder is told this with decision 4.
+  - **C4:** the consumption record adds `meeting_transcript_minutes`, a count only.
+  - **Next:** after the founder's "agree F-4", Suzi Master writes the F-4 text into Functional_Charter.md and C4 into Costing_Charter.md. Nexeo then mirrors both byte-identical and builds.
