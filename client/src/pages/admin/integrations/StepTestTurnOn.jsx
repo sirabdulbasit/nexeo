@@ -249,7 +249,7 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
           {run?.runId && (
             <div ref={recordsRef}>
               <div style={s.sectionTitle}>{pick ? 'Records behind the figure' : `Records read${r?.recordsRead ? ` · ${r.recordsRead}` : ''}`}</div>
-              <RecordsView integId={integ.id} runId={run.runId} reading={pick?.reading ?? null} readingLabel={pick?.label} onClear={() => setPick(null)} />
+              <RecordsView integId={integ.id} runId={run.runId} reading={pick?.reading ?? null} readingLabel={pick?.label} onClear={() => setPick(null)} onRetest={approvedCount > 0 ? runTest : undefined} />
             </div>
           )}
         </>

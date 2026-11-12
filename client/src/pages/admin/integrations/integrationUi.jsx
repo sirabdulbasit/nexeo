@@ -577,7 +577,7 @@ function KpiTable({ k, dryRun, onPick }) {
  * fields the mapping uses first, marked). With `reading`, exactly the records one figure
  * was computed from. Search narrows across every field; 50 at a time.
  */
-export function RecordsView({ integId, runId, reading, readingLabel, onClear }) {
+export function RecordsView({ integId, runId, reading, readingLabel, onClear, onRetest, retestBusy }) {
   const [q, setQ] = useState('');
   const [query, setQuery] = useState('');
   const [offset, setOffset] = useState(0);
@@ -598,7 +598,19 @@ export function RecordsView({ integId, runId, reading, readingLabel, onClear }) 
   if (err) return <div style={s.error}>{err}</div>;
   if (!page) return <div style={s.hint}>Loading the records…</div>;
   if (!page.available) {
-    return <div style={s.hint}>The records of this test are no longer kept (they are kept for an hour). Run the test again to see them.</div>;
+    // CL-082: a sentence at the bottom was missed — the way to the records is one button, here.
+    return (
+      <div style={{ ...s.card, ...s.row, background: 'var(--bg-1)' }}>
+        <span style={{ color: 'var(--text)', flex: 1 }}>
+          The records of this test are no longer in memory (they are kept for an hour after a test, and a server update clears them).
+        </span>
+        {onRetest && (
+          <button type="button" style={btn('primary', { small: true, disabled: retestBusy })} disabled={retestBusy} onClick={onRetest}>
+            Load the records (runs the test again — writes nothing)
+          </button>
+        )}
+      </div>
+    );
   }
   const used = new Set(page.usedFields);
   const last = Math.min(page.offset + page.rows.length, page.total);
