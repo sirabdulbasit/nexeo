@@ -24,10 +24,11 @@ import {
 import { runStageText } from './WorkingOverlay';
 import { runnableApprovedCount } from './integrationLogic';
 import {
-  C, s, btn, InlineConfirm, ChangesList, formatPkt, scheduleText, previewNextRun, runResult,
+  C, s, btn, InlineConfirm, ChangesList, KpiChangeSummary, formatPkt, scheduleText, previewNextRun, runResult,
 } from './integrationUi';
 
 export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWorking, versionId, setVersionId, onBack, onDone }) {
+  const [showAll, setShowAll] = useState(false);
   const [version, setVersion] = useState(null);
   const [approvedCount, setApprovedCount] = useState(0);
   const [run, setRun] = useState(null); // RunStatusView of the latest test of this version
@@ -182,14 +183,14 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginTop: 12 }}>
               <Tile label={integ.sourceKind === 'api' ? 'Records read' : 'Rows read'} value={r.recordsRead} />
               {(Number(r.filteredOut) > 0 || hasFilter) && <Tile label="Records filtered out" value={r.filteredOut} />}
-              <Tile label="Readings that would change" value={r.writes} />
+              <Tile label="KPI figures to write" value={r.writes} />
               {ctx && <Tile label="Knowledge pages to create" value={ctx.created} color={ctx.created ? C.ok : undefined} />}
               {ctx && <Tile label="Knowledge pages to update" value={ctx.updated} color={ctx.updated ? C.info : undefined} />}
               {ctx && <Tile label="Pages to mark stale" value={ctx.stale} color={ctx.stale ? C.warn : undefined} />}
               {ctx && Number(ctx.unchanged) > 0 && <Tile label="Pages unchanged" value={ctx.unchanged} />}
-              <Tile label="Set aside" value={r.setAside} />
+              <Tile label="Proposal rows set aside" value={r.setAside} />
               <Tile label="Blanks (kept as they are)" value={r.blanks} />
-              <Tile label="Change" value={`${Number(r.changePercent ?? 0).toFixed(1)}%`} />
+              <Tile label="Existing figures changed" value={`${Number(r.changePercent ?? 0).toFixed(1)}%`} />
               <Tile
                 label="Safety limit"
                 value={r.capVerdict?.wouldTrip ? 'Would stop' : 'Would continue'}
@@ -219,7 +220,18 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
           )}
 
           <div style={s.sectionTitle}>What would change</div>
-          <ChangesList changes={changes} loading={changesLoading} dryRun />
+          {/* DEF-443: readable first — one table per KPI — the flat list on request. */}
+          {!changesLoading && <KpiChangeSummary changes={changes} dryRun />}
+          {(changes?.length ?? 0) > 0 && !changesLoading ? (
+            <div style={{ marginTop: 8 }}>
+              <button type="button" style={btn('outline', { small: true })} onClick={() => setShowAll((x) => !x)}>
+                {showAll ? 'Hide the list of every change' : `Show every change (${changes.length})`}
+              </button>
+              {showAll && <div style={{ marginTop: 8 }}><ChangesList changes={changes} loading={false} dryRun /></div>}
+            </div>
+          ) : (
+            <ChangesList changes={changes} loading={changesLoading} dryRun />
+          )}
         </>
       )}
 

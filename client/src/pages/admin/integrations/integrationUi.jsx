@@ -8,6 +8,7 @@
  * tab reads as part of Admin, not as a port of vm's light palette.
  */
 import { useState } from 'react';
+import { summariseReadings, periodWords } from './integrationLogic';
 
 export const C = {
   accent: 'var(--s-cc6b4a)', ok: 'var(--s-4ade80)', warn: 'var(--s-f59e0b)', bad: 'var(--s-ef4444)', info: 'var(--s-3b82f6)', grey: 'var(--n-888888)',
@@ -470,6 +471,87 @@ export function ChangesList({ changes, loading, dryRun }) {
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * DEF-443 — what a test (or a run) does to each KPI, readable at a glance: one sentence per
+ * KPI, then a table with a row per month and a column per breakdown value (e.g. business
+ * unit), newest month first. The flat list stays one click away ("Show every change").
+ */
+export function KpiChangeSummary({ changes, dryRun }) {
+  const kpis = summariseReadings((changes || []).filter((c) => !isContextChange(c)));
+  if (kpis.length === 0) return null;
+  return (
+    <div>
+      {kpis.map((k) => <KpiTable key={k.key} k={k} dryRun={dryRun} />)}
+    </div>
+  );
+}
+
+const MONTHS_SHOWN = 12;
+
+function KpiTable({ k, dryRun }) {
+  const [all, setAll] = useState(false);
+  const verb = dryRun ? 'would get' : 'got';
+  const parts = [];
+  if (k.added) parts.push(`${k.added} new`);
+  if (k.updated) parts.push(`${k.updated} changed`);
+  const named = k.dims.filter((d) => d !== '');
+  const split = k.dimName && named.length > 0;
+  const periods = all ? k.periods : k.periods.slice(0, MONTHS_SHOWN);
+  const cols = k.dims;
+  const cell = (p, d) => k.cells.get(`${p}|${d}`);
+  const num = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
+  return (
+    <div style={{ ...s.card, background: 'var(--bg-1)' }}>
+      <div style={{ fontWeight: 600, color: 'var(--text)' }}>{k.label}</div>
+      <p style={{ ...s.hint, color: 'var(--text)' }}>
+        This KPI {verb} <strong>{k.total}</strong> figure{k.total === 1 ? '' : 's'} ({parts.join(', ')}), one per month
+        {split ? <> for each {k.dimName} ({named.length}: {named.join(', ')})</> : null}, from {periodWords(k.first)} to {periodWords(k.last)}.
+        {k.how ? <> How each figure is worked out: <em>{k.how}</em>.</> : null}
+        {dryRun ? ' Nothing is written until you turn it on.' : ''}
+      </p>
+      <div style={{ overflowX: 'auto', marginTop: 8 }}>
+        <table style={s.table}>
+          <thead>
+            <tr>
+              <th style={s.th}>Month</th>
+              {cols.map((d) => <th key={d} style={{ ...s.th, textAlign: 'right' }}>{d || 'Total'}</th>)}
+              {split && cols.length > 1 && <th style={{ ...s.th, textAlign: 'right' }}>All</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {periods.map((p) => {
+              let sum = 0; let any = false;
+              return (
+                <tr key={p}>
+                  <td style={s.td}>{periodWords(p)}</td>
+                  {cols.map((d) => {
+                    const c = cell(p, d);
+                    const v = num(c?.after);
+                    if (v !== null && Number.isFinite(v)) { sum += v; any = true; }
+                    return (
+                      <td key={d} style={s.tdNum}>
+                        {c ? <>{c.after}{c.before !== null ? <span style={{ color: 'var(--text-muted)' }}> (was {c.before})</span> : null}</> : <span style={{ color: 'var(--text-muted)' }}>–</span>}
+                      </td>
+                    );
+                  })}
+                  {split && cols.length > 1 && <td style={{ ...s.tdNum, fontWeight: 600 }}>{any ? Math.round(sum * 100) / 100 : '–'}</td>}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p style={s.hint}>
+        “–” = no figure for that month. {k.periods.length > MONTHS_SHOWN && (
+          <button type="button" style={{ ...btn('outline', { small: true }), marginLeft: 4 }} onClick={() => setAll((x) => !x)}>
+            {all ? `Show the latest ${MONTHS_SHOWN} months` : `Show all ${k.periods.length} months`}
+          </button>
+        )}
+      </p>
     </div>
   );
 }

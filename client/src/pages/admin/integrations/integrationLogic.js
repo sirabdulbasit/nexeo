@@ -256,3 +256,50 @@ export function reviewNotices(spec) {
   if (notUsedFromSpec(spec).length === 0) return notices;
   return notices.filter((n) => !/^Not used: /.test(String(n)));
 }
+
+// ── DEF-443: the test's KPI changes, in words and as one table per KPI ─────────────────
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** "2015-02-01" → "Feb 2015"; anything else is shown as it is. */
+export function periodWords(period) {
+  const m = /^(\d{4})-(\d{2})-01$/.exec(String(period ?? ''));
+  return m && +m[2] >= 1 && +m[2] <= 12 ? `${MONTHS[+m[2] - 1]} ${m[1]}` : String(period ?? '');
+}
+
+/**
+ * Owner 11-12 on Test & turn on: "unable to understand Test Run data" — 192 flat rows, each
+ * repeating the KPI, period, breakdown and recipe. The same changes regrouped: one entry
+ * per KPI with its periods (newest first) × breakdown values, counts of new and updated
+ * figures, and the range. Knowledge-page changes are not readings and are left out.
+ * A change's subjectKey is "kpiKey|period|dim" (dim "field=value" or ""), its
+ * subjectLabel "KPI label · period · dim", its sourceKey "recipe › how it is worked out".
+ */
+export function summariseReadings(changes) {
+  const byKpi = new Map();
+  for (const c of Array.isArray(changes) ? changes : []) {
+    if (c?.targetKind === 'context' || String(c?.targetKey ?? '').startsWith('context:') || String(c?.subjectKey ?? '').startsWith('context:')) continue;
+    const [kpi, period, dim = ''] = String(c?.subjectKey ?? '').split('|');
+    if (!kpi || !period) continue;
+    let k = byKpi.get(kpi);
+    if (!k) {
+      const label = String(c.subjectLabel ?? '').split(' · ')[0] || kpi;
+      const how = String(c.sourceKey ?? '').replace(/^recipe\s*›\s*/i, '');
+      k = { key: kpi, label, how, dimName: '', dims: [], periods: [], cells: new Map(), added: 0, updated: 0 };
+      byKpi.set(kpi, k);
+    }
+    const eq = dim.indexOf('=');
+    const dimValue = dim ? (eq >= 0 ? dim.slice(eq + 1) : dim) : '';
+    if (dim && eq >= 0 && !k.dimName) k.dimName = dim.slice(0, eq);
+    if (!k.dims.includes(dimValue)) k.dims.push(dimValue);
+    if (!k.periods.includes(period)) k.periods.push(period);
+    const isNew = c.beforeValue === null || c.beforeValue === undefined || c.beforeValue === '';
+    if (isNew) k.added++; else k.updated++;
+    k.cells.set(`${period}|${dimValue}`, { after: c.afterValue, before: isNew ? null : c.beforeValue });
+  }
+  return [...byKpi.values()].map((k) => {
+    const periods = [...k.periods].sort().reverse();
+    const dims = [...k.dims].sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)));
+    return { ...k, periods, dims, first: periods[periods.length - 1], last: periods[0], total: k.added + k.updated };
+  });
+}
