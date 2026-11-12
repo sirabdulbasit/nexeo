@@ -426,3 +426,20 @@ Suzi's side is the flow, the cards and the voice. Nexeo's side is the ops below,
   - Quoted history stripped, each capped at 1,500 characters.
   - Nothing stored at Nexeo. If his own AI drafts, the examples come as `style_examples`.
 - **Rollout:** an op Nexeo does not have yet answers 400 unknown_op, and Suzi shows "needs Nexeo". Each side ships in its own time.
+
+## F-4 — Suzi as Meeting Assistant (PROPOSED, not agreed)
+
+Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/proposals/F-4_Meeting_Assistant.md`).
+
+- **Founder's direction, in Nexeo's session on 12 Nov:** both ways, starting with Google Meet. **Way A** (Google's own transcript) comes first, then **Way B** (our own joiner, on GCP).
+- **Nexeo's counter N1-N7, sent to Suzi Master on 12 Nov:**
+  - **Way A:** Nexeo turns on auto-transcription through the Meet API (`meetings.space.settings`). Workspace Events, delivered through Pub/Sub `projects/nexeo-tmc/topics/meet-transcripts`, reach `/api/v1/meet/events`. Nexeo then reads `conferenceRecords.transcripts.entries`, which carry speakers by real name. Writing the minutes costs about $0.01 per hour. Only meetings hosted at TMC are covered.
+  - **Way B:** our own joiner, at an estimated $0.25-0.35 per hour. It stays parked until its Costing line is agreed.
+  - **Record:** `way: google_transcript | participant | computer`.
+  - **Day pack:** attendees carry `{name, email}`.
+  - **Everything else in F-4:** as proposed.
+- **Founder's decisions 1-4: not given.** Nexeo recommends no sound kept; ask before each meeting until he sets a rule; our own joiner; records kept 12 months, then only the minutes and action items.
+- **Setup, outside the charter:**
+  - **Imperialsoft:** the GCP project nexeo-tmc has its topic and its push subscription, delivering to the push account `nexeo-meet-push@nexeo-tmc.iam.gserviceaccount.com`. Imperialsoft's full report is still awaited: the OAuth client ID, the publishing status and the scope classes.
+  - **TMC infra (tmcltd.com):** asked for the Workspace plan (Business Standard or higher is needed), to turn transcripts on, and to mark Nexeo's client as Trusted.
+- **Waiting on:** Suzi Master's AGREE, and the founder's "agree F-4". **Nothing gets built until both arrive.**
