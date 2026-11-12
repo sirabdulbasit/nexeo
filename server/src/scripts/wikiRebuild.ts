@@ -40,7 +40,7 @@ function arg(name: string): string | undefined {
     }
   }
   console.log(
-    JSON.stringify({ stored_items: r.items, notes: r.notes.length, by_type: r.byType, written: r.written, created: r.created, out: out ?? null }),
+    JSON.stringify({ stored_items: r.items, notes: r.notes.length, by_type: r.byType, written: r.written, created: r.created, unchanged: r.unchanged, out: out ?? null }),
   );
   await prisma.$disconnect();
 })().catch((e) => {

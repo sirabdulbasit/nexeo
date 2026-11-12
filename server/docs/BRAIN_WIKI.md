@@ -63,6 +63,7 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 |---|---|---|
 | 1 | **The wiki's own store**: `writeNote`, `getNote`, `backlinks` in `src/services/wiki/wikiStore.ts`; `[[link]]` reading in `wikiLinks.ts`. Links are rebuilt from the note text on every write; a link to a missing note waits as unresolved and connects when that note is written; properties merge; sources cited once; private notes never linked across users. | **Built 2026-11-12, not deployed; used by the builder script only** |
 | 2a | **The builder, facts only** (`src/services/wiki/wikiBuilder.ts`, run with `src/scripts/wikiRebuild.ts`): reads the stored email, calendar and chat items of one user and writes person, company, meeting and group notes, linked with `[[links]]`. No model is used: every line is a fact from a stored item, and a second run gives the same notes. | **Built and run for one user (TMC-0001, user 2) on 2026-11-12. Not deployed, not scheduled, not run for other users** |
+| 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is kept, because triage reads those pages. | **Built 2026-11-12, committed, NOT deployed** (another session had unfinished work in the same tree, including a schema change, so no build was run) |
 | 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
@@ -70,6 +71,30 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 | 6 | ~~Full vault mirror to Drive~~ | Dropped by decision 5. The existing Drive export job is left as it is |
 
 No schema change was needed for step 1: notes are rows in `wiki_pages`, links are rows in `wiki_page_links` with `link_type = 'wikilink'`, properties and unresolved links live in `metadata`.
+
+## 6a. Archiving the old wiki: what stands in the way (found 2026-11-12)
+
+The owner agreed to archive the old pages and rebuild through Scribe. Before doing it, the old page types were checked against the code that reads them. They are not only knowledge; running features depend on them by type name:
+
+| Old page type | Runtime files that name it | What depends on it |
+|---|---|---|
+| `entity_person` | 33 | Contacts screen and routes, WhatsApp sender recognition, the action-item gate, triage priority, day brief, Brain's composer |
+| `sender_history`, `sender_topic` | 21, 20 | Triage (reads the page text), Brain's retrieval planner and composer, contacts |
+| `observation` | 20 | Brain's cognitive worker, Suzi's knowledge route, prompt replies |
+| `attachment_doc` | 14 | Brain's retrieval and composer, meeting digest |
+| `email_message` | 11 | Brain's composer, morning brief; the only place email text is stored |
+| `meeting_minutes`, `topic`, `project` | 7, 8, 21 | Rules, triage, composer, risk radar |
+
+So archiving these now would not just thin Brain's answers. Contacts would empty, WhatsApp sender recognition and the action-item gate would lose their person records, and triage would lose its sender memory. An archive is safe only for a page type once its readers read the new notes instead. That is work in the thinking code.
+
+**Order that follows from this**
+
+1. New wiki keeps itself current (step 2c), beside the old one.
+2. Meaning layer and a home for email text (step 2b).
+3. Move readers to the new notes one page type at a time, starting with contacts (`entity_person` → `person`), then archive that type. Each move is reversible on its own.
+4. The old feed writers for a type are switched off when its readers have moved.
+
+Nothing has been archived.
 
 ## 7. How the wiki prunes itself
 
@@ -143,4 +168,6 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 
 **Not verified:** how Brain's and Suzi's answers change with the new notes in retrieval; the Wiki screen showing the new types.
 
-**Next step:** owner looks at the notes for user 2. Then step 2b: measure what a model pass over the engaged email threads and meeting notes costs for one user, and build project, topic and commitment notes from it.
+**Not deployed:** step 2c. Until a deploy, the builder runs only when the script is run by hand.
+
+**Next step:** deploy step 2c once the other session's work in the tree is committed or the owner says to deploy anyway. Owner looks at the notes for user 2. Then step 2b: measure what a model pass over the engaged email threads and meeting notes costs for one user, and build project, topic and commitment notes from it.

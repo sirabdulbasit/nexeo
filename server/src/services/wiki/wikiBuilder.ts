@@ -580,10 +580,22 @@ export interface RebuildResult {
   notes: BuiltNote[];
   written: number;
   created: number;
+  /** Notes whose text and properties were already what the build produced. */
+  unchanged: number;
   byType: Record<string, number>;
 }
 
-/** Build the notes for one user. With `dryRun`, nothing is written. */
+function sameProperties(stored: unknown, built: Record<string, unknown> | undefined): boolean {
+  const have = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
+  const want = Object.fromEntries(Object.entries(built ?? {}).filter(([, v]) => v !== null && v !== undefined));
+  return JSON.stringify(Object.entries(have).sort()) === JSON.stringify(Object.entries(want).sort());
+}
+
+/**
+ * Build the notes for one user. With `dryRun`, nothing is written. A note
+ * that already says what the build produced is left alone, so running this
+ * after every feed sync costs one read per user when nothing is new.
+ */
 export async function rebuildWikiForUser(
   clientNumber: string,
   userId: number,
@@ -595,12 +607,36 @@ export async function rebuildWikiForUser(
   for (const n of notes) byType[n.type] = (byType[n.type] ?? 0) + 1;
   let written = 0;
   let created = 0;
+  let unchanged = 0;
   if (!opts.dryRun) {
+    const existing = await (prisma as any).wikiPage.findMany({
+      where: { clientNumber, userId, lastUpdatedBy: BUILDER_ACTOR },
+      select: { pageType: true, title: true, bodyMarkdown: true, metadata: true },
+    });
+    const stored = new Map<string, any>(existing.map((e: any) => [`${e.pageType}|${e.title}`, e]));
     for (const n of notes) {
+      const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
+      if (have && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
+        unchanged += 1;
+        continue;
+      }
       const r = await writeNote({ ...n, clientNumber, userId, actor: BUILDER_ACTOR });
       written += 1;
       if (r.created) created += 1;
     }
   }
-  return { items: items.length, notes, written, created, byType };
+  return { items: items.length, notes, written, created, unchanged, byType };
+}
+
+/** Build the notes for every active user, one after another. */
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; error?: string }>> {
+  const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
+  const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
+  return results.map((r) => ({
+    userId: r.userId,
+    written: r.result?.written ?? 0,
+    created: r.result?.created ?? 0,
+    unchanged: r.result?.unchanged ?? 0,
+    ...(r.error ? { error: r.error } : {}),
+  }));
 }

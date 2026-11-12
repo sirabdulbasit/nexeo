@@ -515,6 +515,20 @@ const server = app.listen(env.port, async () => {
     setInterval(vault, 60 * 60 * 1000);
   }, 10 * 60 * 1000);
 
+  // Brain Wiki builder (2026-11-12, docs/BRAIN_WIKI.md) — turn what the feeds
+  // stored into linked notes (person, company, meeting, group) for every
+  // active user. No model; a note that is already current is skipped, so a
+  // quiet hour costs one read per user. Hourly; first run 15 min after boot.
+  setTimeout(() => {
+    const build = () => protectedJob('wiki_builder', 'maintenance', async () => {
+      const { rebuildWikiForAllUsers } = await import('./services/wiki/wikiBuilder');
+      const results = await rebuildWikiForAllUsers();
+      console.log(`[wikiBuilder] ${JSON.stringify(results)}`);
+    });
+    build();
+    setInterval(build, 60 * 60 * 1000);
+  }, 15 * 60 * 1000);
+
   // Preactive engine (2026-07-14) — anticipation, not reaction: meeting
   // prep before each meeting with attendees + deadline nudges for open
   // items due within 24h. Every send is deduped (per event / per item

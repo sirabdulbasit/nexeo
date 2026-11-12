@@ -273,6 +273,17 @@ async function runScribeInBackground(userId: number, clientNumber: string, ucId:
     const { backfillSenderWiki } = await import('../services/knowledge/senderWikiBackfill');
     const wiki = await backfillSenderWiki(clientNumber, userId, { wipeFirst: true });
 
+    // Brain Wiki (docs/BRAIN_WIKI.md): build the linked notes from what was just
+    // pulled. A failure here must not fail the scribe.
+    let notes: { written: number; created: number; unchanged: number } | { error: string };
+    try {
+      const { rebuildWikiForUser } = await import('../services/wiki/wikiBuilder');
+      const r = await rebuildWikiForUser(clientNumber, userId);
+      notes = { written: r.written, created: r.created, unchanged: r.unchanged };
+    } catch (err: any) {
+      notes = { error: err?.message ?? String(err) };
+    }
+
     const current = await prisma.userConnector.findUnique({ where: { id: ucId }, select: { metadata: true } });
     await prisma.userConnector.update({
       where: { id: ucId },
@@ -282,7 +293,7 @@ async function runScribeInBackground(userId: number, clientNumber: string, ucId:
           ...((current?.metadata as any) || {}),
           scribeStatus: 'ok',
           lastScribedAt: new Date().toISOString(),
-          lastScribeSummary: { pull, wiki },
+          lastScribeSummary: { pull, wiki, notes },
           scribeError: null,
           scribeStartedAt: null,
           scribeProgress: null,
