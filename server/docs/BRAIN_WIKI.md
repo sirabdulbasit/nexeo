@@ -60,6 +60,7 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 7. **Deploy step 2c.** Done as D-209.
 8. **One wiki (2026-11-12).** There is no "my wiki" and "company wiki" for the user to choose between; it is one wiki, like Obsidian. Who may read a note is still enforced underneath: a note built from one user's email, meetings and chat is readable by that user only; a shared note is readable by every user of the company.
 9. **Every integration is part of the wiki (2026-11-12).** What an integration brings in becomes notes of this wiki.
+10. **What is shared and what is private follows the source (2026-11-12).** An integration is set up for the client, fetched once, and used by every user: everything it brings is company information, readable by all users of that client. A connector belongs to one user: everything it fetches is that user's information and cannot be used by another user. This is the whole rule behind decision 8; no note needs any other visibility choice.
 
 ## 6. Build order
 
