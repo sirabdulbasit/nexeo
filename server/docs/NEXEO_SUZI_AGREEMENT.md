@@ -478,3 +478,4 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
 - **TMC infra, 12 Nov:** they confirmed the Workspace plan includes Meet transcripts, so Way A is available. Suzi Master has NOT been told yet: its session was not running when this was sent.
   - **Pending with infra:** transcripts setting on (step 2) and the Nexeo client marked Trusted (step 3). Both can be scoped to a "Nexeo users" group, which is what we recommended.
   - **The setting only allows transcription.** A meeting is transcribed only when its host, or Nexeo under his rule, switches it on.
+- **Founder, 12 Nov: start Way A with one user only, basit.ahmed@tmcltd.com.** Infra was asked to put him alone in a group `nexeo-users@tmcltd.com` and to apply the transcripts setting (step 2) and Trusted (step 3) to that group only. The Nexeo switch is on for him alone and stays off for everyone else.
