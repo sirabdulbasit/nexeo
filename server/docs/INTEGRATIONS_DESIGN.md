@@ -326,7 +326,11 @@ its answer was prose, and the message now says so.
 
 Not a wizard source: a per-user feed on the Google connector, agreed in Functional_Charter.md "Meeting Assistant (F-4)".
 
-- **Who:** users on the switch `feature_meeting_assistant_users` (comma-separated user ids, empty by default). Pilot: the founder, through nexeo-users@tmcltd.com.
+- **Who:** users whose own switch is on: portal Settings → Meeting Assistant, off by default (founder's add-on, 12 Nov).
+  - Stored in `users.notification_preferences.meeting_assistant.enabled`, read by `meetingSwitch.ts` and the poller; routes `GET/PUT /api/v1/profile/meeting-assistant`, user taken from the session.
+  - Turning it on without both Meet scopes shows "Reconnect Google to allow Meet". Turning it off stops polling and drops his Workspace Events subscription; his records stay.
+  - The earlier tenant list `feature_meeting_assistant_users` is retired and no longer read. The founder's on (user 2) was carried over.
+  - Pilot: the founder (Workspace transcripts on for nexeo-users@tmcltd.com).
 - **Google permissions:** `meetings.space.readonly` and `meetings.space.settings` (`MEET_SCOPES`, connectorService.ts). They are requested at Google sign-in only for users on the switch, who reconnect once.
 - **Arrival:**
   - Workspace Events `google.workspace.meet.transcript.v2.fileGenerated` reach Pub/Sub `projects/nexeo-tmc/topics/meet-transcripts` and then `POST /api/v1/meet/events`.

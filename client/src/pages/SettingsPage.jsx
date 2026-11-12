@@ -215,6 +215,7 @@ export default function SettingsPage() {
         {tab === 'brain' && (
           <>
             <BrainChannelSection user={user} />
+            <MeetingAssistantSection />
             <BrainResetSection />
           </>
         )}
@@ -1360,6 +1361,58 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
  * dependency for future wipes. Three tiers with typed-phrase
  * confirmation (per no-browser-dialogs rule).
  */
+// F-4.2 (agreed 12 Nov 2026): his own Meeting Assistant switch, off by default.
+function MeetingAssistantSection() {
+  const [state, setState] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+  useEffect(() => { api.get('/profile/meeting-assistant').then((r) => setState(r.data)).catch(() => setState(null)); }, []);
+
+  async function toggle(enabled) {
+    setBusy(true); setMsg('');
+    try {
+      const r = await api.put('/profile/meeting-assistant', { enabled });
+      setState(r.data);
+      setMsg(enabled ? 'Meeting Assistant is on.' : 'Meeting Assistant is off. Your existing meeting records are kept; you can delete them yourself.');
+    } catch (e) {
+      setMsg(e?.response?.data?.error ?? 'Could not change the setting');
+    } finally { setBusy(false); }
+  }
+
+  async function reconnect() {
+    setBusy(true); setMsg('');
+    try {
+      const list = await api.get('/connectors/available');
+      const google = (list.data?.connectors ?? []).find((c) => c.slug === 'google_calendar') ?? (list.data?.connectors ?? []).find((c) => c.slug === 'gmail');
+      if (!google) { setMsg('No Google connector found. Open Connectors to connect Google.'); setBusy(false); return; }
+      const r = await api.post('/connectors/oauth/url', { connectorTypeId: google.id });
+      if (r.data?.url) window.location.href = r.data.url;
+      else { setMsg(r.data?.error ?? 'Could not start Google sign-in'); setBusy(false); }
+    } catch (e) { setMsg(e?.response?.data?.error ?? 'Could not start Google sign-in'); setBusy(false); }
+  }
+
+  if (!state) return null;
+  return (
+    <section className="settings-section" style={{ marginTop: 20 }}>
+      <h2>Meeting Assistant</h2>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: busy ? 'wait' : 'pointer' }}>
+        <input type="checkbox" checked={state.enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
+        <span style={{ fontSize: 14 }}>{state.enabled ? 'On' : 'Off'}</span>
+      </label>
+      <p style={{ fontSize: 12, color: 'var(--n-999999)', marginTop: 6 }}>
+        Google Meet meetings you host: after the meeting Nexeo reads Google's transcript and writes the minutes and proposed action items. Only you see them. Turning it off stops this; records already made are kept until you delete them.
+      </p>
+      {state.enabled && state.needs_reconnect && (
+        <div style={{ marginTop: 8, padding: 10, borderRadius: 8, border: '1px solid var(--s-fbbf24)', fontSize: 13 }}>
+          Reconnect Google to allow Meet. Until then no meeting is read.
+          <button style={{ marginLeft: 10 }} disabled={busy} onClick={reconnect}>Reconnect Google</button>
+        </div>
+      )}
+      {msg && <div style={{ fontSize: 12, marginTop: 6 }}>{msg}</div>}
+    </section>
+  );
+}
+
 function BrainResetSection() {
   const [tier, setTier] = React.useState('refresh');
   const [counts, setCounts] = React.useState(null);

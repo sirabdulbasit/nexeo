@@ -16,26 +16,13 @@ const FIRST_TICK_MS = 3 * 60_000;
 const ENDED_AFTER_MS = 15 * 60_000;
 const LOOKBACK_MS = 24 * 60 * 60_000;
 
+/** Users whose own Meeting Assistant switch is on (F-4.2, per user). */
 export async function enabledUsers(): Promise<Array<{ clientNumber: string; userId: number; emails: string[] }>> {
-  const { MEETING_SWITCH } = await import('../services/meetings/meetingProcessor');
-  const { getFlagValue } = await import('../services/featureFlagService');
-  // Tenants that have the switch at all; the value is read through the flag service (it may be stored encrypted).
-  const tenants = await (prisma as any).systemConfig.findMany({ where: { key: MEETING_SWITCH }, select: { clientNumber: true } }).catch(() => []);
-  const rows: Array<{ client_number: string; value: string }> = [];
-  for (const t of tenants as Array<{ clientNumber: string }>) {
-    const value = await getFlagValue(t.clientNumber, MEETING_SWITCH, '').catch(() => '');
-    if (value.trim()) rows.push({ client_number: t.clientNumber, value });
-  }
-  const out: Array<{ clientNumber: string; userId: number; emails: string[] }> = [];
-  for (const r of rows) {
-    const ids = String(r.value).split(',').map((s) => parseInt(s.trim(), 10)).filter(Number.isInteger);
-    if (!ids.length) continue;
-    const users = await prisma.user.findMany({ where: { id: { in: ids }, clientNumber: r.client_number } as any, select: { id: true, email: true, integrationEmail: true } as any });
-    for (const u of users as any[]) {
-      out.push({ clientNumber: r.client_number, userId: u.id, emails: [u.email, u.integrationEmail].filter(Boolean).map((e: string) => e.toLowerCase()) });
-    }
-  }
-  return out;
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: number; client_number: string; email: string | null; integration_email: string | null }>>(
+    `SELECT id, client_number, email, integration_email FROM users
+      WHERE notification_preferences->'meeting_assistant'->>'enabled' = 'true'`,
+  ).catch(() => [] as Array<{ id: number; client_number: string; email: string | null; integration_email: string | null }>);
+  return rows.map((u) => ({ clientNumber: u.client_number, userId: u.id, emails: [u.email, u.integration_email].filter(Boolean).map((e) => String(e).toLowerCase()) }));
 }
 
 export async function runMeetPoll(now = new Date()): Promise<{ users: number; processed: number; rereads: number; trimmed: number }> {

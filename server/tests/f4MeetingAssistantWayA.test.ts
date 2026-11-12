@@ -27,8 +27,8 @@ const tokens: Record<string, any> = {
 };
 const meetFor = vi.fn();
 vi.mock('../src/services/meetings/meetTranscripts', async (orig) => ({ ...(await (orig as any)()), meetFor: (...a: any[]) => meetFor(...a) }));
-const flag = vi.fn(async () => '');
-vi.mock('../src/services/featureFlagService', () => ({ getFlagValue: (...a: any[]) => (flag as any)(...a) }));
+const switchOn = vi.fn(async () => false);
+vi.mock('../src/services/meetings/meetingSwitch', () => ({ isOn: (...a: any[]) => (switchOn as any)(...a) }));
 
 import router from '../src/routes/meetEventRoutes';
 import { parsePush } from '../src/services/meetings/meetEvents';
@@ -41,7 +41,7 @@ const app = express().use(express.json()).use('/', router);
 const push = (id: string) => ({ message: { messageId: 'm1', attributes: { 'ce-id': id, 'ce-type': 'google.workspace.meet.transcript.v2.fileGenerated', 'ce-source': '//workspaceevents.googleapis.com/subscriptions/s1' }, data: Buffer.from(JSON.stringify({ transcript: { name: 'conferenceRecords/c1/transcripts/t1' } })).toString('base64') } });
 const flush = () => new Promise((r) => setTimeout(r, 10));
 
-beforeEach(() => { exec.mockReset(); exec.mockResolvedValue(1); query.mockReset(); query.mockResolvedValue([]); handle.mockClear(); meetFor.mockReset(); flag.mockReset(); flag.mockResolvedValue(''); });
+beforeEach(() => { exec.mockReset(); exec.mockResolvedValue(1); query.mockReset(); query.mockResolvedValue([]); handle.mockClear(); meetFor.mockReset(); switchOn.mockReset(); switchOn.mockResolvedValue(false); });
 
 describe('PUSH: Google OIDC only, acknowledged at once, processed once', () => {
   it('refuses no token, another service account and another audience', async () => {
@@ -121,7 +121,7 @@ describe('OPS', () => {
   });
   it('upload is refused while his switch is off: meeting data stays on the computer', async () => {
     expect(await runMeetingOp('T', 2, 'meeting.upload', { title: 'x', start: '2026-11-12T10:00:00Z', end: '2026-11-12T11:00:00Z' }, true, gate)).toMatchObject({ error: 'switched_off' });
-    flag.mockResolvedValue('2');
+    switchOn.mockResolvedValue(true);
     expect(await runMeetingOp('T', 2, 'meeting.upload', { title: 'x', start: '2026-11-12T11:00:00Z', end: '2026-11-12T10:00:00Z' }, true, gate)).toMatchObject({ error: 'bad_date' });
   });
   it('the record reads in F-4.4 shape, with sources[].way', () => {

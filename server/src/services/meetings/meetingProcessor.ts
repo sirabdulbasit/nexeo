@@ -16,14 +16,12 @@ import {
 import { meetFor, conferencesFor, conference, readTranscript, meetingCodeOf } from './meetTranscripts';
 
 const log = createLogger('meetings');
-export const MEETING_SWITCH = 'feature_meeting_assistant_users';
 export const REREAD_AFTER_MS = 30 * 60_000;
 
-/** F-4.2: off unless his id is on the tenant's list (he turns it on). */
-export async function meetingAssistantOn(clientNumber: string, userId: number): Promise<boolean> {
-  const { getFlagValue } = await import('../featureFlagService');
-  const list = await getFlagValue(clientNumber, MEETING_SWITCH, '');
-  return list.split(',').map((s) => s.trim()).filter(Boolean).includes(String(userId));
+/** F-4.2: his own switch, off by default (meetingSwitch.ts). clientNumber kept for callers; the switch is per user. */
+export async function meetingAssistantOn(_clientNumber: string, userId: number): Promise<boolean> {
+  const { isOn } = await import('./meetingSwitch');
+  return isOn(userId);
 }
 
 export interface HostedEvent { id: string; title: string; start: string; end: string; organizer?: string; link?: string; attendees?: string[] }

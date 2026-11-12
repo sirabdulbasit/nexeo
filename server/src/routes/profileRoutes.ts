@@ -213,6 +213,23 @@ function thresholdToBoldness(t: number): Boldness {
   return 'eager';
 }
 
+// F-4.2: his own Meeting Assistant switch (off by default). The user is the session's, never the body's.
+router.get('/meeting-assistant', async (req: Request, res: Response) => {
+  try {
+    const { view } = await import('../services/meetings/meetingSwitch');
+    res.json(await view(req.user!.id));
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/meeting-assistant', async (req: Request, res: Response) => {
+  const enabled = req.body?.enabled;
+  if (typeof enabled !== 'boolean') return res.status(400).json({ error: 'enabled must be true or false' });
+  try {
+    const { setSwitch } = await import('../services/meetings/meetingSwitch');
+    res.json(await setSwitch(req.user!.id, req.user!.clientNumber, enabled));
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/brain-channel', async (req: Request, res: Response) => {
   const prisma = (await import('../db/prisma')).default;
   const u = await prisma.user.findUnique({
