@@ -1193,6 +1193,33 @@ router.get('/wiki', async (req: Request, res: Response) => {
   ).catch(() => [] as any[]);
   const scopeMap = Object.fromEntries(scopeCounts.map((r) => [r.scope, Number(r.n)])) as { user?: number; tenant?: number };
 
+  // ── Search in the new wiki: the words typed, in a note's title or text ──
+  // A name or a word either is in a note or is not. Ranking by meaning always
+  // returns the nearest notes, so a search for someone with no note used to
+  // list 40 unrelated people. Here: title matches first, then text matches;
+  // nothing found is reported as nothing found.
+  if (q.length > 0 && set === 'new') {
+    const params: any[] = [user.clientNumber, user.id, q];
+    if (type) params.push(type);
+    const hits = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id, title, page_type AS "pageType", user_id AS "userId", scope,
+              ${toastSafeSnippet('body_markdown', 220)} AS snippet,
+              last_updated_at AS "lastUpdatedAt", source_count AS "sourceCount",
+              (title ILIKE '%' || $3 || '%') AS "inTitle"
+         FROM wiki_pages
+        WHERE client_number = $1
+          AND status NOT IN ('superseded','deleted')
+          AND ${visibilitySql}
+          AND (title ILIKE '%' || $3 || '%' OR body_markdown ILIKE '%' || $3 || '%')
+          ${type ? 'AND page_type = $4' : ''}
+        ORDER BY (title ILIKE '%' || $3 || '%') DESC, last_updated_at DESC
+        LIMIT ${limit}`,
+      ...params,
+    ).catch(() => [] as any[]);
+    res.json({ total: hits.length, items: hits, counts, scopeCounts: scopeMap, searchMode: 'text' });
+    return;
+  }
+
   // ── Search mode (semantic) ─────────────────────────────────────
   if (q.length > 0) {
     const { searchWikiByVector } = await import('../services/knowledge/wikiEmbeddingService');

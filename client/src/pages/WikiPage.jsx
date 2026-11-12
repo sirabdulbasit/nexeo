@@ -136,8 +136,8 @@ export default function WikiPage() {
             padding: '4px 10px 6px',
           }}>Visibility</div>
           <TypeButton active={scope === 'all'}    label="All visible"   count={(scopeCounts.user || 0) + (scopeCounts.tenant || 0)} onClick={() => setScope('all')} />
-          <TypeButton active={scope === 'user'}   label="🔒 My wiki"     count={scopeCounts.user || 0}    onClick={() => setScope('user')} />
-          <TypeButton active={scope === 'tenant'} label="👥 Tenant wiki" count={scopeCounts.tenant || 0}  onClick={() => setScope('tenant')} />
+          <TypeButton active={scope === 'user'}   label="🔒 Only me"     count={scopeCounts.user || 0}    onClick={() => setScope('user')} />
+          <TypeButton active={scope === 'tenant'} label="👥 Whole company" count={scopeCounts.tenant || 0}  onClick={() => setScope('tenant')} />
           <div style={{ height: 14 }} />
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '.5px',
@@ -205,9 +205,14 @@ export default function WikiPage() {
                 </span>
               )}
             </div>
-            {q.trim() && !loading && (
+            {q.trim() && !loading && searchMode === 'semantic' && (
               <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-dim)', marginTop: 4 }}>
                 Results ranked by meaning, not just keyword match. Short codes (SFML, R-26-00081) also fall back to exact-text search.
+              </div>
+            )}
+            {q.trim() && !loading && searchMode === 'text' && (
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-dim)', marginTop: 4 }}>
+                Notes with these words in the title come first, then notes that mention them.
               </div>
             )}
           </div>
@@ -215,7 +220,9 @@ export default function WikiPage() {
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: 'var(--s-3) var(--s-4)' }}>
             {items.length === 0 && !loading && (
               <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 40, fontSize: 'var(--fs-sm)' }}>
-                No wiki pages{type ? ` of type ${TYPE_LABELS[type] ?? type}` : ''}{q.trim() ? ` matching "${q.trim()}"` : ''}.
+                {set === 'new' && q.trim()
+                  ? `No note${type ? ` in ${TYPE_LABELS[type] ?? type}` : ''} contains "${q.trim()}". A person has a note only when you have dealt with them: an email thread you wrote in, a shared meeting, or a chat.`
+                  : `No wiki pages${type ? ` of type ${TYPE_LABELS[type] ?? type}` : ''}${q.trim() ? ` matching "${q.trim()}"` : ''}.`}
               </div>
             )}
             {items.map((p) => (
@@ -350,6 +357,10 @@ function WikiRow({ page, onOpen, onArchive, onDelete }) {
   const snippet = (page.snippet ?? '')
     .replace(/^#+\s+.+?\n/, '')      // drop leading markdown heading
     .replace(/\*\*/g, '')             // strip bold markers
+    .replace(/\[\[([^\[\]|]+)\|([^\[\]]+)\]\]/g, '$2') // [[Title|shown]] → shown
+    .replace(/\[\[([^\[\]]+)\]\]/g, '$1')              // [[Title]] → Title
+    .replace(/(^|\n)#{1,6}\s+/g, '$1· ')               // section headings → a separator
+    .replace(/(^|\n)-\s+/g, '$1')                      // list dashes at the start of a line
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 180);
