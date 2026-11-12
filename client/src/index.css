@@ -39,7 +39,7 @@ body {
 }
 .toast {
   padding: 10px 18px; border-radius: var(--radius-sm);
-  font-size: 13px; color: var(--n-ffffff);
+  font-size: 13px; color: #ffffff; /* theme: on-colour (.toast-info/-success/-error/-warning) */
   animation: slideIn 0.2s ease;
 }
 .toast-info { background: #3b82f6; }
@@ -624,7 +624,7 @@ body {
 .send-btn.active { background: var(--accent); }
 .send-btn:active { transform: scale(0.93); }
 .send-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-.send-btn svg { width: 14px; height: 14px; fill: var(--n-ffffff); }
+.send-btn svg { width: 14px; height: 14px; fill: #ffffff; /* theme: on-colour (.send-btn background) */ }
 
 /* Stop button */
 .stop-btn {

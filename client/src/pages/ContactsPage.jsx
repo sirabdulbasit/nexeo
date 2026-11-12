@@ -465,7 +465,7 @@ export default function ContactsPage() {
                   setResetFlow(null);
                 }}
                 style={{
-                  padding: '6px 12px', background: resetBusy ? 'var(--t-7a1f1f)' : '#dc2626', color: 'var(--n-ffffff)',
+                  padding: '6px 12px', background: resetBusy ? 'var(--t-7a1f1f)' : '#dc2626', color: '#ffffff',
                   border: 0, borderRadius: 4, fontSize: 13,
                   cursor: resetBusy ? 'wait' : (resetFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 'pointer' : 'not-allowed'),
                   opacity: resetBusy ? 0.7 : (resetFlow.typed.trim().toLowerCase() === String(user?.email ?? '').toLowerCase() ? 1 : 0.4),

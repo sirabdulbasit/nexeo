@@ -145,6 +145,11 @@ become Context."*
 - **API document** (API only): upload PDF / DOCX / TXT / MD / JSON (OpenAPI) or paste text, ≤ 5 MB.
   Text is extracted (`pdf-parse`, `mammoth`), **credential-looking strings redacted before it is
   stored or sent to the model**, stored on the integration (`api_doc_text`, `api_doc_name`).
+  Addresses are never redacted: a URL is judged segment by segment, so
+  `https://erp.tmcltd.com:5004/taql/api/employee/directory` reaches the model whole while a token
+  sitting in one segment is still removed (DEF-436). Keys are recognised as `name: value`, in
+  `Authorization`, bearer, JWT and vendor formats, in a header-table row (`x-api-key  KEY  …`) and
+  in Postman steps (`Key: x-api-key  Value: KEY`).
 - **Remarks for the AI** (`admin_brief`, existing) and **Filters** in plain words
   (`filter_instructions`, e.g. "only active customers, 2025 onwards").
 

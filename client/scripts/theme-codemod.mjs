@@ -125,11 +125,16 @@ function rewriteValue(value, role, onColouredBg) {
   return { out, changed: out !== value, kept };
 }
 
-const SATURATED_BG = /background(Color)?\s*:\s*[^,;}]*(#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|var\(--(accent|danger|success|warning|info)\b)/;
+const SATURATED_BG = /background(Color)?\s*:\s*[^,;}]*(#(?:[0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b|var\(--(accent|danger|success|warning|info|s-[0-9a-f]{6})\b|\b(?:C|COL)\.(?:accent|ok|bad|warn|info|danger)\b)/;
+/** A rule or style object whose background is set elsewhere (a modifier class, a
+ *  prop) says so with a `theme: on-colour` comment; its white/black text stays. */
+const ON_COLOUR_MARK = /theme:\s*on-colou?r/;
 function hasColouredBg(text) {
+  if (ON_COLOUR_MARK.test(text)) return true;
   const m = text.match(new RegExp(SATURATED_BG.source, 'g')) || [];
   return m.some((s) => {
-    if (/var\(--(accent|danger|success|warning|info)\b/.test(s) && !/-dim/.test(s)) return true;
+    if (/var\(--(accent|danger|success|warning|info|s-[0-9a-f]{6})\b/.test(s) && !/-dim/.test(s)) return true;
+    if (/\b(?:C|COL)\.(?:accent|ok|bad|warn|info|danger)\b/.test(s)) return true;
     const h = s.match(/#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})\b/);
     if (!h) return false;
     const rgb = hexToRgb(h[1]);

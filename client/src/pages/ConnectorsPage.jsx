@@ -486,7 +486,7 @@ export default function ConnectorsPage() {
               style={{
                 ...s.btn,
                 background: syncingAll ? 'var(--t-4a2730)' : '#e94560',
-                color: 'var(--n-ffffff)', border: 'none',
+                color: '#ffffff', border: 'none',
                 opacity: syncingAll ? 0.7 : 1,
                 cursor: syncingAll ? 'not-allowed' : 'pointer',
                 fontWeight: 600,

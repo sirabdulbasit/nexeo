@@ -360,7 +360,7 @@ function FooterCTA({ onClose }) {
         </div>
       </div>
       <button onClick={onClose}
-              style={{ background: COL.accent, color: 'var(--n-ffffff)', border: 0, padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
+              style={{ background: COL.accent, color: '#ffffff', border: 0, padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>
         Open Day Brief →
       </button>
     </div>

@@ -1042,7 +1042,7 @@ export default function DayBriefPage() {
           position: 'fixed', right: 'var(--s-6)', bottom: 'calc(var(--s-6) + env(safe-area-inset-bottom, 0px) + 64px)',
           width: 52, height: 52, borderRadius: '50%',
           background: 'linear-gradient(135deg, var(--accent), #8b3a1e)',
-          color: 'var(--n-ffffff)', border: 0, cursor: 'pointer',
+          color: '#ffffff', /* theme: on-colour (accent gradient) */ border: 0, cursor: 'pointer',
           display: 'grid', placeItems: 'center', fontSize: 22,
           boxShadow: 'var(--shadow-lg)', zIndex: 90,
         }}

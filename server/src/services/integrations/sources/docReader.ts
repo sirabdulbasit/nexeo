@@ -356,6 +356,16 @@ function redactCore(input: unknown, collect: string[] | null): { text: string; r
   //     ("X-Auth: …", "X-Shop-Key: …"), which rule 5's word list misses.
   sub(/((?:^|[\s"'{,])x-[A-Za-z0-9-]*(?:auth|key|token|secret|signature)["']?\s*:\s*)(["']?)([^\s"',;]{4,})\2/gim,
     (all, head, q, val) => (val.startsWith(R) || NOT_A_VALUE.test(val) || /^[[{(<]/.test(val) ? all : `${head}${q}${R}${q}`));
+  // 5c. DEF-436 — the two forms the owner's employee_directory_api.pdf really
+  //     prints its keys in (DEF-367 pinned an invented "x-api-key: KEY" form):
+  //   - a header table row "x-api-key  KEY  Your assigned API key" (no colon).
+  //     Only a value with a digit or a symbol counts, so "x-api-key header" and
+  //     "x-api-key authentication" stay words;
+  sub(/((?:^|[\s"'{,(])x-[A-Za-z0-9-]*(?:auth|key|token|secret|signature)[ \t]+)([^\s"',;()]{6,})(?=[\s"',;)]|$)/gim,
+    (all, head, val) => (val.startsWith(R) || NOT_A_VALUE.test(val) || /^[[{(<]/.test(val) || !/[\d@#$%^&*!+=~/]/.test(val) ? all : `${head}${R}`));
+  //   - Postman steps "Key: x-api-key  Value: KEY" (the value may wrap).
+  sub(/(\bkey\s*:\s*["']?[A-Za-z0-9_-]*(?:api[_-]?key|apikey|auth|token|secret|passw(?:or)?d|signature)[A-Za-z0-9_-]*["']?\s+value\s*:\s*)(["']?)([^\s"',;]{4,})\2/gi,
+    (all, head, q, val) => (val.startsWith(R) || NOT_A_VALUE.test(val) || /^[[{(<]/.test(val) ? all : `${head}${q}${R}${q}`));
   // 6. Long high-entropy tokens with no label: ≥ 32 chars, letters AND digits,
   //    > 3.5 bits/char. UUIDs (example record ids) and plain words are kept.
   const tokenLike = (tok: string): boolean => {
@@ -364,7 +374,13 @@ function redactCore(input: unknown, collect: string[] | null): { text: string; r
     if (/^[a-z]+(?:[_-][a-z0-9]+)+$/i.test(tok) && entropy(tok) < 4) return false; // snake/kebab identifiers
     return entropy(tok) > 3.5;
   };
-  sub(/(?<![A-Za-z0-9_\-+/=.])[A-Za-z0-9_\-+/=]{32,}(?![A-Za-z0-9_\-+/=])/g, (tok) => {
+  // 6a. DEF-436 — a URL with a port ("https://erp.tmcltd.com:5004/taql/api/employee/directory").
+  //     The host's colon ends the host, so port + path read as ONE 32-char
+  //     token and the real address was blanked. A URL is judged segment by
+  //     segment, never whole: the address survives, a token in one segment does not.
+  sub(/(\/\/[A-Za-z0-9.-]+:)(\d{1,5}(?:\/[A-Za-z0-9_\-+/=]*)?)/g, (_all, head, rest) =>
+    `${head}${rest.split('/').map((seg) => (tokenLike(seg) ? R : seg)).join('/')}`);
+  sub(/(?<![A-Za-z0-9_\-+/=.])(?<!\/\/[A-Za-z0-9.-]+:)[A-Za-z0-9_\-+/=]{32,}(?![A-Za-z0-9_\-+/=])/g, (tok) => {
     if (tokenLike(tok)) {
       // A path ("/v1/customer_records", always led by "/" — inside a full URL
       // the host's dots stop the match) is judged segment by segment, so an
