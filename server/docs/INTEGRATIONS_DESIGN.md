@@ -150,6 +150,11 @@ become Context."*
   sitting in one segment is still removed (DEF-436). Keys are recognised as `name: value`, in
   `Authorization`, bearer, JWT and vendor formats, in a header-table row (`x-api-key  KEY  …`) and
   in Postman steps (`Key: x-api-key  Value: KEY`).
+  The address is settled in code, not by the model (DEF-438): when the AI drafts an example host
+  and the document prints exactly one real origin for the drafted endpoint, that origin is used
+  and the example-address gaps become one note (zero or several real origins: unchanged). On
+  Connect a saved config wins over the reading, except a saved **example** address, which a real
+  address from the reading replaces; Test then saves it.
 - **Remarks for the AI** (`admin_brief`, existing) and **Filters** in plain words
   (`filter_instructions`, e.g. "only active customers, 2025 onwards").
 
