@@ -66,7 +66,7 @@
     "src/scripts/smokeBrainPromptReplyFlow.ts",
     "src/scripts/smokeWhatsappVoiceCall.ts",
 
-    // === TIER 4 — reaches a production write (20) ===
+    // === TIER 4 — reaches a production write (21) ===
     // MEASURED, not hand-labelled: guard 9 of tests/operatorScriptParity.test.ts
     // walks each script's full import closure and asserts this membership. Hand
     // reading got it wrong twice — the first pass saw only the Prisma model API,
@@ -101,6 +101,9 @@
     "src/scripts/smokeCriticality.ts",
     "src/scripts/smokeFeedback.ts",
     "src/scripts/smokeInstructions.ts",
+    "src/scripts/wikiRebuild.ts",            // Brain Wiki: rebuilds one user's notes,
+                                             // run from SOURCE via tsx. Reaches
+                                             // wikiStore.writeNote -> wikiPage.create.
 
     // === TIER 5 — no write reachable anywhere in the import closure (1) ===
     // Exactly one script survives that test. The earlier "reads only" tier of

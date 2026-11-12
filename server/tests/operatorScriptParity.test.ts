@@ -88,6 +88,8 @@ const TIER_4_PRODUCTION_WRITES = [
   'diagnoseAttention', 'probeTasks', 'scribeBackfillEmails',
   'smokeBrainIntelligence', 'smokeCommitments', 'smokeCriticality',
   'smokeFeedback', 'smokeInstructions',
+  // Brain Wiki (2026-11-12): rebuilds one user's notes through wikiStore.writeNote.
+  'wikiRebuild',
 ];
 /** No write reachable anywhere in the import closure. Exactly one script. */
 const TIER_5_NO_WRITE_REACHABLE = ['smokeTenantIsolation'];
@@ -129,13 +131,13 @@ const UNTRIAGED_STILL_EMITTED = [
 const RUNTIME_REACHABLE = ['seedActionDefinitions'];
 
 describe('operator-script parity — resolved programs, not config text', () => {
-  it('1 · inventory is 42 across five tiers, no duplicates', () => {
-    expect(INVENTORY.length).toBe(42);
-    expect(new Set(INVENTORY).size).toBe(42);
+  it('1 · inventory is 43 across five tiers, no duplicates', () => {
+    expect(INVENTORY.length).toBe(43);
+    expect(new Set(INVENTORY).size).toBe(43);
     expect(TIER_1_ACTION_REGISTRY.length).toBe(5);
     expect(TIER_2_BRAIN_ANSWER_PATH.length).toBe(10);
     expect(TIER_3_OUTBOUND_MESSAGING.length).toBe(6);
-    expect(TIER_4_PRODUCTION_WRITES.length).toBe(20);
+    expect(TIER_4_PRODUCTION_WRITES.length).toBe(21);
     expect(TIER_5_NO_WRITE_REACHABLE.length).toBe(1);
   });
 

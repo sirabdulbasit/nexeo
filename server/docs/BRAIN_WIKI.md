@@ -60,8 +60,9 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 
 | Step | What | State |
 |---|---|---|
-| 1 | **The wiki's own store**: `writeNote`, `getNote`, `backlinks` in `src/services/wiki/wikiStore.ts`; `[[link]]` reading in `wikiLinks.ts`. Links are rebuilt from the note text on every write; a link to a missing note waits as unresolved and connects when that note is written; properties merge; sources cited once; private notes never linked across users. | **Built 2026-11-12, not deployed, nothing calls it yet** |
-| 2 | **The builder**: a wiki-owned job that reads what the feeds already stored (emails, messages, meetings, existing pages) and writes person, company, project, topic, meeting and commitment notes through `writeNote`, with `[[links]]` between them. Runs as a rebuild first, then daily. | Next |
+| 1 | **The wiki's own store**: `writeNote`, `getNote`, `backlinks` in `src/services/wiki/wikiStore.ts`; `[[link]]` reading in `wikiLinks.ts`. Links are rebuilt from the note text on every write; a link to a missing note waits as unresolved and connects when that note is written; properties merge; sources cited once; private notes never linked across users. | **Built 2026-11-12, not deployed; used by the builder script only** |
+| 2a | **The builder, facts only** (`src/services/wiki/wikiBuilder.ts`, run with `src/scripts/wikiRebuild.ts`): reads the stored email, calendar and chat items of one user and writes person, company, meeting and group notes, linked with `[[links]]`. No model is used: every line is a fact from a stored item, and a second run gives the same notes. | **Built and run for one user (TMC-0001, user 2) on 2026-11-12. Not deployed, not scheduled, not run for other users** |
+| 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
 | 5 | **Upkeep**: merge duplicates, link orphans, mark stale. | After 2 |
@@ -105,7 +106,40 @@ The 30-day and 90-day figures are first guesses, to be set from the rebuilt data
 
 ## 8. State
 
-- **Live:** nothing from this document. Step 1 is code and tests only; no runtime path calls it.
-- **Verified for step 1:** `tests/wikiStore.test.ts` and `tests/wikiLinks.test.ts` (10 tests); the read queries were also run read-only against the production database.
-- **Not verified:** `writeNote` against the real database (it has only run against the in-memory stand-in). First real write happens in step 2, on one test user.
-- **Next step:** step 2, the builder. Start by listing what each feed has stored per user (`feed_events`, email bodies, meeting digests, WhatsApp bodies) and which note types each should produce.
+**What exists in production data (2026-11-12, 09:40 PKT)**
+
+For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wiki_builder'`):
+
+| Note type | Notes | Links out | Links in |
+|---|---|---|---|
+| person | 216 | 588 | 473 |
+| meeting | 94 | 381 | 195 |
+| company | 12 | 210 | 210 |
+| group | 2 | 4 | 4 |
+
+- 324 notes, 1,183 `wikilink` rows, 0 unresolved links, 4 notes with no link at all.
+- Built from 3,197 stored items (email, calendar, chat). WhatsApp is not read: it is the user's own line to Nexeo.
+- A second run created 0 notes and left the link and source counts unchanged.
+- The 15,772 older pages are untouched, and no other user has builder notes.
+- The new notes sit in the same table the existing readers use, so the Wiki screen shows them and, once the embedding job has embedded them, Brain and Suzi can retrieve them for this user.
+
+**How the builder decides who gets a note**
+
+- Email: only threads the user wrote in. Calendar: meetings with at least one other person, up to 25 invited. Chat: a direct chat, or two or more messages in a standing space.
+- One person across addresses: the same mailbox name at one organisation (`x@tmcltd.com`, `x@tmcltd.ai`), or the same name where the addresses do not place them at two organisations.
+- Left out: no-reply and notification senders, shared mailboxes and lists (`hr@`, `accounts@`, `ph.all@`), chat bots, nameless chat ids, chats opened for a single meeting, calendar invitation emails.
+- A recurring meeting is one note; a calendar entry stored twice counts once.
+
+**Known gaps in what was built**
+
+- The same person under two different mailbox names is still two notes (for example `malik.irfan@` and `irfan.ahmed@`, or a work and a personal address with different spellings). The user's own personal address appears as a person. Step 5 (merge) handles these.
+- A shared mailbox whose name is not a role word is taken for a person (`vm@`, "Vision Metric").
+- Company notes are titled by domain (`tmcltd.com`), not by the company's name.
+- Meeting notes with near-identical titles are separate notes.
+- No project, topic, decision or commitment notes yet (step 2b), so contacts and action items are not yet derived.
+
+**Verified:** `tests/wikiStore.test.ts`, `tests/wikiLinks.test.ts`, `tests/wikiBuilder.test.ts`; the counts above read back from the database after the write.
+
+**Not verified:** how Brain's and Suzi's answers change with the new notes in retrieval; the Wiki screen showing the new types.
+
+**Next step:** owner looks at the notes for user 2. Then step 2b: measure what a model pass over the engaged email threads and meeting notes costs for one user, and build project, topic and commitment notes from it.

@@ -24,7 +24,6 @@
 import prisma from '../../db/prisma';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
 
-const db = prisma as any;
 
 /** The link type this module owns. Older rows of other types are left alone. */
 export const WIKILINK = 'wikilink';
@@ -103,10 +102,10 @@ function mergeProperties(existing: unknown, incoming?: Record<string, unknown>):
 async function recount(pageIds: Iterable<string>): Promise<void> {
   for (const id of new Set(pageIds)) {
     const [outbound, inbound] = await Promise.all([
-      db.wikiPageLink.count({ where: { fromPageId: id } }),
-      db.wikiPageLink.count({ where: { toPageId: id } }),
+      prisma.wikiPageLink.count({ where: { fromPageId: id } }),
+      prisma.wikiPageLink.count({ where: { toPageId: id } }),
     ]);
-    await db.wikiPage.update({ where: { id }, data: { outboundLinks: outbound, inboundLinks: inbound } });
+    await prisma.wikiPage.update({ where: { id }, data: { outboundLinks: outbound, inboundLinks: inbound } });
   }
 }
 
@@ -133,16 +132,16 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
   const body = input.body ?? '';
   const identity = { clientNumber, userId, pageType: type, title };
 
-  let existing = await db.wikiPage.findFirst({ where: identity });
+  let existing = await prisma.wikiPage.findFirst({ where: identity });
 
   // Resolve the links in the text to notes the writer can see.
   const wanted = extractWikiLinks(body).filter((l) => l.key !== titleKey(title));
   const candidates = wanted.length
-    ? await db.wikiPage.findMany({
+    ? await prisma.wikiPage.findMany({
         where: {
           AND: [
             visibleTo(clientNumber, userId),
-            { OR: wanted.map((l) => ({ title: { equals: l.title, mode: 'insensitive' } })) },
+            { OR: wanted.map((l) => ({ title: { equals: l.title, mode: 'insensitive' as const } })) },
           ],
         },
         select: { id: true, title: true, pageType: true, userId: true, scope: true, lastUpdatedAt: true },
@@ -176,28 +175,28 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
   let created = false;
   if (!existing) {
     try {
-      existing = await db.wikiPage.create({ data: { ...identity, ...data, status: 'active' } });
+      existing = await prisma.wikiPage.create({ data: { ...identity, ...data, status: 'active' } });
       created = true;
     } catch (err: any) {
       // Two writers created the same note at once: the other one won, so update it.
       if (err?.code !== 'P2002') throw err;
-      existing = await db.wikiPage.findFirst({ where: identity });
+      existing = await prisma.wikiPage.findFirst({ where: identity });
       if (!existing) throw err;
     }
   }
   if (!created) {
-    await db.wikiPage.update({ where: { id: existing.id }, data: { ...data, status: 'active' } });
+    await prisma.wikiPage.update({ where: { id: existing.id }, data: { ...data, status: 'active' } });
   }
   const id: string = existing.id;
 
   // Rebuild this note's outgoing links from the text.
-  const before = await db.wikiPageLink.findMany({
+  const before = await prisma.wikiPageLink.findMany({
     where: { fromPageId: id, linkType: WIKILINK },
     select: { toPageId: true },
   });
-  await db.wikiPageLink.deleteMany({ where: { fromPageId: id, linkType: WIKILINK } });
+  await prisma.wikiPageLink.deleteMany({ where: { fromPageId: id, linkType: WIKILINK } });
   if (targets.size > 0) {
-    await db.wikiPageLink.createMany({
+    await prisma.wikiPageLink.createMany({
       data: [...targets.keys()].map((toPageId) => ({ clientNumber, userId, fromPageId: id, toPageId, linkType: WIKILINK })),
       skipDuplicates: true,
     });
@@ -207,7 +206,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
   // A new note may be the one other notes were already pointing at.
   if (created) {
     const scope = existing.scope ?? input.scope ?? 'user';
-    const waiting = await db.wikiPage.findMany({
+    const waiting = await prisma.wikiPage.findMany({
       where: {
         clientNumber,
         id: { not: id },
@@ -217,7 +216,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
       select: { id: true, userId: true, metadata: true },
     });
     for (const w of waiting) {
-      await db.wikiPageLink.createMany({
+      await prisma.wikiPageLink.createMany({
         data: [{ clientNumber, userId: w.userId, fromPageId: w.id, toPageId: id, linkType: WIKILINK }],
         skipDuplicates: true,
       });
@@ -225,7 +224,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
       const left = (Array.isArray(meta.unresolvedLinks) ? meta.unresolvedLinks : []).filter(
         (k: unknown) => k !== titleKey(title),
       );
-      await db.wikiPage.update({ where: { id: w.id }, data: { metadata: { ...meta, unresolvedLinks: left } } });
+      await prisma.wikiPage.update({ where: { id: w.id }, data: { metadata: { ...meta, unresolvedLinks: left } } });
       touched.add(w.id);
     }
   }
@@ -240,13 +239,13 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
       decisionLogId: s.decisionLogId ?? null,
       openItemId: s.openItemId ?? null,
     };
-    if (await db.wikiPageSource.findFirst({ where: ref, select: { id: true } })) continue;
-    await db.wikiPageSource.create({ data: { ...ref, clientNumber, userId } });
+    if (await prisma.wikiPageSource.findFirst({ where: ref, select: { id: true } })) continue;
+    await prisma.wikiPageSource.create({ data: { ...ref, clientNumber, userId } });
     cited = true;
   }
   if (cited) {
-    const sourceCount = await db.wikiPageSource.count({ where: { wikiPageId: id } });
-    await db.wikiPage.update({ where: { id }, data: { sourceCount } });
+    const sourceCount = await prisma.wikiPageSource.count({ where: { wikiPageId: id } });
+    await prisma.wikiPage.update({ where: { id }, data: { sourceCount } });
   }
 
   await recount(touched);
@@ -255,7 +254,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
 
 /** Notes that link to this note, as far as the reader may see them. */
 export async function backlinks(clientNumber: string, userId: number, noteId: string): Promise<NoteRef[]> {
-  const rows = await db.wikiPageLink.findMany({
+  const rows = await prisma.wikiPageLink.findMany({
     where: { toPageId: noteId, fromPage: visibleTo(clientNumber, userId) },
     select: { fromPage: { select: { id: true, pageType: true, title: true } } },
   });
@@ -282,13 +281,13 @@ export async function getNote(
       ? { id: by.id, ...visibleTo(clientNumber, userId) }
       : {
           ...visibleTo(clientNumber, userId),
-          title: { equals: cleanTitle(by.title), mode: 'insensitive' },
+          title: { equals: cleanTitle(by.title), mode: 'insensitive' as const },
           ...(by.type ? { pageType: by.type } : {}),
         };
-  const row = 'id' in by ? await db.wikiPage.findFirst({ where }) : pickTarget(await db.wikiPage.findMany({ where }), userId);
+  const row = 'id' in by ? await prisma.wikiPage.findFirst({ where }) : pickTarget(await prisma.wikiPage.findMany({ where }), userId);
   if (!row) return null;
 
-  const out = await db.wikiPageLink.findMany({
+  const out = await prisma.wikiPageLink.findMany({
     where: { fromPageId: row.id, toPage: visibleTo(clientNumber, userId) },
     select: { toPage: { select: { id: true, pageType: true, title: true } } },
   });
