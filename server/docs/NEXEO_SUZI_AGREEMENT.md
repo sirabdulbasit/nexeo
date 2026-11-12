@@ -460,3 +460,13 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **Policy:** this took a project-only override of `iam.allowedPolicyMemberDomains`, which has since been removed. nexeo-tmc inherits the org policy again, and nothing changed at the organisation level.
   - **One side change:** the Org Policy API was enabled on nexeo-tmc.
   - **Still to do, Nexeo's build after "agree F-4":** the `/api/v1/meet/events` endpoint (OIDC token from `nexeo-meet-push`, audience equal to the URL); Workspace Events subscriptions pointing at the topic; and the two Meet scopes, which means each user reconnects once.
+- **N8 (one record per meeting, whichever way it arrives), proposed to Suzi Master on 12 Nov after the founder asked "what if things come from integration and the data already exists".**
+  - **The problem:** the same meeting can already arrive through Plaud, Otter, Fathom or Fireflies emails (`meetingDigestService`), as Google's transcript Doc in Drive (`personalDriveService`), through Way A, or from the computer.
+  - **The proposal:**
+    - One record per meeting, keyed by the calendar event or by the conference and its start time.
+    - Later arrivals are added to `sources[]`, and `way` gains `imported`.
+    - The best transcript wins, and the record is re-derived as `record_ready` with `updated: true`.
+    - Action items are checked against open items first (the DEF-435 rule).
+    - The Drive Doc is attached to its meeting, not digested on its own.
+    - Older Plaud minutes are linked only on the founder's yes.
+  - **Waiting on:** Suzi Master's answer.
