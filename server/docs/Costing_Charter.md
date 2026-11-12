@@ -90,6 +90,8 @@ The voice stays **Chirp 3 HD**.
      - `hearing_seconds`: measured duration; tokens estimated.
      - `meeting_audio_seconds`: measured.
      - `meeting_writing_characters`: measured; tokens estimated.
+   - **Nexeo, Meeting Assistant (F-4):** `meeting_transcript_minutes` (Way A, counted when a transcript is read; a count
+     only). Way B's line and `meeting_participant_seconds` are added only when that line is agreed.
    - **Free (counted for completeness):** `voice_characters_fallback`, `local_hearing_seconds`, `local_screen_operator_steps`.
    - **Activity:** `turns_spoken`, `turns_typed`, `turns_app_started`, `local_answers`, `tool_steps`, `screenshots_sent`.
 4. **Counts only:** never speech, transcripts, prompts or any content.

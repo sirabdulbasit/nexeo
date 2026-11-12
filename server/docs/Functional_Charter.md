@@ -5,9 +5,9 @@ Costs, budgets and the consumption record are in [Costing_Charter.md](Costing_Ch
 
 ## 1. The three parts and the principle
 
-- **The desktop app (Suzi, Mac or Windows):** runs the user's day from a local working copy. She listens, talks, briefs, presents, follows up, drafts, takes meeting notes and operates the computer. The `hello` frame's `os` field says which OS (`macos` | `windows`). A user is on one OS or the other, not both.
+- **The desktop app (Suzi, Mac or Windows):** runs the user's day from a local working copy. She listens, talks, briefs, presents, follows up, drafts, takes meeting notes, is the user's Meeting Assistant (F-4) and operates the computer. The `hello` frame's `os` field says which OS (`macos` | `windows`). A user is on one OS or the other, not both.
 - **Suzi's server (jarvis-gateway):** the live link to the desktop app. It runs the conversation model (answers requests, chooses tools, writes replies), verifies devices and signatures, and forwards operations to Nexeo.
-- **Nexeo:** the record. Knowledge, connectors, data, rules and delegations, the Action Center and the audit trail. It is the **only writer** to the outside world (email, calendar, tasks, other people), and it keeps the day going when the computer is off.
+- **Nexeo:** the record. Knowledge, connectors, data, rules and delegations, the Action Center and the audit trail. It is the **only writer** to the outside world (email, calendar, tasks, other people), and it keeps the day going when the computer is off. It gets online meetings' transcripts as the user's Meeting Assistant and keeps the meeting record (F-4).
 
 Each user has their own Suzi, a personal assistant for the boss's clerical work. **Suzi is the face of Nexeo:** day-to-day work happens through her, and the Nexeo portal is for account management.
 
@@ -28,7 +28,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 | 9 | Live conversation | Facts and data | The conversation model | Wake word, voice lock, listening, transcription, acknowledgements, interruptions, goodbyes, language switching, voice, the 3D character |
 | 10 | Presentation | Data blocks with numbers filled in | Builds `present_report` from data-tool block ids (`present_blocks`); **a number never comes from the model** | The board and the presenter; narration written in the user's language when `say` is empty; Stop and Esc |
 | 11 | Follow-ups | Decides what to chase; reminds others; holds due items while the computer is off | — | Picks the moment, records answers, reports progress |
-| 12 | Meeting notes | Receives minutes only with consent per meeting | — | Opt-in; transcript, minutes and email draft stored on the computer only |
+| 12 | Meeting Assistant (F-4) | With the user's switch on: gets the transcript (Way A, later Way B), keeps the one meeting record per meeting, proposes action items, serves the reads | — | Asks which meetings, shows status, the meeting card and the brief line; notes on the computer stay opt-in and go to the record only on his yes or his rule |
 | 13 | Operating the computer | — | Its model chooses tools step by step | Runs them locally under its safety tiers |
 | 14 | Journal | Stores Suzi's reports | Forwards them | Sends follow-up answers, decisions and actions taken; meeting notes only with consent |
 | 15 | Devices | Marks the device in charge (`primary`): the founder's M5 Mac now, later a setting in the Nexeo portal, otherwise the first paired device | Puts `primary` in `welcome` | Only the device in charge runs follow-ups and actions |
@@ -47,7 +47,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **R5** Never claim an action that didn't happen.
 - **R6 Fail softly:** present what's available and name what's missing; one failed tool call means one short sentence, then end the turn.
 - **R7** State freshness ("as of 3:05") when data is older than about 15 minutes.
-- **R8 Privacy defaults:** meeting data stays local, idle speech is never sent, the camera stays off unless the user says yes.
+- **R8 Privacy defaults:** meeting data stays local unless the user has turned Meeting Assistant on (F-4.10), idle speech is never sent, the camera stays off unless the user says yes.
 
 **Safety tiers in the desktop app:**
 - **T0, silent:** reading.
@@ -143,6 +143,70 @@ Every brief, the morning brief or one section, starts with one summary line per 
   - Nothing stored at Nexeo. If his own AI drafts, the examples come as `style_examples`.
 - **Rollout:** an op Nexeo does not have yet answers 400 unknown_op, and Suzi shows "needs Nexeo". Each side ships in its own time.
 
+## Meeting Assistant (F-4, agreed 12 Nov 2026)
+
+Each user's Suzi is also their **Meeting Assistant**: for the online meetings he chooses she gets what was said and by
+whom, writes the minutes, the decisions and the action items, keeps them where he can ask about them later, and follows
+the action items up. To every participant she is only "Suzi". Nothing goes out by itself.
+
+- **F-4.1 Ways in.** All ways end in one meeting record on Nexeo; Suzi Master holds none of it.
+  - **Way A, Google's own transcript (`google_transcript`, built first).** Nexeo turns on Meet's transcription for the
+    meetings his switch or rule covers (Meet API), is told when the transcript is ready (Workspace Events through
+    Pub/Sub), and reads it with each speaker's name. Nobody joins the call. **Way A covers meetings the user hosts on a
+    Google account connected to Nexeo. Any other meeting, including one hosted by a colleague at TMC, is
+    meeting.status `not_covered` for him (he can still take notes on his computer).** About $0.01 per meeting hour.
+  - **Way B, as a participant (`participant`).** Nexeo's own joiner on its own cloud, Meet first, visible as "Suzi, for
+    \<user's name\>". **Parked until its Costing line is agreed.** No meeting-notetaker service (founder, decision 3).
+  - **On his computer (`computer`)**, as today.
+  - **Imported (`imported`):** transcripts that already reach Nexeo (Plaud, Otter, Fathom, Fireflies emails; Google's
+    transcript Doc in Drive).
+- **F-4.2 Which meetings.** A per-user switch, off by default. With it on, Suzi asks before each meeting with a join
+  link, in the brief and on the meeting alert, until he sets a rule (founder, decision 2). `rule.set` kind
+  `meeting_attend`, match by organiser, attendee, title or "all with a link", set only by him (voice or click, as
+  F-2.4). Any single meeting can be switched on or off by click or voice, before or during it. Way A follows this
+  exactly; a meeting it can't cover gets `not_covered` and no attempt.
+- **F-4.3 Everyone knows.** Under Way A, Meet shows every participant that transcription is on. Under Way B she posts
+  one chat line on joining ("Suzi is taking notes for \<user's name\>"), never speaks or answers, and leaves at once
+  when the host removes her or anyone asks, recording that and why. On his computer notes stay opt-in per meeting and
+  Suzi reminds him once to tell the others.
+- **F-4.4 The record.** `{meeting_id, event_id?, title, platform, start, end, way, sources[{way, ref, received_at}],
+  participants[{name, email?}], transcript[{t, speaker, text}], minutes, decisions[], action_items[{title, owner_name?,
+  person_id?, due?}], status}`. Only that user reads it; the others get nothing unless he sends the recap. **No sound
+  is kept**; the transcript and minutes are the record (founder, decision 1).
+- **F-4.5 One record per meeting, per user (N8, C5–C7).**
+  - Keyed by the calendar event (or the Meet conference and its start), never by the way it arrived; one record per
+    meeting **per user**, never merged across users. Without an event or conference, an upload or import attaches to
+    an overlapping event of his, else gets its own record.
+  - The first arrival makes the record; later ones attach as `sources[]`. The best transcript wins: google_transcript,
+    then participant, imported, computer. Minutes are re-derived only when a better one arrives.
+  - Re-deriving never undoes his decisions: accepted or skipped action items stay as they are, only new ones are
+    proposed, checked against his open items; minutes he edited are kept, with the improved version offered beside
+    them. `record_ready` with `updated: true` is a silent "notes improved" on the card.
+  - Google's transcript Doc in Drive is recognised as a copy and attached, never digested as separate notes. Older
+    Plaud minutes are linked only on the founder's separate yes.
+- **F-4.6 From the computer.** `meeting.upload` {event_id?, title, start, end, transcript[], minutes,
+  action_items[]}, only on his yes for that meeting or by his rule; event_id when known, start and end always. The
+  pack's meetings carry `attendees[{name, email}]` so Suzi can name speakers; voiceprints never leave the computer.
+  Suzi doesn't offer to upload when the record already has `google_transcript` or `participant` (sources[].way).
+- **F-4.7 After the meeting.** Action items are proposed: on his yes, by click or voice, each becomes a task through
+  `task.create` with `source.meeting_id` (F-2.1). The recap is a draft, sent under the send rules (R2).
+- **F-4.8 Reads.** `meeting.list` {from?, to?, person?}, `meeting.get` {meeting_id} (with sources[].way), the knowledge
+  route across his own records only, and the pack's `meetings_recorded[]` since the last brief: title, when, a one-line
+  outcome, the count of proposed action items.
+- **F-4.9 Acts and status.** `meeting.attend` {event_id | join_url, way}, `meeting.leave` {meeting_id},
+  `meeting.delete` {meeting_id} (signed, irreversible). Nexeo pushes `meeting.status`: Way A `transcribing`,
+  `transcript_ready`, `record_ready`; Way B `joining`, `waiting_to_be_let_in`, `in`, `left`, `refused`, `ended`,
+  `record_ready`; either way `not_covered` and `failed {reason}`.
+- **F-4.10 Privacy.** Meeting data stays on the computer unless he has turned Meeting Assistant on; then the record is
+  kept on Nexeo for him alone, and he can delete any record. Records are kept 12 months, then only the minutes and
+  action items (founder, decision 4). Under Way A, Google's own copy of the transcript is the host's, in his Drive:
+  this limit and our delete don't reach it. The consumption record carries counts only.
+- **F-4.11 Cost.** Way A needs no new line; the consumption record counts `meeting_transcript_minutes` (Costing
+  Charter §7). Way B gets its own line (estimated $0.25–0.35 per meeting hour, a monthly cap per user, counter
+  `meeting_participant_seconds`) before anything of it is built.
+- **Start:** one user, the founder, through the group nexeo-users@tmcltd.com (TMC's Workspace includes Meet
+  transcripts; Nexeo's sign-in app is trusted for his unit).
+
 ## 5. Credentials (Google project nexeo-tmc)
 
 1. Create one desktop service account, `suzi-desktop@nexeo-tmc`, with only Vertex AI model calling and Cloud TTS. The OS is told apart by labels (`os=macos|windows`). The founder decides and creates it.
@@ -177,4 +241,7 @@ A dedicated test user per OS, with its own integration key (item 19, from the fo
 - [x] Founder: "agreed F-2", 11 Nov 2026 17:49 PKT, in Nexeo's session (brief by sections, act on every item; delegate rules prepare and hold)
 - [x] Nexeo: AGREE F-2, 11 Nov 2026 (Nexeo commit 8b82467)
 - [x] Suzi Master: proposed and AGREE F-2, 11 Nov 2026 (the same text)
+- [x] Founder: "agree F-4", 12 Nov 2026, in Nexeo's session, with decisions 1–4 (no sound kept; ask each meeting until a rule; our own joiner for Way B; 12 months, then minutes and action items)
+- [x] Nexeo: AGREE F-4 (N1–N8 with C1–C7, Way A's wording), 12 Nov 2026
+- [x] Suzi Master: proposed and AGREE F-4, 12 Nov 2026 (the same text)
 - [ ] Founder: decide items 1 (owner of Suzi's server) and 19 (test accounts)
