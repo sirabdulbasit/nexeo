@@ -36,9 +36,16 @@
 
 /** DEF-362: 'api' = a REST endpoint drafted from an uploaded API document.
  *  DEF-368: 'file' = an uploaded Excel (.xlsx, .xls) or CSV file; every run reads
- *  the stored copy (integration_source_files) until a newer one is uploaded. */
-export const SOURCE_KINDS = ['gsheet', 'api', 'file'] as const;
+ *  the stored copy (integration_source_files) until a newer one is uploaded.
+ *  DEF-447: 'mcp' = an outside system's MCP server (inbound only): one of its
+ *  tools is called and its answer read as records. It keeps its connection in
+ *  api_config (address, sign-in, records path, id field; `mcpTool` + `body` =
+ *  the tool and its arguments) and its token in the same encrypted secret. */
+export const SOURCE_KINDS = ['gsheet', 'api', 'file', 'mcp'] as const;
 export type SourceKind = typeof SOURCE_KINDS[number];
+
+/** DEF-447: the kinds whose connection lives in api_config + the encrypted secret. */
+export const usesApiConfig = (kind: string | null | undefined): boolean => kind === 'api' || kind === 'mcp';
 
 export const INTEGRATION_STATUSES = ['DRAFT', 'ACTIVE', 'PAUSED'] as const;
 export type IntegrationStatus = typeof INTEGRATION_STATUSES[number];
@@ -242,6 +249,9 @@ export interface ApiConfig {
   pagination: Pagination;
   /** Dotted path to the system's own total count, if it states one. */
   declaredTotalPath?: string | null;
+  /** DEF-447, sourceKind 'mcp' only: the MCP tool whose answer holds the records.
+   *  Its arguments are `body`; baseUrl is the server's MCP endpoint itself. */
+  mcpTool?: string | null;
 }
 
 /** What the AI made of the API document (integration_syncs.api_doc_reading).

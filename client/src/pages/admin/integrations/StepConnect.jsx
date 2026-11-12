@@ -36,13 +36,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   updateIntegration, checkConnection, proposeAndWait, setIntegrationSecret, errorText,
-  uploadSourceFile, getSourceFile, FILE_MAX_BYTES, FILE_ACCEPT,
+  uploadSourceFile, getSourceFile, FILE_MAX_BYTES, FILE_ACCEPT, listMcpTools,
 } from '../../../services/integrationsApi';
 import { proposalStageText } from './WorkingOverlay';
 import { C, s, vm, btn, pill, formatPkt, stageHasMapping, OneRecord } from './integrationUi';
 import {
   AUTH_SCHEMES, API_METHODS, PAGINATION_KINDS, initialForm, formFromConfig, configFromForm, isConfigDirty,
-  needsSecret, pageCountText,
+  needsSecret, pageCountText, mcpArgsFromSchema, mcpSchemaRows,
 } from './integrationLogic';
 
 const AUTH_LABELS = { NONE: 'None', BEARER: 'Bearer token', API_KEY: 'API key', BASIC: 'Username and password' };
@@ -51,6 +51,11 @@ const PAGE_LABELS = { none: 'One page only', page: 'Page numbers', offset: 'Offs
 export default function StepConnect({ integ, setInteg, setMsg, signal, setWorking, onProposed, onBackToBasics }) {
   const isApi = integ?.sourceKind === 'api';
   const isFile = integ?.sourceKind === 'file';
+  // DEF-447: an MCP server's connection is kept like an API's (address, sign-in, token,
+  // records path, id field) plus the tool and its settings; isConn covers both.
+  const isMcp = integ?.sourceKind === 'mcp';
+  const isConn = isApi || isMcp;
+  const kind = integ?.sourceKind;
   const sourceFile = isFile ? (integ?.sourceFile ?? null) : null;
   const savedSheet = isFile ? (integ?.sourceConfig?.sheetName ?? '') : '';
   const savedLink = integ?.sourceConfig?.link ?? '';
@@ -73,6 +78,9 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
   const [tabs, setTabs] = useState(null);
   const [sheetName, setSheetName] = useState(savedSheet);
   const [tooBigFile, setTooBigFile] = useState(null);
+  // DEF-447: the MCP server's tools, once listed (null = not asked yet).
+  const [tools, setTools] = useState(null);
+  const [toolsReason, setToolsReason] = useState('');
 
   useEffect(() => {
     if (!isFile || !sourceFile || tabs !== null || !integ?.id) return;
@@ -81,17 +89,17 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
     return () => { live = false; };
   }, [isFile, sourceFile, tabs, integ?.id]);
 
-  const built = useMemo(() => (isApi ? configFromForm(form) : null), [isApi, form]);
-  const dirty = isApi
-    ? isConfigDirty(form, integ?.apiConfig)
+  const built = useMemo(() => (isConn ? configFromForm(form, kind) : null), [isConn, kind, form]);
+  const dirty = isConn
+    ? isConfigDirty(form, integ?.apiConfig, kind)
     : isFile
       ? sheetName !== savedSheet
       : link.trim() !== savedLink || tabLabel.trim() !== savedTab;
   const instrDirty = instructions.trim() !== savedInstr.trim();
   const tested = !!integ?.connectionOk && !dirty;
   const hasMapping = stageHasMapping(integ?.stage);
-  const canTest = !busy && (isApi ? !!built?.config : isFile ? !!sourceFile : !!link.trim());
-  const secretTyped = isApi && needsSecret(form.authScheme) && secret.length > 0;
+  const canTest = !busy && (isConn ? !!built?.config && (!isMcp || !!built.config.mcpTool) : isFile ? !!sourceFile : !!link.trim());
+  const secretTyped = isConn && needsSecret(form.authScheme) && secret.length > 0;
 
   function setField(k, v) {
     setForm((f) => ({ ...f, [k]: v }));
@@ -101,7 +109,7 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
 
   /** Saves the connection (and the instructions with it, so one PUT carries the draft). */
   async function saveConnection() {
-    const patch = isApi
+    const patch = isConn
       ? { apiConfig: built.config }
       : isFile
         ? { sheetName: sheetName || null }
@@ -139,11 +147,11 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
         // A new credential is a new connection: the server clears the earlier pass, so the
         // mapping unlocks only after the test (unless the server re-recorded it).
         const unlock = fromTest || res.integration?.connectionOk ? '' : ' Press Test the connection to unlock the mapping.';
-        setSecretOutcome({ ok: true, text: `${res.verified ? 'Stored — the API answered with it.' : 'Stored.'}${unlock}` });
+        setSecretOutcome({ ok: true, text: `${res.verified ? `Stored — the ${isMcp ? 'MCP server let Nexeo in' : 'API answered'} with it.` : 'Stored.'}${unlock}` });
         setMsg('Secret stored.');
         return true;
       }
-      const why = res.reason || 'The API did not accept it.';
+      const why = res.reason || `The ${isMcp ? 'MCP server' : 'API'} did not accept it.`;
       setSecretOutcome({
         ok: false,
         text: `Not stored. ${why}${integ.hasSecret ? ' The secret stored before is kept.' : ''}`,
@@ -177,6 +185,31 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
       const { result: r, integration, note } = await checkConnection(integ.id);
       setResult(r ? { ...r, note: note ?? null } : r);
       if (integration) setInteg(integration);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * DEF-447: list the MCP server's tools. The server lists them from the SAVED address
+   * with the STORED token, so a typed token is stored first (its own check is the same
+   * handshake) and an edited address is saved first.
+   */
+  async function loadTools() {
+    setBusy(true);
+    setError('');
+    setToolsReason('');
+    try {
+      if (secretTyped) {
+        const stored = await submitSecret();
+        if (!stored) { setToolsReason('The token you typed was not stored (see under the token box), so the tools were not listed.'); return; }
+      } else if (dirty) await saveConnection();
+      const res = await listMcpTools(integ.id);
+      setTools(res.tools);
+      if (res.reason) setToolsReason(res.reason);
+      else if (!res.tools.length) setToolsReason('The server lists no tools.');
     } catch (e) {
       setError(errorText(e));
     } finally {
@@ -236,13 +269,16 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
         <strong style={{ flex: 1, color: 'var(--text)' }}>Connection</strong>
         {isApi && reading && integ?.apiDocName && <span style={pill('acc')}>filled from {integ.apiDocName}</span>}
         {isFile && <span style={pill('acc')}>Excel or CSV file</span>}
-        {!isApi && !isFile && <span style={pill('acc')}>Google Sheet</span>}
+        {isMcp && <span style={pill('acc')}>MCP server</span>}
+        {!isConn && !isFile && <span style={pill('acc')}>Google Sheet</span>}
       </div>
       <p style={{ ...s.hint, marginTop: 0 }}>
         {isApi
           ? (reading
             ? 'Filled in from your document where it said enough. Correct anything that is wrong, then test it — a document can be out of date or describe a different deployment.'
             : 'Fill in the connection, then test it. Attaching the API document in Basics and pressing Read with AI fills most of this for you.')
+          : isMcp
+            ? 'Enter the MCP server’s address and how Nexeo signs in, list its tools, pick the one that returns the records, then test it — the test calls that tool for real.'
           : isFile
             ? 'Upload the spreadsheet that holds the data, then test it — the test reads the uploaded copy for real.'
             : 'Paste the link to the Google Sheet tab that holds the data, then test it — the test reads the sheet for real.'}
@@ -269,7 +305,24 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
 
       {isApi && reading?.summary && <div style={vm.notes}>{reading.summary}</div>}
 
-      {isApi ? (
+      {isMcp ? (
+        <McpConnectionForm
+          form={form}
+          setField={setField}
+          errors={built?.errors ?? []}
+          tools={tools}
+          toolsReason={toolsReason}
+          busy={busy}
+          canList={!busy && !!form.baseUrl.trim() && !(built?.errors ?? []).some((e) => /address/i.test(e))
+            && (!needsSecret(form.authScheme) || !!integ?.hasSecret || secret.length > 0)}
+          needsToken={needsSecret(form.authScheme) && !integ?.hasSecret && secret.length === 0}
+          onList={loadTools}
+          onPick={(tool) => {
+            setForm((f) => ({ ...f, mcpTool: tool.name, body: f.mcpTool === tool.name ? f.body : mcpArgsFromSchema(tool.inputSchema) }));
+            setResult(null);
+          }}
+        />
+      ) : isApi ? (
         <ApiConnectionForm
           form={form}
           setField={setField}
@@ -318,11 +371,11 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
       <div style={vm.divider}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <button type="button" style={btn(tested || result?.ok ? 'outline' : 'primary', { disabled: !canTest })} disabled={!canTest} onClick={test}>
-            {busy ? (isApi ? 'Calling the API…' : isFile ? 'Reading the file…' : 'Reading the sheet…') : 'Test the connection'}
+            {busy ? (isMcp ? 'Calling the MCP server…' : isApi ? 'Calling the API…' : isFile ? 'Reading the file…' : 'Reading the sheet…') : 'Test the connection'}
           </button>
           <span style={{ ...s.hint, marginTop: 0 }}>
-            {dirty && (isApi ? !!integ?.apiConfig : isFile ? !!sourceFile : !!savedLink)
-              ? <span style={{ color: C.warn }}>The {isApi ? 'connection' : isFile ? 'tab' : 'link'} changed — test it again before the mapping.</span>
+            {dirty && (isConn ? !!integ?.apiConfig : isFile ? !!sourceFile : !!savedLink)
+              ? <span style={{ color: C.warn }}>The {isConn ? 'connection' : isFile ? 'tab' : 'link'} changed — test it again before the mapping.</span>
               : result || tested ? 'Re-test after any change above.' : 'Nothing has been called yet.'}
           </span>
         </div>
@@ -332,17 +385,17 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
         {result && result.ok && (
           <div style={vm.ok}>
             <strong>Working.</strong>{' '}
-            {isApi
+            {isConn
               ? pageCountText(result)
               : `Read ${result.rows} ${result.rows === 1 ? 'row' : 'rows'}, ${result.columns.length} ${result.columns.length === 1 ? 'column' : 'columns'}.`}
             {result.note && <div style={{ marginTop: 6 }}>{result.note}</div>}
             {result.sampleRow && (
               <div style={{ marginTop: 10, color: 'var(--text)' }}>
                 <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                  {isApi ? 'The first record, as we read it' : 'The first data row, as we read it'}
+                  {isConn ? 'The first record, as we read it' : 'The first data row, as we read it'}
                 </div>
                 <OneRecord record={result.sampleRow} columns={result.columns} />
-                {isApi && <div style={{ ...s.hint, marginTop: 4 }}>Nested fields are shown with dots.</div>}
+                {isConn && <div style={{ ...s.hint, marginTop: 4 }}>Nested fields are shown with dots.</div>}
               </div>
             )}
           </div>
@@ -363,7 +416,7 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
           </div>
         )}
         {result && !result.ok && (
-          <div style={vm.bad}><strong>Not working.</strong> {result.reason || (isApi ? 'The API could not be read.' : isFile ? 'The file could not be read.' : 'The sheet could not be read.')}</div>
+          <div style={vm.bad}><strong>Not working.</strong> {result.reason || (isMcp ? 'The MCP server could not be read.' : isApi ? 'The API could not be read.' : isFile ? 'The file could not be read.' : 'The sheet could not be read.')}</div>
         )}
         {!result && tested && (
           <div style={vm.ok}><strong>Working</strong> — last tested {formatPkt(integ.connectionTestedAt)}.</div>
@@ -379,8 +432,9 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
         </div>
       )}
 
-      {isApi && needsSecret(form.authScheme) && (
+      {isConn && needsSecret(form.authScheme) && (
         <SecretField
+          isMcp={isMcp}
           integ={integ}
           authScheme={form.authScheme}
           secret={secret}
@@ -596,11 +650,122 @@ function ApiConnectionForm({ form, setField, hasReading, resetToDraft, errors })
 }
 
 /**
+ * DEF-447 — the MCP server connection: its address and sign-in, the button that lists
+ * its tools, the tool picked (with what it says about itself and its settings), the
+ * settings as JSON, and where the records are in its answer. Nothing is guessed: the
+ * tool's settings start from the defaults its own schema declares.
+ */
+function McpConnectionForm({ form, setField, errors, tools, toolsReason, busy, canList, needsToken, onList, onPick }) {
+  const f = form;
+  const input = (k, props = {}) => (
+    <input
+      id={`c-${k}`}
+      style={{ ...s.input, ...(props.mono ? s.mono : null) }}
+      value={f[k]}
+      onChange={(e) => setField(k, e.target.value)}
+      placeholder={props.placeholder}
+      autoComplete="off"
+      spellCheck={false}
+    />
+  );
+  const field = (label, el, hint, k) => (
+    <div>
+      <label style={{ ...s.label, marginTop: 0 }} htmlFor={k ? `c-${k}` : undefined}>{label}</label>
+      {el}
+      {hint && <div style={s.hint}>{hint}</div>}
+    </div>
+  );
+  const grid = { display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))' };
+  const list = Array.isArray(tools) ? tools : [];
+  const chosen = list.find((t) => t.name === f.mcpTool) ?? null;
+  const rows = chosen ? mcpSchemaRows(chosen.inputSchema) : [];
+
+  return (
+    <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+      {field('MCP server address', input('baseUrl', { mono: true, placeholder: 'https://erp.yourcompany.com/mcp' }),
+        'The server’s MCP endpoint — https only, often ending in /mcp. Nexeo never calls any other address with your token.', 'baseUrl')}
+
+      <div style={grid}>
+        {field('How we sign in', (
+          <select id="c-authScheme" style={s.input} value={f.authScheme} onChange={(e) => setField('authScheme', e.target.value)}>
+            {AUTH_SCHEMES.map((a) => <option key={a} value={a}>{AUTH_LABELS[a]}</option>)}
+          </select>
+        ), 'Most MCP servers use a Bearer token.', 'authScheme')}
+        {f.authScheme === 'API_KEY' && field('Key header name', input('authHeaderName', { mono: true, placeholder: 'X-API-Key' }), null, 'authHeaderName')}
+      </div>
+
+      <div style={vm.divider}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <button type="button" style={btn(list.length ? 'outline' : 'primary', { disabled: !canList })} disabled={!canList} onClick={onList}>
+            {busy ? 'Asking the server…' : list.length ? 'List the tools again' : 'List the tools'}
+          </button>
+          <span style={{ ...s.hint, marginTop: 0 }}>
+            {needsToken ? 'Enter the token below first — the server lists its tools only to a signed-in caller.' : 'Nexeo signs in and asks which tools the server offers. Nothing is read yet.'}
+          </span>
+        </div>
+        {toolsReason && <div style={vm.bad}>{toolsReason}</div>}
+        {list.length > 0 && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ ...s.label, marginTop: 0 }}>Which tool returns the records?</div>
+            <div style={{ display: 'grid', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+              {list.map((t) => (
+                <label key={t.name} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', cursor: 'pointer', padding: '6px 8px', border: `1px solid ${t.name === f.mcpTool ? C.accent : 'var(--border)'}`, borderRadius: 8 }}>
+                  <input type="radio" name="mcp-tool" checked={t.name === f.mcpTool} onChange={() => onPick(t)} style={{ marginTop: 3 }} />
+                  <span>
+                    <span style={{ ...s.mono, color: 'var(--text)' }}>{t.name}</span>
+                    {t.title && <span style={{ color: 'var(--text)' }}> — {t.title}</span>}
+                    {t.description && <span style={{ ...s.hint, display: 'block', marginTop: 2 }}>{t.description}</span>}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+        {!list.length && f.mcpTool && (
+          <div style={{ ...s.hint, marginTop: 8 }}>Chosen tool: <span style={s.mono}>{f.mcpTool}</span>. List the tools to see the others.</div>
+        )}
+      </div>
+
+      {f.mcpTool && (
+        <>
+          {rows.length > 0 && (
+            <div style={vm.notes}>
+              <strong>What “{f.mcpTool}” takes</strong>
+              <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                {rows.map((r) => (
+                  <li key={r.name}>
+                    <span style={s.mono}>{r.name}</span>{r.type ? ` (${r.type})` : ''}{r.required ? ' — required' : ''}{r.description ? ` — ${r.description}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {field('The tool’s settings (JSON)', (
+            <textarea id="c-body" style={{ ...s.input, ...s.mono, minHeight: 64, resize: 'vertical' }} value={f.body} onChange={(e) => setField('body', e.target.value)} placeholder={'{ "status": "active" }'} spellCheck={false} />
+          ), 'Sent to the tool on every run. Leave {} when it needs none. Never put a password or key here — the token box is for that.', 'body')}
+          <div style={grid}>
+            {field('Where the records are', input('recordsPath', { mono: true, placeholder: 'items' }), 'The list in the tool’s answer. Blank means the whole answer is the list; the test names the lists it finds.', 'recordsPath')}
+            {field('How a record is identified', input('idField', { mono: true, placeholder: 'id' }), 'Keeps each knowledge page tied to its record.', 'idField')}
+            {field('Where the total count is (optional)', input('declaredTotalPath', { mono: true, placeholder: 'total' }), 'Lets a run notice when the tool returned fewer records than it says exist.', 'declaredTotalPath')}
+          </div>
+        </>
+      )}
+
+      {errors.length > 0 && (
+        <div style={s.warnBox}>
+          <ul style={{ margin: 0, paddingLeft: 18 }}>{errors.map((e, i) => <li key={i}>{e}</li>)}</ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Write-only secret box. Never pre-filled, never echoed; the value and the call that sends
  * it (submitSecret) live in StepConnect, so "Test the connection" above sends what is typed
  * here first. "Save the secret" sends it on its own.
  */
-function SecretField({ integ, authScheme, secret, setSecret, outcome, busy, canSave, onSave }) {
+function SecretField({ isMcp, integ, authScheme, secret, setSecret, outcome, busy, canSave, onSave }) {
   const canSend = !busy && secret.length > 0 && canSave;
   return (
     <div style={{ marginTop: 14 }}>
@@ -622,8 +787,8 @@ function SecretField({ integ, authScheme, secret, setSecret, outcome, busy, canS
           {busy ? 'Checking…' : integ?.hasSecret ? 'Replace the secret' : 'Save the secret'}
         </button>
       </div>
-      <p style={s.hint}>Stored encrypted, never shown again. It is sent only to the web address above, and only kept if the API accepts it.</p>
-      <p style={s.hint}>Test the connection above uses what you type here: it is stored first, then the test runs with it.</p>
+      <p style={s.hint}>Stored encrypted, never shown again. It is sent only to the {isMcp ? 'server address' : 'web address'} above, and only kept if the {isMcp ? 'MCP server lets Nexeo in' : 'API accepts it'}.</p>
+      <p style={s.hint}>{isMcp ? 'List the tools and' : ''} Test the connection {isMcp ? 'use' : 'above uses'} what you type here: it is stored first, then {isMcp ? 'they run' : 'the test runs'} with it.</p>
       {integ?.hasSecret && <p style={{ ...s.hint, color: C.ok }}>A secret is stored.</p>}
       {/* DEF-367 — as Vision Metric does: the keys printed in the document are tried for you. */}
       {integ?.docHasKeys && !integ?.hasSecret && (

@@ -34,6 +34,8 @@ const SOURCE_CHOICES = [
   { kind: 'gsheet', label: 'Google Sheet', hint: 'A shared or private sheet. Every run reads it as it is at that moment.' },
   { kind: 'api', label: 'API (with its document)', hint: 'A system with a REST API. Attach its API document and the AI works out how to connect.' },
   { kind: 'file', label: 'Excel or CSV file', hint: 'A spreadsheet you upload (.xlsx, .xls or .csv). Every run reads the uploaded copy until you upload a newer one.' },
+  // DEF-447: inbound MCP — Nexeo calls one tool of the system's MCP server and reads its answer.
+  { kind: 'mcp', label: 'MCP server', hint: 'A system that shares its data through an MCP server (an https address). You pick the tool that returns the records; every run calls it.' },
 ];
 
 const BLANK_CHOICES = [
@@ -102,6 +104,7 @@ export default function StepBasics({ integ, setInteg, setMsg, setWorking, onNext
   const kindLocked = !!integ && (integ.status !== 'DRAFT' || stageHasMapping(integ.stage));
   const isApi = sourceKind === 'api';
   const isFile = sourceKind === 'file';
+  const isMcp = sourceKind === 'mcp';
   // vm's "Read the document & continue": pasted text, or an attached document nobody has
   // read yet, is read on the way to Connect, so the Connect form arrives filled in.
   const hasPaste = isApi && !!integ && pasted.trim().length > 0;
@@ -291,6 +294,16 @@ export default function StepBasics({ integ, setInteg, setMsg, setWorking, onNext
           pastedName={pastedName}
           setPastedName={setPastedName}
         />
+      ) : isMcp ? (
+        <>
+          <h4 style={vm.section}>The MCP server</h4>
+          <p style={vm.sectionHint}>
+            In <strong>Connect</strong> you enter the server’s address (https://…, often ending in /mcp) and, if it asks for one,
+            its token — stored encrypted, never shown again. Nexeo then lists the server’s tools; you pick the one that returns
+            the records (for example “list employees”) and its settings. Every run calls that tool and reads its answer.
+            Only servers reachable over https can be connected — not ones that run only on a computer.
+          </p>
+        </>
       ) : isFile ? (
         <>
           <h4 style={vm.section}>The spreadsheet</h4>

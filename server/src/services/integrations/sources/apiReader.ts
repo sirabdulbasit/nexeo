@@ -150,6 +150,8 @@ export function readApiConfig(raw: unknown): ApiConfig | null {
     idField: nonEmpty(raw.idField),
     pagination,
     declaredTotalPath: nonEmpty(raw.declaredTotalPath),
+    // DEF-447: present only on an MCP connection (absent keeps an API config's shape and fingerprint).
+    ...(nonEmpty(raw.mcpTool) ? { mcpTool: nonEmpty(raw.mcpTool) } : {}),
   };
 }
 
@@ -209,14 +211,14 @@ export const flattenRecord: ApiReaderModule['flattenRecord'] = (rec) => {
 };
 
 /** A number the system declared (number or numeric string), else null. */
-function declaredNumber(v: unknown): number | null {
+export function declaredNumber(v: unknown): number | null {
   if (typeof v === 'number' && Number.isFinite(v) && v >= 0) return Math.floor(v);
   if (typeof v === 'string' && /^\s*\d+\s*$/.test(v)) return parseInt(v, 10);
   return null;
 }
 
 /** Where arrays live in a body — said to the admin when recordsPath misses. */
-function arrayPaths(body: unknown, prefix = '', depth = 0, out: string[] = []): string[] {
+export function arrayPaths(body: unknown, prefix = '', depth = 0, out: string[] = []): string[] {
   if (out.length >= 5 || depth > 3) return out;
   if (Array.isArray(body)) { out.push(prefix || '(the whole answer)'); return out; }
   if (isObj(body)) {
@@ -298,6 +300,8 @@ function scrub(text: string, secret: string | null, cfg?: Pick<ApiConfig, 'authQ
 
 /** Test hook (DEF-362 review): the error-snippet scrub, as fetchPage applies it. */
 export const __scrubForTests = scrub;
+/** DEF-447: the same scrub for the MCP reader's error text. */
+export const scrubSecret = scrub;
 
 async function fetchPage(
   url: URL, cfg: ApiConfig, auth: AuthAttachment, secret: string | null, limits: FetchLimits,

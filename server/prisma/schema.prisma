@@ -1185,7 +1185,7 @@ model IntegrationSync {
   name                  String    @db.VarChar(200)
   purpose               String?   @db.Text
   adminBrief            String?   @map("admin_brief") @db.Text
-  sourceKind            String    @default("gsheet") @map("source_kind") @db.VarChar(20) // gsheet (Stage 1) | api (Stage 1b, DEF-362) | file (DEF-368)
+  sourceKind            String    @default("gsheet") @map("source_kind") @db.VarChar(20) // gsheet (Stage 1) | api (Stage 1b, DEF-362) | file (DEF-368) | mcp (DEF-447)
   sourceConfig          Json      @default("{}") @map("source_config") // GsheetSourceConfig: {sheetId, gid, tabLabel?, link}
   // DEF-362 (Stage 1b) — API source. secretEnc is ciphertext only ('v1:…', store/secretStore.ts) and is
   // never returned by the API; approvedFilter is written only by approving a filter suggestion.

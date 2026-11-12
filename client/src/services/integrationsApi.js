@@ -80,6 +80,13 @@ export async function deleteIntegration(id) {
 /** Reads the sheet for real (spec §2.2: a 200 with 0 rows is NOT ok). Returns
  *  `{result: TestResult, integration: IntegrationDTO}` — the server records (or clears)
  *  connection_tested_at + fingerprint, so the refreshed DTO is what unlocks step 3. */
+/** DEF-447: the tools the integration's (saved) MCP server offers. Never throws for a
+ *  server that cannot be reached — `reason` says why and `tools` is empty. */
+export async function listMcpTools(id) {
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(id)}/mcp/tools`);
+  return { tools: Array.isArray(data?.tools) ? data.tools : [], reason: data?.reason ?? null };
+}
+
 export async function checkConnection(id) {
   const { data } = await api.get(`${BASE}/${encodeURIComponent(id)}/connection-check`);
   // `note`: DEF-367 — set when a key printed in the API document was tested and kept.

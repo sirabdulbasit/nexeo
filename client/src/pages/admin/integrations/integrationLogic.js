@@ -50,6 +50,7 @@ export function formFromConfig(cfg) {
     pageSize: str(p.pageSize),
     startPage: str(p.startPage),
     maxPages: str(p.maxPages),
+    mcpTool: str(c.mcpTool),
   };
 }
 
@@ -95,7 +96,8 @@ function posInt(raw, label, errors, { min = 1 } = {}) {
  * validates again; these checks only stop the admin sending something that cannot work
  * (vm: a draft is a question until the admin answers it).
  */
-export function configFromForm(f) {
+export function configFromForm(f, kind = 'api') {
+  if (kind === 'mcp') return mcpConfigFromForm(f);
   const errors = [];
   const baseUrl = String(f.baseUrl ?? '').trim();
   if (!baseUrl) errors.push('The base URL is missing.');
@@ -179,6 +181,72 @@ export function configFromForm(f) {
   return { config: errors.length ? null : config, errors };
 }
 
+/**
+ * DEF-447 — the MCP connection form → `{config, errors}`, in the API connection's shape
+ * (the server keeps both in api_config): the server address, sign-in, the tool and its
+ * arguments (`body`), where the records are and how one is identified. One call, no
+ * paging. The tool may still be empty — the address and token are saved first so the
+ * server's tools can be listed — but the test needs it (canTestMcp).
+ */
+export function mcpConfigFromForm(f) {
+  const errors = [];
+  const baseUrl = String(f.baseUrl ?? '').trim();
+  if (!baseUrl) errors.push('The MCP server address is missing.');
+  else if (!/^https:\/\/[^\s/]+/i.test(baseUrl)) errors.push('The MCP server address must start with https:// (plain http is refused).');
+  let body = null;
+  if (String(f.body ?? '').trim()) {
+    try {
+      const parsed = JSON.parse(f.body);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) errors.push('The tool settings must be a JSON object, e.g. {"status": "active"}.');
+      else body = parsed;
+    } catch {
+      errors.push('The tool settings are not valid JSON.');
+    }
+  }
+  const mcpTool = String(f.mcpTool ?? '').trim();
+  if (mcpTool && !/^[A-Za-z0-9_.\/-]{1,128}$/.test(mcpTool)) errors.push('That is not a valid tool name.');
+  const authScheme = AUTH_SCHEMES.includes(f.authScheme) ? f.authScheme : 'NONE';
+  const config = {
+    baseUrl,
+    method: 'POST',
+    path: '',
+    query: {},
+    body,
+    authScheme,
+    authHeaderName: authScheme === 'API_KEY' ? (String(f.authHeaderName ?? '').trim() || null) : null,
+    authQueryParam: null,
+    recordsPath: String(f.recordsPath ?? '').trim(),
+    idField: String(f.idField ?? '').trim() || null,
+    pagination: { kind: 'none' },
+    declaredTotalPath: String(f.declaredTotalPath ?? '').trim() || null,
+    mcpTool: mcpTool || null,
+  };
+  return { config: errors.length ? null : config, errors };
+}
+
+/**
+ * DEF-447 — a tool's starting settings from its input schema: every property that has a
+ * default, as JSON text ("{}" when none). The admin edits it; nothing is guessed.
+ */
+export function mcpArgsFromSchema(schema) {
+  const props = schema && typeof schema === 'object' && schema.properties && typeof schema.properties === 'object' ? schema.properties : {};
+  const out = {};
+  for (const [k, v] of Object.entries(props)) if (v && typeof v === 'object' && 'default' in v) out[k] = v.default;
+  return JSON.stringify(out, null, 2);
+}
+
+/** DEF-447 — a tool's settings, as rows for the admin: name, type, required, what it is. */
+export function mcpSchemaRows(schema) {
+  const props = schema && typeof schema === 'object' && schema.properties && typeof schema.properties === 'object' ? schema.properties : {};
+  const req = new Set(Array.isArray(schema?.required) ? schema.required : []);
+  return Object.entries(props).map(([name, v]) => ({
+    name,
+    type: v && typeof v === 'object' ? (Array.isArray(v.enum) ? v.enum.map(String).join(' | ') : String(v.type ?? '')) : '',
+    required: req.has(name),
+    description: v && typeof v === 'object' && typeof v.description === 'string' ? v.description : '',
+  }));
+}
+
 /** Stable JSON (sorted keys) — so key order never makes a config look edited. */
 function stable(v) {
   if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
@@ -191,11 +259,11 @@ function stable(v) {
 /** True when the form differs from the saved config (or nothing is saved yet). Both
  *  sides go through configFromForm, so only a real edit counts. An invalid form is
  *  dirty: it cannot be what was tested. */
-export function isConfigDirty(form, savedConfig) {
+export function isConfigDirty(form, savedConfig, kind = 'api') {
   if (!savedConfig) return true;
-  const a = configFromForm(form);
+  const a = configFromForm(form, kind);
   if (!a.config) return true;
-  const b = configFromForm(formFromConfig(savedConfig));
+  const b = configFromForm(formFromConfig(savedConfig), kind);
   return stable(a.config) !== stable(b.config);
 }
 

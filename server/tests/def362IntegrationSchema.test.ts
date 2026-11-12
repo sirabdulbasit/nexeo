@@ -74,8 +74,9 @@ describe('DEF-362 integrations schema (Stage 1b)', () => {
     expect(migration).toMatch(/target_kind IN \('kpi','context'\) AND op IN \('create','update','stale'\)/);
     expect(migration).toMatch(/status IN \('DRAFT','ACTIVE','PAUSED'\)/);
     // DEF-368 widened SOURCE_KINDS by 'file' in its own migration (20261031_integrations_file_source,
-    // pinned in tests/def368IntegrationFile.test.ts); this migration's own CHECK is unchanged.
-    expect([...SOURCE_KINDS]).toEqual(['gsheet', 'api', 'file']);
+    // pinned in tests/def368IntegrationFile.test.ts), and DEF-447 by 'mcp' (20261112_integrations_mcp_source,
+    // pinned in tests/def447IntegrationMcpSource.test.ts); this migration's own CHECK is unchanged.
+    expect([...SOURCE_KINDS]).toEqual(['gsheet', 'api', 'file', 'mcp']);
     expect([...TARGET_KINDS]).toEqual(['kpi', 'context', 'filter']);
   });
 

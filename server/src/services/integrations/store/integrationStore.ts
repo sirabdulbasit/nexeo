@@ -58,6 +58,7 @@ import {
   IntegrationInputError,
   IntegrationNotFoundError,
   SOURCE_KINDS,
+  usesApiConfig,
   type ApiConfig,
   type ApiDocReading,
   type BlankPolicy,
@@ -111,8 +112,10 @@ const inputSchema = z.object({
 
 const API_CONFIG_KEYS = new Set<string>([
   'baseUrl', 'method', 'path', 'query', 'body', 'authScheme', 'authHeaderName', 'authQueryParam',
-  'recordsPath', 'idField', 'pagination', 'declaredTotalPath',
+  'recordsPath', 'idField', 'pagination', 'declaredTotalPath', 'mcpTool',
 ]);
+/** DEF-447: an MCP tool name (the spec allows letters, digits, _ - . /). */
+const MCP_TOOL_RE = /^[A-Za-z0-9_.\/-]{1,128}$/;
 /** A query parameter whose NAME says it carries a credential (vm
  *  integrationDocReader's credential-named params). Its value would be stored
  *  in api_config and echoed in every DTO — the key belongs in the secret field,
@@ -221,6 +224,9 @@ export function validateApiConfigInput(raw: unknown): ApiConfig | null {
     bad('The credential parameter name is invalid.');
   }
   if (o.pagination !== undefined && readPagination(o.pagination) === null) bad('The paging settings are incomplete.');
+  if (o.mcpTool !== undefined && o.mcpTool !== null && o.mcpTool !== '') {
+    if (typeof o.mcpTool !== 'string' || !MCP_TOOL_RE.test(o.mcpTool.trim())) bad('That is not a valid MCP tool name.');
+  }
   if (typeof o.authQueryParam === 'string' && o.query && typeof o.query === 'object'
       && Object.prototype.hasOwnProperty.call(o.query, o.authQueryParam.trim())) {
     bad(`"${o.authQueryParam.trim()}" is where the credential goes — remove it from the fixed query parameters.`);
@@ -350,7 +356,7 @@ export interface ConnectionColumns {
 
 /** Fingerprint of a row's CURRENT config, or null when it has no usable source. */
 export function currentFingerprint(row: ConnectionColumns): string | null {
-  if (row.sourceKind === 'api') {
+  if (usesApiConfig(row.sourceKind)) {
     const cfg = readApiConfig(row.apiConfig);
     return cfg ? apiConnectionFingerprint(cfg, row.secretSetAt ?? null) : null;
   }
@@ -364,7 +370,7 @@ export function currentFingerprint(row: ConnectionColumns): string | null {
 
 /** The row has a source a reader can use (sheet parsed / api_config valid). */
 export function hasUsableSource(row: Pick<ConnectionColumns, 'sourceKind' | 'sourceConfig' | 'apiConfig'>): boolean {
-  if (row.sourceKind === 'api') return readApiConfig(row.apiConfig) !== null;
+  if (usesApiConfig(row.sourceKind)) return readApiConfig(row.apiConfig) !== null;
   if (row.sourceKind === 'file') return readFileConfig(row.sourceConfig) !== null;
   return readSourceConfig(row.sourceConfig) !== null;
 }
@@ -564,10 +570,10 @@ export const getIntegration: IntegrationStoreModule['getIntegration'] = async (c
  *  sheet one) is a client mix-up; refusing it beats storing a route no reader
  *  of that kind will ever use. */
 function assertSourceFieldsMatch(kind: string, input: IntegrationInput): void {
-  if (kind === 'api' && input.link !== undefined && input.link.trim() !== '') {
-    throw new IntegrationInputError('This integration reads an API; a Google Sheet link does not apply.', 'link');
+  if (usesApiConfig(kind) && input.link !== undefined && input.link.trim() !== '') {
+    throw new IntegrationInputError(`This integration reads ${kind === 'mcp' ? 'an MCP server' : 'an API'}; a Google Sheet link does not apply.`, 'link');
   }
-  if (kind !== 'api' && input.apiConfig) {
+  if (!usesApiConfig(kind) && input.apiConfig) {
     throw new IntegrationInputError('This integration reads a Google Sheet; choose "API" as the source first.', 'apiConfig');
   }
   // DEF-368: a file integration has no link; only a file integration has a tab name.
@@ -719,8 +725,8 @@ export const updateIntegration: IntegrationStoreModule['updateIntegration'] = as
       if (kind === 'file' || row.sourceKind === 'file') {
         throw new IntegrationInputError('Pause this integration before changing its file or tab.', 'sheetName');
       }
-      throw kind === 'api' || row.sourceKind === 'api'
-        ? new IntegrationInputError('Pause this integration before changing its API connection.', 'apiConfig')
+      throw usesApiConfig(kind) || usesApiConfig(row.sourceKind)
+        ? new IntegrationInputError(`Pause this integration before changing its ${kind === 'mcp' ? 'MCP' : 'API'} connection.`, 'apiConfig')
         : new IntegrationInputError('Pause this integration before changing its sheet.', 'link');
     }
     data.connectionTestedAt = null;
@@ -787,17 +793,17 @@ export const recordConnectionTest = async (
     || (opts.testStartedAt !== undefined && !!row.secretSetAt && row.secretSetAt.getTime() > opts.testStartedAt.getTime());
   if (changedDuringTest) {
     throw new IntegrationInputError('The connection changed while it was being tested. Test it again.',
-      row.sourceKind === 'api' ? 'apiConfig' : row.sourceKind === 'file' ? 'file' : 'link');
+      usesApiConfig(row.sourceKind) ? 'apiConfig' : row.sourceKind === 'file' ? 'file' : 'link');
   }
   const ok = result.ok && fp !== null;
   // The WHERE re-checks the config read above, so a link edited between the
   // read and this write cannot inherit a pass that was earned by the old one.
   // DEF-362: for an api row that is api_config AND secret_set_at — a secret
   // replaced mid-test must not inherit the old secret's pass.
-  const isApi = row.sourceKind === 'api';
+  const isApi = usesApiConfig(row.sourceKind);
   const guard = isApi
     ? {
-      sourceKind: 'api',
+      sourceKind: row.sourceKind,
       apiConfig: row.apiConfig == null ? { equals: Prisma.AnyNull } : { equals: row.apiConfig as Prisma.InputJsonValue },
       secretSetAt: row.secretSetAt ?? null,
     }

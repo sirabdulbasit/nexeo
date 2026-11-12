@@ -565,12 +565,14 @@ export const activate: MappingStoreModule['activate'] = async (cn, id, versionId
     // must be for the CURRENT connection, and so must the dry run below. For
     // an api integration that is api_config + secret_set_at (a new credential
     // is a new connection).
-    const isApi = row.sourceKind === 'api';
+    // DEF-447: an MCP connection is api_config + its token, like an API's.
+    const isApi = row.sourceKind === 'api' || row.sourceKind === 'mcp';
+    const conn = row.sourceKind === 'mcp' ? 'MCP' : 'API';
     const fp = currentFingerprint(row);
-    if (!fp) reasons.push(isApi ? 'Set up the API connection first.' : row.sourceKind === 'file' ? 'Upload the spreadsheet first.' : 'Connect a Google Sheet first.');
+    if (!fp) reasons.push(isApi ? `Set up the ${conn} connection first.` : row.sourceKind === 'file' ? 'Upload the spreadsheet first.' : 'Connect a Google Sheet first.');
     else if (!row.connectionTestedAt || row.connectionFingerprint !== fp) {
       reasons.push(isApi
-        ? 'The API connection or its credential changed since its connection test. Test the connection again.'
+        ? `The ${conn} connection or its credential changed since its connection test. Test the connection again.`
         : row.sourceKind === 'file'
           ? 'The file or its tab changed since its connection test. Test the connection again.'
           : 'The sheet changed since its connection test. Test the connection again.');

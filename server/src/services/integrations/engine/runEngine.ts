@@ -433,13 +433,15 @@ export const runIntegration: RunEngineModule['runIntegration'] = async (cn, id, 
     // fails here with what is missing, before any read.
     const problem = sourceProblem(integ);
     if (problem) {
-      return await fail(integ.sourceKind !== 'api' && integ.sourceKind !== 'file' ? 'No Google Sheet is connected to this integration.' : problem.message);
+      return await fail((integ.sourceKind ?? 'gsheet') === 'gsheet' ? 'No Google Sheet is connected to this integration.' : problem.message);
     }
     // "The tested connection is the one runs use" (spec §3): a live write never
     // reads a sheet that has not passed its test since it was last changed.
     if (!opts.dryRun && !isConnectionOk(integ)) {
       return await fail(integ.sourceKind === 'file'
         ? 'The file connection has not passed its test since the file or its tab last changed — test the connection first.'
+        : integ.sourceKind === 'mcp' || integ.sourceKind === 'api'
+        ? `The ${integ.sourceKind === 'mcp' ? 'MCP' : 'API'} connection has not passed its test since it or its credential last changed — test the connection first.`
         : 'The sheet connection has not passed its test since it was last changed — test the connection first.');
     }
 
@@ -502,7 +504,7 @@ export const runIntegration: RunEngineModule['runIntegration'] = async (cn, id, 
     try {
       read = await readSource(cn, integ);
     } catch (err) {
-      return await fail(`The ${integ.sourceKind === 'api' ? 'API' : integ.sourceKind === 'file' ? 'file' : 'sheet'} could not be read: ${adminText(err, 'the read failed unexpectedly. Try again in a few minutes.', { clientNumber: cn, integrationId: id, runId })}`);
+      return await fail(`The ${integ.sourceKind === 'api' ? 'API' : integ.sourceKind === 'mcp' ? 'MCP server' : integ.sourceKind === 'file' ? 'file' : 'sheet'} could not be read: ${adminText(err, 'the read failed unexpectedly. Try again in a few minutes.', { clientNumber: cn, integrationId: id, runId })}`);
     }
     counts.recordsRead = read.rowCount;
     readComplete = !read.truncated;

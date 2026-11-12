@@ -78,7 +78,7 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
   const notices = reviewNotices(spec);
   const coverage = Array.isArray(spec.coverage) ? spec.coverage : [];
   const notUsed = notUsedFromSpec(spec);
-  const isApi = integ.sourceKind === 'api';
+  const isApi = integ.sourceKind === 'api' || integ.sourceKind === 'mcp'; // DEF-447: records and fields, like an API
 
   // "Where it goes" for the coverage table: every suggestion that reads the field.
   const destinations = useMemo(() => {

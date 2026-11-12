@@ -64,6 +64,7 @@ import { readKpiRecipe } from '../engine/kpiRecipe';
 import { applyRecordFilter, validateRecordFilter } from '../engine/recordFilter';
 import {
   FILTER_TARGET_KEY,
+  usesApiConfig,
   IntegrationInputError,
   IntegrationNotFoundError,
   KPI_KEY_RE,
@@ -832,15 +833,17 @@ export async function runProposal(
   const problem = sourceProblem(integ);
   if (problem) {
     throw new IntegrationInputError(
-      integ.sourceKind !== 'api' && integ.sourceKind !== 'file' ? 'Connect a Google Sheet before asking for a mapping.' : problem.message, problem.field);
+      (integ.sourceKind ?? 'gsheet') === 'gsheet' ? 'Connect a Google Sheet before asking for a mapping.' : problem.message, problem.field);
   }
 
-  const isApi = integ.sourceKind === 'api';
-  onStage(isApi ? 'Reading the API' : 'Reading the sheet');
+  // DEF-447: an MCP server's records are API-shaped (fields, records, an id field).
+  const isApi = usesApiConfig(integ.sourceKind);
+  const isMcp = integ.sourceKind === 'mcp';
+  onStage(isMcp ? 'Calling the MCP tool' : isApi ? 'Reading the API' : 'Reading the sheet');
   const read = await readSource(cn, integ);
   if (read.records.length === 0) {
     throw new ProposalError(isApi
-      ? 'The API returned no records, so there is nothing to map.'
+      ? `The ${isMcp ? 'MCP tool' : 'API'} returned no records, so there is nothing to map.`
       : 'The sheet has no data rows, so there is nothing to map.');
   }
 
@@ -898,11 +901,11 @@ export async function runProposal(
     approvedFromVersion: carried.length && previous ? previous.version : null,
     rejected,
     rowCount: read.rowCount,
-    docReading: isApi ? docReadingOf(integ.apiDocReading) : null,
+    docReading: integ.sourceKind === 'api' ? docReadingOf(integ.apiDocReading) : null,
     filterInstructions: filterWords,
     connectInstructions: integ.connectInstructions,
     fieldNotes: buildFieldNotes(coverage, idField),
-    sourceNoun: isApi ? 'API' : 'sheet',
+    sourceNoun: isMcp ? 'MCP server' : isApi ? 'API' : 'sheet',
   });
 
   onStage(`Asking the AI what each ${isApi ? 'field' : 'column'} means`);

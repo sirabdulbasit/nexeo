@@ -163,7 +163,7 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
         <span style={s.hint}>Mapping version {version.version} · {approvedCount} approved field{approvedCount === 1 ? '' : 's'}</span>
       </div>
       <p style={s.hint}>
-        The test reads the {integ.sourceKind === 'api' ? 'API' : 'sheet'} now and shows exactly what would change — numbers and knowledge pages. It writes nothing.
+        The test reads the {integ.sourceKind === 'api' ? 'API' : integ.sourceKind === 'mcp' ? 'MCP server' : integ.sourceKind === 'file' ? 'file' : 'sheet'} now and shows exactly what would change — numbers and knowledge pages. It writes nothing.
       </p>
 
       <div style={{ ...s.row, marginTop: 12 }}>
@@ -179,12 +179,12 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
           {run.status === 'FAILED' || run.status === 'ABORTED' ? (
             <div style={s.error}>The test did not pass. {run.error || r?.error || ''}</div>
           ) : run.status === 'PARTIAL' ? (
-            <div style={s.warnBox}>Only part of the {integ.sourceKind === 'api' ? 'data' : 'sheet'} could be read, so this test does not count as a pass. {(r?.anomalies || []).join(' ')}</div>
+            <div style={s.warnBox}>Only part of the {integ.sourceKind === 'api' || integ.sourceKind === 'mcp' ? 'data' : 'sheet'} could be read, so this test does not count as a pass. {(r?.anomalies || []).join(' ')}</div>
           ) : null}
 
           {r && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8, marginTop: 12 }}>
-              <Tile label={integ.sourceKind === 'api' ? 'Records read' : 'Rows read'} value={r.recordsRead} />
+              <Tile label={integ.sourceKind === 'api' || integ.sourceKind === 'mcp' ? 'Records read' : 'Rows read'} value={r.recordsRead} />
               {(Number(r.filteredOut) > 0 || hasFilter) && <Tile label="Records filtered out" value={r.filteredOut} />}
               <Tile label="KPI figures to write" value={r.writes} />
               {ctx && <Tile label="Knowledge pages to create" value={ctx.created} color={ctx.created ? C.ok : undefined} />}

@@ -68,6 +68,7 @@ import {
 } from '../../services/integrations/types';
 import { sourceProblem, testSource } from '../../services/integrations/sources';
 import { readApiConfig, testApiWith } from '../../services/integrations/sources/apiReader';
+import { listMcpTools, testMcpTokenWith } from '../../services/integrations/sources/mcpReader';
 import { attachApiDocument, readApiDocument } from '../../services/integrations/sources/docReader';
 import { getPreview, previewPage } from '../../services/integrations/engine/previewStore';
 import { tryDocumentKeys } from '../../services/integrations/sources/docKeys';
@@ -445,11 +446,20 @@ function runDocUpload(req: Request, res: Response): Promise<void> {
 
 const mb = (n: number): string => `${Math.round((n / (1024 * 1024)) * 10) / 10} MB`;
 
+/** DEF-447: an integration whose connection is api_config + secret (API or MCP). */
+async function requireConnectionIntegration(cn: string, id: string) {
+  const integ = await requireIntegration(cn, id);
+  if (integ.sourceKind === 'mcp') return integ;
+  return requireApiIntegration(cn, id);
+}
+
 async function requireApiIntegration(cn: string, id: string) {
   const integ = await requireIntegration(cn, id);
   if (integ.sourceKind !== 'api') {
     throw new HttpError(400, integ.sourceKind === 'file'
       ? 'This integration reads an uploaded file; an API document or credential does not apply.'
+      : integ.sourceKind === 'mcp'
+      ? 'This integration reads an MCP server; an API document does not apply.'
       : 'This integration reads a Google Sheet; an API document or credential does not apply.', { field: 'sourceKind' });
   }
   return integ;
@@ -646,18 +656,26 @@ router.put('/:id/secret', handle('PUT /:id/secret', async (req, res) => {
   if (typeof body.secret !== 'string' || !body.secret.trim() || body.secret.length > MAX_SECRET_BODY_CHARS) {
     throw new HttpError(400, 'Enter the credential.', { field: 'secret' });
   }
-  const integ = await requireApiIntegration(cn, id);
+  // DEF-447: an MCP server's token is stored the same way (encrypted, write-only).
+  const integ = await requireConnectionIntegration(cn, id);
+  const isMcp = integ.sourceKind === 'mcp';
   // The stored config through the readers' own normaliser (the DTO's apiConfig
   // already is; re-applied so this route never trusts a shape it did not check):
   // the candidate is tested against exactly what a run would use.
   const cfg = readApiConfig(integ.apiConfig);
-  if (!cfg) throw new HttpError(400, 'Set up the API connection (an https base URL, endpoint and records path) first.', { field: 'apiConfig' });
+  if (!cfg) {
+    throw new HttpError(400, isMcp ? 'Set up the MCP server address first.' : 'Set up the API connection (an https base URL, endpoint and records path) first.', { field: 'apiConfig' });
+  }
   if (cfg.authScheme === 'NONE') {
     throw new HttpError(400, 'This connection is set to sign in with nothing; choose Bearer token, API key or Basic first.', { field: 'authScheme' });
   }
   // Test-first (spec §2b): one real request WITH THE CANDIDATE. A failing
   // candidate is not stored, so a working secret is never overwritten by it.
-  const out = await setSecret(cn, id, body.secret, { testFirst: (plain) => testApiWith(cn, cfg, plain) });
+  // MCP: the tool may not be chosen yet, so the candidate is proven by the
+  // handshake and the tool list (mcpReader.testMcpTokenWith).
+  const out = await setSecret(cn, id, body.secret, {
+    testFirst: (plain) => (isMcp ? testMcpTokenWith(cn, cfg, plain) : testApiWith(cn, cfg, plain)),
+  });
   const verified = out.stored && !!out.test?.ok;
   res.json({
     stored: out.stored,
@@ -665,6 +683,27 @@ router.put('/:id/secret', handle('PUT /:id/secret', async (req, res) => {
     reason: out.reason ?? null,
     integration: await requireIntegration(cn, id),
   });
+}));
+
+// ── DEF-447: an MCP server's tools (Connect, sourceKind 'mcp') ─────────────
+
+/**
+ * The tools the connected MCP server offers, so the admin picks the one that
+ * returns the records. Uses the SAVED address and the stored token (the form
+ * saves before it asks). Reads only: initialize + tools/list, never tools/call.
+ */
+router.get('/:id/mcp/tools', handle('GET /:id/mcp/tools', async (req, res) => {
+  const cn = tenantOf(req);
+  const id = idParam(req);
+  const integ = await requireIntegration(cn, id);
+  if (integ.sourceKind !== 'mcp') throw new HttpError(400, 'This integration does not read an MCP server.', { field: 'sourceKind' });
+  const cfg = readApiConfig(integ.apiConfig);
+  if (!cfg) throw new HttpError(400, 'Enter the MCP server address (https://…) first.', { field: 'apiConfig' });
+  try {
+    res.json({ tools: await listMcpTools(cn, { id, apiConfig: cfg }) });
+  } catch (err) {
+    res.json({ tools: [], reason: (err as Error).message });
+  }
 }));
 
 // ── Step 3: Mapping ────────────────────────────────────────────────────────

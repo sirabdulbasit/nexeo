@@ -1,11 +1,24 @@
 # Integrations — design (Admin → Integrations)
 
-**Status:** Stage 1 in build (DEF-354), 2026-10-26. Owner scope 2026-10-23: core wizard first; map
-targets KPI numbers, people/contacts, feed events, Brain knowledge; sources Google Sheet first,
-then REST, Odoo, Qlik; UI under Admin.
+**Status:** LIVE (Admin → Integrations). Last updated 2026-11-12 with DEF-447 (MCP server source).
+Owner rule 2026-11-12: *"Integration should be documented properly and updated after every build"* —
+every integrations build updates §0 and its own section here, in the same commit.
+Original scope (owner 2026-10-23): core wizard first; map targets KPI numbers, people/contacts, feed
+events, Brain knowledge; sources Google Sheet first, then REST, Odoo, Qlik; UI under Admin.
 **Ported from:** vm `Documentations/06_INTEGRATION.md` (§7 screens, §8 failure rules, §9
 invariants). Draft + adversarial critique against both codebases: 2026-10-26 workflow
 `integration-port-understand`. Every critique correction is applied below.
+
+## 0. What it does now (current state — read this first)
+
+| | |
+|---|---|
+| **Sources** (Basics → "Where the data comes from") | **Google Sheet** (link; public or via the designated Google account) · **API (with its document)** (the AI reads the attached document and fills the connection; keys printed in it are tried and kept encrypted) · **Excel or CSV file** (uploaded copy, read every run) · **MCP server** (inbound: an outside system's MCP endpoint; one of its tools is called and its answer read as records — §2d). Outbound MCP (Nexeo's own `/api/v1/mcp`) is **held** (owner 11-12). |
+| **Five steps** | Basics · Connect (test reads the source for real; exactly one record shown; "Records cannot be identified" names the fields that could identify one) · Review the mapping (instructions box + **Re-generate the proposal** at the top) · Schedule · Test & turn on (dry run: KPI figures to write / proposal rows set aside / existing figures changed; a KPI × month table whose figures open the records behind them; every record read, in the source's own fields, mapped fields first ●). |
+| **Destinations** | **KPI figures** → `kpi_readings` (one slot = KPI + month + breakdown), definitions in `kpi_definitions`; **knowledge pages** → Wiki `org_doc` pages, one per record (tenant-wide); **filter** rows narrow what is read. |
+| **Data already there** | Same value → nothing written; different value → replaced, old → new kept in the run's change log; a KPI fed by another integration → the run stops; a blank never overwrites; a page whose title already exists (written by hand) is not overwritten; a record gone from a complete read → its page is marked stale, never deleted. |
+| **Safety** | Every outside request through the fetch guard (https, pinned vetted address, same origin, byte and time caps); secrets encrypted, write-only, sent only to the configured origin, dropped when the origin moves; the AI works only at design time, never on a run; a scheduled run changing more than the change limit (default 25 %) of what it holds stops before writing; one transaction per run for the figures. |
+| **Known gaps** | KPI figures are not yet Wiki pages (handed to the "wiki" session, 11-12); no screen to browse stored KPI figures outside the Test step; MCP: one tool call per read (no paging), Streamable HTTP only. |
 
 ## 1. What it does
 
@@ -256,6 +269,56 @@ same dry-run / change-cap / one-transaction rules. Monthly only; the running mon
 Drive OAuth (would bypass the designated account), the process-wide network policy, goal-specific
 prompts.
 
+## 2d. Fourth source: an MCP server, inbound (DEF-447, 2026-11-12)
+
+Owner (CL-085): *"there are 2 type of MCP integration — Inbound: receive data from external mcp (we
+need this) — Outbound: send data through mcp (hold this)"*, *"it should be part of existing
+integration UI/UX with separate source"*.
+
+**What the admin does.** Basics: choose **MCP server**. Connect: the server's address (https, often
+ending in `/mcp`), how Nexeo signs in (None · Bearer token · API key header · username:password) and
+the token (write-only box) → **List the tools** → pick the tool that returns the records (its name,
+title and description are shown, and what it takes, from its own input schema) → its settings as JSON
+(pre-filled only with the defaults its schema declares) → where the records are in its answer, how a
+record is identified, where a total count is → **Test the connection**. Review, Schedule and Test &
+turn on are unchanged.
+
+**How it is kept.** `source_kind = 'mcp'` (migration `20261112_integrations_mcp_source`, widened
+CHECK, no new column). The connection lives in `api_config` in the API connection's shape: `baseUrl` =
+the MCP endpoint, `mcpTool` = the tool, `body` = its arguments, `recordsPath`, `idField`,
+`declaredTotalPath`; `method` POST and no paging. The token is the same encrypted `secret_enc`, bound to
+the address's origin. So the store's validation (credential-named settings refused), the fingerprint
+(a changed tool, setting or token needs a new test), pause-before-edit and the Wiki/KPI writers are
+the API's, unchanged.
+
+**What Nexeo speaks** (`sources/mcpReader.ts`): MCP Streamable HTTP — JSON-RPC 2.0 POSTed to the
+one endpoint, answered as JSON or as an event stream: `initialize` (protocol `2025-06-18`, the
+server's answer is used after) → `notifications/initialized` → `tools/list` (follows `nextCursor`,
+≤ 5 pages, ≤ 200 tools) or `tools/call`. The server's `Mcp-Session-Id` and the negotiated version
+ride on every later request. Every request goes through the fetch guard; the token is attached only
+by it; text the server sends back is scrubbed of the token before it reaches a screen or a log.
+
+**Reading the answer.** `structuredContent` first; otherwise the text content, accepted only when it
+IS JSON (several parts ⇒ a list of them). Prose is refused with what it said; `isError` is reported
+with the tool's own words; an answer with no list says what it holds ("result (text) — a written
+answer, not data"). The records are flattened exactly like an API's (dotted fields), so the field
+inventory, proposer, filter, planner, records view and Context writer see one record shape. One call
+per read: over `integrations.max_rows` ⇒ truncated (run PARTIAL); a declared total not reached ⇒
+truncated.
+
+**Checking a token.** The tool may not be chosen yet, so a new token is proven by the handshake and
+the tool list (`testMcpTokenWith`), never by calling a tool; a failing token is not stored over a
+working one.
+
+**Not supported (said in words on the screen).** Servers that run only on a computer (stdio) and the
+older SSE-only transport; OAuth sign-in flows (a token is pasted); a tool that pages its answer
+(one call reads the first page — the declared-total check reports it).
+
+**Verified.** 36 tests (`tests/def447IntegrationMcpSource.test.ts`, mutation-checked: session id,
+structuredContent, row cap, auth attachment, JSON-only text). Live 11-12 against a public MCP server
+(`mcp.deepwiki.com/mcp`, no sign-in): handshake over an event stream, 3 tools listed, tool called;
+its answer was prose, and the message now says so.
+
 ## 3. Rules carried from vm §8/§9 (each pinned by a test that fails when weakened)
 
 Blank never overwrites · identity/account fields unwritable · proposable ≠ writable (approval is
@@ -290,4 +353,5 @@ pages (through the existing `org_doc` upsert, not a second wiki writer) · 3 gen
 (SSRF guard with pinned DNS, same-origin paging, declared-total completeness, test-before-store
 credentials, DEF-356 fix first) · 4 Qlik (loopback only for `source_kind='qlik'` behind a
 SuperAdmin-set per-tenant flag — the bridge has no tenant concept) and Odoo (reuse the per-tenant
-`odoo_*` config). Excel upload once a safe parser is pinned.
+`odoo_*` config). ~~Excel upload once a safe parser is pinned~~ — done (DEF-368, §2b). MCP server
+inbound — done (DEF-447, §2d); outbound MCP held (owner 11-12).
