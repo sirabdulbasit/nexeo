@@ -4,9 +4,16 @@
  *  DEF-435  the brief names what to do first (late, due within 3 days, high) with a due phrase, counts the rest
  *           exactly, and its asks follow the agreed Action Center definition.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const gemini = vi.fn();
+vi.mock('../src/services/geminiService', () => ({ callGemini: (...a: any[]) => gemini(...a) }));
+vi.mock('../src/db/prisma', () => ({ default: {
+  feedEvent: { findFirst: async () => ({ sourceType: 'gchat', rawPayload: { spaceName: 'spaces/X', text: 'i cant accept' } }) },
+  $queryRawUnsafe: async () => [{ d: 'Syeda Uzma Shah', t: 'i cant accept' }, { d: 'Basit Ahmed', t: 'Hi' }],
+} }));
 import { isAllDayStart } from '../src/services/views/calendar';
-import { splitDoFirst, duePhrase, renderDayBriefBlock } from '../src/services/views/dayBrief';
+import { splitDoFirst, duePhrase, renderDayBriefBlock, judgeAsks } from '../src/services/views/dayBrief';
 
 const item = (title: string, priority: string, due: string | null): any => ({ id: title, title, priority, dueDate: due ? new Date(`${due}T12:00:00Z`) : null, delegateeName: null });
 
@@ -48,5 +55,36 @@ describe('DEF-435 do first, by name', () => {
     expect(block).toContain('## Other open items (12)');
     expect(block).toContain('- 12 more in the Action Center');
     expect(block).not.toContain('m0');
+  });
+});
+
+describe('owner 11-12: asks judged in their conversation, no repeats, own words', () => {
+  const cands: any[] = [
+    { itemType: 'whatsapp', feedEventId: 'f1', from: 'Syeda Uzma Shah', preview: 'i cant accept', subject: 'spaces/X' },
+    { itemType: 'email', threadId: 'T2', from: 'Haseeb <haseeb@tmcltd.com>', subject: 'TMC Context' },
+  ];
+  const base = { clientNumber: 'T', userId: 2, ownEmails: ['basit.ahmed@tmcltd.com'], ownName: 'Basit Ahmed', candidates: cands, openTitles: ['Send Haseeb your TBA comments'], calendarTitles: ['TMC System Catalogues'] };
+  beforeEach(() => gemini.mockReset());
+  it('keeps only what the judge keeps, with its own line; the judge sees the conversation, open items and calendar', async () => {
+    gemini.mockResolvedValue(JSON.stringify({ keep: [{ id: 'c1', line: 'Haseeb wants your plan for TMC Context.' }] }));
+    const out: any[] = await judgeAsks(base);
+    expect(out.map((a) => a.briefLine)).toEqual(['Haseeb wants your plan for TMC Context.']);
+    const [system, user] = gemini.mock.calls[0];
+    expect(system).toMatch(/same matter as one of his open items, a calendar event today, or another kept candidate/);
+    expect(user).toContain('Syeda Uzma Shah: i cant accept');
+    expect(user).toContain('His open items: Send Haseeb your TBA comments');
+    expect(user).toContain('His calendar today: TMC System Catalogues');
+  });
+  it('the line, not the raw text, reaches the brief', () => {
+    const block = renderDayBriefBlock({ generatedAt: new Date(), localDate: '2026-11-12', localTimezone: 'Asia/Karachi', calendar: [], openItems: [], attention: [],
+      asks: [{ itemType: 'email', from: 'x', subject: 'RAW SUBJECT', briefLine: 'Haseeb wants your plan for TMC Context.' }], recentEmails: [], recentWhatsApp: [], followUps: null } as any);
+    expect(block).toContain('- Haseeb wants your plan for TMC Context.');
+    expect(block).not.toContain('RAW SUBJECT');
+  });
+  it('when the model gives no usable answer, the definition-filtered list stands (nothing is lost)', async () => {
+    gemini.mockResolvedValue('not json at all');
+    expect((await judgeAsks(base)).length).toBe(2);
+    gemini.mockResolvedValue(JSON.stringify({ something: 'else' }));
+    expect((await judgeAsks(base)).length).toBe(2);
   });
 });

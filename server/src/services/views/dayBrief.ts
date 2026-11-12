@@ -150,9 +150,15 @@ export async function getDayBrief(args: {
     `SELECT metadata->'derivedFrom'->>'threadId' AS t FROM open_items WHERE id = ANY($1::text[])`,
     openItems.map((o) => o.id),
   ).catch(() => [] as Array<{ t: string | null }>);
-  const asks = briefAsks(attention, {
+  const candidates = briefAsks(attention, {
     ownEmails, ownName: String(owner?.name ?? ''),
     openThreadIds: new Set(threads.map((r) => r.t).filter((t): t is string => !!t)),
+  });
+  // Owner, 11-12: read each ask in its conversation, keep it only if it is really an ask of him, and never
+  // repeat what his open items, his calendar or another ask already say.
+  const asks = await judgeAsks({
+    clientNumber, userId, ownEmails, ownName: String(owner?.name ?? ''), candidates,
+    openTitles: openItems.map((o) => o.title), calendarTitles: calendar.map((e) => e.title),
   });
 
   return {
@@ -206,6 +212,85 @@ export function briefAsks(
     if (x.threadId && ctx.openThreadIds.has(String(x.threadId))) return false; // already an open item
     return true;
   });
+}
+
+/** One candidate ask with the conversation around it, as the judge reads it. */
+async function contextOf(clientNumber: string, userId: number, a: any, ownEmails: string[]): Promise<{ text: string; around: string[] }> {
+  const mine = (from: string) => ownEmails.some((e) => from.toLowerCase().includes(e));
+  const clean = (v: unknown) => String(v ?? '').replace(/\s+/g, ' ').trim();
+  if (a.feedEventId) {
+    const fe = await prisma.feedEvent.findFirst({ where: { id: String(a.feedEventId), clientNumber, userId } as any, select: { sourceType: true, rawPayload: true, createdAt: true } as any }).catch(() => null) as any;
+    const p = (fe?.rawPayload ?? {}) as any;
+    if (fe?.sourceType === 'gchat' && p.spaceName) {
+      const rows = await prisma.$queryRawUnsafe<Array<{ d: string | null; t: string | null }>>(
+        `SELECT raw_payload->>'senderDisplayName' AS d, coalesce(raw_payload->>'text', raw_payload->>'snippet') AS t FROM feed_events
+          WHERE client_number = $1 AND user_id = $2 AND source_type = 'gchat' AND raw_payload->>'spaceName' = $3
+          ORDER BY created_at DESC LIMIT 12`,
+        clientNumber, userId, String(p.spaceName),
+      ).catch(() => [] as Array<{ d: string | null; t: string | null }>);
+      return { text: clean(p.text ?? p.snippet), around: rows.reverse().filter((r) => clean(r.t)).map((r) => `${clean(r.d) || 'someone'}: ${clean(r.t).slice(0, 200)}`) };
+    }
+  }
+  if (a.threadId) {
+    const rows = await prisma.$queryRawUnsafe<Array<{ s: string | null; t: string | null }>>(
+      `SELECT sender_email AS s, raw_payload->>'snippet' AS t FROM feed_events
+        WHERE client_number = $1 AND user_id = $2 AND raw_payload->>'threadId' = $3 ORDER BY created_at DESC LIMIT 8`,
+      clientNumber, userId, String(a.threadId),
+    ).catch(() => [] as Array<{ s: string | null; t: string | null }>);
+    const seen = new Set<string>();
+    const around = rows.reverse().filter((r) => { const k = clean(r.t).slice(0, 80); if (!k || seen.has(k)) return false; seen.add(k); return true; })
+      .map((r) => `${mine(String(r.s ?? '')) ? 'HIM' : clean(String(r.s ?? '').replace(/<[^>]*>/g, '')) || 'someone'}: ${clean(r.t).slice(0, 220)}`);
+    return { text: clean(a.preview || a.subject), around };
+  }
+  return { text: clean(a.preview || a.subject), around: [] };
+}
+
+/**
+ * The brief's "New asks", judged: each candidate read in its conversation; kept only when it is a concrete,
+ * still-open ask of him that his open items, today's calendar and the other asks do not already cover; and
+ * written in plain words, never copied. When the model cannot answer, the definition-filtered list stands.
+ */
+export async function judgeAsks(args: {
+  clientNumber: string; userId: number; ownEmails: string[]; ownName: string;
+  candidates: AttentionRow[]; openTitles: string[]; calendarTitles: string[];
+}): Promise<AttentionRow[]> {
+  const list = args.candidates.slice(0, 12);
+  if (list.length === 0) return [];
+  try {
+    const ctx = await Promise.all(list.map((a) => contextOf(args.clientNumber, args.userId, a, args.ownEmails)));
+    const who = args.ownName || 'the owner';
+    const system = [
+      `You prepare the "New asks" section of ${who}'s morning brief. Each candidate is a message with the conversation around it (HIM = ${who}).`,
+      `Keep a candidate only if it is a concrete ask of ${who} himself that is still open: someone wants him to decide, approve, reply with something specific, provide, review, or meet with a purpose.`,
+      'Drop it if it is small talk, a greeting, a thank-you, a confirmation, a link with no request, something asked of someone else, or a matter settled later in the conversation (also by him).',
+      `Drop it if it is the same matter as one of his open items, a calendar event today, or another kept candidate (keep only the clearest one).`,
+      'For each kept candidate write one line in plain English: who wants what from him, in your own words, at most 18 words. No quotes, no links, no raw subject lines.',
+      'Answer strict JSON only: {"keep":[{"id":"<candidate id>","line":"..."}]}',
+    ].join('\n');
+    const user = [
+      `His open items: ${args.openTitles.join(' | ') || '(none)'}`,
+      `His calendar today: ${args.calendarTitles.join(' | ') || '(none)'}`,
+      ...list.map((a: any, i) => [
+        `\nCandidate c${i} (${a.itemType === 'whatsapp' ? 'chat' : a.itemType || 'email'}) from ${String(a.fromDisplay || a.from || 'someone').replace(/<[^>]*>/g, '').trim()}, about: ${String(a.subject || '').slice(0, 140)}`,
+        `Message: ${ctx[i].text.slice(0, 400) || '(no text)'}`,
+        ctx[i].around.length ? `Conversation (oldest first):\n${ctx[i].around.join('\n')}` : 'Conversation: (none stored)',
+      ].join('\n')),
+    ].join('\n');
+    const { callGemini } = await import('../geminiService');
+    const raw = await callGemini(system, user, { flash: true, maxTokens: 900, responseMimeType: 'application/json' });
+    const parsed = JSON.parse(String(raw)) as { keep?: Array<{ id?: string; line?: string }> };
+    if (!Array.isArray(parsed?.keep)) return list;
+    const out: AttentionRow[] = [];
+    for (const k of parsed.keep) {
+      const i = Number(String(k.id ?? '').replace(/^c/, ''));
+      const line = String(k.line ?? '').trim();
+      if (!Number.isInteger(i) || !list[i] || !line) continue;
+      out.push({ ...(list[i] as any), briefLine: line.slice(0, 200) });
+    }
+    return out;
+  } catch {
+    return list;
+  }
 }
 
 const DAY_MS = 86_400_000;
@@ -280,7 +365,7 @@ export function renderDayBriefBlock(data: DayBriefData): string {
     const who = String(x.fromDisplay || x.from || '').replace(/<[^>]*>/g, '').replace(/"/g, '').trim() || 'someone';
     // A chat's "subject" is its space id; what was said is the preview.
     const what = String((x.itemType === 'whatsapp' ? (x.preview || x.subject) : (x.subject || x.preview)) || x.title || 'a message').replace(/^((re|fw|fwd)\s*:\s*)+/i, '').slice(0, 120);
-    parts.push(`- ${who}: ${what} (${x.itemType === 'whatsapp' ? 'chat' : x.itemType || 'email'})`);
+    parts.push(x.briefLine ? `- ${x.briefLine}` : `- ${who}: ${what} (${x.itemType === 'whatsapp' ? 'chat' : x.itemType || 'email'})`);
   }
   if (asks.length > 8) parts.push(`- +${asks.length - 8} more new asks`);
 
