@@ -450,3 +450,9 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **C4:** the consumption record adds `meeting_transcript_minutes`, a count only.
   - **Next:** after the founder's "agree F-4", Suzi Master writes the F-4 text into Functional_Charter.md and C4 into Costing_Charter.md. Nexeo then mirrors both byte-identical and builds.
 - **Way A scope, agreed 12 Nov:** "Way A covers meetings the user hosts on a Google account connected to Nexeo. Any other meeting, including one hosted by a colleague at TMC, is meeting.status not_covered for him (he can still take notes on his computer)." This replaces N1's "hosted at TMC". A colleague's transcript is the colleague's own record.
+- **Imperialsoft report, 12 Nov.** Project nexeo-tmc is 911071183217.
+  - **Sign-in app:** client `911071183217-aa03dh5oecml97o1ajie97k1f41m5orc`. It is External and has been in production since 11 Nov, so tokens no longer expire after 7 days. It is not yet verified, which caps it at 100 users.
+  - **Meet scopes:** `meetings.space.readonly` is sensitive and `meetings.space.settings` is non-sensitive. Neither is restricted.
+  - **Pub/Sub:** the topic and the push subscription `meet-transcripts-nexeo` are done.
+  - **Blocked:** the Publisher grant for `meet-api-event-push@system.gserviceaccount.com` was refused by the org policy `iam.allowedPolicyMemberDomains`. Imperialsoft has been asked for a project-only exception.
+  - **Way A works without events:** Nexeo polls `conferenceRecords` about 15 minutes after each hosted event ends, and the events only make notes arrive sooner.
