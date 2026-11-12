@@ -29,6 +29,8 @@ export type Gcal = {
   get(eventId: string): Promise<any>;
   patch(eventId: string, body: any, sendUpdates: 'all' | 'none'): Promise<any>;
   remove(eventId: string, sendUpdates: 'all' | 'none'): Promise<void>;
+  list?(timeMin: string, timeMax: string): Promise<any[]>;
+  insert?(body: any, sendUpdates: 'all' | 'none', withMeet: boolean): Promise<any>;
 };
 
 async function googleCalendar(userId: number): Promise<Gcal | string> {
@@ -41,6 +43,8 @@ async function googleCalendar(userId: number): Promise<Gcal | string> {
     get: async (eventId) => (await cal.events.get({ calendarId: 'primary', eventId })).data,
     patch: async (eventId, body, sendUpdates) => (await cal.events.patch({ calendarId: 'primary', eventId, requestBody: body, sendUpdates })).data,
     remove: async (eventId, sendUpdates) => { await cal.events.delete({ calendarId: 'primary', eventId, sendUpdates }); },
+    list: async (timeMin, timeMax) => (await cal.events.list({ calendarId: 'primary', timeMin, timeMax, singleEvents: true, maxResults: 50 })).data.items ?? [],
+    insert: async (body, sendUpdates, withMeet) => (await cal.events.insert({ calendarId: 'primary', requestBody: body, sendUpdates, conferenceDataVersion: withMeet ? 1 : 0 })).data,
   };
 }
 
@@ -140,10 +144,59 @@ export async function calendarCancel(clientNumber: string, userId: number, a: Ar
   }
 }
 
-export const CALENDAR_OPS = ['calendar.update', 'calendar.cancel'] as const;
+/**
+ * F-2.8 (agreed by Suzi Master 11 Nov, by the founder 12 Nov 2026): calendar.create
+ *   {title, start, end, attendees?[email | person_id], note?, location?, meet?, allow_clash?}
+ * A new event on his primary calendar. A time that overlaps one of his busy events is 409 `clash` (with what it
+ * clashes with) unless allow_clash is true. Inviting anyone else reaches other people: confirmed, signed and voiced,
+ * and Google sends the invitations. With nobody else it needs only his confirmation. A Meet link is added when
+ * others are invited, unless meet is false.
+ */
+export async function calendarCreate(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate, cal?: Gcal): Promise<Result> {
+  const title = text(a.title).slice(0, 300);
+  if (!title) return fail('bad_title');
+  const start = text(a.start); const end = text(a.end);
+  if (!ISO.test(start) || !ISO.test(end)) return fail('bad_time', 'start and end need a date, a time and an offset');
+  const s = Date.parse(start); const e = Date.parse(end);
+  if (!(e > s)) return fail('bad_time', 'the end must be after the start');
+  const invite = await addresses(clientNumber, userId, a.attendees);
+  if (!invite) return fail('bad_attendee', 'an attendee is neither an email nor one of his people with an email');
+  if (!confirmed) return fail('needs_confirmation');
+  const reachesOthers = invite.length > 0;
+  if (reachesOthers && !signedOk(gate, confirmed)) return fail('needs_signature', 'other people are invited: a signed, voiced yes is needed');
+  const c = cal ?? await googleCalendar(userId);
+  if (typeof c === 'string') return fail('rejected', c);
+  if (!c.list || !c.insert) return fail('rejected', 'calendar not available');
+  if (a.allow_clash !== true) {
+    let busy: any[] = [];
+    try { busy = await c.list(new Date(s).toISOString(), new Date(e).toISOString()); } catch (err: any) {
+      return fail('rejected', String(err?.message ?? 'could not read his calendar').slice(0, 200));
+    }
+    const clashes = busy.filter((x) => x?.status !== 'cancelled' && x?.transparency !== 'transparent' && x?.start?.dateTime
+      && Date.parse(x.start.dateTime) < e && Date.parse(x.end?.dateTime ?? x.start.dateTime) > s);
+    if (clashes.length) return fail('clash', clashes.slice(0, 5).map((x) => `${x.summary ?? '(no title)'} ${x.start.dateTime}–${x.end?.dateTime ?? ''}`).join('; '));
+  }
+  const withMeet = reachesOthers ? a.meet !== false : a.meet === true;
+  const body: any = {
+    summary: title, start: { dateTime: new Date(s).toISOString() }, end: { dateTime: new Date(e).toISOString() },
+    ...(text(a.note) ? { description: text(a.note).slice(0, 4000) } : {}),
+    ...(text(a.location) ? { location: text(a.location).slice(0, 300) } : {}),
+    ...(reachesOthers ? { attendees: invite.map((email) => ({ email })) } : {}),
+    ...(withMeet ? { conferenceData: { createRequest: { requestId: `suzi-${s}-${title.length}-${invite.length}`, conferenceSolutionKey: { type: 'hangoutsMeet' } } } } : {}),
+  };
+  try {
+    const made = await c.insert(body, reachesOthers ? 'all' : 'none', withMeet);
+    return { ok: true, item: { ...card(made), meet_link: made?.hangoutLink ?? null, invited: reachesOthers } };
+  } catch (err: any) {
+    return fail('rejected', String(err?.message ?? 'Google refused the event').slice(0, 200));
+  }
+}
+
+export const CALENDAR_OPS = ['calendar.update', 'calendar.cancel', 'calendar.create'] as const;
 
 export async function runCalendarOp(clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: SendGate): Promise<Result> {
   if (op === 'calendar.update') return calendarUpdate(clientNumber, userId, a, confirmed, gate);
   if (op === 'calendar.cancel') return calendarCancel(clientNumber, userId, a, confirmed, gate);
+  if (op === 'calendar.create') return calendarCreate(clientNumber, userId, a, confirmed, gate);
   return fail('unknown_op');
 }

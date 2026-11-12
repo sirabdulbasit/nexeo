@@ -27,9 +27,10 @@ import { GAP_OPS, runGapOp } from './suziGaps';
 import { emailDelegate, taskCreate, taskForward } from './suziDelegate';
 import { CALENDAR_OPS, runCalendarOp } from './suziCalendar';
 import { MEETING_OPS, runMeetingOp } from './suziMeetings';
+import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 
-export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -54,8 +55,8 @@ const fingerprint = (op: string, args: unknown) =>
 
 function statusOf(error: string): 400 | 403 | 404 | 409 {
   if (error === 'not_found') return 404;
-  if (error === 'needs_confirmation') return 403;
-  if (error === 'rejected' || error === 'not_organizer' || error === 'rule_removed') return 409;
+  if (error === 'needs_confirmation' || error === 'not_allowed') return 403;
+  if (error === 'rejected' || error === 'not_organizer' || error === 'rule_removed' || error === 'clash') return 409;
   return 400;
 }
 
@@ -66,6 +67,7 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   if (req.op === 'email.delegate') return emailDelegate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op === 'rule.set') return ruleSet(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
   if (req.op === 'rule.remove') return ruleRemove(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
+  if (req.op.startsWith('delegation.') || req.op.startsWith('instruction.')) return runDelegationOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op === 'task.update' && req.args?.update === 'forward') return taskForward(clientNumber, userId, req.args, req.confirmed_by_user === true, gate, req.timezone);
@@ -152,7 +154,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
   await audit({
     clientNumber, actorId: userId, actorKind: 'user',
     action: `suzi.act.${req.op}`,
-    subjectType: req.op.startsWith('email.') ? 'email' : req.op.startsWith('calendar.') ? 'calendar_event' : req.op.startsWith('rule.') ? 'user_action_rule' : req.op.startsWith('gap.') ? 'suzi_gap' : req.op.startsWith('meeting.') ? 'meeting_record' : 'open_item',
+    subjectType: req.op.startsWith('email.') ? 'email' : req.op.startsWith('calendar.') ? 'calendar_event' : req.op.startsWith('rule.') ? 'user_action_rule' : req.op.startsWith('gap.') ? 'suzi_gap' : req.op.startsWith('meeting.') ? 'meeting_record' : req.op.startsWith('delegation.') ? 'delegation_matrix' : req.op.startsWith('instruction.') ? 'instruction' : 'open_item',
     subjectId: typeof req.args?.id === 'string' ? req.args.id : typeof req.args?.draft_id === 'string' ? req.args.draft_id : typeof req.args?.thread_id === 'string' ? req.args.thread_id : typeof req.args?.event_id === 'string' ? req.args.event_id : typeof req.args?.meeting_id === 'string' ? req.args.meeting_id : null,
     result: out.ok ? 'success' : 'failure',
     details: { audit_id: logId, update: req.args?.update, confirmed_by_user: req.confirmed_by_user === true, voice_score: req.voice_score ?? null, device_id: req.device_id ?? null, signature_verified: req.signature_verified === true, ...(out.ok ? {} : { error: out.error }) },

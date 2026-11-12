@@ -355,6 +355,19 @@ Not a wizard source: a per-user feed on the Google connector, agreed in Function
   - Plaud, Otter, Fathom and Fireflies emails and the Drive transcript Doc attaching as `imported`.
   - the day pack's `attendees[{name, email}]` and `meetings_recorded[]`.
 
+## 2f. Suzi's writes through Nexeo: meetings, delegations, instructions (F-2.8 and F-2.10, agreed 12 Nov 2026)
+
+These are not integrations, but they write to his Google Calendar and to stores Brain reads, so they are noted here.
+
+- **`calendar.create`** creates an event on his primary calendar.
+  - A clash with a busy event of his is 409 `clash`, unless `allow_clash`.
+  - Inviting anyone else needs his confirmation, a signature and his voice. Google sends the invites and adds a Meet link.
+- **`delegation.set` / `delegation.remove`** write `delegation_matrix` through `delegationMatrixService`, which keeps the history.
+  - Admin or SuperAdmin only; confirmed, signed and voiced.
+- **`instruction.add` / `instruction.remove`** use the one instruction store (instruction wiki pages) that Brain renders.
+  - Company-wide scope is admin-only. Remove archives the instruction; it never deletes it.
+- Every answer carries the new `rules_version`.
+
 ## 3. Rules carried from vm §8/§9 (each pinned by a test that fails when weakened)
 
 Blank never overwrites · identity/account fields unwritable · proposable ≠ writable (approval is
