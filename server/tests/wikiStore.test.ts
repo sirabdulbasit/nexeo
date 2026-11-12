@@ -33,6 +33,7 @@ vi.mock('../src/db/prisma', () => {
     );
   const p: any = {
     wikiPage: {
+      findUnique: async ({ where }: any) => page(where.id) ?? null,
       findFirst: async ({ where }: any) => t.pages.find((x) => match(x, where)) ?? null,
       findMany: async ({ where }: any) => t.pages.filter((x) => match(x, where)),
       create: async ({ data }: any) => {
@@ -63,7 +64,8 @@ vi.mock('../src/db/prisma', () => {
   return { __esModule: true, default: p, prisma: p };
 });
 
-import { writeNote, getNote, WIKILINK } from '../src/services/wiki/wikiStore';
+import { writeNote, getNote, adoptAsNote, WIKILINK } from '../src/services/wiki/wikiStore';
+import { renderRecordBody } from '../src/services/integrations/engine/contextWriter';
 
 const base = { clientNumber: 'T-1', userId: 1, actor: 'test' };
 const titles = (refs: Array<{ title: string }>) => refs.map((r) => r.title);
@@ -141,6 +143,34 @@ describe('wikiStore', () => {
     // Every note carries the mark that tells it from an older page.
     expect(t.pages[0].metadata.wiki).toBe(2);
     expect(t.pages[0].sourceCount).toBe(1);
+  });
+
+  it('takes an integration record page into the wiki: marked as a note and linked to the note it is about', async () => {
+    await writeNote({ ...base, type: 'person', title: 'Salman Sohail', body: '' });
+    const body = renderRecordBody('TMC Employee Directory', 'Salman Sohail', [['department', 'Delivery'], ['title', 'Director']]);
+    expect(body).toContain('**About:** [[Salman Sohail]]');
+    // The integration writer stores the page itself and replaces its metadata on every write.
+    t.pages.push({
+      id: 'rec1', clientNumber: 'T-1', userId: 1, pageType: 'org_doc', scope: 'tenant', status: 'active',
+      title: 'TMC Employee Directory · Salman Sohail', bodyMarkdown: body, metadata: { integrationId: 'i1', recordKey: 'i1:7' },
+      inboundLinks: 0, outboundLinks: 0, lastUpdatedAt: new Date(),
+    });
+    expect(await adoptAsNote('rec1')).toEqual({ linked: 1, unresolved: [] });
+    const rec = t.pages.find((p) => p.id === 'rec1');
+    expect(rec.metadata).toMatchObject({ wiki: 2, integrationId: 'i1', recordKey: 'i1:7' });
+    expect(titles((await getNote('T-1', 1, { title: 'Salman Sohail' }))!.backlinks)).toEqual(['TMC Employee Directory · Salman Sohail']);
+    // Another user of the company can read the shared record.
+    expect((await getNote('T-1', 2, { id: 'rec1' }))!.title).toBe('TMC Employee Directory · Salman Sohail');
+    // A record about someone with no note yet waits, and connects when the note is written.
+    t.pages.push({
+      id: 'rec2', clientNumber: 'T-1', userId: 1, pageType: 'org_doc', scope: 'tenant', status: 'active',
+      title: 'TMC Employee Directory · Abdul Rafay', bodyMarkdown: renderRecordBody('TMC Employee Directory', 'Abdul Rafay', [['department', 'HR']]),
+      metadata: {}, inboundLinks: 0, outboundLinks: 0, lastUpdatedAt: new Date(),
+    });
+    expect(await adoptAsNote('rec2')).toEqual({ linked: 0, unresolved: ['abdul rafay'] });
+    await writeNote({ ...base, type: 'person', title: 'Abdul Rafay', body: '' });
+    expect(titles((await getNote('T-1', 1, { title: 'Abdul Rafay' }))!.backlinks)).toEqual(['TMC Employee Directory · Abdul Rafay']);
+    expect(await adoptAsNote('missing')).toBeNull();
   });
 
   it('refuses a note with no title', async () => {

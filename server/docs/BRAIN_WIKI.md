@@ -58,6 +58,8 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 Because of decision 3, the earlier plan to move the roughly 35 writers and 50 readers behind one door is dropped. The wiki builds its notes itself from what the feeds have already stored.
 6. **The old pages go, completely (2026-11-12).** "Old pages should not be read, nor part of wiki, and should not be updated through scribe or any feed." This lifts decision 3 for whatever reads or writes the old pages: that code may now be changed.
 7. **Deploy step 2c.** Done as D-209.
+8. **One wiki (2026-11-12).** There is no "my wiki" and "company wiki" for the user to choose between; it is one wiki, like Obsidian. Who may read a note is still enforced underneath: a note built from one user's email, meetings and chat is readable by that user only; a shared note is readable by every user of the company.
+9. **Every integration is part of the wiki (2026-11-12).** What an integration brings in becomes notes of this wiki.
 
 ## 6. Build order
 
@@ -67,6 +69,7 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 | 2a | **The builder, facts only** (`src/services/wiki/wikiBuilder.ts`, run with `src/scripts/wikiRebuild.ts`): reads the stored email, calendar and chat items of one user and writes person, company, meeting and group notes, linked with `[[links]]`. No model is used: every line is a fact from a stored item, and a second run gives the same notes. | **Built and run for one user (TMC-0001, user 2) on 2026-11-12. Not deployed, not scheduled, not run for other users** |
 | 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is still there until its readers move (§6b). | **Deployed 2026-11-12 16:22 PKT as D-209.** First automatic run 16:38 PKT: user 2, 3 notes rewritten, 321 unchanged. The Scribe path has not been exercised |
 | 2d | **The Wiki screen shows the new wiki**: notes only by default (People, Companies, Meetings, Groups), the older pages behind a "Which wiki" switch; a note shows its properties, its `[[links]]` as buttons and its backlinks. Notes carry `metadata.wiki = 2`; `GET /brain/wiki` takes `set=new` or `set=old`. | **Deployed 2026-11-12 17:00 PKT as D-211.** Not yet looked at in a browser |
+| 2e | **One wiki; integration records are notes**: the Wiki screen has no private / company switch in the new wiki. A record an integration stores as Context is taken into the wiki after every write (`wikiStore.adoptAsNote`): marked as a note, and linked through `**About:** [[record title]]` to the note with that title (a person, a company), waiting if there is none yet. The integration writer keeps its own identity, hashing, stale and ledger rules; the row stays `org_doc`, scope tenant, shown as "Integration records". | See §8 for deploy state |
 | 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
@@ -189,6 +192,10 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 - A recurring meeting is one note; a calendar entry stored twice counts once.
 
 **Known gaps in what was built**
+
+- Integrations: only records mapped as Context become notes. KPI figures are not in the wiki yet (a note per KPI is the next integration step). The TMC Employee Directory has its two Context suggestions set aside, so it writes no record until one is approved in the wizard.
+- A shared record links to the note of the user who owns the integration. With a second active user, that user's own note of the same person is not linked; the layered note (one note, a shared layer plus each reader's private layer) is the fix and is not built.
+- An employee nobody has dealt with gets a record note but no person note.
 
 - The same person under two different mailbox names is still two notes (for example `malik.irfan@` and `irfan.ahmed@`, or a work and a personal address with different spellings). The user's own personal address appears as a person. Step 5 (merge) handles these.
 - A shared mailbox whose name is not a role word is taken for a person (`vm@`, "Vision Metric").

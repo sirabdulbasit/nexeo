@@ -117,12 +117,32 @@ export function contextFieldsRead(t: ContextTransform): string[] {
   return t.mode === 'per_record' ? [t.titleField, ...t.bodyFields] : [...t.columns];
 }
 
+/** `[[Title]]` for a record title that can be one; '' when it cannot. */
+function aboutLink(recordTitle: string): string {
+  const t = recordTitle.replace(/[\[\]|#^]/g, ' ').replace(/\s+/g, ' ').trim();
+  return t ? `[[${t}]]` : '';
+}
+
+/** Mark a stored page as a note of the wiki and rebuild its links. Never fails the run. */
+async function adopt(pageId: string, cn: string, integrationId: string): Promise<void> {
+  try {
+    const { adoptAsNote } = await import('../../wiki/wikiStore');
+    await adoptAsNote(pageId);
+  } catch (err) {
+    log.warn('wiki adopt failed', { clientNumber: cn, integrationId, pageId, error: err instanceof Error ? err.message : String(err) });
+  }
+}
+
 /** Deterministic body (no timestamps): the same record always hashes the same. */
 export function renderRecordBody(integrationName: string, recordTitle: string, fields: Array<[string, string]>): string {
   const lines = [
     `# ${integrationName} · ${recordTitle}`,
     '',
     `**Source:** Integration "${integrationName}"`,
+    // Brain Wiki (docs/BRAIN_WIKI.md): the record names what it is about as a
+    // wiki link, so it connects to the note with that title (a person, a
+    // company) as soon as one exists.
+    ...(aboutLink(recordTitle) ? [`**About:** ${aboutLink(recordTitle)}`] : []),
     '',
   ];
   for (const [k, v] of fields) if (v !== '') lines.push(`${k}: ${v}`);
@@ -448,6 +468,7 @@ export async function applyContextDiff(
         });
         if (r.count === 0) { out.unchangedRace += 1; continue; }
         await prisma.integrationRunChange.create({ data: changeRow(cn, integ.id, opts.runId, o) });
+        await adopt(o.existing.id, cn, integ.id);
         out.stale += 1;
         continue;
       }
@@ -472,6 +493,7 @@ export async function applyContextDiff(
       });
       if (!r.changed) { out.unchangedRace += 1; continue; }
       await prisma.integrationRunChange.create({ data: changeRow(cn, integ.id, opts.runId, o) });
+      await adopt(r.id, cn, integ.id);
       if (o.op === 'create') out.created += 1; else out.updated += 1;
     } catch (err) {
       out.failed += 1;

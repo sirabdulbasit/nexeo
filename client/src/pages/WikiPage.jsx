@@ -56,7 +56,9 @@ const TYPE_ORDER = [
 // The new wiki (server/docs/BRAIN_WIKI.md): a note per person, company, meeting
 // and group, linked to each other. The older pages stay reachable behind a
 // switch until they are retired.
-const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment'];
+const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment', 'org_doc'];
+// In the new wiki an `org_doc` note is a record an integration brought in.
+const NOTE_TYPE_LABELS = { org_doc: 'Integration records' };
 
 export default function WikiPage() {
   const [type, setType] = useState(null);
@@ -118,7 +120,7 @@ export default function WikiPage() {
         <h1 style={{ margin: 0, fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-semibold)' }}>Wiki</h1>
         <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: 4 }}>
           {set === 'new'
-            ? `${totalAllTypes} notes across ${orderedCounts.length} types, built from your email, calendar and chat and linked to each other.`
+            ? `${totalAllTypes} notes across ${orderedCounts.length} types, built from your email, calendar, chat and integrations, and linked to each other.`
             : `Older pages, being retired — ${totalAllTypes} pages across ${orderedCounts.length} categories.`}
         </div>
       </div>
@@ -129,6 +131,7 @@ export default function WikiPage() {
           width: 220, flexShrink: 0, borderRight: '1px solid var(--border)',
           overflowY: 'auto', padding: 'var(--s-3)',
         }}>
+          {set === 'old' && (<>
           {/* Visibility section — keep this on top, it's the highest-level cut */}
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '.5px',
@@ -139,17 +142,18 @@ export default function WikiPage() {
           <TypeButton active={scope === 'user'}   label="🔒 Only me"     count={scopeCounts.user || 0}    onClick={() => setScope('user')} />
           <TypeButton active={scope === 'tenant'} label="👥 Whole company" count={scopeCounts.tenant || 0}  onClick={() => setScope('tenant')} />
           <div style={{ height: 14 }} />
+          </>)}
           <div style={{
             fontSize: 10, fontWeight: 700, letterSpacing: '.5px',
             textTransform: 'uppercase', color: 'var(--text-dim)',
             padding: '4px 10px 6px',
-          }}>Page types</div>
+          }}>{set === 'new' ? 'Note types' : 'Page types'}</div>
           <TypeButton active={type === null} label="All" count={totalAllTypes} onClick={() => setType(null)} />
           {orderedCounts.map((c) => (
             <TypeButton
               key={c.pageType}
               active={type === c.pageType}
-              label={TYPE_LABELS[c.pageType] ?? c.pageType}
+              label={(set === 'new' && NOTE_TYPE_LABELS[c.pageType]) || TYPE_LABELS[c.pageType] || c.pageType}
               count={c.n}
               onClick={() => setType(c.pageType)}
             />
@@ -160,7 +164,7 @@ export default function WikiPage() {
             textTransform: 'uppercase', color: 'var(--text-dim)',
             padding: '4px 10px 6px',
           }}>Which wiki</div>
-          <TypeButton active={set === 'new'} label="New wiki" onClick={() => { setType(null); setSet('new'); }} />
+          <TypeButton active={set === 'new'} label="New wiki" onClick={() => { setType(null); setScope('all'); setSet('new'); }} />
           <TypeButton active={set === 'old'} label="Older pages" onClick={() => { setType(null); setSet('old'); }} />
         </aside>
 

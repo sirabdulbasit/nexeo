@@ -256,6 +256,52 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
   return { id, created, linked: targets.size, unresolved };
 }
 
+/**
+ * Take a page another writer stores (an integration's record page) into the
+ * wiki: mark it as a note and rebuild its links from its text. The writer
+ * keeps its own identity, hashing and stale rules; this only adds what makes
+ * the page a note. Call it after every write of that page, because such a
+ * writer replaces the page's metadata each time.
+ */
+export async function adoptAsNote(pageId: string): Promise<{ linked: number; unresolved: string[] } | null> {
+  const page = await prisma.wikiPage.findUnique({ where: { id: pageId } });
+  if (!page) return null;
+  const { clientNumber, userId } = page;
+  const wanted = extractWikiLinks(page.bodyMarkdown).filter((l) => l.key !== titleKey(page.title));
+  const candidates = wanted.length
+    ? await prisma.wikiPage.findMany({
+        where: {
+          AND: [
+            visibleTo(clientNumber, userId),
+            { OR: wanted.map((l) => ({ title: { equals: l.title, mode: 'insensitive' as const } })) },
+          ],
+        },
+        select: { id: true, title: true, pageType: true, userId: true, scope: true, lastUpdatedAt: true },
+      })
+    : [];
+  const targets = new Map<string, any>();
+  const unresolved: string[] = [];
+  for (const link of wanted) {
+    const hit = pickTarget(candidates.filter((c: any) => titleKey(c.title) === link.key && c.id !== pageId), userId);
+    if (hit) targets.set(hit.id, hit);
+    else unresolved.push(link.key);
+  }
+  await prisma.wikiPage.update({
+    where: { id: pageId },
+    data: { metadata: { ...asRecord(page.metadata), wiki: WIKI_GENERATION, unresolvedLinks: unresolved } as any },
+  });
+  const before = await prisma.wikiPageLink.findMany({ where: { fromPageId: pageId, linkType: WIKILINK }, select: { toPageId: true } });
+  await prisma.wikiPageLink.deleteMany({ where: { fromPageId: pageId, linkType: WIKILINK } });
+  if (targets.size > 0) {
+    await prisma.wikiPageLink.createMany({
+      data: [...targets.keys()].map((toPageId) => ({ clientNumber, userId, fromPageId: pageId, toPageId, linkType: WIKILINK })),
+      skipDuplicates: true,
+    });
+  }
+  await recount([pageId, ...before.map((b: any) => b.toPageId), ...targets.keys()]);
+  return { linked: targets.size, unresolved };
+}
+
 /** Notes that link to this note, as far as the reader may see them. */
 export async function backlinks(clientNumber: string, userId: number, noteId: string): Promise<NoteRef[]> {
   const rows = await prisma.wikiPageLink.findMany({
