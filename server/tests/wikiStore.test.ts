@@ -138,6 +138,8 @@ describe('wikiStore', () => {
     const ali = await getNote('T-1', 1, { title: 'Ali Khan' });
     expect(ali!.properties).toEqual({ email: 'a@x.com', company: 'Acme' });
     expect(t.sources).toHaveLength(1);
+    // Every note carries the mark that tells it from an older page.
+    expect(t.pages[0].metadata.wiki).toBe(2);
     expect(t.pages[0].sourceCount).toBe(1);
   });
 

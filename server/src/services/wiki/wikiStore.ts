@@ -25,6 +25,9 @@ import prisma from '../../db/prisma';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
 
 
+/** Marks a row of `wiki_pages` as a note of the new wiki (`metadata.wiki`); the old pages do not carry it. */
+export const WIKI_GENERATION = 2;
+
 /** The link type this module owns. Older rows of other types are left alone. */
 export const WIKILINK = 'wikilink';
 
@@ -160,6 +163,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
 
   const metadata = {
     ...asRecord(existing?.metadata),
+    wiki: WIKI_GENERATION,
     properties: mergeProperties(asRecord(existing?.metadata).properties, input.properties),
     unresolvedLinks: unresolved,
   };

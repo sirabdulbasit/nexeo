@@ -118,7 +118,10 @@ export default function WikiPageDetail({ id: initialId, onClose }) {
             </div>
 
             {page.bodyMarkdown ? (
-              <LinkifiedBody text={page.bodyMarkdown} catalog={linkCatalog} onNavigate={push} />
+              <>
+                <Properties values={page.metadata?.properties} />
+                <LinkifiedBody text={page.bodyMarkdown} catalog={linkCatalog} links={graph.outbound} onNavigate={push} />
+              </>
             ) : (
               <div style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Page body empty.</div>
             )}
@@ -161,9 +164,51 @@ export default function WikiPageDetail({ id: initialId, onClose }) {
  *  cheap — we just do one replace pass per catalog entry. For bodies
  *  that don't contain any known titles, the text falls through unchanged.
  */
-function LinkifiedBody({ text, catalog, onNavigate }) {
+/** A note's properties (emails, company, dates…), the way Obsidian shows them above the text. */
+function Properties({ values }) {
+  const rows = Object.entries(values ?? {}).filter(([, v]) => v !== null && v !== '' && !(Array.isArray(v) && v.length === 0));
+  if (rows.length === 0) return null;
+  return (
+    <div style={{
+      display: 'grid', gridTemplateColumns: 'max-content 1fr', columnGap: 14, rowGap: 3,
+      fontSize: 'var(--fs-xs)', marginBottom: 'var(--s-3)', padding: 'var(--s-2) var(--s-3)',
+      border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
+    }}>
+      {rows.map(([k, v]) => (
+        <div key={k} style={{ display: 'contents' }}>
+          <div style={{ color: 'var(--text-dim)' }}>{k}</div>
+          <div style={{ color: 'var(--text)', overflowWrap: 'anywhere' }}>{Array.isArray(v) ? v.join(', ') : String(v)}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Split a note's text on `[[Title]]` / `[[Title|shown]]`. A link whose note
+ *  exists becomes a button; one that does not stays as plain text. */
+function splitWikiLinks(text, links) {
+  const byTitle = new Map((links ?? []).map((l) => [String(l.title ?? '').toLowerCase(), l]));
+  const out = [];
+  let last = 0;
+  const re = /\[\[([^\[\]\n]+?)\]\]/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    const [target, ...alias] = m[1].split('|');
+    const title = target.split('#')[0].replace(/\s+/g, ' ').trim();
+    const shown = alias.join('|').trim() || title;
+    const hit = byTitle.get(title.toLowerCase());
+    if (m.index > last) out.push(text.slice(last, m.index));
+    out.push(hit ? { match: shown, pageId: hit.id } : shown);
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+function LinkifiedBody({ text, catalog, links, onNavigate }) {
   const segments = useMemo(() => {
     if (!text) return [''];
+    if (/\[\[/.test(text)) return splitWikiLinks(text, links);
     if (!catalog || catalog.length === 0) return [text];
     // Sort titles by length desc so longer titles match before shorter subsets.
     const entries = [...catalog].sort((a, b) => (b.title?.length ?? 0) - (a.title?.length ?? 0));
@@ -184,7 +229,7 @@ function LinkifiedBody({ text, catalog, onNavigate }) {
       chunks = next;
     }
     return chunks;
-  }, [text, catalog]);
+  }, [text, catalog, links]);
 
   return (
     <div style={{
@@ -225,7 +270,7 @@ function LinkList({ label, help, rows, onNavigate }) {
     if (!grouped.has(k)) grouped.set(k, []);
     grouped.get(k).push(r);
   }
-  const ORDER = ['entity_person', 'topic', 'project', 'policy', 'org_doc', 'attachment_doc', 'email_message', 'sender_topic', 'sender_history', 'decision', 'pattern', 'answer', 'gap', 'observation'];
+  const ORDER = ['person', 'company', 'meeting', 'group', 'entity_person', 'topic', 'project', 'policy', 'org_doc', 'attachment_doc', 'email_message', 'sender_topic', 'sender_history', 'decision', 'pattern', 'answer', 'gap', 'observation'];
   const keys = Array.from(grouped.keys()).sort((a, b) => ORDER.indexOf(a) - ORDER.indexOf(b));
 
   return (

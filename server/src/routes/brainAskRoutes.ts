@@ -1011,7 +1011,7 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
           OR w.page_type IN ('org_doc','policy','project','decision','pattern','attachment_doc','entity_person','topic')
         )
       ORDER BY w.last_updated_at DESC
-      LIMIT 40`,
+      LIMIT 400`,
     id, user.clientNumber, user.id,
   ).catch(() => []);
 
@@ -1031,7 +1031,7 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
           OR w.page_type IN ('org_doc','policy','project','decision','pattern','attachment_doc','entity_person','topic')
         )
       ORDER BY w.last_updated_at DESC
-      LIMIT 40`,
+      LIMIT 400`,
     id, user.clientNumber, user.id,
   ).catch(() => []);
 
@@ -1154,6 +1154,13 @@ router.get('/wiki', async (req: Request, res: Response) => {
     visibilitySql = `(wiki_pages.scope = 'tenant' OR (wiki_pages.scope = 'user' AND wiki_pages.user_id = $2))`;
   }
 
+  // Which wiki (docs/BRAIN_WIKI.md): `set=new` lists only the notes of the new
+  // wiki (metadata.wiki = 2), `set=old` only the older pages. No `set` lists both,
+  // as before, so other callers are unchanged.
+  const set = req.query.set ? String(req.query.set).toLowerCase() : '';
+  if (set === 'new') visibilitySql += ` AND wiki_pages.metadata->>'wiki' = '2'`;
+  else if (set === 'old') visibilitySql += ` AND COALESCE(wiki_pages.metadata->>'wiki','') <> '2'`;
+
   // Counts: by page type AND by scope. UI shows totals for each
   // sidebar section. Independent of q + type so filters always
   // reflect the full catalog the user can see.
@@ -1180,6 +1187,7 @@ router.get('/wiki', async (req: Request, res: Response) => {
         AND status NOT IN ('superseded','deleted')
         AND page_type NOT IN ('tenant_index','tenant_log')
         AND (scope = 'tenant' OR (scope = 'user' AND user_id = $2))
+        ${set === 'new' ? `AND metadata->>'wiki' = '2'` : set === 'old' ? `AND COALESCE(metadata->>'wiki','') <> '2'` : ''}
       GROUP BY scope`,
     user.clientNumber, user.id,
   ).catch(() => [] as any[]);
@@ -1256,6 +1264,14 @@ router.get('/wiki', async (req: Request, res: Response) => {
           row.sourceCount = f.sourceCount ?? 0;
         }
       }
+    }
+    if (set === 'new' || set === 'old') {
+      const marked = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+        `SELECT id FROM wiki_pages WHERE id = ANY($1::text[]) AND metadata->>'wiki' = '2'`,
+        [...byId.keys()],
+      ).catch(() => [] as Array<{ id: string }>);
+      const isNew = new Set(marked.map((m) => m.id));
+      for (const id of [...byId.keys()]) if (isNew.has(id) !== (set === 'new')) byId.delete(id);
     }
     const merged = [...byId.values()]
       .sort((a, b) => {

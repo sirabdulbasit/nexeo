@@ -18,6 +18,11 @@ import api from '../services/api';
 import WikiPageDetail from './WikiPageDetail';
 
 const TYPE_LABELS = {
+  person: 'People',
+  company: 'Companies',
+  meeting: 'Meetings',
+  group: 'Groups',
+  commitment: 'Commitments',
   mind_state: 'Mind state',
   observation: 'Observations',
   entity_person: 'People',
@@ -48,8 +53,14 @@ const TYPE_ORDER = [
   'answer', 'gap',
 ];
 
+// The new wiki (server/docs/BRAIN_WIKI.md): a note per person, company, meeting
+// and group, linked to each other. The older pages stay reachable behind a
+// switch until they are retired.
+const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment'];
+
 export default function WikiPage() {
   const [type, setType] = useState(null);
+  const [set, setSet] = useState('new'); // 'new' | 'old'
   const [q, setQ] = useState('');
   const [scope, setScope] = useState('all'); // 'all' | 'user' | 'tenant'
   const [items, setItems] = useState([]);
@@ -72,6 +83,7 @@ export default function WikiPage() {
       if (type) params.set('type', type);
       if (q.trim()) params.set('q', q.trim());
       if (scope && scope !== 'all') params.set('scope', scope);
+      params.set('set', set);
       params.set('limit', '100');
       const { data } = await api.get(`/brain/wiki?${params}`);
       setItems(data.items ?? []);
@@ -85,7 +97,7 @@ export default function WikiPage() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, [type, scope]);
+  useEffect(() => { load(); }, [type, scope, set]);
   // Debounce the text search so we don't hammer the server on every keystroke.
   useEffect(() => {
     const t = setTimeout(load, 250);
@@ -94,10 +106,10 @@ export default function WikiPage() {
 
   const orderedCounts = useMemo(() => {
     const map = new Map(counts.map((c) => [c.pageType, c.n]));
-    return TYPE_ORDER
+    return (set === 'new' ? NOTE_TYPE_ORDER : TYPE_ORDER)
       .filter((t) => map.has(t))
       .map((t) => ({ pageType: t, n: map.get(t) }));
-  }, [counts]);
+  }, [counts, set]);
   const totalAllTypes = counts.reduce((s, c) => s + c.n, 0);
 
   return (
@@ -105,7 +117,9 @@ export default function WikiPage() {
       <div style={{ padding: 'var(--s-4) var(--s-5) var(--s-3)', borderBottom: '1px solid var(--border)' }}>
         <h1 style={{ margin: 0, fontSize: 'var(--fs-xl)', fontWeight: 'var(--fw-semibold)' }}>Wiki</h1>
         <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--text-muted)', marginTop: 4 }}>
-          Everything Brain has written or scribed — {totalAllTypes} pages across {orderedCounts.length} categories.
+          {set === 'new'
+            ? `${totalAllTypes} notes across ${orderedCounts.length} types, built from your email, calendar and chat and linked to each other.`
+            : `Older pages, being retired — ${totalAllTypes} pages across ${orderedCounts.length} categories.`}
         </div>
       </div>
 
@@ -140,6 +154,14 @@ export default function WikiPage() {
               onClick={() => setType(c.pageType)}
             />
           ))}
+          <div style={{ height: 14 }} />
+          <div style={{
+            fontSize: 10, fontWeight: 700, letterSpacing: '.5px',
+            textTransform: 'uppercase', color: 'var(--text-dim)',
+            padding: '4px 10px 6px',
+          }}>Which wiki</div>
+          <TypeButton active={set === 'new'} label="New wiki" onClick={() => { setType(null); setSet('new'); }} />
+          <TypeButton active={set === 'old'} label="Older pages" onClick={() => { setType(null); setSet('old'); }} />
         </aside>
 
         {/* Main — search + list */}

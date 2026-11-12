@@ -22,7 +22,7 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { writeNote, type NoteInput } from './wikiStore';
+import { writeNote, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
@@ -616,7 +616,7 @@ export async function rebuildWikiForUser(
     const stored = new Map<string, any>(existing.map((e: any) => [`${e.pageType}|${e.title}`, e]));
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
-      if (have && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
+      if (have && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
         unchanged += 1;
         continue;
       }
