@@ -45,7 +45,7 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 - **Contacts are derived**: a contact is a person note and its properties.
 - **Action items are derived**: an action item is a commitment note (or commitment line in a note) linked to the people and project it concerns, with state in its properties.
 - **Upkeep jobs** merge duplicates, link orphans and mark stale notes.
-- **The Drive vault** mirrors all of it, so it opens in Obsidian with the graph.
+- **Its home is the database.** Anything Obsidian shows (backlinks, unlinked notes, the graph) is read from the notes and links stored there.
 
 ## 5. Owner decisions (2026-11-12)
 
@@ -53,6 +53,7 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 2. **Rebuild is allowed.** Nexeo is still in testing, so the wiki may be rebuilt in the new structure instead of migrating the old pages one by one.
 3. **Feed and Think: leave them.** This role does not change the feed code or the thinking code, and does not need to agree anything with them. The wiki is made strong on its own side; the others can move to it later.
 4. **Suzi is not involved** in this work.
+5. **Obsidian's way of working, inside Nexeo's database.** The wiki behaves like Obsidian (a note per thing, `[[links]]` in the text, backlinks, properties) but its home is the Nexeo database. It is not a vault of files, and opening it in the Obsidian app is not a goal.
 
 Because of decision 3, the earlier plan to move the roughly 35 writers and 50 readers behind one door is dropped. The wiki builds its notes itself from what the feeds have already stored.
 
@@ -66,7 +67,7 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
 | 5 | **Upkeep**: merge duplicates, link orphans, mark stale. | After 2 |
-| 6 | **Full vault mirror** to Drive, so it opens in Obsidian with the graph. | After 2 |
+| 6 | ~~Full vault mirror to Drive~~ | Dropped by decision 5. The existing Drive export job is left as it is |
 
 No schema change was needed for step 1: notes are rows in `wiki_pages`, links are rows in `wiki_page_links` with `link_type = 'wikilink'`, properties and unresolved links live in `metadata`.
 
