@@ -502,3 +502,30 @@ These are the founder's words in Suzi Master's session, 12 Nov: *"it should be s
   - **The record:** `google_transcript`, 3 lines named by speaker, minutes written, no decisions or items.
   - **Gaps sent to Nexeo-Builder:** polling misses meetings that have no calendar event; the title is empty with no calendar event.
   - **Not yet verified:** extraction of decisions and action items, the `meeting.status` push, and `meetings_recorded[]` (slice 2).
+
+## F-2.8 and F-2.10: AGREED by the founder, 12 Nov 2026 19:47 PKT
+
+The founder's words in Nexeo's session, 12 Nov:
+1. *"following 3 major action should be perofrmed by Suzi thorugh Nexeo: 1. Sending/Replying/Forwarding Email 2. Creating/Forwarding Task/Actionable items 3. Creating/Changing meeting/invites"*
+2. *"4. Suzi can also create rules, delegation, instructions through Nexeo, which will be used by Nexeo brain"*
+3. Also: *"if nexeo can send email so suzi can also, infact suzi will also ask Nexeo to send"*
+
+Suzi Master had already said AGREE to both, by message on 11 Nov:
+
+**F-2.8 `calendar.create`:** a new event on his calendar, with invites.
+- A time clash is refused as **409 clash**, unless `allow_clash: true`.
+- An event that invites others needs his confirmation and a signature, the same as calendar.update.
+- `createEvent` already exists in calendarService.
+
+**F-2.10:**
+- `delegation.set` / `delegation.remove`: the delegation matrix. Admin or SuperAdmin; signed plus presence.
+- `instruction.add` / `instruction.remove`: standing instructions; confirmed.
+- Both are written to the stores Nexeo's Brain already reads.
+
+**Already live, nothing new needed:**
+- email draft, new, forward, send, undo and mark (E4/T22);
+- task.create, task forward and email.delegate (D-194);
+- calendar.update and calendar.cancel (D-195);
+- rule.set and rule.remove for email rules (D-197).
+
+**Real sending:** the T22 send switch `feature_suzi_email_send_users`, user 2. The founder asked for it; this session is not permitted to write switches, so he sets it.
