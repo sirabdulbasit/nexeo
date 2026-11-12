@@ -479,3 +479,18 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **Pending with infra:** transcripts setting on (step 2) and the Nexeo client marked Trusted (step 3). Both can be scoped to a "Nexeo users" group, which is what we recommended.
   - **The setting only allows transcription.** A meeting is transcribed only when its host, or Nexeo under his rule, switches it on.
 - **Founder, 12 Nov: start Way A with one user only, basit.ahmed@tmcltd.com.** Infra was asked to put him alone in a group `nexeo-users@tmcltd.com` and to apply the transcripts setting (step 2) and Trusted (step 3) to that group only. The Nexeo switch is on for him alone and stays off for everyone else.
+
+## SU-8: requests sent automatically, non-lead notes to the lead first (PROPOSED by Suzi Master, 12 Nov 2026)
+
+These are the founder's words in Suzi Master's session, 12 Nov: *"it should be sent automatically if I am lead"*, and *"all other requests from other Suzi clients who are not lead will come to lead first; when lead approves then go to build"*.
+- **SU-8.1:** a spoken request goes out at once. It is signed by the device; confirmed_by_user is true (the spoken request is the confirmation); voice_score is the score of that sentence. A typed request from the lead waits for a voiced yes, or for SU-7.
+- **SU-8.2:** every non-lead note arrives as "new" and is approved only on the lead's signed yes (approval.ask kind feature_note).
+- **SU-8.3:** unchanged: no personal data, the floor (D1), the lead's own notes approved on arrival, D3 lists only what he approved, the relay forwards /v1/master/gap unread.
+- **Text changes:** in Routes, "a fix for bugs the lead approved, which may go straight to all"; in G1, "A non-lead note goes to the lead first and is built only on his yes".
+
+**Nexeo: AGREE (12 Nov 2026 17:07:07 PKT).** Nothing changes on Nexeo's side:
+- the relay forwards notes unread;
+- gap ops already route to Suzi Master (D-196);
+- the brief reads only what the master sends for D3.
+
+**Waits on:** the founder's "agree SU-8" in this session. Then Suzi Master updates the master, the clients and SuziUpgrade_Charter.md, and Nexeo mirrors that file in place of the older Master_Charter.md.
