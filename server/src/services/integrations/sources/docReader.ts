@@ -668,6 +668,41 @@ export function parseDocReaderAnswer(text: string): Pick<ApiDocReading, 'draft' 
   return { draft, gaps, summary };
 }
 
+/**
+ * DEF-438 — the real address a document prints, in code, never left to the model.
+ * Vendor documents show an example host in every code sample ("your-domain.com",
+ * four times in the owner's PDF) and the real one once ("URL https://erp.tmcltd.com:5004/…");
+ * the model took the majority. When the draft's host is an example and the document
+ * prints exactly ONE real origin for the drafted endpoint, that origin is used (with
+ * the draft's path prefix) and the example-address gaps are replaced by one note.
+ * Zero or several real origins → unchanged: the admin chooses, nothing is guessed.
+ */
+export function adoptDocumentAddress<T extends { draft: Partial<ApiConfig>; gaps: string[] }>(text: string, parsed: T): T {
+  const base = parsed.draft.baseUrl;
+  if (!base) return parsed;
+  const ph = placeholderHost(base);
+  if (!ph) return parsed;
+  let prefix = '';
+  try { prefix = new URL(base).pathname.replace(/\/+$/, ''); } catch { return parsed; }
+  const want = `${prefix}${parsed.draft.path ?? ''}`.replace(/\/+$/, '');
+  const origins = new Set<string>();
+  for (const m of text.matchAll(/https:\/\/[^\s"'<>()`\\]+/g)) {
+    let u: URL;
+    try { u = new URL(m[0].replace(/[.,;:]+$/, '')); } catch { continue; }
+    if (placeholderHost(u.href) || u.username || u.password) continue;
+    const p = u.pathname.replace(/\/+$/, '');
+    // The URL must name the drafted endpoint (or its base); a link to a CDN or a docs page does not.
+    if (want && p !== want && p !== prefix && !(prefix && p.startsWith(`${prefix}/`))) continue;
+    if (!want && p) continue;
+    origins.add(u.origin);
+  }
+  if (origins.size !== 1) return parsed;
+  const [origin] = [...origins];
+  const gaps = parsed.gaps.filter((g) => !g.toLowerCase().includes(ph) && !/placeholder|example address|base url .*example/i.test(g));
+  gaps.unshift(`The document's code samples use the example address ${ph}; its address line names ${origin}, used here.`);
+  return { ...parsed, draft: { ...parsed.draft, baseUrl: `${origin}${prefix}` }, gaps };
+}
+
 export const readApiDocument: DocReaderModule['readApiDocument'] = async (cn, integrationId, actorId) => {
   const integ = await prisma.integrationSync.findFirst({
     where: { id: integrationId, clientNumber: cn },
@@ -695,7 +730,7 @@ export const readApiDocument: DocReaderModule['readApiDocument'] = async (cn, in
     providers: [...DOC_READ_PROVIDERS],
     maxTokens: 8192,
   });
-  const parsed = parseDocReaderAnswer(reply.text);
+  const parsed = adoptDocumentAddress(again.text, parseDocReaderAnswer(reply.text));
   if (cut) parsed.gaps.unshift(`The document is long; only its first ${DOC_PROMPT_MAX_CHARS.toLocaleString('en-US')} characters were read.`);
 
   const reading: ApiDocReading = {

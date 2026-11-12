@@ -8,7 +8,7 @@
  *    server canonicalised (nulls, defaults) does not look edited.
  *  - The draft from the AI's reading of the document only PRE-FILLS the form; a saved
  *    config always wins over the draft (the admin's edits are never overwritten by a
- *    re-read).
+ *    re-read) — except a saved example address, which a real one from the reading replaces.
  *  - The secret is never in the form or the config (it has its own write-only call).
  *  - Review groups rows by target (KPI · Context · Filter · Not used); a filter row on
  *    its own is not something a run can do, so it does not unlock Continue / the test.
@@ -55,9 +55,28 @@ export function formFromConfig(cfg) {
 
 /** The form the Connect step opens with: the SAVED config when there is one, else the
  *  AI's draft, else blank. A re-read of the document never overwrites saved edits. */
+/** Same rule as the server's placeholderHost (sources/apiReader.ts): a documentation
+ *  example host, which can never be a real system. */
+export function isPlaceholderAddress(baseUrl) {
+  let host;
+  try { host = new URL(String(baseUrl ?? '')).hostname.toLowerCase(); } catch { return false; }
+  return /(?:^|\.)example\.(?:com|org|net)$/.test(host)
+    || /(?:^|\.)(?:your[-_]?[a-z0-9]*|my[-_]?(?:domain|company|server|host|api|site)|domain|company|sample|placeholder)\.(?:com|org|net|io|co|app|local)$/.test(host);
+}
+
 export function initialForm(integ) {
-  if (integ?.apiConfig) return formFromConfig(integ.apiConfig);
-  return formFromConfig(integ?.apiDocReading?.draft ?? null);
+  const draft = integ?.apiDocReading?.draft ?? null;
+  if (integ?.apiConfig) {
+    const form = formFromConfig(integ.apiConfig);
+    // DEF-438: a saved EXAMPLE address is not an admin's edit — it can never work. A
+    // reading that found the real address replaces it (the form is then dirty, so Test
+    // saves it); every other saved value still wins over the draft.
+    if (isPlaceholderAddress(form.baseUrl) && draft?.baseUrl && !isPlaceholderAddress(draft.baseUrl)) {
+      form.baseUrl = String(draft.baseUrl);
+    }
+    return form;
+  }
+  return formFromConfig(draft);
 }
 
 function posInt(raw, label, errors, { min = 1 } = {}) {
