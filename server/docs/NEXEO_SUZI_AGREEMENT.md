@@ -449,3 +449,4 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **C3:** F-4.10 adds "Google's own copy under Way A is the host's, in his Drive." Our 12-month limit and our delete do not reach that copy. The founder is told this with decision 4.
   - **C4:** the consumption record adds `meeting_transcript_minutes`, a count only.
   - **Next:** after the founder's "agree F-4", Suzi Master writes the F-4 text into Functional_Charter.md and C4 into Costing_Charter.md. Nexeo then mirrors both byte-identical and builds.
+- **Way A scope, agreed 12 Nov:** "Way A covers meetings the user hosts on a Google account connected to Nexeo. Any other meeting, including one hosted by a colleague at TMC, is meeting.status not_covered for him (he can still take notes on his computer)." This replaces N1's "hosted at TMC". A colleague's transcript is the colleague's own record.
