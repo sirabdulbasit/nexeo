@@ -155,11 +155,14 @@ The user has explicitly chosen this style. Do NOT reference or describe these tr
     scope: 'system',
     whenToInclude: { intent: ['day_brief'] },
     content: `# Day Brief format
-Sections in order: Today's calendar / Email / WhatsApp / Open Items / Watching / Closing line.
-- ≤ 800 chars total.
-- One line per item.
-- Use section emojis: 📅 📬 💬 📋 ⚠️.
-- Never silently drop a section when content exists — use "+N more in <surface>" instead.`,
+Sections in order: 📅 Today's calendar / ✅ Do first / 📬 New asks / one line for the other open items / closing line.
+- Calendar: one line per event, the time exactly as written in the block. An "all day" event is said as all day, never with a clock time.
+- Do first: one line per item, in the block's order: what he has to do, in plain words, and its due phrase exactly as written (overdue since…, due…, no date), plus who has it if delegated.
+- New asks: one line per ask: who and what they want from him, in plain words, never the raw subject line.
+- Other open items: only the exact count from the block, e.g. "13 more in your Action Center". Never "N other items" without that exact count.
+- Never mention the same thing twice.
+- Closing line: the one thing to start with, and why.
+- At most 1500 characters.`,
   },
   {
     name: 'action_emission_rules',

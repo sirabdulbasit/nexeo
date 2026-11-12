@@ -57,6 +57,9 @@ import {
   normalizeWid, sameWid, lidToPhone, __resetWaIdentityCacheForTests,
 } from '../src/services/whatsapp/waIdentity';
 import { DISPATCHABLE_PLAN_STEP_KINDS } from '../src/services/knowledge/brainComposer';
+// chat29 (DEF-434/DEF-435): the WhatsApp morning brief's calendar and asks.
+import { isAllDayStart } from '../src/services/views/calendar';
+import { briefAsks, renderDayBriefBlock } from '../src/services/views/dayBrief';
 
 export interface BrainScenario {
   /** Stable id — chatN. */
@@ -80,6 +83,37 @@ export interface BrainScenario {
 }
 
 export const BRAIN_SCENARIOS: BrainScenario[] = [
+  {
+    id: 'chat29',
+    date: '2026-11-12',
+    userMessage: '(WhatsApp morning brief, 08:30) "analyze it and see improvements"',
+    observedFailure: '"Office block starting now, at 5:00 AM" for an all-day event; My Attention listed system alerts and "15 other items".',
+    symptomTags: ['time-of-day-drift', 'noise-becomes-actionable'],
+    fixCommits: ['(D-202)'],
+    assert: () => {
+      expect(isAllDayStart('2026-11-12')).toBe(true);
+      expect(isAllDayStart({ date: '2026-11-12' })).toBe(true);
+      expect(isAllDayStart({ dateTime: '2026-11-12T10:00:00+05:00' })).toBe(false);
+      const asks = briefAsks([
+        { itemType: 'email', addressing: 'none', from: 'demo_vm@tmcltd.com', subject: 'Action Required: The Assistant Cannot Reach Its AI Provider' },
+        { itemType: 'email', addressing: 'cc', from: 'x@tmcltd.com', subject: 'asked of someone else' },
+        { itemType: 'whatsapp', addressing: null, from: 'Basit Ahmed', subject: 'his own message' },
+        { itemType: 'meeting', from: 'tanzeel@tmcltd.com', subject: 'a plain invite' },
+        { itemType: 'email', addressing: 'to', from: 'Salman <s@tmcltd.com>', subject: 'deepmarks', threadId: 'T-open' },
+        { itemType: 'email', addressing: 'to', from: 'Haseeb <haseeb@tmcltd.com>', subject: 'TMC Context plan', threadId: 'T-new' },
+      ] as any, { ownEmails: ['basit.ahmed@tmcltd.com'], ownName: 'Basit Ahmed', openThreadIds: new Set(['T-open']) });
+      expect(asks.map((a: any) => a.subject)).toEqual(['TMC Context plan']);
+      const block = renderDayBriefBlock({
+        generatedAt: new Date('2026-11-12T03:30:00Z'), localDate: '2026-11-12', localTimezone: 'Asia/Karachi',
+        calendar: [{ feedEventId: 'e', localTime: 'all-day', startUtc: new Date('2026-11-12T00:00:00Z'), endUtc: null, title: 'Office', location: null, attendees: ['basit.ahmed@tmcltd.com'], isAllDay: true }],
+        openItems: [], attention: [], asks, ownEmails: ['basit.ahmed@tmcltd.com'], recentEmails: [], recentWhatsApp: [], followUps: null,
+      } as any);
+      expect(block).toContain('- all day: Office');
+      expect(block).not.toMatch(/05:00 Office/);
+      expect(block).not.toContain('basit.ahmed@tmcltd.com');
+      expect(block).not.toMatch(/more in My Attention/);
+    },
+  },
   {
     id: 'chat1',
     date: '2026-07-07',

@@ -34,6 +34,7 @@ Living log of every user-shared Brain chat. Append a new entry each time the use
 | `trigger-met-no-follow-through` | Brain narrates the trigger event (e.g. in a brief) without connecting it to its own pending commitment |
 | `ownership-misattribution` | Brain's own follow-through tasks presented as the USER's open items |
 | `time-of-day-drift` | Greeting/wording contradicts actual local time ("Morning, Sir" at 5pm) |
+| `noise-becomes-actionable` | Copies, system alerts, his own mail or other people's tasks reach his list or brief as things for him to do |
 | `feedback-misread-as-action` | User feedback/correction classified as an action request → `[no action dispatched]` → canned dispatch-error reply |
 
 ---
@@ -1163,3 +1164,17 @@ source, both paths, by construction), and the selection-point half lives in
 rendered by the real `renderActionsBlock` into the action block the model selects from. The
 executor stays untouched, so an explicit "remember X" still stores — the boundary is judgment
 text at the model's decision points, never a verb filter in code.
+
+## Chat 29
+
+**2026-11-12 08:30 PKT (CL-075; he sent the screenshot twice, "analyze it and see improvements", then "we talked about this whatsapp message and how we can improve it") — DEF-434, DEF-435.**
+
+The WhatsApp morning brief said *"You have an 'Office' block starting now, at 5:00 AM"* at 08:30. "Office" is an all-day event. It listed *"My Attention (19)"* as two copies of the same AI-provider system alert, a ticket escalation, TMC Context, and *"15 other items needing your attention"*. Open items were nine AI-provider alerts and a plain invite marked overdue.
+
+**Root cause:** an all-day start stored as the bare string "YYYY-MM-DD" was not recognised (only `{date}` was), so it became midnight UTC = 05:00 in Karachi (`views/calendar.ts`). My Attention applied no definition (copies, alerts, his own messages, invites and threads already open all passed), and the brief text handed the model ten lines plus "and 13 more", while the format rule in the database said "800 characters, +N more". The open-items noise is DEF-429 (cleaned the same morning).
+
+**Fix:** all-day is decided by the start's shape and said as "all day"; the brief's asks are My Attention under the agreed Action Center definition (addressed to him, not his own, not an invite, not already an open item); open items are split into "Do first" (late, due within 3 days, high), named with a due phrase, and an exact count of the rest; one format rule in the seed, the database and the code fallback.
+
+**What went RIGHT:** the 3:30 PM meeting and its attendees were correct; the sections came in order.
+
+**Symptom tags:** `time-of-day-drift`, `noise-becomes-actionable`.

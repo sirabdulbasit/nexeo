@@ -52,6 +52,18 @@ function todayBoundsInZone(timezone: string): { startUtc: Date; endUtc: Date } {
   return { startUtc: fromUtc, endUtc: new Date(toUtc.getTime() + 1) };
 }
 
+/** DEF-434: an all-day start has a date and no time — `{date}` or the bare string "YYYY-MM-DD". */
+export function isAllDayStart(start: unknown): boolean {
+  if (typeof start === 'string') return /^\d{4}-\d{2}-\d{2}$/.test(start.trim());
+  const s = start as { date?: unknown; dateTime?: unknown } | null;
+  return !!s && typeof s === 'object' && !s.dateTime && !!s.date;
+}
+
+/** His local calendar day (YYYY-MM-DD) for the instant that opens it. */
+function localDayOf(timezone: string, dayStartUtc: Date): string {
+  return formatLocalDate(timezone, dayStartUtc);
+}
+
 /**
  * Returns today's calendar events for the user, in the user's local
  * timezone. `localTime` is formatted HH:MM in 24h, ready for display.
@@ -111,9 +123,15 @@ export async function getTodayCalendar(args: {
     if (!startIso) continue;
     const startDate = new Date(startIso);
     if (Number.isNaN(startDate.getTime())) continue;
-    if (startDate < startUtc || startDate >= endUtc) continue;
+    // DEF-434 (CL-075, `time-of-day-drift`): an all-day event's start is a date with no time, stored either as
+    // {date} or as the bare string "YYYY-MM-DD". Only the object form was recognised, so the string form became
+    // midnight UTC and was narrated as "05:00" in Karachi. All-day is decided by the shape, and its day is the
+    // date itself in his zone, never an instant.
+    const isAllDay = isAllDayStart(startObj);
+    if (isAllDay) {
+      if (String(startIso).slice(0, 10) !== localDayOf(timezone, startUtc)) continue;
+    } else if (startDate < startUtc || startDate >= endUtc) continue;
     const endDate = endIso ? new Date(endIso) : null;
-    const isAllDay = typeof startObj === 'object' && startObj && !startObj.dateTime && !!startObj.date;
     const attendeesRaw = Array.isArray((p as any).attendees) ? (p as any).attendees : [];
     const attendees = attendeesRaw
       .map((a: any) => (typeof a === 'string' ? a : a?.email))

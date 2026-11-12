@@ -1571,31 +1571,16 @@ Every entity in the user's workspace has exactly ONE authoritative block in this
 
 This rule trumps any vector-search "relevance" intuition. If the snapshot has 2 items and the wiki has 17 pages mentioning "open item", you answer with 2. The wiki pages are context, not data.`;
 
-const DAY_BRIEF_FORMAT_RULES = `# Day Brief format (this turn is a daily digest)
-H15. **Day-brief = TODAY's attention surface, compactly delivered.** Your reply covers what's IN the "My Attention surface" block — pre-filtered to the last 24h + still-unhandled high/critical carryover. Do NOT surface medium/low items from days ago — they're in the dashboard, not the brief.
-
-**Carryover items:** when an item ends in "(carryover, Nd ago)" or "(carryover, yesterday)", surface it but tag it — e.g. "Sayyed Mohsin: White Belt update (carryover from yesterday)".
-
-**What to cover (skip a section only if its count is 0):**
-  1. 📅 **Today's calendar** — every meeting from the "Today's calendar" block. Use the times exactly as written in that block — they are already in the user's local timezone (the block header tells you which). Do NOT convert, shift, or re-render the hour. One line each: HH:MM + title + 1-2 attendee first names if interesting.
-  2. 📬 **Email** — pick the FIRST THREE rows from the "email" sub-section of the My Attention surface block (NOT a re-ranking, NOT a re-selection by criticality / recency / your own judgement — literally the first three lines). For the "+N more" line, copy the EXACT string the attention block prepared for you (it looks like "+11 more in inbox"). Do NOT invent a different number. The block tells you the true total — use that count, never estimate.
-  3. 💬 **WhatsApp** — same: first three rows from the "whatsapp" sub-section in source order, then the exact "+N more in WhatsApp" string the block provides. Never re-rank, never substitute, never estimate the count.
-  4. 📋 **Open items** — ALWAYS include this section if the "Open items snapshot" has at least one row. Show top 3 ordered by: priority (critical > high > medium > low), then due date asc (soonest first, null last), then most recent. Line shape: "Title — [priority] — owner/delegatee/—". More than 3 rows → "+N more open items (open Nexeo to see all)". Do NOT skip just because no item is "due today" — open items are the user's live task ledger; an empty ledger is the only valid reason to omit.
-  5. ⚠️ **Watching** — Risk Radar flags, one short line each (max 2).
-  6. **Closing line** — one sentence: which single thing would you start with, and why. No fluff.
-
-**Compactness rules — non-negotiable:**
-  - Hard cap: 800 characters total. WhatsApp = one phone screen, not a memo.
-  - One line per item — sender + what the conversation is actually about (substance, not raw subject). Use the attention block's extracted substance.
-  - "+N more in <channel>" instead of listing items 4-onwards.
-  - Drop empty sections silently. Don't write "📬 Email: nothing".
-  - If attention surface is "(nothing pending)" overall, reply with one short line ("You're clear — nothing on your plate right now.") and stop.
-
-**Forbidden — these failed in earlier user tests:**
-  - Meta-commentary about Brain's activity ("you seem to be managing your items").
-  - Listing every contact Brain noticed.
-  - Long previews / full subject lines.
-  - Test/smoke fixture items.`;
+// DEF-435 (CL-075): the same text as the seeded prompt block; the block in the database is what runs.
+const DAY_BRIEF_FORMAT_RULES = `# Day Brief format
+Sections in order: 📅 Today's calendar / ✅ Do first / 📬 New asks / one line for the other open items / closing line.
+- Calendar: one line per event, the time exactly as written in the block. An "all day" event is said as all day, never with a clock time.
+- Do first: one line per item, in the block's order: what he has to do, in plain words, and its due phrase exactly as written (overdue since…, due…, no date), plus who has it if delegated.
+- New asks: one line per ask: who and what they want from him, in plain words, never the raw subject line.
+- Other open items: only the exact count from the block, e.g. "13 more in your Action Center". Never "N other items" without that exact count.
+- Never mention the same thing twice.
+- Closing line: the one thing to start with, and why.
+- At most 1500 characters.`;
 
 /** Action vocabulary + emission rules. Only sent when the user's text
  *  looks like an imperative (looksLikeImperative). Casual chat and pure
