@@ -56,6 +56,8 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 5. **Obsidian's way of working, inside Nexeo's database.** The wiki behaves like Obsidian (a note per thing, `[[links]]` in the text, backlinks, properties) but its home is the Nexeo database. It is not a vault of files, and opening it in the Obsidian app is not a goal.
 
 Because of decision 3, the earlier plan to move the roughly 35 writers and 50 readers behind one door is dropped. The wiki builds its notes itself from what the feeds have already stored.
+6. **The old pages go, completely (2026-11-12).** "Old pages should not be read, nor part of wiki, and should not be updated through scribe or any feed." This lifts decision 3 for whatever reads or writes the old pages: that code may now be changed.
+7. **Deploy step 2c.** Done as D-209.
 
 ## 6. Build order
 
@@ -63,7 +65,7 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 |---|---|---|
 | 1 | **The wiki's own store**: `writeNote`, `getNote`, `backlinks` in `src/services/wiki/wikiStore.ts`; `[[link]]` reading in `wikiLinks.ts`. Links are rebuilt from the note text on every write; a link to a missing note waits as unresolved and connects when that note is written; properties merge; sources cited once; private notes never linked across users. | **Built 2026-11-12, not deployed; used by the builder script only** |
 | 2a | **The builder, facts only** (`src/services/wiki/wikiBuilder.ts`, run with `src/scripts/wikiRebuild.ts`): reads the stored email, calendar and chat items of one user and writes person, company, meeting and group notes, linked with `[[links]]`. No model is used: every line is a fact from a stored item, and a second run gives the same notes. | **Built and run for one user (TMC-0001, user 2) on 2026-11-12. Not deployed, not scheduled, not run for other users** |
-| 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is kept, because triage reads those pages. | **Built 2026-11-12, committed, NOT deployed** (another session had unfinished work in the same tree, including a schema change, so no build was run) |
+| 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is still there until its readers move (§6b). | **Deployed 2026-11-12 16:22 PKT as D-209.** First automatic run 16:38 PKT: user 2, 3 notes rewritten, 321 unchanged. The Scribe path has not been exercised |
 | 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
@@ -95,6 +97,35 @@ So archiving these now would not just thin Brain's answers. Contacts would empty
 4. The old feed writers for a type are switched off when its readers have moved.
 
 Nothing has been archived.
+
+## 6b. Retiring the old pages: the plan (owner decision 6)
+
+Measured 2026-11-12: 58 runtime files select old page types by name, on about 250 lines. The heaviest are `routes/entityCatalogRoutes.ts` (23), `brainComposer.ts` (20), `brainCognitiveEngine.ts` (13), `conceptSynthesizerService.ts` (10). The work is done one feature at a time, each a separate deploy with its own evaluation-chart row, so that any one step can be undone without the others.
+
+**A. The wiki must first hold what the old pages hold**
+
+| Step | What | Why first |
+|---|---|---|
+| A1 | A store for source text (email body, message, attachment, meeting text), cited by notes and never a note itself | Email text exists only in the old `email_message` pages today |
+| A1 note | The feed store is a queue, not an archive: `pruneUserFeedEvents` deletes a Gmail item after 30 days (or once decided) when its old `email_message` page exists. The builder reads the feed store today, so a person's older email history drops out of their note as items are pruned. The source store must therefore become the wiki's own lasting copy, the builder must read from it, and the pruner's "safe to delete" test must point at it | Found 2026-11-12 |
+| A2 | Meaning notes: project, topic, decision, commitment (step 2b) | Without them Brain can say who and when, not what |
+| A3 | Instructions, policies and company documents as notes | Brain's behaviour depends on these |
+
+**B. Readers move to the new notes**
+
+| Step | Feature | Main files |
+|---|---|---|
+| B1 | What Brain and Suzi retrieve to answer | `wikiEmbeddingService`, `suziKnowledge`, `brainRetrievalPlanner`, `brainComposer`, `brainAskRoutes` |
+| B2 | Contacts and recognising a sender | `entityCatalogRoutes`, `personalContactsRoutes`, `scopedContacts`, `personIdentityService`, `senderTriage`, `brainInboxService`, `openItemGate` |
+| B3 | Triage and priority | `criticalityEngineService`, `contextEnricher`, readers of the sender pages |
+| B4 | Briefs | `dayBrief`, `morningBriefService`, `briefRoutes` |
+| B5 | Brain's own working pages (`observation`, `answer`, `gap`, `mind_state`, `feedback`) | These are not knowledge from feeds; they leave `wiki_pages` for a store of their own |
+
+**C. Old writers are switched off**, each when its readers have moved: the ingest hooks in `feedIngestionService` (person page, propagation, WhatsApp body, email body, attachments, sender pages, wiki scribe), Scribe's sender-page rebuild, the nightly scribe backfill, the concept synthesizer, the entity sweep, the meeting digest, and the mirrors that write pages (`odooWikiMirror`, integrations `contextWriter`, folder scribe).
+
+**D. Each old page type is archived** (moved to archive tables, restorable) once nothing reads or writes it.
+
+Order: A1 → A2 → B1 → A3 → B2 → B3 → B4 → B5, with C and D following each B step.
 
 ## 7. How the wiki prunes itself
 
@@ -168,6 +199,6 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 
 **Not verified:** how Brain's and Suzi's answers change with the new notes in retrieval; the Wiki screen showing the new types.
 
-**Not deployed:** step 2c. Until a deploy, the builder runs only when the script is run by hand.
+**Live:** steps 1, 2a and 2c (D-209). Only user 2 is active, so only user 2 has notes.
 
-**Next step:** deploy step 2c once the other session's work in the tree is committed or the owner says to deploy anyway. Owner looks at the notes for user 2. Then step 2b: measure what a model pass over the engaged email threads and meeting notes costs for one user, and build project, topic and commitment notes from it.
+**Next step:** §6b A1, the source-text store, then A2, the meaning notes with a cost check for one user. Owner looks at the notes for user 2. Then step 2b: measure what a model pass over the engaged email threads and meeting notes costs for one user, and build project, topic and commitment notes from it.
