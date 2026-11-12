@@ -72,10 +72,11 @@ describe('DEF-286 — when a previous pass may be trusted', () => {
     expect(v.reason).toContain('future');
   });
 
-  it('is bounded by a window measured in minutes, not hours', () => {
-    // A long window would quietly turn "verified channel" into "verified once, some time ago".
-    expect(PROBE_TRUST_WINDOW_MS).toBeLessThanOrEqual(30 * 60_000);
-    expect(PROBE_TRUST_WINDOW_MS).toBeGreaterThanOrEqual(60_000);
+  it('is bounded: the owner chose 12 hours (DEF-448), never days', () => {
+    // 15 minutes was shorter than the gap between deploys, so every restart posted a token in his self-chat.
+    // A window of days would turn "verified channel" into "verified once, some time ago".
+    expect(PROBE_TRUST_WINDOW_MS).toBe(12 * 60 * 60_000);
+    expect(PROBE_TRUST_WINDOW_MS).toBeLessThan(24 * 60 * 60_000);
   });
 
   it('exactly at the window boundary it still trusts, and just past it does not', () => {

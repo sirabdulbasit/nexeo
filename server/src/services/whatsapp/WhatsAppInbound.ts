@@ -901,8 +901,9 @@ async function sendReply(
       // reprobe (see recordOutboundProof).
       if (messageId) {
         try {
-          const { recordOutboundProof } = await import('./webjsLiveness');
+          const { recordOutboundProof, persistOutboundPass } = await import('./webjsLiveness');
           recordOutboundProof(params.clientNumber);
+          void persistOutboundPass(params.clientNumber); // DEF-448: spares the next restart a probe token
         } catch { /* liveness bookkeeping must never break a reply */ }
       }
     } else {

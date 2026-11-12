@@ -453,7 +453,11 @@ export async function cleanUpProbeMessage(
  *  3. the stored value parses. Anything unreadable falls through to probing, because the
  *     fail-safe direction here is to send a probe, not to skip one.
  */
-export const PROBE_TRUST_WINDOW_MS = 15 * 60_000;
+// DEF-448 (CL-086, owner's choice 2026-11-12: "Trust 12 hours"): 15 minutes was shorter than the gap between
+// deploys, so nearly every restart posted a token in his self-chat. A pass, or a real send WhatsApp accepted
+// (persistOutboundPass), is now trusted for 12 hours. The every-minute connection watchdog still runs; only a
+// broken SEND with the connection up is found later than before.
+export const PROBE_TRUST_WINDOW_MS = 12 * 60 * 60_000;
 export const PROBE_LAST_PASS_KEY = 'whatsapp.liveness.last_pass_at';
 
 export function mayTrustRecentPass(
@@ -481,4 +485,16 @@ export function mayTrustRecentPass(
   if (ageMs < 0) return { trust: false, reason: 'pass timestamp is in the future' };
   if (ageMs > windowMs) return { trust: false, reason: `pass is ${Math.round(ageMs / 60_000)}m old`, ageMs };
   return { trust: true, reason: `pass ${Math.round(ageMs / 1000)}s ago`, ageMs };
+}
+
+/**
+ * DEF-448: a real message WhatsApp accepted proves the outbound limb as well as a probe does, so it is stored
+ * as a pass and spares the next restart a token in his self-chat. Best-effort; never throws into a send.
+ */
+export async function persistOutboundPass(clientNumber: string, now = new Date()): Promise<void> {
+  try {
+    const { setConfig } = await import('../configService');
+    await setConfig(clientNumber, PROBE_LAST_PASS_KEY, now.toISOString(), false,
+      'DEF-286/DEF-448 — last proof that WhatsApp sending works (a probe pass or a real send it accepted)');
+  } catch { /* bookkeeping only */ }
 }
