@@ -26,6 +26,18 @@ export async function conferencesFor(meet: any, code: string, start: Date, end: 
   return (r.data.conferenceRecords ?? []).map((c: any) => ({ name: c.name, space: c.space, startTime: c.startTime, endTime: c.endTime }));
 }
 
+/** His conferences that ended since a time: the way an instant Meet (no calendar event) is found by the poller. */
+export async function recentConferences(meet: any, since: Date): Promise<Array<{ name: string; space: string; startTime: string; endTime?: string }>> {
+  const out: Array<{ name: string; space: string; startTime: string; endTime?: string }> = [];
+  let pageToken: string | undefined;
+  do {
+    const r = await meet.conferenceRecords.list({ filter: `end_time >= "${since.toISOString()}"`, pageSize: 50, pageToken });
+    for (const c of r.data.conferenceRecords ?? []) out.push({ name: c.name, space: c.space, startTime: c.startTime, endTime: c.endTime ?? undefined });
+    pageToken = r.data.nextPageToken ?? undefined;
+  } while (pageToken && out.length < 200);
+  return out;
+}
+
 export async function conference(meet: any, name: string): Promise<{ name: string; space: string; startTime: string; endTime?: string } | null> {
   const r = await meet.conferenceRecords.get({ name }).catch(() => null);
   return r?.data ? { name: r.data.name, space: r.data.space, startTime: r.data.startTime, endTime: r.data.endTime } : null;

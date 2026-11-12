@@ -16,6 +16,16 @@ import {
 import { meetFor, conferencesFor, conference, readTranscript, meetingCodeOf } from './meetTranscripts';
 
 const log = createLogger('meetings');
+export const FALLBACK_TITLE = /^Meet at \d{2}:\d{2}$/;
+
+/** "Meet at 19:11" in his zone: the title of a meeting with no calendar event until the model names it. */
+export async function fallbackTitle(userId: number, start: Date): Promise<string> {
+  const { resolveUserTimezone } = await import('../userTimezoneService');
+  const tz = await resolveUserTimezone(userId).catch(() => 'Asia/Karachi');
+  const hhmm = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz }).format(start);
+  return `Meet at ${hhmm}`;
+}
+
 export const REREAD_AFTER_MS = 30 * 60_000;
 
 /** F-4.2: his own switch, off by default (meetingSwitch.ts). clientNumber kept for callers; the switch is per user. */
@@ -28,7 +38,7 @@ export interface HostedEvent { id: string; title: string; start: string; end: st
 
 /** The model writes the minutes, decisions and action items from the transcript. Null when it cannot. */
 export async function deriveMinutes(title: string, lines: TranscriptLine[], ownerName: string): Promise<{
-  minutes: string; decisions: string[]; action_items: Array<{ title: string; owner_name?: string; due?: string }>;
+  title?: string; minutes: string; decisions: string[]; action_items: Array<{ title: string; owner_name?: string; due?: string }>;
 } | null> {
   if (lines.length === 0) return null;
   let text = lines.map((l) => `${l.speaker}: ${l.text}`).join('\n');
@@ -36,10 +46,11 @@ export async function deriveMinutes(title: string, lines: TranscriptLine[], owne
   const system = [
     `You write the record of a meeting for ${ownerName || 'the host'}, from its transcript with speakers named.`,
     'Write plainly, in English, in your own words. Never invent anything that was not said.',
+    'title: a short name for the meeting, at most 8 words, from what was discussed.',
     'minutes: 3 to 8 short sentences: what was discussed and where it landed.',
     'decisions: each decision that was clearly made, one short sentence each (empty if none).',
     'action_items: each concrete thing someone agreed or was asked to do: an imperative title (at most 12 words), owner_name as said in the meeting if clear, due as YYYY-MM-DD only if a date was said. Empty if none.',
-    'Answer strict JSON only: {"minutes": string, "decisions": [string], "action_items": [{"title": string, "owner_name"?: string, "due"?: string}]}',
+    'Answer strict JSON only: {"title": string, "minutes": string, "decisions": [string], "action_items": [{"title": string, "owner_name"?: string, "due"?: string}]}',
   ].join('\n');
   try {
     const { callGemini } = await import('../geminiService');
@@ -47,6 +58,7 @@ export async function deriveMinutes(title: string, lines: TranscriptLine[], owne
     const j = JSON.parse(String(raw));
     if (typeof j?.minutes !== 'string') return null;
     return {
+      ...(typeof j.title === 'string' && j.title.trim() ? { title: j.title.trim().slice(0, 120) } : {}),
       minutes: j.minutes.slice(0, 4000),
       decisions: Array.isArray(j.decisions) ? j.decisions.map(String).filter(Boolean).slice(0, 30) : [],
       action_items: Array.isArray(j.action_items)
@@ -82,6 +94,12 @@ export async function deriveInto(clientNumber: string, userId: number, rec: Meet
     return;
   }
   await saveDerived(rec.id, mergeDerived(rec, d, await openTitles(clientNumber, userId)));
+  // A meeting with no calendar event (an instant Meet) carries the fallback "Meet at HH:MM"; the model's short
+  // title replaces it. A title from his calendar is never replaced.
+  if (d.title && (!rec.title || FALLBACK_TITLE.test(rec.title))) {
+    const { setTitle } = await import('./meetingRecordStore');
+    await setTitle(rec.id, d.title);
+  }
 }
 
 /** Read one conference into the record under `key`. Returns the record, or null when no transcript exists yet. */
@@ -153,10 +171,14 @@ export async function processConferenceForUser(clientNumber: string, userId: num
   const { events } = await getEvents(userId, new Date(start.getTime() - 3 * 60 * 60_000), new Date(start.getTime() + 3 * 60 * 60_000), 50);
   const space = await meet.spaces.get({ name: conf.space }).catch(() => null);
   const code = String(space?.data?.meetingCode ?? '').toLowerCase();
-  const ev = code ? events.find((e: any) => meetingCodeOf(e.link) === code) : undefined;
+  // C5: his event with this Meet code; else an event of his that overlaps the conference (an instant Meet called
+  // during a booked slot); else the conference gets its own record.
+  const startMs = start.getTime();
+  const ev = (code ? events.find((e: any) => meetingCodeOf(e.link) === code) : undefined)
+    ?? events.find((e: any) => !e.isAllDay && Date.parse(e.start) <= startMs + 10 * 60_000 && Date.parse(e.end) >= startMs);
   const key = ev ? keyForEvent(ev.id) : keyForConference(conf.space, start);
   const rec = await ingestConference(clientNumber, userId, meet, confName, key, {
-    title: ev?.title ?? null, eventId: ev?.id ?? null, start: ev ? new Date(ev.start) : start, end: ev ? new Date(ev.end) : (conf.endTime ? new Date(conf.endTime) : null),
+    title: ev?.title ?? await fallbackTitle(userId, start), eventId: ev?.id ?? null, start: ev ? new Date(ev.start) : start, end: ev ? new Date(ev.end) : (conf.endTime ? new Date(conf.endTime) : null),
   });
   return rec?.status ?? 'no_transcript';
 }

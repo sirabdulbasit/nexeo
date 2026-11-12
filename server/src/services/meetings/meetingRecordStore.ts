@@ -174,6 +174,10 @@ export async function saveDerived(id: string, m: ReturnType<typeof mergeDerived>
   );
 }
 
+export async function setTitle(id: string, title: string): Promise<void> {
+  await prisma.$executeRawUnsafe(`UPDATE meeting_records SET title = $2, updated_at = now() WHERE id = $1`, id, title.slice(0, 200));
+}
+
 export async function scheduleReread(id: string, at: Date | null): Promise<void> {
   await prisma.$executeRawUnsafe(`UPDATE meeting_records SET reread_due_at = $2 WHERE id = $1`, id, at);
 }

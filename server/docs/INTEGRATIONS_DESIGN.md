@@ -338,6 +338,9 @@ Not a wizard source: a per-user feed on the Google connector, agreed in Function
     - Each delivery is acknowledged at once and processed once per event id (`meet_event_receipts`).
     - Each user has one subscription, made with their own token and renewed a day before it expires (`meet_event_subscriptions`).
   - Polling fallback (`meetPollJob`, every 5 minutes): calendar events with a Meet link that ended 15 minutes to 24 hours ago are read.
+  - The polling fallback also covers instant Meets: his conferences that ended 15 minutes to 24 hours ago with no finished record are read too (first live test, 12 Nov).
+    - Each attaches to his event with the same Meet code, else to an overlapping event, else gets its own record (C5).
+    - A meeting with no event is titled "Meet at HH:MM" (his zone) until the model names it from the minutes.
   - Each record is read once more 30 minutes later, because entries can be incomplete at first.
 - **Scope:** only meetings he hosts. Any other meeting is `not_covered`, and nothing is asked of Google.
 - **Store:** `meeting_records`, migration `20261112_meeting_records`, hand-written and idempotent.
