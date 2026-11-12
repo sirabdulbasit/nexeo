@@ -7,12 +7,12 @@
  *
  * Three tiers, all reversible for 7 days via archive tables:
  *   - quick      — only stuck brain_pending_actions
- *   - refresh    — + clarification_memory, reasoning_traces, brain_action_artifacts
- *   - full       — + empty-contact entities removed, orphans rescoped
+ *   - refresh    — + clarification_memory, reasoning_traces, brain_action_artifacts; then, in the background,
+ *                  re-reads 30 days of mail and calendar (memory only) and rebuilds the people pages (11-12)
+ *   - full       — refresh + this user's open items, contact entities and contact wiki pages
  *
- * NEVER touches: users, clients, OAuth, open_items, wiki_pages,
- * feed_events, prompt_blocks, action_definitions, capability_registry,
- * WhatsApp sessions.
+ * NEVER touches: users, clients, OAuth, feed_events already stored, non-contact wiki pages, prompt_blocks,
+ * action_definitions, capability_registry, WhatsApp sessions.
  *
  * Confirmation: typed-phrase ("BRAIN REFRESH" / "BRAIN RESET" /
  * "QUICK RESET") matching the tier label. Per the no-browser-dialogs
@@ -129,7 +129,16 @@ router.post('/brain/reset', async (req, res) => {
   const archiveSuffix = `wipe_${userId}_${now}`;
   const result = await runReset(userId, clientNumber, tier as 'quick' | 'refresh' | 'full', archiveSuffix);
   log.info('reset executed', { userId, tier, archiveSuffix, counts: result.wipedCounts });
-  res.json(result);
+  // Owner, 11-12: a refresh feeds Brain anew. In the background: re-read the last 30 days of mail and calendar
+  // (old mail kept as memory only, never Action Center items) and rebuild what Brain knows about his people.
+  const refeed = tier === 'refresh' || tier === 'full';
+  if (refeed) {
+    void import('../services/knowledge/historicalFeedPull')
+      .then(({ warmUpBrainFromSources }) => warmUpBrainFromSources(clientNumber, userId))
+      .then((r) => log.info('refeed done', { userId, tier, pulls: r.pulls, wiki: r.wikiBackfill }))
+      .catch((e: any) => log.warn('refeed failed', { userId, tier, error: e?.message }));
+  }
+  res.json({ ...result, refeed: refeed ? 'started' : 'none' });
 });
 
 /** History — for the audit log in Settings. */

@@ -20,6 +20,12 @@ import prisma from '../../db/prisma';
 import createLogger from '../../utils/logger';
 import { ingest as ingestFeedEvent } from '../feed/feedIngestionService';
 
+const HISTORY_ONLY_AFTER_MS = 24 * 60 * 60 * 1000;
+/** A re-read event kept for memory, never judged for an Action Center item. */
+export async function markHistoryOnly(feedEventId: string): Promise<void> {
+  await prisma.feedEvent.update({ where: { id: feedEventId }, data: { status: 'skipped', processedAt: new Date() } as any }).catch(() => undefined);
+}
+
 const log = createLogger('historical-feed-pull');
 
 export interface PullSummary {
@@ -180,7 +186,14 @@ async function pullGmailHistory(
             date: h('date'),
           },
         });
-        if (r.status === 'new') summary.ingested += 1;
+        if (r.status === 'new') {
+          summary.ingested += 1;
+          // Owner, 11-12 (Brain Refresh): mail older than a day that a refresh re-reads is memory only. It
+          // never reaches the item-making sweep, which reads only status 'new' events, so a refresh cannot
+          // refill the Action Center with old noise.
+          const sentAt = Number(msg.data.internalDate ?? 0);
+          if (r.feedEventId && sentAt && Date.now() - sentAt > HISTORY_ONLY_AFTER_MS) await markHistoryOnly(r.feedEventId);
+        }
         else if (r.status === 'duplicate') summary.duplicates += 1;
         else summary.errors += 1;
         opts.onProgress?.({ ...summary, phase: 'gmail' });
@@ -230,7 +243,11 @@ async function pullCalendarHistory(
           isAllDay: e.isAllDay,
         },
       });
-      if (result.status === 'new') summary.ingested += 1;
+      if (result.status === 'new') {
+        summary.ingested += 1;
+        // Calendar events re-read by a refresh are memory only too (a plain invite is never an item).
+        if (result.feedEventId) await markHistoryOnly(result.feedEventId);
+      }
       else if (result.status === 'duplicate') summary.duplicates += 1;
       else summary.errors += 1;
       opts.onProgress?.({ ...summary, phase: 'calendar' });

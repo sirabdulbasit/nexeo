@@ -1378,8 +1378,8 @@ function BrainResetSection() {
 
   const tierDescriptions = {
     quick:   { label: 'Quick Reset',       blurb: 'Clears stuck previews / confirmation loops. Nothing else touched.' },
-    refresh: { label: 'Brain Refresh',     blurb: 'Wipes working memory: pending actions, clarifications Brain has learned, reasoning traces, dispatch artifacts. Brain may re-ask questions you\'ve answered once or twice as memory rebuilds.' },
-    full:    { label: 'Full Brain Reset',  blurb: 'FACTORY RESET. Brain Refresh + wipes ALL your open items + ALL your contacts (entity rows + contact wiki pages). After this you re-run "Reset & rebuild" on Contacts to pull from your feeds. NEVER touches OAuth, feed events, FACL docs, or your account.' },
+    refresh: { label: 'Brain Refresh',     blurb: 'Wipes working memory (pending actions, clarifications, reasoning traces, dispatch artifacts), then feeds Brain anew: re-reads your last 30 days of email and calendar and rebuilds what it knows about your people and topics. Takes a few minutes. Old emails are read for memory only and never become Action Center items. Your open items and contacts stay.' },
+    full:    { label: 'Full Brain Reset',  blurb: 'FACTORY RESET. Everything in Brain Refresh, and also wipes ALL your open items and ALL your contacts (entity rows + contact pages). Brain is fed anew from your last 30 days the same way. NEVER touches OAuth, stored feed events, FACL docs or your account.' },
   };
 
   function wipedForTier(t) {
@@ -1419,7 +1419,7 @@ function BrainResetSection() {
       const r = await api.post('/brain/reset', { tier, confirmation: typed });
       const wiped = r.data?.wipedCounts ?? {};
       const total = Object.values(wiped).reduce((a, b) => a + Number(b || 0), 0);
-      setMsg(`Reset complete. ${total} row${total === 1 ? '' : 's'} wiped. Archives kept for 7 days.`);
+      setMsg(`Reset complete. ${total} row${total === 1 ? '' : 's'} wiped. Archives kept for 7 days.${r.data?.refeed === 'started' ? ' Brain is now re-reading your last 30 days and rebuilding its memory of your people; this takes a few minutes.' : ''}`);
       setTyped('');
       // refresh counts + history
       const preview = await api.get('/brain/reset/preview').catch(() => null);
@@ -1466,10 +1466,15 @@ function BrainResetSection() {
             </div>
           ))}
           <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 8 }}>
-            Preserved: account + OAuth grants, feed events (so you can re-ingest contacts via "Reset & rebuild" on Contacts), FACL docs and non-contact wiki pages, prompt blocks, action definitions.
+            Preserved: account + OAuth grants, stored feed events, FACL docs and non-contact pages, prompt blocks, action definitions{tier === 'full' ? '.' : ', your open items and your contacts.'}
+            {tier !== 'quick' && (
+              <div style={{ marginTop: 4, color: 'var(--n-dddddd)' }}>
+                Then: re-reads your last 30 days of email and calendar (memory only, no new Action Center items) and rebuilds your people pages, in the background.
+              </div>
+            )}
             {tier === 'full' && (
               <div style={{ marginTop: 4, color: 'var(--s-fbbf24)' }}>
-                ⚠️ Full Reset wipes open items + contacts. Re-run "Reset & rebuild" on Contacts page after to re-pull from feeds.
+                ⚠️ Full Reset wipes your open items and contacts.
               </div>
             )}
           </div>
