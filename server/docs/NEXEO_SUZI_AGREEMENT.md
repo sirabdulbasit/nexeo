@@ -494,3 +494,4 @@ These are the founder's words in Suzi Master's session, 12 Nov: *"it should be s
 - the brief reads only what the master sends for D3.
 
 **Waits on:** the founder's "agree SU-8" in this session. Then Suzi Master updates the master, the clients and SuziUpgrade_Charter.md, and Nexeo mirrors that file in place of the older Master_Charter.md.
+- **TMC infra, 12 Nov: setup done.** The `nexeo-users` group exists and transcripts are On for that group. Trusted access cannot be scoped to a group, so it was granted to the founder's organisational unit instead. Trusted only skips the unverified-app warning for that unit; each user must still sign in and consent, and the Nexeo switch stays off for everyone but him. **Google-side setup for Way A is complete.**
