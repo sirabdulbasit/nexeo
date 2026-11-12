@@ -305,7 +305,7 @@ export async function listItems(
     const expanded: string[] = [];
     for (const s of arr) {
       if (!s) continue;
-      expanded.push(s, toV15(s));
+      expanded.push(s, toV15(s), ...(TAB_STATUSES[s] ?? []));
     }
     const uniq = Array.from(new Set(expanded));
     where.status = uniq.length === 1 ? uniq[0] : { in: uniq };
@@ -384,6 +384,19 @@ const LEGACY_TO_V15: Record<string, string> = {
   // completion class in the data.
   cancelled: 'CANCELLED',
 };
+
+/**
+ * DEF-440 (CL-078): the Action Center's "Open" tab means every item still waiting on him, not the single
+ * status NEW. Items that were triaged, or held for a missing date, vanished from that tab.
+ */
+const TAB_STATUSES: Record<string, string[]> = {
+  open: ['NEW', 'TRIAGED', 'DRAFT'],
+};
+
+/** A status as the Action Center sends it ('done', 'snoozed', …) in the lifecycle's own form ('CLOSED', …). */
+export function toLifecycleStatus(s: string): string {
+  return LEGACY_TO_V15[s] ?? s;
+}
 
 export async function changeStatus(
   id: string,

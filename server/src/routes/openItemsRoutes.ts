@@ -282,7 +282,9 @@ router.post('/bulk-transition', requireAuth, async (req: Request, res: Response)
   try {
     const user = req.user!;
     const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
-    const target = String(req.body?.target ?? '') as ItemStatus;
+    // DEF-439 (CL-078): the Action Center sends 'done' / 'snoozed'; the lifecycle only knows 'CLOSED' /
+    // 'SNOOZED', so every bulk Done was rejected ("Updated 0/1").
+    const target = openItemsService.toLifecycleStatus(String(req.body?.target ?? '')) as ItemStatus;
     const reason = req.body?.reason as string | undefined;
     if (ids.length === 0 || !target) return res.status(400).json({ error: 'ids[] and target required' });
     if (ids.length > 100) return res.status(400).json({ error: 'bulk limit is 100 items' });
