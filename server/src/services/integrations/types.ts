@@ -611,6 +611,10 @@ export interface KpiPlan {
    *  missing ⇒ the run FAILS, writing nothing (vm §9 "unconfigured target fails
    *  the run"). Never a silent drop. */
   failure: string | null;
+  /** DEF-444: for each reading key, the positions (in the records the planner was
+   *  given) of the records it was computed from — the same pass, so a figure and its
+   *  records can never disagree. Used by the test preview's "records behind it". */
+  sourceRows?: Map<string, number[]>;
 }
 
 export interface CapVerdict {

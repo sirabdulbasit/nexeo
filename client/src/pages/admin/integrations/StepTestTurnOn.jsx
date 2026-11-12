@@ -17,18 +17,20 @@
  * filter leaves out. A filter approved on its own is not a runnable mapping, so it does
  * not count as "an approved field" here (runEngine fails such a run).
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   listSuggestions, listRuns, listRunChanges, runAndWait, activateIntegration, errorText,
 } from '../../../services/integrationsApi';
 import { runStageText } from './WorkingOverlay';
 import { runnableApprovedCount } from './integrationLogic';
 import {
-  C, s, btn, InlineConfirm, ChangesList, KpiChangeSummary, formatPkt, scheduleText, previewNextRun, runResult,
+  C, s, btn, InlineConfirm, ChangesList, KpiChangeSummary, RecordsView, formatPkt, scheduleText, previewNextRun, runResult,
 } from './integrationUi';
 
 export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWorking, versionId, setVersionId, onBack, onDone }) {
   const [showAll, setShowAll] = useState(false);
+  const [pick, setPick] = useState(null); // DEF-444: {reading, label} — a figure's records
+  const recordsRef = useRef(null);
   const [version, setVersion] = useState(null);
   const [approvedCount, setApprovedCount] = useState(0);
   const [run, setRun] = useState(null); // RunStatusView of the latest test of this version
@@ -98,6 +100,7 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
     setWorking({ title, stage: runStageText(null, true), startedAt });
     setError('');
     setChanges([]);
+    setPick(null);
     try {
       const final = await runAndWait(integ.id, { dryRun: true, versionId: version.id }, {
         signal,
@@ -221,7 +224,16 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
 
           <div style={s.sectionTitle}>What would change</div>
           {/* DEF-443: readable first — one table per KPI — the flat list on request. */}
-          {!changesLoading && <KpiChangeSummary changes={changes} dryRun />}
+          {!changesLoading && (
+            <KpiChangeSummary
+              changes={changes}
+              dryRun
+              onPick={run?.runId ? (reading, label) => {
+                setPick({ reading, label });
+                setTimeout(() => recordsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0);
+              } : undefined}
+            />
+          )}
           {(changes?.length ?? 0) > 0 && !changesLoading ? (
             <div style={{ marginTop: 8 }}>
               <button type="button" style={btn('outline', { small: true })} onClick={() => setShowAll((x) => !x)}>
@@ -231,6 +243,14 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
             </div>
           ) : (
             <ChangesList changes={changes} loading={changesLoading} dryRun />
+          )}
+
+          {/* DEF-444: the data itself, in the source's own fields. */}
+          {run?.runId && (
+            <div ref={recordsRef}>
+              <div style={s.sectionTitle}>{pick ? 'Records behind the figure' : `Records read${r?.recordsRead ? ` · ${r.recordsRead}` : ''}`}</div>
+              <RecordsView integId={integ.id} runId={run.runId} reading={pick?.reading ?? null} readingLabel={pick?.label} onClear={() => setPick(null)} />
+            </div>
           )}
         </>
       )}

@@ -77,7 +77,8 @@ import {
   type RunOptions,
 } from '../types';
 import { MAX_CHANGE_PCT, changeCapVerdict, monthIn, nextScheduledRun, parseNumber, parsePeriod, planKpiReadings, readingKey, type PlannerKpiDef } from './planner';
-import { readKpiRecipe, recipeTransformFields } from './kpiRecipe';
+import { COUNT_FIELD, readKpiRecipe, recipeTransformFields } from './kpiRecipe';
+import { keepPreview } from './previewStore';
 
 const log = createLogger('integrations-run');
 
@@ -605,6 +606,19 @@ export const runIntegration: RunEngineModule['runIntegration'] = async (cn, id, 
 
     // Step 6 — dry run: preview rows only. `writes` = what a live run would write.
     if (opts.dryRun) {
+      // DEF-444: the records this test read (after the filter) and which ones feed
+      // each figure — kept in memory for the Test step's records view, never stored.
+      const idF = apiIdField(integ.apiConfig);
+      keepPreview(runId, {
+        cn, integrationId: id, headers: read.headers, records,
+        usedFields: [...new Set([
+          ...approved.flatMap((r) => fieldsRead(r.transform)),
+          ...approvedContext.flatMap((r) => contextFieldsRead(r.transform)),
+          ...(filter ? filter.conditions.map((c) => c.field) : []),
+          ...(idF ? [idF] : []),
+        ].filter((f) => f && f !== COUNT_FIELD))],
+        sourceRows: plan.sourceRows ?? new Map(),
+      });
       const preview = changeRowsFor(cn, id, runId, plan.readings, labels);
       for (let i = 0; i < preview.length; i += WRITE_CHUNK) {
         await prisma.integrationRunChange.createMany({ data: preview.slice(i, i + WRITE_CHUNK) });

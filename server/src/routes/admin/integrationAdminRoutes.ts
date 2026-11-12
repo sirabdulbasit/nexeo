@@ -69,6 +69,7 @@ import {
 import { sourceProblem, testSource } from '../../services/integrations/sources';
 import { readApiConfig, testApiWith } from '../../services/integrations/sources/apiReader';
 import { attachApiDocument, readApiDocument } from '../../services/integrations/sources/docReader';
+import { getPreview, previewPage } from '../../services/integrations/engine/previewStore';
 import { tryDocumentKeys } from '../../services/integrations/sources/docKeys';
 import { sourceFileInfo, storeSourceFile } from '../../services/integrations/store/sourceFileStore';
 import { setSecret } from '../../services/integrations/store/secretStore';
@@ -773,6 +774,23 @@ router.get('/:id/runs/:runId/changes', handle('GET /:id/runs/:runId/changes', as
   const runId = idParam(req, 'runId');
   await requireIntegration(cn, id);
   res.json({ changes: await listRunChanges(cn, id, runId) });
+}));
+
+/** DEF-444: the records a TEST run read, with the source's own fields as columns — all
+ *  of them, or (reading=<kpi|period|dim>) exactly the records one figure was computed
+ *  from. Kept in server memory for an hour after the test; `available: false` = run the
+ *  test again. Read-only. */
+router.get('/:id/runs/:runId/records', handle('GET /:id/runs/:runId/records', async (req, res) => {
+  const cn = tenantOf(req);
+  const id = idParam(req);
+  const runId = idParam(req, 'runId');
+  await requireIntegration(cn, id);
+  const q = req.query as Record<string, unknown>;
+  const str = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : null);
+  const num = (v: unknown) => (typeof v === 'string' && /^\d{1,6}$/.test(v) ? Number(v) : undefined);
+  res.json(previewPage(getPreview(cn, id, runId), {
+    reading: str(q.reading, 600), q: str(q.q, 200), offset: num(q.offset), limit: num(q.limit),
+  }));
 }));
 
 // ── Turn on / pause ────────────────────────────────────────────────────────

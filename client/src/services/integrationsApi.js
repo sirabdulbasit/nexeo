@@ -254,6 +254,16 @@ export async function listRunChanges(id, runId) {
   return Array.isArray(list) ? list : [];
 }
 
+/** DEF-444: the records a test run read (source fields as columns), or those behind one
+ *  figure (`reading` = "kpi|period|dim"). {available, headers, usedFields, total, offset, rows}. */
+export async function getRunRecords(id, runId, { reading = null, q = '', offset = 0, limit = 50 } = {}) {
+  const params = { offset: String(offset), limit: String(limit) };
+  if (reading) params.reading = reading;
+  if (q && q.trim()) params.q = q.trim();
+  const { data } = await api.get(`${BASE}/${encodeURIComponent(id)}/runs/${encodeURIComponent(runId)}/records`, { params });
+  return data && typeof data === 'object' ? data : { available: false, headers: [], usedFields: [], total: 0, offset: 0, rows: [] };
+}
+
 // ── Turn on / pause ───────────────────────────────────────────────────────
 
 /** Never runs anything (spec §2.5). Resume of a PAUSED integration is the same call with

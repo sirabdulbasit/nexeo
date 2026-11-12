@@ -301,8 +301,12 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
   const badPeriods = new Tally();
   const badDims = new Tally();
 
-  const consider = (kpiKey: string, periodStart: string, dimensionKey: string, value: string, sourceKey: string) => {
+  const sourceRows = new Map<ReadingKey, number[]>();
+  const consider = (kpiKey: string, periodStart: string, dimensionKey: string, value: string, sourceKey: string, from: number | number[] = []) => {
     const k = readingKey(kpiKey, periodStart, dimensionKey);
+    const rows = sourceRows.get(k) ?? [];
+    rows.push(...(Array.isArray(from) ? from : [from]));
+    sourceRows.set(k, rows);
     const c = candidates.get(k);
     if (!c) {
       candidates.set(k, { kpiKey, periodStart, dimensionKey, value, sourceKey, cells: 1, conflict: false });
@@ -355,7 +359,7 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
         }
         const dim = dimensionOf(rec, t.dimensionField);
         if (dim === null) return;
-        consider(kpiKey, periodStart, dim, value, `row ${rowNo} › ${t.valueField}`);
+        consider(kpiKey, periodStart, dim, value, `row ${rowNo} › ${t.valueField}`, i);
       });
       continue;
     }
@@ -367,6 +371,7 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
       const r = t.recipe;
       const valueFields = recipeValueFields(r);
       const groups = new Map<string, Array<Record<string, string>>>();
+      const groupRows = new Map<string, number[]>(); // DEF-444: positions, parallel to `groups`
       const nowKey = now!.year * 100 + now!.month;
       let notEnded = 0;
       records.forEach((rec, i) => {
@@ -387,6 +392,9 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
         const g = groups.get(dim) ?? [];
         g.push(prepared);
         groups.set(dim, g);
+        const gr = groupRows.get(dim) ?? [];
+        gr.push(i);
+        groupRows.set(dim, gr);
       });
       if (notEnded) {
         plan.anomalies.push(`${notEnded} record(s) for "${kpiKey}" fall in the current or a future month — a recipe counts only months that have ended.`);
@@ -409,7 +417,10 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
           for (const mo of res.months) {
             const v = classifyValue(String(mo.value), 'normal');
             if (v.kind !== 'ok') { plan.skipped += 1; invalid.add(`recipe ${kpiKey}`, String(mo.value)); continue; }
-            consider(kpiKey, iso(mo.year, mo.month, 1), dim, v.value, `recipe › ${r.label}`);
+            const ym = `${mo.year}-${String(mo.month).padStart(2, '0')}`;
+            const pos = groupRows.get(dim) ?? [];
+            consider(kpiKey, iso(mo.year, mo.month, 1), dim, v.value, `recipe › ${r.label}`,
+              recs.flatMap((x, n) => (x[r.periodField] === ym ? [pos[n]!] : [])));
           }
         }
       }
@@ -436,7 +447,7 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
         if (value === null) return;
         const dim = dimensionOf(rec, t.dimensionField);
         if (dim === null) return;
-        consider(kpiKey, periodStart, dim, value, `row ${rowNo} › ${col}`);
+        consider(kpiKey, periodStart, dim, value, `row ${rowNo} › ${col}`, i);
       });
     }
   }
@@ -461,6 +472,7 @@ export const planKpiReadings: PlannerModule['planKpiReadings'] = (
     touched.add(k);
   }
   plan.subjectsAffected = touched.size;
+  plan.sourceRows = sourceRows;
 
   const conflictCount = [...candidates.values()].filter((c) => c.conflict).length;
   if (conflictCount) {

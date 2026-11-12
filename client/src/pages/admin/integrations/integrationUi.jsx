@@ -7,8 +7,9 @@
  * accent #cc6b4a, ok #4ade80, warn #f59e0b, danger #ef4444, badge = colour + '22'), so the
  * tab reads as part of Admin, not as a port of vm's light palette.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { summariseReadings, periodWords } from './integrationLogic';
+import { getRunRecords, errorText } from '../../../services/integrationsApi';
 
 export const C = {
   accent: 'var(--s-cc6b4a)', ok: 'var(--s-4ade80)', warn: 'var(--s-f59e0b)', bad: 'var(--s-ef4444)', info: 'var(--s-3b82f6)', grey: 'var(--n-888888)',
@@ -480,19 +481,23 @@ export function ChangesList({ changes, loading, dryRun }) {
  * KPI, then a table with a row per month and a column per breakdown value (e.g. business
  * unit), newest month first. The flat list stays one click away ("Show every change").
  */
-export function KpiChangeSummary({ changes, dryRun }) {
+export function KpiChangeSummary({ changes, dryRun, onPick }) {
   const kpis = summariseReadings((changes || []).filter((c) => !isContextChange(c)));
   if (kpis.length === 0) return null;
   return (
     <div>
-      {kpis.map((k) => <KpiTable key={k.key} k={k} dryRun={dryRun} />)}
+      {kpis.map((k) => <KpiTable key={k.key} k={k} dryRun={dryRun} onPick={onPick} />)}
     </div>
   );
 }
 
 const MONTHS_SHOWN = 12;
 
-function KpiTable({ k, dryRun }) {
+// Month (left) and All (right) stay in view while the business units scroll between them.
+const stickyLeft = { position: 'sticky', left: 0, background: 'var(--bg-1)', zIndex: 1 };
+const stickyRight = { position: 'sticky', right: 0, background: 'var(--bg-1)', zIndex: 1, boxShadow: '-1px 0 0 var(--border)' };
+
+function KpiTable({ k, dryRun, onPick }) {
   const [all, setAll] = useState(false);
   const verb = dryRun ? 'would get' : 'got';
   const parts = [];
@@ -517,9 +522,9 @@ function KpiTable({ k, dryRun }) {
         <table style={s.table}>
           <thead>
             <tr>
-              <th style={s.th}>Month</th>
+              <th style={{ ...s.th, ...stickyLeft }}>Month</th>
               {cols.map((d) => <th key={d} style={{ ...s.th, textAlign: 'right' }}>{d || 'Total'}</th>)}
-              {split && cols.length > 1 && <th style={{ ...s.th, textAlign: 'right' }}>All</th>}
+              {split && cols.length > 1 && <th style={{ ...s.th, textAlign: 'right', ...stickyRight }}>All</th>}
             </tr>
           </thead>
           <tbody>
@@ -527,18 +532,29 @@ function KpiTable({ k, dryRun }) {
               let sum = 0; let any = false;
               return (
                 <tr key={p}>
-                  <td style={s.td}>{periodWords(p)}</td>
+                  <td style={{ ...s.td, ...stickyLeft, whiteSpace: 'nowrap' }}>{periodWords(p)}</td>
                   {cols.map((d) => {
                     const c = cell(p, d);
                     const v = num(c?.after);
                     if (v !== null && Number.isFinite(v)) { sum += v; any = true; }
                     return (
                       <td key={d} style={s.tdNum}>
-                        {c ? <>{c.after}{c.before !== null ? <span style={{ color: 'var(--text-muted)' }}> (was {c.before})</span> : null}</> : <span style={{ color: 'var(--text-muted)' }}>–</span>}
+                        {c ? (
+                          <button
+                            type="button"
+                            title={onPick ? 'Show the records behind this figure' : undefined}
+                            disabled={!onPick}
+                            onClick={() => onPick?.(`${k.key}|${p}|${d && k.dimName ? `${k.dimName}=${d}` : d}`, `${k.label} · ${periodWords(p)}${d ? ` · ${d}` : ''}`)}
+                            style={{ background: 'none', border: 0, padding: 0, font: 'inherit', color: onPick ? C.accent : 'inherit', textDecoration: onPick ? 'underline' : 'none', cursor: onPick ? 'pointer' : 'default' }}
+                          >
+                            {c.after}
+                          </button>
+                        ) : <span style={{ color: 'var(--text-muted)' }}>–</span>}
+                        {c && c.before !== null ? <span style={{ color: 'var(--text-muted)' }}> (was {c.before})</span> : null}
                       </td>
                     );
                   })}
-                  {split && cols.length > 1 && <td style={{ ...s.tdNum, fontWeight: 600 }}>{any ? Math.round(sum * 100) / 100 : '–'}</td>}
+                  {split && cols.length > 1 && <td style={{ ...s.tdNum, fontWeight: 600, ...stickyRight }}>{any ? Math.round(sum * 100) / 100 : '–'}</td>}
                 </tr>
               );
             })}
@@ -546,12 +562,100 @@ function KpiTable({ k, dryRun }) {
         </table>
       </div>
       <p style={s.hint}>
-        “–” = no figure for that month. {k.periods.length > MONTHS_SHOWN && (
+        “–” = no figure for that month.{onPick ? ' Click a figure to see the records behind it.' : ''} {k.periods.length > MONTHS_SHOWN && (
           <button type="button" style={{ ...btn('outline', { small: true }), marginLeft: 4 }} onClick={() => setAll((x) => !x)}>
             {all ? `Show the latest ${MONTHS_SHOWN} months` : `Show all ${k.periods.length} months`}
           </button>
         )}
       </p>
+    </div>
+  );
+}
+
+/**
+ * DEF-444 — the records the test read, with the source's own fields as columns (the
+ * fields the mapping uses first, marked). With `reading`, exactly the records one figure
+ * was computed from. Search narrows across every field; 50 at a time.
+ */
+export function RecordsView({ integId, runId, reading, readingLabel, onClear }) {
+  const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState(null);
+  const [err, setErr] = useState('');
+  const LIMIT = 50;
+  useEffect(() => { setOffset(0); }, [reading, query, runId]);
+  useEffect(() => {
+    if (!integId || !runId) return undefined;
+    let live = true;
+    setErr('');
+    getRunRecords(integId, runId, { reading, q: query, offset, limit: LIMIT })
+      .then((p) => { if (live) setPage(p); })
+      .catch((e) => { if (live) setErr(errorText(e)); });
+    return () => { live = false; };
+  }, [integId, runId, reading, query, offset]);
+
+  if (err) return <div style={s.error}>{err}</div>;
+  if (!page) return <div style={s.hint}>Loading the records…</div>;
+  if (!page.available) {
+    return <div style={s.hint}>The records of this test are no longer kept (they are kept for an hour). Run the test again to see them.</div>;
+  }
+  const used = new Set(page.usedFields);
+  const last = Math.min(page.offset + page.rows.length, page.total);
+  return (
+    <div>
+      {reading && (
+        <div style={{ ...s.row, marginBottom: 6 }}>
+          <span style={{ color: 'var(--text)' }}><strong>{page.total}</strong> record{page.total === 1 ? '' : 's'} behind <strong>{readingLabel}</strong></span>
+          <button type="button" style={btn('outline', { small: true })} onClick={onClear}>Show all records</button>
+        </div>
+      )}
+      <div style={{ ...s.row, marginBottom: 8 }}>
+        <input
+          style={{ ...s.input, maxWidth: 280 }}
+          placeholder="Search any field…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') setQuery(q); }}
+        />
+        <button type="button" style={btn('outline', { small: true })} onClick={() => setQuery(q)}>Search</button>
+        <span style={s.hint}>
+          {page.total === 0 ? 'No records' : `${page.offset + 1}–${last} of ${page.total}`}
+          {used.size > 0 ? ' · marked columns are the fields the mapping uses' : ''}
+        </span>
+      </div>
+      {page.rows.length > 0 && (
+        <div style={{ overflowX: 'auto', maxHeight: 520, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {page.headers.map((h) => (
+                  <th key={h} style={{ ...s.th, position: 'sticky', top: 0, background: 'var(--bg-2)', ...(used.has(h) ? { color: C.accent } : null) }}>
+                    {used.has(h) ? '● ' : ''}{h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {page.rows.map((r, i) => (
+                <tr key={page.offset + i}>
+                  {page.headers.map((h) => (
+                    <td key={h} title={String(r[h] ?? '')} style={{ ...s.td, whiteSpace: 'nowrap', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', ...(used.has(h) ? { fontWeight: 600 } : null) }}>
+                      {r[h] === '' || r[h] === undefined || r[h] === null ? <span style={{ color: 'var(--text-muted)' }}>–</span> : String(r[h])}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {page.total > LIMIT && (
+        <div style={{ ...s.row, marginTop: 8 }}>
+          <button type="button" style={btn('outline', { small: true, disabled: offset === 0 })} disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}>← Previous {LIMIT}</button>
+          <button type="button" style={btn('outline', { small: true, disabled: last >= page.total })} disabled={last >= page.total} onClick={() => setOffset(offset + LIMIT)}>Next {LIMIT} →</button>
+        </div>
+      )}
     </div>
   );
 }
