@@ -56,6 +56,7 @@ import createLogger from '../../../utils/logger';
 import prisma from '../../../db/prisma';
 import { callLLM } from '../../llmRouter';
 import { readSource, sourceProblem } from '../sources';
+import { measureIdentity } from '../sources/apiReader';
 import { getBehaviorValue } from '../../behaviorConfig';
 import { buildFieldCoverage } from './fieldInventory';
 import { assessKpiRowRisk, transformFields, transformValueColumns } from './mappingRisk';
@@ -627,7 +628,13 @@ export function validateProposal(v: ValidateInputs): { rows: PlannedSuggestion[]
           continue;
         }
         if (idField && keyed === 0) {
-          rows.push({ ...base, status: 'SET_ASIDE', reason: `${prefix}Set aside: the id field "${idField}" is blank or missing in all ${total} records, so no page could be kept up to date.${why}` });
+          // DEF-441: name the fields that COULD identify a record (measured), so the
+          // fix is one change on Connect, not a guess.
+          const could = measureIdentity(v.read.records, idField)?.candidates ?? [];
+          const fix = could.length
+            ? ` On Connect, set "How a record is identified" to a field every record has — ${could.slice(0, 4).map((c) => `"${c}"`).join(' or ')} (filled and unique in all ${total}) — test, then ask for a new version.`
+            : ' On Connect, set "How a record is identified" to a field every record has, test, then ask for a new version.';
+          rows.push({ ...base, status: 'SET_ASIDE', reason: `${prefix}Set aside: the id field "${idField}" is blank or missing in all ${total} records, so no page could be kept up to date.${fix}${why}` });
           continue;
         }
         const pages = Math.min(titled, keyed);

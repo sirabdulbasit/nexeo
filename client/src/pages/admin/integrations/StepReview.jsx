@@ -6,7 +6,7 @@
  *     approve/withdraw, so a decision can never land on a version the admin is not looking
  *     at. The wizard keeps that version id; Test & turn on dry-runs and activates exactly it;
  *   - only a DRAFT version can be decided. The running (APPROVED) version is frozen: a
- *     change goes through "Ask the AI", which makes a new version carrying every approved
+ *     change goes through "Your instructions → Re-generate the proposal" (top of the step), which makes a new version carrying every approved
  *     row (so the running mapping keeps running until the new one is turned on);
  *   - refused decisions come back with their reason (e.g. the KPI is already fed by another
  *     integration — "one field, one owner") and are shown, never swallowed;
@@ -164,6 +164,24 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
       {version.aiSummary && <p style={{ ...s.hint, color: 'var(--text)', marginTop: 10 }}>{version.aiSummary}</p>}
       {version.adminPrompt && <p style={s.hint}>You asked: “{version.adminPrompt}”</p>}
 
+      {/* DEF-442, owner 11-12: "take my instructions and the option to re-generate the proposal as
+          per my instruction" — the box was at the bottom, under every field row. */}
+      <div style={{ ...s.card, marginTop: 12, marginBottom: 4 }}>
+        <label style={{ ...s.label, marginTop: 0, color: 'var(--text)', fontWeight: 600 }} htmlFor="review-instructions">Your instructions for this proposal</label>
+        <textarea
+          id="review-instructions"
+          style={{ ...s.input, minHeight: 64, resize: 'vertical' }}
+          value={prompt}
+          maxLength={4000}
+          onChange={(e) => setPrompt(e.target.value)}
+          placeholder="e.g. One knowledge page per employee titled by “name”; ignore dateOfBirth and phone; no KPIs."
+        />
+        <div style={{ ...s.row, marginTop: 8 }}>
+          <button style={btn('primary', { small: true, disabled: busy || !prompt.trim() })} disabled={busy || !prompt.trim()} onClick={askAi}>Re-generate the proposal</button>
+          <span style={s.hint}>The AI makes a new version that follows these words. Fields you approved are kept; it revisits the rest.</span>
+        </div>
+      </div>
+
       {notices.length > 0 && (
         <div style={s.warnBox}>
           <strong>Could not be done:</strong>
@@ -176,7 +194,7 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
       {!editable && (
         <div style={s.warnBox}>
           {version.status === 'APPROVED'
-            ? 'This is the mapping that is running, so it cannot be changed here. Ask the AI below for a new version — every approved field is carried over, and the running mapping keeps running until you turn the new one on.'
+            ? 'This is the mapping that is running, so it cannot be changed here. Write your instructions above and re-generate — every approved field is carried over, and the running mapping keeps running until you turn the new one on.'
             : 'This version was replaced by a newer one.'}
         </div>
       )}
@@ -240,7 +258,7 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
         )}
       </div>
 
-      {suggestions.length === 0 && <p style={s.hint}>The AI found nothing it could map. Ask it again below, or add the KPI you expect first.</p>}
+      {suggestions.length === 0 && <p style={s.hint}>The AI found nothing it could map. Write your instructions above and re-generate, or add the KPI you expect first.</p>}
 
       {groups.kpi.length > 0 && (
         <Group title="KPI numbers" count={groups.kpi.length} hint="Numbers Brain answers from (fetch_kpis), one reading per period.">
@@ -269,7 +287,7 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
       )}
       {groups.filter.length === 0 && integ.filterInstructions && suggestions.length > 0 && (
         <div style={s.warnBox}>
-          No filter was suggested for your words “{integ.filterInstructions}”, so every record is read. Ask the AI below if you need it.
+          No filter was suggested for your words “{integ.filterInstructions}”, so every record is read. Say it in your instructions above and re-generate.
         </div>
       )}
 
@@ -295,24 +313,12 @@ export default function StepReview({ integ, setMsg, signal, setWorking, versionI
 
       {error && <div style={s.error}>{error}</div>}
 
-      <div style={s.sectionTitle}>Ask the AI</div>
-      <textarea
-        style={{ ...s.input, minHeight: 64, resize: 'vertical' }}
-        value={prompt}
-        maxLength={4000}
-        onChange={(e) => setPrompt(e.target.value)}
-        placeholder="e.g. “Orders” is a count of orders, map it to a new KPI; ignore the Notes column."
-      />
-      <div style={{ ...s.row, marginTop: 8 }}>
-        <button style={btn('primary', { small: true, disabled: busy })} disabled={busy} onClick={askAi}>Make a new version</button>
-        <span style={s.hint}>Fields you approved are kept; the AI only revisits the rest.</span>
-      </div>
 
       <AddKpi
         existing={kpis}
         onCreated={(def) => {
           setKpis((k) => [...k, def]);
-          setMsg(`KPI “${def?.label ?? ''}” added. Ask the AI for a new version to map a field to it.`);
+          setMsg(`KPI “${def?.label ?? ''}” added. Re-generate the proposal (instructions at the top) to map a field to it.`);
         }}
       />
 

@@ -419,6 +419,7 @@ export async function testApiWith(cn: string, cfg: ApiConfig, secret: string | n
     }
     // Exactly ONE record is shown (spec §2b Connect).
     const sampleRow = flattenRecord(page.records[0]);
+    const idMissing = measureIdentity(page.records, cfg.idField);
     return {
       ok: true,
       rows: page.records.length,
@@ -426,12 +427,42 @@ export async function testApiWith(cn: string, cfg: ApiConfig, secret: string | n
       sampleRow,
       pageRecords: page.records.length,
       declaredTotal,
+      ...(idMissing ? { idMissing } : {}),
     } satisfies TestResult;
   } catch (err) {
     const reason = adminReason(err);
     log.warn('api test failed', { clientNumber: cn, host: safeHost(cfg.baseUrl), reason });
     return { ok: false, rows: 0, columns: [], sampleRow: null, reason };
   }
+}
+
+/**
+ * DEF-441 — vm: "identity is measured, not guessed". A document's sample record
+ * (`"id": 101`) set "how a record is identified" to a field the real API never
+ * sends; every knowledge row was then set aside at proposal time with no hint at
+ * Connect. Measured on the records read: null when the field is present in any
+ * record (or none is set); otherwise the top-level fields that are filled and
+ * unique in EVERY record read — the ones that could identify a record.
+ */
+export function measureIdentity(records: unknown[], idField: string | null | undefined): TestResult['idMissing'] | null {
+  if (!idField || records.length === 0) return null;
+  const filled = (v: unknown): boolean => v !== null && v !== undefined && String(v).trim() !== '';
+  const present = records.some((r) => filled(lookupPath(r, idField)));
+  if (present) return null;
+  const first = records[0];
+  const keys = first && typeof first === 'object' && !Array.isArray(first) ? Object.keys(first as object) : [];
+  const candidates = keys.filter((k) => {
+    const seen = new Set<string>();
+    for (const r of records) {
+      const v = (r as Record<string, unknown>)?.[k];
+      if (!filled(v) || typeof v === 'object') return false;
+      const t = String(v).trim().toLowerCase();
+      if (seen.has(t)) return false;
+      seen.add(t);
+    }
+    return true;
+  });
+  return { field: idField, records: records.length, candidates };
 }
 
 const safeHost = (u: string): string => { try { return new URL(u).host; } catch { return '?'; } };

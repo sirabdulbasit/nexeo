@@ -347,6 +347,21 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
             )}
           </div>
         )}
+        {result?.ok && result.idMissing && (
+          <div style={vm.amber}>
+            {/* DEF-441: measured on the records just read — never a guess. */}
+            <strong>Records cannot be identified.</strong> None of the {result.idMissing.records} records has “{result.idMissing.field}”, so no knowledge page could be kept up to date.
+            {result.idMissing.candidates.length > 0 ? (
+              <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+                Filled and unique in every record — use one:
+                {result.idMissing.candidates.slice(0, 6).map((c) => (
+                  <button key={c} type="button" style={btn('outline', { small: true })} onClick={() => setField('idField', c)}>{c}</button>
+                ))}
+                <span>then test again.</span>
+              </span>
+            ) : ' No field is filled and unique in every record; set "How a record is identified" to the one that names a record, then test again.'}
+          </div>
+        )}
         {result && !result.ok && (
           <div style={vm.bad}><strong>Not working.</strong> {result.reason || (isApi ? 'The API could not be read.' : isFile ? 'The file could not be read.' : 'The sheet could not be read.')}</div>
         )}

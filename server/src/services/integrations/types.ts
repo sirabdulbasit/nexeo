@@ -173,6 +173,10 @@ export interface TestResult {
    *  flattened; `rows` equals `pageRecords` for an API test (one page read). */
   pageRecords?: number;
   declaredTotal?: number | null;
+  /** DEF-441, API only: the configured "how a record is identified" field is in NONE
+   *  of the records read, so no knowledge page could be kept up to date. `candidates`
+   *  are the top-level fields filled AND unique in every record read (measured). */
+  idMissing?: { field: string; records: number; candidates: string[] };
 }
 
 export interface SourceReader {
