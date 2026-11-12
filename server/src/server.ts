@@ -474,6 +474,10 @@ const server = app.listen(env.port, async () => {
   import('./jobs/emailItemDerivationJob').then(({ scheduleEmailItemDerivation }) => {
     scheduleEmailItemDerivation();
   }).catch((e) => console.warn('[boot] email item derivation not scheduled:', e?.message));
+  // F-4 Way A: hosted Meet transcripts into meeting records (polling fallback; Workspace Events arrive sooner).
+  import('./jobs/meetPollJob').then(({ scheduleMeetPoll }) => {
+    scheduleMeetPoll();
+  }).catch((e) => console.warn('[boot] meet poll not scheduled:', e?.message));
   import('./jobs/staleConnectorPing').then(({ scheduleStaleConnectorPing }) => {
     scheduleStaleConnectorPing();
   }).catch((e) => console.warn('[staleConnectorPing] start failed:', e.message));

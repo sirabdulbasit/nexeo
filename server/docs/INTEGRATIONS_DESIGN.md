@@ -18,6 +18,7 @@ invariants). Draft + adversarial critique against both codebases: 2026-10-26 wor
 | **Destinations** | **KPI figures** → `kpi_readings` (one slot = KPI + month + breakdown), definitions in `kpi_definitions`; **knowledge pages** → Wiki `org_doc` pages, one per record (tenant-wide); **filter** rows narrow what is read. |
 | **Data already there** | Same value → nothing written; different value → replaced, old → new kept in the run's change log; a KPI fed by another integration → the run stops; a blank never overwrites; a page whose title already exists (written by hand) is not overwritten; a record gone from a complete read → its page is marked stale, never deleted. |
 | **Safety** | Every outside request through the fetch guard (https, pinned vetted address, same origin, byte and time caps); secrets encrypted, write-only, sent only to the configured origin, dropped when the origin moves; the AI works only at design time, never on a run; a scheduled run changing more than the change limit (default 25 %) of what it holds stops before writing; one transaction per run for the figures. |
+| **Meetings (F-4)** | Google Meet transcripts of meetings he hosts become his meeting records (§2e); the pilot is the founder only. |
 | **Known gaps** | KPI figures are not yet Wiki pages (handed to the "wiki" session, 11-12); no screen to browse stored KPI figures outside the Test step; MCP: one tool call per read (no paging), Streamable HTTP only. |
 
 ## 1. What it does
@@ -320,6 +321,32 @@ older SSE-only transport; OAuth sign-in flows (a token is pasted); a tool that p
 structuredContent, row cap, auth attachment, JSON-only text). Live 11-12 against a public MCP server
 (`mcp.deepwiki.com/mcp`, no sign-in): handshake over an event stream, 3 tools listed, tool called;
 its answer was prose, and the message now says so.
+
+## 2e. Google Meet transcripts into meeting records (F-4 Way A, 2026-11-12)
+
+Not a wizard source: a per-user feed on the Google connector, agreed in Functional_Charter.md "Meeting Assistant (F-4)".
+
+- **Who:** users on the switch `feature_meeting_assistant_users` (comma-separated user ids, empty by default). Pilot: the founder, through nexeo-users@tmcltd.com.
+- **Google permissions:** `meetings.space.readonly` and `meetings.space.settings` (`MEET_SCOPES`, connectorService.ts). They are requested at Google sign-in only for users on the switch, who reconnect once.
+- **Arrival:**
+  - Workspace Events `google.workspace.meet.transcript.v2.fileGenerated` reach Pub/Sub `projects/nexeo-tmc/topics/meet-transcripts` and then `POST /api/v1/meet/events`.
+    - Only Google's OIDC token for nexeo-meet-push, with that URL as audience, is accepted.
+    - Each delivery is acknowledged at once and processed once per event id (`meet_event_receipts`).
+    - Each user has one subscription, made with their own token and renewed a day before it expires (`meet_event_subscriptions`).
+  - Polling fallback (`meetPollJob`, every 5 minutes): calendar events with a Meet link that ended 15 minutes to 24 hours ago are read.
+  - Each record is read once more 30 minutes later, because entries can be incomplete at first.
+- **Scope:** only meetings he hosts. Any other meeting is `not_covered`, and nothing is asked of Google.
+- **Store:** `meeting_records`, migration `20261112_meeting_records`, hand-written and idempotent.
+  - One record per meeting per user, keyed by the calendar event or by conference plus start.
+  - `sources[]` list how it arrived; the best transcript wins (google_transcript, then participant, imported, computer).
+  - Minutes, decisions and proposed action items come from Flash. Re-deriving never undoes his decisions (C6).
+  - No sound is kept. After 12 months only the minutes and action items remain.
+- **Reads and acts:** `meeting.list`, `meeting.get`, `meeting.delete` (signed) and `meeting.upload` through `/suzi/v1/act`. `meeting.attend` and `meeting.leave` answer `not_yet` (Way B is parked).
+- **Counter:** `meeting_transcript_minutes` in the consumption record, a count only, once per transcript.
+- **Not yet (slice 2):**
+  - auto-transcription per meeting through `meetings.space.settings`. The googleapis 144 typings have no `artifactConfig`, so this needs a direct call and verification first; until then he turns transcription on in Meet or Calendar.
+  - Plaud, Otter, Fathom and Fireflies emails and the Drive transcript Doc attaching as `imported`.
+  - the day pack's `attendees[{name, email}]` and `meetings_recorded[]`.
 
 ## 3. Rules carried from vm §8/§9 (each pinned by a test that fails when weakened)
 

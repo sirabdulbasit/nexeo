@@ -600,6 +600,12 @@ async function testCredentials(
 // ═══════════════════════════════════════════════════════════════════
 
 /** Get OAuth URL for a connector that requires OAuth2 */
+/** F-4 Way A: read Meet transcripts and participants; turn auto-transcription on for meetings he chose. */
+export const MEET_SCOPES = [
+  'https://www.googleapis.com/auth/meetings.space.readonly',
+  'https://www.googleapis.com/auth/meetings.space.settings',
+];
+
 export async function getOAuthUrl(
   userId: number,
   connectorTypeId: string,
@@ -670,6 +676,13 @@ export async function getOAuthUrl(
         'https://www.googleapis.com/auth/contacts.other.readonly',
         'https://www.googleapis.com/auth/directory.readonly',
       ];
+      // F-4 Way A (agreed 12 Nov 2026): Meet's transcripts and space settings, asked only of users whose Meeting
+      // Assistant switch is on (meetings.space.readonly is a sensitive scope; nobody else sees the extra consent).
+      try {
+        const u = await prisma.user.findUnique({ where: { id: userId }, select: { clientNumber: true } as any }) as any;
+        const { meetingAssistantOn } = await import('./meetings/meetingProcessor');
+        if (u?.clientNumber && await meetingAssistantOn(u.clientNumber, userId)) ALL_GOOGLE_SCOPES.push(...MEET_SCOPES);
+      } catch { /* the sign-in itself must never fail over this */ }
 
       const url = client.generateAuthUrl({
         access_type: 'offline',

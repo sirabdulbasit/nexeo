@@ -116,3 +116,20 @@ export function reportCsv(rows: ConsumptionRow[]): string {
   return ['key,calls,input_tokens,cached_tokens,output_tokens,est_usd,all_measured',
     ...rows.map((r) => [q(r.key), r.calls, r.input_tokens, r.cached_tokens, r.output_tokens, r.est_usd, r.all_measured].join(','))].join('\n') + '\n';
 }
+
+/**
+ * F-4 (Costing Charter §7.3): `meeting_transcript_minutes`, counted when a Way A transcript is read. A count only,
+ * never content; once per transcript (a re-read of the same transcript is not counted again).
+ */
+export async function recordMeetingTranscriptMinutes(
+  clientNumber: string, userId: number, transcriptName: string, minutes: number, opts: { timezone?: string; now?: Date } = {},
+): Promise<void> {
+  const units = Math.max(0, Math.round(Number(minutes) || 0));
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO consumption_events (client_number, user_id, part, service, unit, units, est_usd, measured, day, source_key)
+     VALUES ($1, $2, 'nexeo', 'meeting_transcript_minutes', 'minutes', $3, 0, TRUE, $4::date, $5)
+     ON CONFLICT (client_number, source_key) DO NOTHING`,
+    clientNumber, userId, units, localDate(opts.now ?? new Date(), safeTimezone(opts.timezone)),
+    `meet:${String(transcriptName).slice(0, 200)}`,
+  );
+}
