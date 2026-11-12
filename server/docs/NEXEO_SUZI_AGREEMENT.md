@@ -456,3 +456,7 @@ Proposed by Suzi Master on 12 Nov 2026 at 11:55 PKT (`/var/www/suzi/protocol/pro
   - **Pub/Sub:** the topic and the push subscription `meet-transcripts-nexeo` are done.
   - **Blocked:** the Publisher grant for `meet-api-event-push@system.gserviceaccount.com` was refused by the org policy `iam.allowedPolicyMemberDomains`. Imperialsoft has been asked for a project-only exception.
   - **Way A works without events:** Nexeo polls `conferenceRecords` about 15 minutes after each hosted event ends, and the events only make notes arrive sooner.
+- **GCP side complete, 12 Nov 12:52 PKT (Imperialsoft).** `meet-api-event-push@system.gserviceaccount.com` now holds `roles/pubsub.publisher` on `meet-transcripts`.
+  - **Policy:** this took a project-only override of `iam.allowedPolicyMemberDomains`, which has since been removed. nexeo-tmc inherits the org policy again, and nothing changed at the organisation level.
+  - **One side change:** the Org Policy API was enabled on nexeo-tmc.
+  - **Still to do, Nexeo's build after "agree F-4":** the `/api/v1/meet/events` endpoint (OIDC token from `nexeo-meet-push`, audience equal to the URL); Workspace Events subscriptions pointing at the topic; and the two Meet scopes, which means each user reconnects once.
