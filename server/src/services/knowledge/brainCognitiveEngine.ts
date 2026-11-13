@@ -107,11 +107,13 @@ async function analyzeNewContacts(clientNumber: string, userId: number): Promise
       WHERE client_number = $1
         AND page_type = 'entity_person'
         AND status = 'active'
+        -- DEF-473: this user's observations name only this user's contacts (or the company's).
+        AND (scope = 'tenant' OR user_id = $3)
         AND created_at > $2
         AND (metadata->>'linkedPageCount')::int >= 2
       ORDER BY (metadata->>'linkedPageCount')::int DESC
       LIMIT 5`,
-    clientNumber, oneDayAgo,
+    clientNumber, oneDayAgo, userId,
   ).catch(() => []);
 
   return rows.map((r) => ({
@@ -133,11 +135,12 @@ async function analyzeRisingTopics(clientNumber: string, userId: number): Promis
       WHERE wp.client_number = $1
         AND wp.page_type = 'topic'
         AND wp.status = 'active'
+        AND (wp.scope = 'tenant' OR wp.user_id = $3)
         AND wp.last_updated_at > $2
         AND (wp.metadata->>'linkedPageCount')::int >= 3
       ORDER BY (wp.metadata->>'linkedPageCount')::int DESC
       LIMIT 5`,
-    clientNumber, sevenDaysAgo,
+    clientNumber, sevenDaysAgo, userId,
   ).catch(() => []);
 
   return rows.map((r) => ({

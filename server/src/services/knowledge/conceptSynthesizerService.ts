@@ -92,9 +92,12 @@ export async function synthesizePerson(clientNumber: string, entityId: string): 
 
   const scope = await classifyPersonScope(clientNumber, entity.email, entity.phone);
 
-  // Fetch all source pages linked to this entity across every user in the tenant.
-  // Person pages are tenant-shared (a colleague writing to Basit vs Abdul is
-  // still the same person), so the concept page surfaces every interaction.
+  // DEF-473: the concept page belongs to ONE user, so it is written only from that user's own
+  // pages and the company's (Wiki-Knowledge §0.1.6). It used to read every user's pages about the
+  // person, which carries one user's private mail into another user's page. The owner is the
+  // owner of the existing concept page, else of the most recent page about the person.
+  const owner = await conceptOwner(clientNumber, `metadata->>'entityId' = $2`, entityId);
+  if (!owner) return null;
   const linkedPages = await prisma.$queryRawUnsafe<any[]>(
     `SELECT id, user_id AS "userId", page_type AS "pageType", title,
             ${toastSafeSnippet('body_markdown', 800)} AS snippet,
@@ -103,9 +106,10 @@ export async function synthesizePerson(clientNumber: string, entityId: string): 
       WHERE client_number = $1
         AND metadata->>'entityId' = $2
         AND status NOT IN ('superseded','deleted')
+        AND (scope = 'tenant' OR user_id = $3)
       ORDER BY last_updated_at DESC
       LIMIT 60`,
-    clientNumber, entityId,
+    clientNumber, entityId, owner,
   ).catch(() => []);
 
   if (linkedPages.length === 0) return null;
@@ -382,7 +386,10 @@ export async function synthesizeTopic(clientNumber: string, topicKey: string): P
   const name = topicKey.trim();
   if (name.length < 3) return null;
 
-  // All wiki pages mentioning the topic (body ILIKE) that belong to this tenant.
+  // The topic page is written for one user (the same choice as below), and only from that user's
+  // own pages and the company's (DEF-473).
+  const topicOwner = await pickTenantScope(clientNumber);
+  if (!topicOwner) return null;
   const linked = await prisma.$queryRawUnsafe<any[]>(
     `SELECT id, user_id AS "userId", page_type AS "pageType", title,
             metadata->>'entityId' AS "entityId",
@@ -392,13 +399,15 @@ export async function synthesizeTopic(clientNumber: string, topicKey: string): P
       WHERE client_number = $1
         AND page_type NOT IN ('topic','tenant_index','tenant_log','entity_person')
         AND status NOT IN ('superseded','deleted')
+        -- DEF-473: only the topic page owner's own pages and the company's.
+        AND (scope = 'tenant' OR user_id = $3)
         AND (
           title ILIKE '%' || $2 || '%'
           OR body_markdown ILIKE '%' || $2 || '%'
         )
       ORDER BY last_updated_at DESC
       LIMIT 50`,
-    clientNumber, name,
+    clientNumber, name, topicOwner,
   ).catch(() => []);
 
   if (linked.length < 2) return null;
@@ -436,8 +445,7 @@ export async function synthesizeTopic(clientNumber: string, topicKey: string): P
   }
 
   const body = renderTopicPage({ name, summary, people, linked });
-  const mdUser = await pickTenantScope(clientNumber);
-  if (!mdUser) return null;
+  const mdUser = topicOwner;
 
   const metadata: any = {
     schemaVersion: BRAIN_SCHEMA_VERSION,
@@ -598,6 +606,22 @@ async function classifyPersonScope(
 }
 
 /** Pick the user ID to scope tenant-shared concept pages under. */
+/**
+ * Whose concept page this is: the owner of the existing one, else of the most recent page about
+ * the subject. The concept page is built only from that user's pages and the company's (DEF-473).
+ */
+async function conceptOwner(clientNumber: string, matchSql: string, value: string): Promise<number | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ user_id: number }>>(
+    `SELECT user_id FROM wiki_pages
+      WHERE client_number = $1 AND ${matchSql} AND status NOT IN ('superseded','deleted') AND user_id IS NOT NULL
+      ORDER BY (page_type = 'entity_person' AND last_updated_by = 'concept_synthesizer') DESC, last_updated_at DESC
+      LIMIT 1`,
+    clientNumber, value,
+  ).catch(() => []);
+  const u = Number(rows[0]?.user_id);
+  return Number.isFinite(u) && u > 0 ? u : null;
+}
+
 async function pickTenantScope(clientNumber: string): Promise<number | null> {
   // Prefer a super-admin if we have one; else the first active user.
   // Tenant-shared page types are cross-user-readable anyway (see

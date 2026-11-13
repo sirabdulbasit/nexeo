@@ -586,8 +586,10 @@ router.post('/cleanup-junk', async (req: Request, res: Response) => {
          FROM wiki_pages
         WHERE page_type = 'entity_person'
           AND status = 'active'
-          AND client_number = $1`,
-      req.user!.clientNumber,
+          AND client_number = $1
+          -- DEF-473: a user cleans up only their own contacts, never a colleague's.
+          AND user_id = $2`,
+      req.user!.clientNumber, req.user!.id,
     );
     const flagged: Array<{ id: string; title: string; email: string; reason: string }> = [];
     for (const r of rows) {

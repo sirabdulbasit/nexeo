@@ -337,7 +337,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
-| 12 | Proven private: two users and two clients through every path | Not run |
+| 12 | Proven private: two users and two clients through every path | Run 13 Nov: 22 of 22; four faults found and fixed (DEF-471 to 473); Drive export and meaning search read from code only (§0.15) |
 | 13 | Self-pruning that keeps sources and history (§7) | Not built |
 
 **The rebuild, when 6 to 12 are done:** archive every old page and every note; run Scribe for every user and every integration; the builder writes the notes from the sources. It must give the same wiki when run twice.
@@ -451,6 +451,8 @@ Advisory; plan score 88 (85 before); capability scores carried forward, none cre
 | P3 | This document's last "Next step" still asked for identity, which is live; `Rules.md` kept the old 30-rule wording | True | Fixed in this commit |
 
 - **First finding of the privacy matrix (part 12), fixed the same hour: DEF-471.** The Wiki screen's single-page and graph routes decided who may read a page by its type, so any user of a client could read another user's private project, decision, pattern, policy and attachment pages, and through the graph their people and topic pages (about 4,300 on production). Nobody read them: no second user of any client could sign in. Now they read by scope and owner only, and a test fails the build if any route shares a page by type again. The rest of the matrix (sources, marks, search, Suzi's knowledge route, the Drive export) is still to run.
+
+- **The privacy matrix, run the same evening (part 12), result:** on the production database with two throwaway users in one client and one in another, **22 of 22** through the Wiki store (notes, backlinks, sources, trails, marks, window lists, citations, marks, removal, merge), Suzi's knowledge search, Brain's planner index and the older page read. Along the way **three more faults of the same class were found and fixed**: DEF-472 (the `/v1/wiki` routes let any user act as a colleague through a header) and DEF-473 (the concept builder, two of Brain's observations and the contacts clean-up read every user of the client). Each now has a test that fails on the old code. **Not covered yet:** the Drive export (read from code: it filters by owner) and the meaning search with real embeddings (throwaway notes have none; the query filters by owner); about 40 maintenance scripts that read across users by design and serve no reader.
 
 The owner's latest ruling stands and the review says to keep it: **learned patterns only suggest; rules, delegations and standing instructions act by themselves within their scope.** The findings above are about enforcing that scope, not about asking him again.
 

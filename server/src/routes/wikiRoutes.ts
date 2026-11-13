@@ -14,18 +14,18 @@ const router = Router();
 // All wiki endpoints enforce (clientNumber, userId) scope at the service layer.
 // Requests authenticate as a specific user; queries are always for THAT user's wiki.
 //
-// Agents (wiki_scribe) call with the tenant's SA bearer + `X-On-Behalf-Of-User`
-// header to operate on a specific user's wiki — this helper resolves the target
-// user ID for both human and agent callers.
+// A request acts for the signed-in user only. (Agents once called with an
+// `X-On-Behalf-Of-User` header; that is refused now, DEF-472.)
 function resolveTargetUser(req: Request): { clientNumber: string; userId: number } | null {
   const user = (req as any).user;
   if (!user?.clientNumber) return null;
+  // DEF-472: the X-On-Behalf-Of-User header used to switch to any user of the client, for anyone
+  // signed in. Its only callers were machine agents, which the Wiki no longer answers (§0.8,
+  // wikiHandshake), so it is now refused unless it names the caller: a user's Wiki is theirs alone.
   const onBehalfRaw = req.headers['x-on-behalf-of-user'];
-  if (onBehalfRaw) {
+  if (onBehalfRaw !== undefined) {
     const target = parseInt(Array.isArray(onBehalfRaw) ? onBehalfRaw[0] : String(onBehalfRaw), 10);
-    if (Number.isFinite(target) && target > 0) {
-      return { clientNumber: user.clientNumber, userId: target };
-    }
+    if (target !== user.id) return null;
   }
   if (!user.id) return null;
   return { clientNumber: user.clientNumber, userId: user.id };
