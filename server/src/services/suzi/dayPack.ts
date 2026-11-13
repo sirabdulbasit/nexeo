@@ -167,9 +167,27 @@ export function toPackEmail(i: { threadId?: string | null; feedEventId: string; 
   };
 }
 
+/** DEF-459 (Suzi Master AGREE 13 Nov): an email that needs nothing from him but he should know. Never a body. */
+export interface PackFyi { email_id: string; thread_id: string; from: string; subject: string; kind: string; why: string; point: string; urgency: string; received_at: string; preview: string }
+export const PACK_FYI_MAX = 10;
+
+export function toPackFyi(i: { feedEventId: string; threadId?: string | null; fromDisplay?: string; from: string; subject: string; preview?: string; receivedAt: string; critical?: boolean; criticality?: { band?: string } | null; forYourKnowledge?: { kind: string; why: string } | null }, tz: string): PackFyi {
+  const e = toPackEmail(i as any, tz);
+  const why = i.forYourKnowledge?.why ?? '';
+  const band = i.criticality?.band;
+  return {
+    email_id: i.feedEventId, thread_id: e.thread_id, from: e.from, subject: e.subject,
+    kind: i.forYourKnowledge?.kind ?? 'escalation', why, point: why,
+    urgency: band === 'critical' || i.critical ? 'critical' : band === 'high' ? 'high' : 'normal',
+    received_at: e.received_at, preview: e.preview,
+  };
+}
+
 export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
   calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_loading: boolean;
+  /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
+  fyi?: PackFyi[];
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
   rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
 }
@@ -247,8 +265,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const { actions } = await listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now });
   // The brief already waited up to the cap on this same list; a second wait would double it.
   const stillLoading = facts.missing.some((m) => m.source === 'email' && m.status === 'loading');
-  const attention = !facts.sources.email ? { items: [], loading: false }
-    : stillLoading ? { items: [], loading: true }
+  const attention: Awaited<ReturnType<typeof loadAttentionEmails>> = !facts.sources.email ? { items: [], loading: false, fyi: [] }
+    : stillLoading ? { items: [], loading: true, fyi: [] }
     : await loadAttentionEmails(clientNumber, userId);
   const kpiBlock = facts.blocks.find((b): b is Extract<BriefBlock, { type: 'kpis' }> => b.type === 'kpis');
 
@@ -263,6 +281,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
     emails: await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
     emails_loading: attention.loading,
+    ...(attention.fyi.length ? { fyi: attention.fyi.slice(0, PACK_FYI_MAX).map((i) => toPackFyi(i, tz)) } : {}),
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,

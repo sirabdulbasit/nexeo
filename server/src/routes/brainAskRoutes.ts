@@ -437,7 +437,8 @@ router.get('/instructions', async (req: Request, res: Response) => {
   const limit = Math.min(parseInt(String(req.query.limit ?? '30'), 10) || 30, 100);
   try {
     const { getActiveInstructions } = await import('../services/knowledge/instructionService');
-    const rows = await getActiveInstructions(user.clientNumber, user.id, limit);
+    // Paused rules are listed too, so one can be resumed (a paused rule used to vanish from My Rules).
+    const rows = await getActiveInstructions(user.clientNumber, user.id, limit, { includePaused: true });
     // One set of rules (founder, 13 Nov; DEF-457): his email rules set through Suzi are listed here too. A rule read
     // from one of these instructions is shown once, as the instruction.
     const { listEmailRules } = await import('../services/suzi/instructionEmailRules');

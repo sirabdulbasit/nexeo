@@ -106,7 +106,7 @@ export async function loadAttentionEmails(clientNumber: string, userId: number, 
       computeBriefPartition(clientNumber, userId, 100, 100),
       new Promise<null>((r) => { const t = setTimeout(() => r(null), timeoutMs); (t as any).unref?.(); }),
     ]);
-    if (!part) return { items: [], loading: true };
+    if (!part) return { items: [], loading: true, fyi: [] };
     // Link T23: Gmail itself says what he has already answered, from any address or app. Those
     // are left out; the rest carry whether that could be checked. Copies, since the triage cache
     // shares these objects.
@@ -116,9 +116,10 @@ export async function loadAttentionEmails(clientNumber: string, userId: number, 
     const items = emails
       .map((i) => ({ ...i, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
       .filter((i) => !i.reply.replied_at);
-    return { items, loading: false };
+    // DEF-459: emails that need nothing from him but he should know (same partition).
+    return { items, loading: false, fyi: part.forYourKnowledge ?? [] };
   } catch {
-    return { items: [], loading: false };
+    return { items: [], loading: false, fyi: [] };
   }
 }
 

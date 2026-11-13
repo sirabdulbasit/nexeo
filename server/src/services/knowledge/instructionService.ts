@@ -234,6 +234,8 @@ export interface ActiveInstructionRow {
   action: string | null;
   originalText: string;
   createdAt: string;
+  /** active | paused (paused only when asked for, for My Rules). */
+  status?: InstructionStatus;
   /** DEF-248 — `authoredBy` (`user:<id>`) has been persisted on every rule
    *  since creation and was never selected or shown. Optional because rows
    *  written before the field existed legitimately lack it — the renderer
@@ -255,6 +257,8 @@ export async function getActiveInstructions(
   clientNumber: string,
   userId: number,
   limit = 30,
+  /** My Rules only: paused rules too, so a paused rule can be resumed (Rules.md §2.4). Brain never passes it. */
+  opts: { includePaused?: boolean } = {},
 ): Promise<ActiveInstructionRow[]> {
   const rows = await prisma.$queryRawUnsafe<any[]>(
     `SELECT id, title, metadata->>'kind' AS kind,
@@ -263,12 +267,13 @@ export async function getActiveInstructions(
             metadata->>'condition' AS condition, metadata->>'action' AS action,
             metadata->>'originalText' AS "originalText",
             metadata->>'createdAt' AS "createdAt",
-            metadata->>'authoredBy' AS "authoredBy"
+            metadata->>'authoredBy' AS "authoredBy",
+            metadata->>'status' AS status
        FROM wiki_pages
       WHERE client_number = $1
         AND page_type = 'instruction'
         AND status = 'active'
-        AND metadata->>'status' = 'active'
+        AND metadata->>'status' = ANY($4::text[])
         AND (
           COALESCE(metadata->>'scope', 'user') = 'client'
           OR user_id = $2
@@ -276,7 +281,7 @@ export async function getActiveInstructions(
       ORDER BY (COALESCE(metadata->>'scope', 'user') = 'client') DESC,
                (metadata->>'createdAt') DESC
       LIMIT $3`,
-    clientNumber, userId, limit,
+    clientNumber, userId, limit, opts.includePaused ? ['active', 'paused'] : ['active'],
   ).catch(() => []);
   return rows as ActiveInstructionRow[];
 }
