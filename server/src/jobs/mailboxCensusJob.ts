@@ -56,12 +56,12 @@ export interface CensusDeps {
   readEmail: (userId: number, id: string) => Promise<{ email?: any; error?: string }>;
 }
 
-export interface CensusResult { day: string; inbox: number; sent: number; held: number; fetchedLate: string[]; stillMissing: number; marked: number; unmarked: number }
+export interface CensusResult { day: string; inbox: number; sent: number; held: number; fetchedLate: string[]; stillMissing: number; marked: number; unmarked: number; wikiDay: { total: number; unmarked: number } }
 
 export async function censusDay(u: { clientNumber: string; userId: number }, day: string, tz: string, deps: CensusDeps, budget: { late: number; judge?: number }): Promise<CensusResult> {
   const { sourceId, sourcesHeld, saveSource } = await import('../services/wiki/wikiSources');
   const { landEmailText } = await import('../services/wiki/wikiIntake');
-  const { markSource, countUnmarked } = await import('../services/wiki/wikiStore');
+  const { markSource, countUnmarked, marksOf } = await import('../services/wiki/wikiStore');
   const { ingest } = await import('../services/feed/feedIngestionService');
   const { start, end } = dayBounds(day, tz);
   const writer = { clientNumber: u.clientNumber, userId: u.userId };
@@ -100,10 +100,17 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
   // own) is judged here, so every landed email of the day carries its attention mark. Bounded per run.
   await markUnjudged(u, start, end, budget);
   const held2 = await sourcesHeld(u.clientNumber, u.userId, all.map(sid));
-  const counts = await countUnmarked(u.clientNumber, u.userId, 'email', 'attention', start, end).catch(() => ({ total: 0, unmarked: -1 }));
+  // ONE unit (Wiki session, 13 Nov): marked and unmarked count the SAME emails as held, the mailbox's own ids.
+  const heldIds = all.map(sid).filter((id) => held2.has(id));
+  const marks: any = heldIds.length ? await marksOf(u.clientNumber, u.userId, heldIds) : new Map();
+  const markList = (id: string): any[] => (marks instanceof Map ? marks.get(id) : marks?.[id]) ?? [];
+  const markedN = heldIds.filter((id) => markList(id).some((m: any) => m.kind === 'attention')).length;
+  // The Wiki's own count for the day (its emails dated that day, which can include mail Gmail no longer lists in
+  // inbox or sent, e.g. archived): reported apart, never mixed into the proof.
+  const counts = await countUnmarked(u.clientNumber, u.userId, 'email', 'attention', start, end).catch(() => ({ total: -1, unmarked: -1 }));
   const res: CensusResult = {
     day, inbox: inbox.length, sent: sent.length, held: held2.size, fetchedLate, stillMissing: all.length - held2.size,
-    marked: Math.max(0, counts.total - counts.unmarked), unmarked: counts.unmarked,
+    marked: markedN, unmarked: heldIds.length - markedN, wikiDay: { total: counts.total, unmarked: counts.unmarked },
   };
   await saveSource({
     clientNumber: u.clientNumber, userId: u.userId, kind: 'record', externalId: `mailbox-census:gmail:${day}`,
@@ -112,9 +119,10 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
       `Gmail, ${day} (${tz}): ${res.inbox} in the inbox, ${res.sent} sent.`,
       `Held in the Wiki: ${res.held} of ${all.length}${res.stillMissing ? `; still missing: ${res.stillMissing}` : '; none missing'}.`,
       `Landed late by this check: ${res.fetchedLate.length}.`,
-      `Marked: ${res.marked}; not yet marked: ${res.unmarked}.`,
+      `Of those held, marked: ${res.marked}; not yet marked: ${res.unmarked}.`,
+      `All the Wiki's emails dated that day: ${res.wikiDay.total}, of which not yet marked: ${res.wikiDay.unmarked}.`,
     ].join('\n'),
-    details: { type: 'mailbox_census', provider: 'gmail', day, tz, in_mailbox: { inbox: res.inbox, sent: res.sent }, held: res.held, still_missing: res.stillMissing, fetched_late: res.fetchedLate, marked: res.marked, unmarked: res.unmarked },
+    details: { type: 'mailbox_census', provider: 'gmail', day, tz, in_mailbox: { inbox: res.inbox, sent: res.sent }, held: res.held, still_missing: res.stillMissing, fetched_late: res.fetchedLate, marked: res.marked, unmarked: res.unmarked, wiki_day: { total: res.wikiDay.total, unmarked: res.wikiDay.unmarked } },
   });
   return res;
 }

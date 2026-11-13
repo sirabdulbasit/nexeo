@@ -19,7 +19,7 @@ const landEmailText = vi.fn(async (p: any) => { heldIds.add(`src_${p.gmailMessag
 vi.mock('../src/services/wiki/wikiIntake', () => ({ landEmailText: (...a: any[]) => (landEmailText as any)(...a) }));
 const markSource = vi.fn(async () => ({ changed: true }));
 let unmarkedRows: any[] = [];
-vi.mock('../src/services/wiki/wikiStore', () => ({ markSource: (...a: any[]) => (markSource as any)(...a), countUnmarked: async () => ({ total: 4, unmarked: 1 }), listMarkedSources: async () => unmarkedRows }));
+vi.mock('../src/services/wiki/wikiStore', () => ({ markSource: (...a: any[]) => (markSource as any)(...a), countUnmarked: async () => ({ total: 4, unmarked: 1 }), listMarkedSources: async () => unmarkedRows, marksOf: async (_c: string, _u: number, ids: string[]) => new Map(ids.filter((i) => i !== 'src_i2').map((i) => [i, [{ kind: 'attention' }]])) }));
 const suggest = vi.fn(async () => ({ needsYou: undefined, forYourKnowledge: null, rationale: 'auto-acknowledged calendar reply' }));
 vi.mock('../src/services/triage/triageSuggester', () => ({ suggestForFeedEvent: (...a: any[]) => (suggest as any)(...a) }));
 const writeMark = vi.fn(async () => 'marked');
@@ -46,7 +46,9 @@ describe('the daily check', () => {
     expect((landEmailText.mock.calls[0] as any[])[0]).toMatchObject({ gmailMessageId: 's2', bodyText: 'full text', from: 'me@x.com', labels: ['SENT'] });
     expect(markSource).toHaveBeenCalledWith({ clientNumber: 'T', userId: 2 }, 'src_s1', { kind: 'attention', value: { class: 'own' }, by: SENT_MARK_BY });
     expect(markSource).toHaveBeenCalledWith({ clientNumber: 'T', userId: 2 }, 'src_s2', { kind: 'attention', value: { class: 'own' }, by: SENT_MARK_BY });
-    expect(r).toMatchObject({ inbox: 2, sent: 2, held: 4, stillMissing: 0, fetchedLate: ['i2', 's2'], marked: 3, unmarked: 1 });
+    // One unit: marked + unmarked = held (i2 has no mark yet: triage will judge it); the Wiki's day total is apart.
+    expect(r).toMatchObject({ inbox: 2, sent: 2, held: 4, stillMissing: 0, fetchedLate: ['i2', 's2'], marked: 3, unmarked: 1, wikiDay: { total: 4, unmarked: 1 } });
+    expect(r.marked + r.unmarked).toBe(r.held);
     const rec = (saveSource.mock.calls[0] as any[])[0];
     expect(rec).toMatchObject({ kind: 'record', externalId: 'mailbox-census:gmail:2026-11-13', details: { type: 'mailbox_census', in_mailbox: { inbox: 2, sent: 2 }, held: 4, still_missing: 0 } });
   });
