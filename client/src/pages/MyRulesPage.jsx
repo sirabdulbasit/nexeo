@@ -1512,6 +1512,7 @@ const KIND_COLOR = {
 
 function StandingInstructionsTab() {
   const [list, setList] = useState([]);
+  const [emailRules, setEmailRules] = useState([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
@@ -1530,6 +1531,7 @@ function StandingInstructionsTab() {
     try {
       const r = await api.get('/brain/instructions');
       setList(r.data?.instructions ?? []);
+      setEmailRules(r.data?.emailRules ?? []);
       setIsAdmin(!!r.data?.isAdmin);
       setScope((cur) => (cur === 'client' && !r.data?.isAdmin ? 'user' : cur));
     } catch (err) {
@@ -1564,6 +1566,17 @@ function StandingInstructionsTab() {
       await load();
     } catch (err) {
       notify(err?.response?.data?.error ?? 'Update failed', 'error');
+    }
+  };
+
+  // One set of rules (founder, 13 Nov; DEF-457): email rules set through Suzi are his rules too, removed everywhere.
+  const removeEmailRule = async (id) => {
+    try {
+      await api.delete(`/brain/email-rules/${id}`);
+      notify('Rule removed, here and on Suzi', 'info');
+      await load();
+    } catch (err) {
+      notify(err?.response?.data?.error ?? 'Could not remove the rule', 'error');
     }
   };
 
@@ -1640,7 +1653,7 @@ function StandingInstructionsTab() {
 
       {loading ? (
         <div style={{ color: 'var(--text-muted)' }}>Loading…</div>
-      ) : list.length === 0 ? (
+      ) : list.length === 0 && emailRules.length === 0 ? (
         <Empty title="No standing instructions yet">
           Anything you tell Brain here becomes a rule it reads before every decision. Think delegation rules, watchpoints, or follow-ups.
         </Empty>
@@ -1669,6 +1682,22 @@ function StandingInstructionsTab() {
                   canEdit
                   onStatus={(status) => changeStatus(ins.id, status)}
                 />
+              ))}
+            </InstructionGroup>
+          )}
+          {emailRules.length > 0 && (
+            <InstructionGroup label={`Email rules · ${emailRules.length}`} labelColor="var(--s-4ade80)" note="(set through Suzi; Suzi's email list follows them)">
+              {emailRules.map((r) => (
+                <div key={r.id} style={{
+                  padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
+                  display: 'flex', alignItems: 'center', gap: 10,
+                }}>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'rgba(59,130,246,0.14)', color: 'var(--s-60a5fa)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                    {r.kind === 'email_delegate' ? 'delegate' : 'ignore'}
+                  </span>
+                  <span style={{ flex: 1, fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>{r.text}</span>
+                  <Button variant="secondary" size="sm" onClick={() => removeEmailRule(r.id)}>Remove</Button>
+                </div>
               ))}
             </InstructionGroup>
           )}

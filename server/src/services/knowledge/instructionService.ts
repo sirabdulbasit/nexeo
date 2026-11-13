@@ -208,6 +208,14 @@ export async function createInstructionFromText(
         }
       } catch { /* best effort */ }
     })();
+    // Founder, 13 Nov (Wiki-Knowledge §0.9): a rule he types works everywhere. An email rule ("always ignore Demo VM
+    // alerts") also becomes the email rule Suzi's list applies, linked to this instruction (DEF-457).
+    if (scope === 'user' && structured.kind === 'standing_rule') {
+      try {
+        const { emailRuleFromInstruction } = await import('../suzi/instructionEmailRules');
+        await emailRuleFromInstruction(clientNumber, userId, created.id, clean);
+      } catch { /* the instruction stands */ }
+    }
     return { id: created.id, structured, scope };
   } catch (err: any) {
     log.warn('createInstruction failed', { error: err.message });
@@ -375,6 +383,11 @@ export async function updateInstructionStatus(
         lastUpdatedBy: 'instruction_service',
       },
     });
+    // Its email rule follows it: paused or archived = off, active = on (DEF-457).
+    try {
+      const { followInstructionStatus } = await import('../suzi/instructionEmailRules');
+      await followInstructionStatus(clientNumber, page.userId ?? userId, page.id, status === 'active');
+    } catch { /* best effort: the instruction's own status is already saved */ }
     void (async () => {
       try {
         const { invalidate } = await import('../../utils/redisClient');

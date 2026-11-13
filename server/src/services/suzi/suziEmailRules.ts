@@ -59,7 +59,9 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   const what = kind === 'email_delegate'
     ? `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ready to delegate to ${person!.name}`
     : `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ignore`;
-  const payload = { suzi: { kind, by, value, ...(person ? { person_id: person.id, person_name: person.name, person_email: person.email } : {}), ...(note ? { note } : {}) } };
+  // instruction_id: the standing instruction this rule was read from (DEF-457), so the two are one rule until A3.
+  const instructionId = text(a.instruction_id).slice(0, 100);
+  const payload = { suzi: { kind, by, value, ...(person ? { person_id: person.id, person_name: person.name, person_email: person.email } : {}), ...(note ? { note } : {}), ...(instructionId ? { instruction_id: instructionId } : {}) } };
   // The same kind and match again folds into his existing rule (its person and note take the new values), so saving
   // a rule twice never leaves two (Suzi Master, 13 Nov: the founder saved the Demo VM rule twice).
   const same = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
@@ -71,7 +73,11 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   );
   if (same[0]) {
     await prisma.$executeRawUnsafe(
-      `UPDATE user_action_rules SET name = $2, nl_original = $3, action_payload = $4::jsonb, updated_at = now() WHERE id = $1`,
+      // A link to an instruction, once made, is kept when the same rule is saved again from Suzi.
+      `UPDATE user_action_rules SET name = $2, nl_original = $3, updated_at = now(),
+         action_payload = CASE WHEN $4::jsonb->'suzi' ? 'instruction_id' OR NOT (action_payload->'suzi' ? 'instruction_id') THEN $4::jsonb
+                               ELSE jsonb_set($4::jsonb, '{suzi,instruction_id}', action_payload->'suzi'->'instruction_id') END
+       WHERE id = $1`,
       same[0].id, what.slice(0, 200), what.slice(0, 2000), JSON.stringify(payload),
     );
     return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, rules_version: await rulesVersion(clientNumber, userId) } };

@@ -61,6 +61,16 @@ describe('rule.set twice', () => {
   });
 });
 
+describe('rule.set from an instruction (DEF-457)', () => {
+  it('carries the instruction it was read from, and a fold keeps an existing link', async () => {
+    await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'Demo VM' }, instruction_id: 'ins_9' }, true);
+    expect(JSON.parse(exec.mock.calls[0][8]).suzi.instruction_id).toBe('ins_9');
+    exec.mockClear(); query.mockResolvedValueOnce([{ id: 'uar_old' }]);
+    await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'Demo VM' } }, true);
+    expect(exec.mock.calls[0][0]).toMatch(/jsonb_set\(\$4::jsonb, '\{suzi,instruction_id\}', action_payload->'suzi'->'instruction_id'\)/);
+  });
+});
+
 describe('rule.remove', () => {
   it('only his own active rule', async () => {
     expect(await ruleRemove('T', 2, { rule_id: 'uar_1' }, true)).toMatchObject({ ok: true, item: { removed: true, rules_version: 12 } });

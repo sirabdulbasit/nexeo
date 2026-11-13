@@ -438,7 +438,24 @@ router.get('/instructions', async (req: Request, res: Response) => {
   try {
     const { getActiveInstructions } = await import('../services/knowledge/instructionService');
     const rows = await getActiveInstructions(user.clientNumber, user.id, limit);
-    res.json({ instructions: rows, isAdmin: isAdmin(user) });
+    // One set of rules (founder, 13 Nov; DEF-457): his email rules set through Suzi are listed here too. A rule read
+    // from one of these instructions is shown once, as the instruction.
+    const { listEmailRules } = await import('../services/suzi/instructionEmailRules');
+    const emailRules = (await listEmailRules(user.clientNumber, user.id).catch(() => [])).filter((r) => !r.instruction_id);
+    res.json({ instructions: rows, emailRules, isAdmin: isAdmin(user) });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/** Remove one of his email rules from My Rules: the same as Suzi's rule.remove, so it is gone everywhere (DEF-457). */
+router.delete('/email-rules/:id', async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  try {
+    const { ruleRemove } = await import('../services/suzi/suziEmailRules');
+    const r: any = await ruleRemove(user.clientNumber, user.id, { rule_id: String(req.params.id) }, true);
+    if (!r.ok) return res.status(404).json({ error: 'not found' });
+    res.json({ ok: true });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
