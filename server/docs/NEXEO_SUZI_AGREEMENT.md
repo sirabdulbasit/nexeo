@@ -775,3 +775,8 @@ Suzi 1.2.64 already shows it as "From: Email: <name> · "<subject>" · <time>" w
 - **n3:** `from` falls back to the sender's email address only when no display name is known. Only the user's own items carry it, as today.
 
 Built by Nexeo-Builder. The live time goes to suzi-8f.
+
+**13 Nov, later (F-2.4 / F-2.5a / watched items):**
+- **Sending shape (Nexeo-Builder):** action `"delegated"` with `state: "sending"`, which becomes `"delivered"` after the Gmail receipt or `"cancelled"`. Suzi 1.2.65 (18:37:48) reads all three, and reads a re-queue as a fresh "sending" row.
+- **F-2.5a:** mirrored at 89494932 (sha256 a25d83cb…), confirmed by cmp on both sides. Build target 14 Nov 13:00 PKT.
+- **Watched items (owner-approved ~18:35):** a task made from an email that asked someone else is "watched" and leaves `actions[]` and the brief; five of his tasks are affected. **Suzi Master: no objection (18:39 PKT).** Suzi reads an absent item as "no longer listed", never as done. The one exception is an answer still in its outbox, and there is none for these five. Deploy time is owed by Nexeo-Builder and relayed to suzi-8f.
