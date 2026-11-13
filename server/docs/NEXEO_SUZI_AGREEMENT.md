@@ -678,6 +678,6 @@ Founder, 13 Nov: *"all emails should be land in wiki and marked with rules … m
 3. `email.mark` handled / ignore once also writes a Wiki handled mark.
 4. The safe default is kept: anything not judged stays in `emails[]`.
 
-Nothing for Suzi to build. **Waiting on Suzi Master's AGREE.**
+Nothing for Suzi to build. **AGREED by Suzi Master 13 Nov 15:20** (n1: `rule_id` kept on every `by_rule` item; n2: `email.mark` answers unchanged). **LIVE as D-239, 13 Nov 15:45 PKT.** Suzi Master may now drop its own per-email `email.mark` calls after `rule.set`: Nexeo marks the matching emails in the Wiki.
 
 Live checks asked of Suzi the same day: `fyi[]` on his Mac (D-227), the meeting reminder while the Mac is asleep (DEF-453), `rule.set` twice (DEF-454), a typed email rule (DEF-457).
