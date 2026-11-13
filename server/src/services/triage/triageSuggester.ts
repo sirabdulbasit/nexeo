@@ -103,6 +103,10 @@ export interface AttentionItem {
    *  UI surfaces a small pill on the card so the user sees why an
    *  email is in inform_only vs reply_needed. */
   addressing?: 'to' | 'cc' | 'bcc' | 'none' | null;
+  /** DEF-459: the model read an ask put to him (true), none (false), or did not judge (undefined: kept in view). */
+  needsYou?: boolean;
+  /** DEF-459: needs nothing from him but he should know: why, and which situation (escalation, risk, own_thread, team). */
+  forYourKnowledge?: { kind: 'escalation' | 'risk' | 'own_thread' | 'team'; why: string } | null;
   subject: string;
   preview: string;
   receivedAt: string;
@@ -346,6 +350,26 @@ export function clearTriageCache(): void {
 
 // Public entrypoint — returns cached result if available, otherwise
 // runs the full pipeline and caches.
+/** DEF-459: To, Cc and where the user stands in them. */
+export function addressingOf(payload: any, userEmails: Set<string>): { to: string | null; cc: string | null; userIs: 'to' | 'cc' | 'bcc' | 'none' } {
+  const to = typeof payload?.to === 'string' ? payload.to : null;
+  const cc = typeof payload?.cc === 'string' ? payload.cc : null;
+  const has = (raw: unknown) => { const r = String(raw ?? '').toLowerCase(); return [...userEmails].some((e) => r.includes(e)); };
+  const userIs = has(to) ? 'to' : has(cc) ? 'cc' : has(payload?.bcc) ? 'bcc' : 'none';
+  return { to, cc, userIs };
+}
+
+/**
+ * DEF-459 (owner, 13 Nov): THE one place that decides where an item goes. Both My Attention and the Brief call it, so an
+ * item is in exactly one of them. An email that needs nothing from him leaves My Attention: to "For your knowledge" when
+ * the model gave a reason he should know, else to the Brief as copied, nothing needed. Anything not judged stays in view.
+ */
+export type Placement = 'attention' | 'fyi' | 'copied';
+export function placeItem(it: Pick<AttentionItem, 'itemType' | 'needsYou' | 'forYourKnowledge'>): Placement {
+  if (it.itemType !== 'email' || it.needsYou !== false) return 'attention';
+  return it.forYourKnowledge ? 'fyi' : 'copied';
+}
+
 export async function suggestForFeedEvent(row: {
   id: string;
   clientNumber: string;
@@ -821,6 +845,8 @@ async function _doTriage(row: {
     senderDomain: senderDomain ?? null,
     subject,
     preview,
+    // DEF-459: To, Cc and where he stands, so the model can read whether the ask is his.
+    addressing: itemType === 'email' ? addressingOf(payload, userEmails) : null,
     sender: {
       isKnown: ctx?.stats.isKnownContact ?? false,
       entityName: ctx?.entity?.name ?? null,
@@ -967,21 +993,11 @@ async function _doTriage(row: {
     // to the sender name on the card.
     senderStars: (criticality as any)?.signals?.importanceStars ?? 0,
     // Addressing classification — compute once, surface on the card.
-    addressing: (() => {
-      if (itemType !== 'email') return null;
-      const toRaw = String((payload as any).to ?? '').toLowerCase();
-      const ccRaw = String((payload as any).cc ?? '').toLowerCase();
-      const bccRaw = String((payload as any).bcc ?? '').toLowerCase();
-      const meEmails = userEmails;
-      const inTo = [...meEmails].some((e) => toRaw.includes(e));
-      const inCc = [...meEmails].some((e) => ccRaw.includes(e));
-      const inBcc = [...meEmails].some((e) => bccRaw.includes(e));
-      if (inTo) return 'to' as const;
-      if (inCc) return 'cc' as const;
-      if (inBcc) return 'bcc' as const;
-      return 'none' as const;
-    })(),
+    addressing: itemType === 'email' ? addressingOf(payload, userEmails).userIs : null,
     noise: decision.noise,
+    // DEF-459: the model's reading of the ask. Only emails are placed by it.
+    needsYou: itemType === 'email' ? decision.needsYou : undefined,
+    forYourKnowledge: itemType === 'email' ? decision.forYourKnowledge ?? null : null,
     actions: decision.actions as any,
     suggestedRules,
     contextBrief,
@@ -1058,6 +1074,8 @@ export async function buildAttentionList(
   clientNumber: string,
   userId: number,
   limit = 30,
+  /** DEF-459: receives the emails placed in "For your knowledge" (they leave My Attention). */
+  collect?: { fyi: AttentionItem[] },
 ): Promise<AttentionItem[]> {
   // Rolling window of items MD hasn't decided on yet. Default 7 days,
   // overridable via ATTENTION_WINDOW_DAYS env (e.g. 30 for dev/staging
@@ -1763,42 +1781,15 @@ export async function buildAttentionList(
     }));
   }
 
-  // ── CC suppression ──
-  // Emails where the user is on CC (not To/Bcc) drop OFF My Attention by
-  // default. Most CC mail is FYI/informational and crowds the actionable
-  // list. They still live in the archive — Brief accountability + search
-  // surface them — but we don't ask the user to decide on them.
-  //
-  // Override (keep on My Attention): the criticality engine already
-  // factors sentiment, urgency, escalation keywords, owner/escalation
-  // matrix matches, and tempo anomalies. If those signals are loud
-  // enough to push band → 'high' or 'critical', or fire any of the three
-  // superpowers (absence / cross-source / decay), the CC is meaningful
-  // and stays. Senders the user has explicitly starred (3+) also stay —
-  // user has flagged the relationship as worth the interruption.
-  //
-  // Per MD 2026-05-12 ("again email is not reading, fix it once for
-  // all"): the previous CC filter required ★3+ stars OR high-band OR
-  // superpower OR critical — which is impossible for a new user with
-  // no star history (everything defaults to ★0) AND too strict for a
-  // high-volume exec who gets CC'd on legitimate cross-team work.
-  // 506 emails this week, 0 in My Attention — all killed by this gate.
-  //
-  // New rule: drop CC ONLY when band='low' AND no superpower fired.
-  // Medium, high, and critical CC emails all surface. Low-band CC is
-  // genuinely noise (newsletters, mailing lists with CC quirks, etc.)
-  // and stays suppressed. Users can mute specific noisy senders via
-  // the muted-senders list for finer control.
+  // ── Needs you? (DEF-459, owner 13 Nov 2026) ──
+  // Replaces the Cc gate, which was tuned on thresholds twice (05-12: stars/band showed 0 of 506; then only low band
+  // dropped, so Medium Cc mail asking someone else sat here as "Medium, Draft reply"). The model now reads the ask
+  // (it is given To and Cc): an email that needs nothing from him leaves My Attention, to "For your knowledge" when he
+  // should know, else to the Brief. placeItem is the ONE rule; buildHandledList calls it too.
   const ccFiltered = items.filter((it) => {
-    if (it.itemType !== 'email') return true;
-    if (it.addressing !== 'cc') return true;
-    if (it.critical) return true;
-    const band = it.criticality?.band;
-    // Only LOW-band CC gets dropped now. Medium and above surface.
-    if (band !== 'low') return true;
-    const sp = it.criticality?.superpowers;
-    if (sp?.absence || sp?.crossSource || sp?.decay) return true;
-    return false;
+    const place = placeItem(it);
+    if (place === 'fyi') collect?.fyi.push(it);
+    return place === 'attention';
   });
   const ccDropped = items.length - ccFiltered.length;
   items.length = 0;
@@ -1918,10 +1909,9 @@ export async function buildAttentionList(
 //                           the delegate count + delegatee name.
 //   'auto_decided'        — User already terminally decided on this item.
 //                           Reason: "You've already <decided>".
-//   'auto_cc_only'        — Email where you're on CC, not To. Suppressed
-//                           from My Attention as FYI; criticality engine
-//                           did not flag it as escalation/sentiment/
-//                           pattern-anomaly. Still searchable in Brief.
+//   'auto_cc_only'        — DEF-459: an email that needs nothing from you (the
+//                           model read no ask of yours, To or Cc) and no reason
+//                           you should know it (placeItem). Searchable in Brief.
 //
 // User-scoped: every query filters by clientNumber + userId, identical to
 // buildAttentionList. No tenant or per-user data crosses this boundary.
@@ -2322,28 +2312,20 @@ export async function buildHandledList(
       continue;
     }
 
-    // CC suppression — mirrors the filter in buildAttentionList so an
-    // item dropped there is still accounted for here. Same override
-    // conditions: criticality band high/critical, any superpower
-    // triggered, ★3+ sender, or LLM-flagged critical → not suppressed.
-    if (item.itemType === 'email' && item.addressing === 'cc' && !item.critical) {
-      const band = item.criticality?.band;
-      const sp = item.criticality?.superpowers;
-      const overridden =
-        band === 'high' || band === 'critical'
-        || sp?.absence || sp?.crossSource || sp?.decay
-        || (item.senderStars ?? 0) >= 3;
-      if (!overridden) {
-        out.push({
-          ...base(item),
-          bucket: 'auto_cc_only',
-          category: 'nexeo_handled',
-          decidedAt: extractEventOccurredAt(r).toISOString(),
-          reason: 'You were on CC — Brain didn’t see escalation, sentiment, or pattern anomaly worth surfacing',
-          intendedAction: item.suggestedAction,
-        });
-        continue;
-      }
+    // Needs you? — the SAME rule as buildAttentionList (placeItem, DEF-459), so an item is in exactly one place.
+    // "For your knowledge" items have their own section, not the Brief; "copied" ones are filed here.
+    const place = placeItem(item);
+    if (place === 'fyi') continue;
+    if (place === 'copied') {
+      out.push({
+        ...base(item),
+        bucket: 'auto_cc_only',
+        category: 'nexeo_handled',
+        decidedAt: extractEventOccurredAt(r).toISOString(),
+        reason: `Nothing needed from you${item.addressing === 'cc' ? ' (you were copied)' : ''}: ${item.rationale}`.slice(0, 300),
+        intendedAction: item.suggestedAction,
+      });
+      continue;
     }
 
     // Autonomy gate — mirrors buildAttentionList so any item filtered

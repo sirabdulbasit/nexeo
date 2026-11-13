@@ -43,6 +43,8 @@ export interface ReasonerContext {
   senderDomain: string | null;
   subject: string;
   preview: string;
+  /** DEF-459: who the email was addressed to, and where he stands in it, so the model can judge whether the ask is his. */
+  addressing?: { to: string | null; cc: string | null; userIs: 'to' | 'cc' | 'bcc' | 'none' } | null;
   sender: {
     isKnown: boolean;
     entityName?: string | null;
@@ -85,6 +87,22 @@ export interface ReasonerDecision {
   critical: boolean;
   noise: boolean;
   meetingIntent: boolean;
+  /** DEF-459 (owner, 13 Nov): an ask, question, decision or approval put to HIM. undefined = not judged (kept in view). */
+  needsYou?: boolean;
+  /** DEF-459: he needn't act, but should know: why, in one line, and which of his four situations it is. */
+  forYourKnowledge?: { kind: FyiKind; why: string } | null;
+}
+
+export const FYI_KINDS = ['escalation', 'risk', 'own_thread', 'team'] as const;
+export type FyiKind = (typeof FYI_KINDS)[number];
+
+/** DEF-459: read the model's needsYou / forYourKnowledge. Missing or malformed = not judged, never "not for you". */
+export function readNeedsYou(parsed: any): Pick<ReasonerDecision, 'needsYou' | 'forYourKnowledge'> {
+  const needsYou = typeof parsed?.needsYou === 'boolean' ? parsed.needsYou : undefined;
+  const f = parsed?.forYourKnowledge;
+  const kind = f && (FYI_KINDS as readonly string[]).includes(f.kind) ? (f.kind as FyiKind) : null;
+  const why = f && typeof f.why === 'string' ? f.why.trim().slice(0, 200) : '';
+  return { needsYou, forYourKnowledge: needsYou === false && kind && why ? { kind, why } : null };
 }
 
 // ── OPT-004 — the triage decision cache ────────────────────────────
@@ -124,7 +142,8 @@ export interface ReasonerDecision {
 // that is not a leak worth risking for nothing.
 import crypto from 'crypto';
 
-const TRIAGE_PROMPT_VERSION = 'v1';
+// v2 (DEF-459): the prompt carries To/Cc and asks needsYou / forYourKnowledge; every held decision is re-judged once.
+const TRIAGE_PROMPT_VERSION = 'v2';
 
 /** Cached decisions older than this are ignored and re-reasoned. Model
  *  behaviour drifts and so does the world; a fortnight-old judgement is the
@@ -425,7 +444,9 @@ Output STRICT JSON, no prose, no markdown wrappers. Schema:
   "actions": [ { "id": "<see below>", "label": "<button text>", "primary": true | false, "delegatee": { "email": string?, "name": string? }? } ],
   "critical": boolean,
   "noise": boolean,
-  "meetingIntent": boolean
+  "meetingIntent": boolean,
+  "needsYou": boolean,
+  "forYourKnowledge": null | { "kind": "escalation" | "risk" | "own_thread" | "team", "why": "ONE line: what the user should know and why it matters to them" }
 }
 
 Action IDs allowed: draft_reply, delegate, delegate_to_known, add_open_item, link_to_existing, ignore, acknowledge, accept, decline, propose_alternative.
@@ -441,6 +462,14 @@ RULES:
     (f) the event matches a user-defined watchpoint.
   Known sender, frequent interactions, or active-account status ALONE are NOT enough. Being "important long-term" is different from "critical right now." If in doubt, set critical=false — the user is drowning in false-positive criticals.
 - "meetingIntent" = true ONLY if the incoming is asking to meet/call/schedule (not a generic email).
+- "needsYou" (emails): does THIS message put an ask, question, decision or approval to ${persona.userFirstName} personally, that they must answer or act on? Read the ask, not only the headers: "${persona.userFirstName}, please approve" in a Cc is true; an ask to someone else ("@Nabeel kindly resolve this today") is false even when the user is copied; "thanks", "noted", an FYI or a status update sent To the user is false; an open question to the user from their manager or a client is true. Whatsapp, meetings and tasks: true unless clearly nothing for him.
+- "forYourKnowledge": only when needsYou is false. Set it when the user should still KNOW, in one of four situations; otherwise null:
+    escalation = repeated chasing, "still pending", "reminder", a senior person (HR, CEO, a client) pushing someone;
+    risk = a key client, money, legal or compliance, a deadline at risk, a complaint;
+    own_thread = a thread the user started, or something they asked or delegated, is moving or stuck;
+    team = an issue about people who report to the user (objectives, performance, leave, conflict).
+  "why" names the people and the point ("HR asked Nabeel to fix Fawad's objectives today; 3rd follow-up on your thread"). Never invent.
+- When needsYou is false, suggestedAction is "acknowledge" or "ignore", never "draft_reply".
 - actions[0] is primary. Include up to 5 actions total. Pick labels that reference actual people ("→ Delegate to Asad") when you have them.
 - If self-organized meeting: only Accept ("already attending") + Dismiss. Never Draft reply.
 - If meeting with conflicts: "propose_alternative" primary.
@@ -513,14 +542,20 @@ Be decisive. Don't hedge. The user trusts you to pick one path.`;
     critical: !!parsed.critical,
     noise: !!parsed.noise,
     meetingIntent: !!parsed.meetingIntent,
+    ...readNeedsYou(parsed),
   };
 }
 
-function buildUserPrompt(ctx: ReasonerContext): string {
+export function buildUserPrompt(ctx: ReasonerContext): string {
   const lines: string[] = [];
   lines.push('═══ INCOMING ═══');
   lines.push(`Type: ${ctx.itemType} (${ctx.sourceType})`);
   lines.push(`From: ${ctx.from}${ctx.fromEmail ? ` <${ctx.fromEmail}>` : ''}`);
+  if (ctx.addressing) {
+    if (ctx.addressing.to) lines.push(`To: ${ctx.addressing.to.slice(0, 400)}`);
+    if (ctx.addressing.cc) lines.push(`Cc: ${ctx.addressing.cc.slice(0, 400)}`);
+    lines.push(`You (the user) are: ${ctx.addressing.userIs === 'to' ? 'in To' : ctx.addressing.userIs === 'cc' ? 'only in Cc' : ctx.addressing.userIs === 'bcc' ? 'in Bcc' : 'not in To or Cc (a list or a forward)'}`);
+  }
   if (ctx.subject) lines.push(`Subject: ${ctx.subject}`);
   if (ctx.preview) lines.push(`Preview: ${ctx.preview.slice(0, 300)}`);
 

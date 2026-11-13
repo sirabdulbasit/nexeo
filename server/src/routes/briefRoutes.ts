@@ -44,13 +44,19 @@ router.get('/attention', async (req: Request, res: Response) => {
     const { computeBriefPartition } = await import('../services/triage/briefPartitionService');
     const partition = await computeBriefPartition(user.clientNumber, user.id, limit, 100);
     const items = partition.myAttention.slice(0, limit);
+    // DEF-459: the For your knowledge section rides with My Attention (same partition, same moment).
+    const forYourKnowledge = (partition.forYourKnowledge ?? []).map((it) => ({
+      feedEventId: it.feedEventId, threadId: it.threadId ?? null, from: it.fromDisplay ?? it.from, fromEmail: it.fromEmail ?? null,
+      subject: it.subject, receivedAt: it.receivedAt, addressing: it.addressing ?? null,
+      kind: it.forYourKnowledge?.kind, why: it.forYourKnowledge?.why,
+    }));
     // NOTE: WhatsApp push for critical items is NOT fired here anymore.
     // It used to be fire-and-forget on every /brief/attention call,
     // which meant opening the Day Brief in two tabs (or React's
     // strict-mode double-fetch) sent the user the same bundle twice.
     // The push now runs from a per-tenant cron tick (criticalityBundleSweep)
     // so it fires once per minute regardless of how often the page polls.
-    res.json({ items, count: items.length });
+    res.json({ items, count: items.length, forYourKnowledge });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }

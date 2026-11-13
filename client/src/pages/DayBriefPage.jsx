@@ -573,6 +573,8 @@ export default function DayBriefPage() {
   const cached = user?.id ? dayBriefCache.get(user.id) : null;
   const [volume, setVolume] = useState(cached?.volume ?? null);
   const [attention, setAttention] = useState(cached?.attention ?? []);
+  // DEF-459 (owner, 13 Nov): emails that need nothing from him but he should know.
+  const [forYourKnowledge, setForYourKnowledge] = useState(cached?.forYourKnowledge ?? []);
   const [brainActions, setBrainActions] = useState(cached?.brainActions ?? []);
   // Connector health snapshot — drives the "Reconnect Gmail" banner
   // at the top of Day Brief when any of the user's connectors are
@@ -687,7 +689,7 @@ export default function DayBriefPage() {
       // -not-a-program + the user-only exclusion rule. Server
       // endpoints still exist; just not consumed by Day Brief.
       const [atten, brain, ds, gap, hndl, connHealth] = await Promise.all([
-        api.get('/brief/attention?limit=200').then((r) => r.data.items ?? []).catch(() => []),
+        api.get('/brief/attention?limit=200').then((r) => { setForYourKnowledge(r.data.forYourKnowledge ?? []); return r.data.items ?? []; }).catch(() => []),
         api.get('/brief/brain-actions').then((r) => r.data.actions ?? []).catch(() => []),
         api.get('/brief/drafts').then((r) => r.data.drafts ?? []).catch(() => []),
         api.get('/brief/connector-gaps').then((r) => r.data).catch(() => null),
@@ -710,7 +712,7 @@ export default function DayBriefPage() {
       if (user?.id) {
         setTimeout(() => {
           dayBriefCache.set(user.id, {
-            volume, attention: atten, brainActions: brain,
+            volume, attention: atten, forYourKnowledge, brainActions: brain,
             handled: hndl.items, handledByBucket: hndl.byBucket,
             openItems, promotions, drafts: ds,
             gaps: gap,
@@ -1351,6 +1353,34 @@ export default function DayBriefPage() {
           </div>
         )}
       </Section>
+
+      {/* DEF-459: things to know, not to do — shown only when there is something. */}
+      {forYourKnowledge.length > 0 && (
+        <Section
+          id="for-your-knowledge"
+          title={`For your knowledge (${forYourKnowledge.length})`}
+          sub="Nothing needed from you — but given the situation, you should know."
+          icon="bell"
+          defaultOpen
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-2)' }}>
+            {forYourKnowledge.map((f) => (
+              <div key={f.feedEventId} style={{ padding: '10px 12px', background: 'var(--bg-2)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)' }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 10, background: 'rgba(59,130,246,0.14)', color: 'var(--s-60a5fa)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.3px' }}>
+                    {({ escalation: 'escalation', risk: 'risk', own_thread: 'your thread', team: 'your team' })[f.kind] ?? 'fyi'}
+                  </span>
+                  <strong style={{ fontSize: 'var(--fs-sm)' }}>{f.from}</strong>
+                  <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--text)' }}>{f.subject}</span>
+                  {f.addressing === 'cc' && <span style={{ fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>you were copied</span>}
+                  <span style={{ marginLeft: 'auto', fontSize: 'var(--fs-xs)', color: 'var(--text-muted)' }}>{f.receivedAt ? new Date(f.receivedAt).toLocaleString() : ''}</span>
+                </div>
+                <div style={{ marginTop: 4, fontSize: 'var(--fs-sm)', color: 'var(--text-muted)' }}>{f.why}</div>
+              </div>
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* Rule promotions — only when something's ready to be promoted */}
       {promotions.length > 0 && (
@@ -3068,7 +3098,7 @@ function BriefAccountability({ brainActions, handled, byBucket, searchQuery, onO
     auto_self: { label: 'You sent this',           color: 'var(--n-a3a3a3)' },
     auto_high_confidence: { label: 'Brain knew what to do', color: 'var(--s-fbbf24)' },
     auto_decided: { label: 'You already decided',  color: 'var(--s-86efac)' },
-    auto_cc_only: { label: 'CC only — FYI',        color: 'var(--s-94a3b8)' },
+    auto_cc_only: { label: 'Nothing needed from you', color: 'var(--s-94a3b8)' },
   };
 
   // Apply the My Attention search to Brief items too — same haystack

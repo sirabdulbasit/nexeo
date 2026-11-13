@@ -41,6 +41,8 @@ export interface BriefPartition {
   brief: HandledItem[];
   /** Per-bucket counts for Brief's section headers. */
   byBucket: Record<string, number>;
+  /** DEF-459 (owner, 13 Nov): emails that need nothing from him but he should know, each with the reason. */
+  forYourKnowledge: AttentionItem[];
 }
 
 interface CacheEntry {
@@ -92,7 +94,8 @@ export async function computeBriefPartition(
     // concurrently it reads inconsistent state. Running them in
     // sequence guarantees buildHandledList sees the post-mutation
     // values that My Attention's autonomy gate also evaluated.
-    const myAttention = await buildAttentionList(clientNumber, userId, attentionLimit);
+    const collect = { fyi: [] as AttentionItem[] };
+    const myAttention = await buildAttentionList(clientNumber, userId, attentionLimit, collect);
     const briefItems = await buildHandledList(clientNumber, userId, briefLimit);
 
     // CONTRACT ENFORCEMENT — partition must be disjoint by feed_event
@@ -131,7 +134,13 @@ export async function computeBriefPartition(
 
     const byBucket: Record<string, number> = {};
     for (const it of filteredBrief) byBucket[it.bucket] = (byBucket[it.bucket] ?? 0) + 1;
-    return { myAttention, brief: filteredBrief, byBucket };
+    // Newest first; one card per thread (a thread's newest message speaks for it).
+    const seenThread = new Set<string>();
+    const forYourKnowledge = collect.fyi
+      .sort((a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime())
+      .filter((it) => { const t = it.threadId ?? it.feedEventId; if (seenThread.has(t)) return false; seenThread.add(t); return true; })
+      .slice(0, 30);
+    return { myAttention, brief: filteredBrief, byBucket, forYourKnowledge };
   })();
   partitionCache.set(k, { promise, expiresAt: Date.now() + PARTITION_TTL_MS });
   // If the partition computation throws, drop the cache entry so the

@@ -50,6 +50,9 @@ export interface DayBriefData {
   /** DEF-435 (CL-075): My Attention under the agreed Action Center definition — addressed to him (not copied,
    *  not a system alert), not from himself, not a plain invite, and not a thread already in his open items. */
   asks?: AttentionRow[];
+  /** DEF-459 (owner, 13 Nov): emails that need nothing from him but he should know (escalation, risk, his own thread,
+   *  his team), each with the model's one-line reason. Absent or empty = the section is left out. */
+  forYourKnowledge?: Array<{ from: string; subject: string; why: string; kind: string }>;
   /** His own addresses, so the brief never lists him as an attendee or a sender to answer. */
   ownEmails?: string[];
   /** Recent inbound emails (last 24h, capped 10). Quick "what came in"
@@ -98,6 +101,15 @@ export async function getDayBrief(args: {
   const localDate = formatLocalDate(timezone, generatedAt);
 
   const suziUpdates = await masterLinesForBrief(clientNumber, userId, generatedAt).catch(() => null);
+  // DEF-459: the same partition My Attention comes from (memoised), so the two never disagree.
+  const forYourKnowledge = await (async () => {
+    const { computeBriefPartition } = await import('../triage/briefPartitionService');
+    const part = await computeBriefPartition(clientNumber, userId, 100, 100);
+    return (part.forYourKnowledge ?? []).map((it) => ({
+      from: String(it.fromDisplay || it.from || '').replace(/<[^>]*>/g, '').replace(/"/g, '').trim() || 'someone',
+      subject: it.subject || '(no subject)', why: it.forYourKnowledge?.why ?? '', kind: it.forYourKnowledge?.kind ?? '',
+    }));
+  })().catch(() => undefined);
   const [calendar, openItems, attention, emails, waMsgs, followUps] = await Promise.all([
     getTodayCalendar({ clientNumber, userId, opts: { timezone } }).catch(() => [] as CalendarEventRow[]),
     getOpenItems({ clientNumber, userId, opts: { limit: opts?.openItemsCap ?? 20 } }).catch(() => [] as OpenItemRow[]),
@@ -172,6 +184,7 @@ export async function getDayBrief(args: {
     ownEmails,
     followUps,
     suziUpdates,
+    forYourKnowledge,
     recentEmails: emails.map((r) => {
       const unwrap = r.sender_email?.match(/<([^>]+)>/)?.[1] ?? r.sender_email ?? '';
       return {
@@ -351,7 +364,7 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   const parts: string[] = [];
   const own = new Set((data.ownEmails ?? []).map((e) => e.toLowerCase()));
   parts.push(`# Day Brief for ${data.localDate} (timezone ${data.localTimezone})`);
-  parts.push('STRICT RULE: name every line under "Today\'s calendar", "Do first" and "New asks" in the order shown, one line each. For "Other open items" give its exact count only. Do NOT add, drop or re-rank items, and never mention an item twice. Empty sections are said in a few words, never hidden.');
+  parts.push('STRICT RULE: name every line under "Today\'s calendar", "Do first" and "New asks" in the order shown, one line each. "For your knowledge" lines are things to KNOW, not to do: say each briefly as news, never as a task. For "Other open items" give its exact count only. Do NOT add, drop or re-rank items, and never mention an item twice. Empty sections are said in a few words, never hidden.');
 
   parts.push(`\n## Today's calendar (${data.calendar.length})`);
   if (data.calendar.length === 0) parts.push('- (no meetings scheduled today)');
@@ -385,6 +398,7 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   }
   if (asks.length > 8) parts.push(`- +${asks.length - 8} more new asks`);
 
+  parts.push(...renderForYourKnowledge(data.forYourKnowledge));
   parts.push(...renderFollowUps(data.followUps));
   parts.push(...renderSuziUpdates(data.suziUpdates));
 
@@ -414,6 +428,14 @@ export function renderDayBriefBlock(data: DayBriefData): string {
  * need his decision, memory proposals). Facts only; the composer words them. Each overdue line carries what a
  * real assistant would say: when it was due, how late, who has it, and when it last really changed.
  */
+/** DEF-459: things to know, not to do. Shown only when there is something. */
+export function renderForYourKnowledge(items: DayBriefData['forYourKnowledge']): string[] {
+  if (!items?.length) return [];
+  const lines = items.slice(0, 5).map((f) => `- ${f.from}: ${f.subject.replace(/^((re|fw|fwd)\s*:\s*)+/i, '').slice(0, 100)}. ${f.why}`);
+  if (items.length > 5) lines.push(`- +${items.length - 5} more on the Day Brief page`);
+  return ['\n## For your knowledge (nothing needed from you)', ...lines];
+}
+
 /** Link T30, D3: shown only when there is something, so a quiet day adds nothing to the brief. */
 export function renderSuziUpdates(lines: string[] | null | undefined): string[] {
   if (!lines?.length) return [];
