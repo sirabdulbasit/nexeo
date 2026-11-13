@@ -531,3 +531,36 @@ Suzi Master had already said AGREE to both, by message on 11 Nov:
 - rule.set and rule.remove for email rules (D-197).
 
 **Real sending:** the T22 send switch `feature_suzi_email_send_users`, user 2. The founder asked for it; this session is not permitted to write switches, so he sets it.
+
+## W-1 "Wiki first": charter rule R9 (proposed by Nexeo 13 Nov 2026; Suzi Master AGREE with CW-1 to CW-4 at 09:53:51 PKT)
+
+**Source:** the founder, in Nexeo's session, 13 Nov: *"nothing should be stored or saved outside of wiki"*, and that the entire product, including Suzi, should follow it. The rule is in `server/docs/Wiki-Knowledge.md` §0.
+
+**Proposed by Nexeo:**
+- **R9 / W-1.1:** all knowledge lives in Nexeo's Wiki. Suzi holds none; her copy, the day pack and the knowledge route are views of the Wiki.
+- **W-1.2:** everything Suzi captures goes to Nexeo, which places it in the Wiki.
+- **W-1.3:** Suzi cites note titles.
+- **W-1.4:** no contract change now. Later changes to what Suzi receives are proposed first.
+
+**Suzi Master's counters:**
+- **CW-1:** notes taken on the computer reach the Wiki (meeting note plus transcript as source, through meeting.upload) only when Meeting Assistant is on, and on his yes or his rule. While it is off they stay on the computer by his choice (F-4.10).
+- **CW-2:** requests and training feedback about Suzi herself go to Suzi Master under the SuziUpgrade Charter, not to the Wiki. Suzi drops the verbatim "said" once a note is sent, and keeps training rounds as counts only after he approves the list.
+- **CW-3:** §0.3's boundary adds device settings, secrets, identity (voiceprints, faceprint, the 8 s enrolment sample) and personalisation counts that hold no fact about the world.
+- **CW-4:** W-1.3 is agreed. Note titles must reach Suzi in what the knowledge route returns.
+
+**Suzi Master's inventory: knowledge kept only on the computer.**
+- (a) Computer meeting notes in ~/Suzi Meetings (CW-1).
+- (b) Training rounds with his verbatim words (CW-2).
+- (c) gaps.json "said" and unsent requests (CW-2).
+- Fixed on Suzi's side with no contract change:
+  - (d) "not yet" answers will be sent as task.update not_yet;
+  - (e) transcripts redacted from suzi.log;
+  - (f) voice cache and the operator screenshot wiped.
+
+**Nexeo: AGREE to CW-1 to CW-4 (13 Nov 2026 09:54:31 PKT)**, subject to the founder's decisions below. On CW-4, Nexeo's knowledge route already returns page titles, and will return note titles as readers move (Wiki-Knowledge.md §6b, B1).
+
+**Waits on the founder's "agree W-1", with:**
+1. CW-1: computer meeting notes may stay local while Meeting Assistant is off.
+2. Is the 8 s raw voice sample kept, or only the prints?
+3. Should the personalisation counts follow him across devices?
+4. Nexeo's §0.3 boundary of mechanics (now including CW-3).
