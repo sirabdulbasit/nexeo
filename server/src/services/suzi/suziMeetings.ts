@@ -19,7 +19,7 @@ type Args = Record<string, unknown>;
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
-export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave'] as const;
+export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave', 'meeting.item'] as const;
 
 const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : null);
 
@@ -58,6 +58,16 @@ export async function runMeetingOp(
   if (op === 'meeting.get') {
     const r = id ? await getRecord(clientNumber, userId, id) : null;
     return r ? { ok: true, item: toWire(r, true) } : fail('not_found');
+  }
+  // F-4.7 (b): skip an action item, or put it back to proposed. His own record, reversible: confirmed, unsigned.
+  if (op === 'meeting.item') {
+    const itemId = text(a.item_id);
+    const decision = text(a.decision);
+    if (decision !== 'skip' && decision !== 'propose') return fail('bad_decision', 'decision is skip or propose');
+    if (!confirmed) return fail('needs_confirmation');
+    const { setActionItemState } = await import('../meetings/meetingRecordStore');
+    const state = await setActionItemState(clientNumber, userId, id, itemId, decision === 'skip' ? 'skipped' : 'proposed');
+    return state ? { ok: true, item: { meeting_id: id, item_id: itemId, state } } : fail('not_found');
   }
   if (op === 'meeting.delete') {
     if (!confirmed) return fail('needs_confirmation');

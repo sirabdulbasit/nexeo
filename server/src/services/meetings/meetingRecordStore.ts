@@ -213,3 +213,27 @@ export async function trimOldTranscripts(now = new Date()): Promise<number> {
   );
   return Number(n);
 }
+
+/**
+ * F-4.7 (suzi-23, Nexeo AGREE 13 Nov): one action item's state, in ONE statement (accepted with its task, skipped, or back
+ * to proposed). Only his own record; an item id that is not in it changes nothing. Returns the new state, or null.
+ */
+export async function setActionItemState(
+  clientNumber: string, userId: number, meetingId: string, itemId: string, state: 'proposed' | 'accepted' | 'skipped', taskId?: string | null,
+): Promise<'proposed' | 'accepted' | 'skipped' | null> {
+  if (!meetingId || !itemId) return null;
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `UPDATE meeting_records
+        SET action_items = (
+              SELECT jsonb_agg(CASE WHEN e->>'id' = $4
+                                    THEN (e || jsonb_build_object('state', $5::text)) || CASE WHEN $6::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('task_id', $6::text) END
+                                    ELSE e END ORDER BY o)
+                FROM jsonb_array_elements(action_items) WITH ORDINALITY AS t(e, o)),
+            updated_at = now()
+      WHERE id = $3 AND client_number = $1 AND user_id = $2
+        AND EXISTS (SELECT 1 FROM jsonb_array_elements(action_items) x WHERE x->>'id' = $4)
+      RETURNING id`,
+    clientNumber, userId, meetingId, itemId, state, taskId ?? null,
+  );
+  return rows.length ? state : null;
+}

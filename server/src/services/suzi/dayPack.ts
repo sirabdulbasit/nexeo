@@ -190,6 +190,8 @@ export interface DayPack {
   fyi?: PackFyi[];
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
   rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
+  /** F-4.7 Q1 (Nexeo AGREE 13 Nov): his own Meeting Assistant switch. Absent = could not be read. */
+  meeting_assistant?: { on: boolean };
 }
 
 /** Link T12, approved by the founder 5 Nov. The desktop app builds ahead, so a field in the pack is a live feature. */
@@ -286,5 +288,6 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
     ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
+    ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then((on) => ({ meeting_assistant: { on } })).catch(() => ({}))),
   };
 }

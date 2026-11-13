@@ -78,7 +78,8 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
     if (!p.email) return fail('no_email', 'telling the person needs their email on record');
   }
   const src: any = a.source && typeof a.source === 'object' ? a.source : {};
-  const source = text(src.email_id) ? { email_id: text(src.email_id) } : text(src.meeting_id) ? { meeting_id: text(src.meeting_id) } : null;
+  // F-4.7: a meeting's action item (item_id) is marked accepted with the task once it is made.
+  const source = text(src.email_id) ? { email_id: text(src.email_id) } : text(src.meeting_id) ? { meeting_id: text(src.meeting_id), ...(text(src.item_id) ? { item_id: text(src.item_id) } : {}) } : null;
   const note = text(a.note).slice(0, 2000);
   const { createItem } = await import('../openItemsService');
   const item = await createItem(userId, clientNumber, {
@@ -89,9 +90,15 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
     metadata: { manualCreate: true, createdBy: 'suzi', ...(source ? { suziSource: source } : {}) },
   } as any);
   if (!item?.id) return fail('rejected', 'the task was not created');
-  if (personId) return forwardTask(clientNumber, userId, item.id, { person_id: personId, note }, gate, timezone);
+  let itemState: string | null = null;
+  if (source && 'item_id' in source && source.item_id) {
+    const { setActionItemState } = await import('../meetings/meetingRecordStore');
+    itemState = (await setActionItemState(clientNumber, userId, source.meeting_id, source.item_id, 'accepted', item.id).catch(() => null)) ?? 'not_found';
+  }
+  const withItem = (r: Result): Result => (itemState && r.ok ? { ok: true, item: { ...(r.item as any), item_state: itemState } } : r);
+  if (personId) return withItem(await forwardTask(clientNumber, userId, item.id, { person_id: personId, note }, gate, timezone));
   const r = await applyFollowUp(clientNumber, userId, { actionId: item.id, update: 'note', note: note || 'Created through Suzi', timezone });
-  return r.ok ? { ok: true, item: r.action } : { ok: true, item: { id: item.id, title } };
+  return withItem(r.ok ? { ok: true, item: r.action } : { ok: true, item: { id: item.id, title } });
 }
 
 /** F-2.3: the forward goes through the send gate; the task comes only after it has gone. */
