@@ -258,6 +258,39 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - Suzi Master: agrees the pack reading from the Wiki before it changes what Suzi receives (§0.5 rule 3).
    - Not built yet: the Wiki session proposes the shape first.
 
+#### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: proposed, not built)
+
+**No note per email.** An email is a **source** (§7: a source only adds to notes). A note per email is what the old wiki did: half of its 15,800 pages. So the marks sit **on the source**, and the things an email leads to are notes that cite it.
+
+| What the owner asked to see on an email | Where it lives | Why there |
+|---|---|---|
+| Needs him / for his knowledge (with the reason) / brief only | A **mark** on the email source, kind `attention` | A judgement about the email, made for one reader, that can change |
+| Which of his rules applied (ignore, delegate) | A **mark**, kind `rule`, one per rule that matched, holding the rule's id and what it prepared | So "why was this ignored?" is answered by the rule itself (§0.10) |
+| He handled it, or said ignore once | A **mark**, kind `handled` | His own act |
+| The action item made from it | The **commitment note cites this email** (§0.1.5). Until commitment notes exist (step 4), a mark of kind `action_item` holding the open item's id | The trail is the citations; no second link to keep in step |
+| The meeting it belongs to | The **meeting note cites this email**. Until then a mark of kind `meeting` holding the meeting note's id | Same |
+
+**A mark is a row of its own, not a field inside the source** (new table `wiki_source_marks`, part of the Wiki):
+
+- The source stays what was fetched: evidence that never changes. A mark is a judgement and does change, so it is kept apart (§0.7 standard 4).
+- Fields: the source; the client and the **user the mark belongs to**; `kind`; a `key` (the rule's id, the open item's id; empty for kinds that have one value); `value`; `set_by` (`triage:v2`, `rule:<id>`, `user`, `suzi`); `set_at`; `superseded_at`.
+- **History is kept.** A new mark of the same kind and key supersedes the earlier one and does not erase it, so "it needed me yesterday, and stopped when I replied" can be read back. Writing the same value again changes nothing.
+- **Private by construction.** A mark belongs to the user it was made for and is read only by that user, on a source that user may see. One user's judgement of a shared source is never another's.
+
+**One door (`wikiStore`), every call naming the client and user (the lesson of DEF-456):**
+
+- `markSource(writer, sourceId, { kind, key?, value, by })` and `clearMark(writer, sourceId, kind, key, by)`: checks the source is the writer's to mark; supersede and insert in one transaction.
+- `marksOf(clientNumber, userId, sourceIds)`: the current marks.
+- `listMarkedSources(clientNumber, userId, { kinds, since, until, mark? })`: for the brief and the pack, for example today's emails whose `attention` is `needs_you`. Also the calendar sources of a day, for meetings.
+- `countUnmarked(clientNumber, userId, 'email', 'attention', since, until)`: the proof that every email was judged.
+
+**"None is missed", as two counts kept every day, each as a record in the Wiki:**
+
+1. **Fetched = landed.** Already enforced hourly by the reconcile (§0.7 step 2). What it cannot see is an email that the connector never fetched: that needs the mailbox's own list of message ids for the day compared with the sources, and any id not held fetched and landed. That comparison calls the mail provider, so it is a Feed job; the Wiki answers "which of these ids do you hold" (`sourcesHeld`).
+2. **Landed = marked.** `countUnmarked` for the day is 0.
+
+**Order:** the marks store (one migration, four functions, tests) is small and is what the other half is waiting for, so it is built **before** item 3 of §0.11. Nexeo-Builder then writes the DEF-459 judgement and the rule marks through `markSource` and moves the brief readers; the pack change goes to Suzi Master first.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
