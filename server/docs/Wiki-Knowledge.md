@@ -358,6 +358,13 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - **Left as they are, for him to rule on:** 876 WhatsApp sources landed by the first backfill (510 of user 2, 366 of user 3). No note cites them. Nothing is deleted without his word.
    - **Open:** what he tells Nexeo over WhatsApp (an instruction, a correction) is a conversation with Brain, not a feed item. Whether those conversations are kept in the Wiki, as conversations, is his decision and is not built.
 
+#### 0.13.4 His answers on the rebuild (owner, 13 Nov 2026, given in the Nexeo-Builder session and relayed)
+
+1. **The rebuild is a re-scribe from the connectors.** *"i will scrine or rescribe from connector."* He runs it himself, from the Connectors screen. So Scribe is the door the rebuild goes through, and it has to reach everything (§0.13.1 item 1) and write the new structure.
+2. **The 90-day line for the model is still not ruled on** (§0.13.1 item 2). He was asked and answered about how the rebuild is run, not about that line. To be asked again, directly, before meaning notes are built.
+3. **W-1 is agreed by all three** (*"agreed from my side"*): the agreement with Suzi on what she reads from the Wiki. Recorded in `NEXEO_SUZI_AGREEMENT.md`.
+4. **Older open items are closed as superseded by the rebuild.** *"leave it we will build new wiki from new feed from connector and rules."* That covers: TMC Context into the Wiki, the 2,000-page limit, KPI notes as a separate item, Suzi's send switch, "fix the brief", and the email-to-item gate. None of them is worked on as its own item; what each needs comes from the new Wiki, built from the connectors' feed and his rules.
+
 #### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)
 
 **On production after the three deploys (15:38 PKT):** 361 notes of the active user, every one with a revision; 1,222 links, none pointing at a page that is not a live note (50 did before); 0 unresolved and 0 ambiguous links; 4,248 citations, none breaking the citation rule; a second build writes nothing. Not yet seen on real data: a rename (no name changed between builds), a merge, the server's own hourly build with the new writer.
