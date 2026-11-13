@@ -107,6 +107,8 @@ export async function landEmailText(p: {
   clientNumber: string; userId: number; gmailMessageId: string; feedEventId?: string | null;
   threadId?: string | null; subject?: string | null; from?: string | null; to?: string | null; cc?: string | null;
   receivedAt: Date; bodyText: string;
+  /** The mailbox's own labels, when known ('SENT', 'INBOX'): an email landed with no feed item keeps them here. */
+  labels?: string[];
 }): Promise<string> {
   return (await saveSource({
     clientNumber: p.clientNumber, userId: p.userId, kind: 'email', externalId: p.gmailMessageId,
@@ -117,6 +119,7 @@ export async function landEmailText(p: {
     details: {
       ...(p.from ? { from: p.from } : {}), ...(p.to ? { to: p.to } : {}), ...(p.cc ? { cc: p.cc } : {}),
       ...(p.subject ? { subject: p.subject } : {}), ...(p.threadId ? { threadId: p.threadId } : {}),
+      ...(p.labels?.length ? { labels: p.labels } : {}),
     },
   })).id;
 }

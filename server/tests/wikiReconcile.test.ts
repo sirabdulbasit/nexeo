@@ -76,7 +76,7 @@ vi.mock('../src/services/wiki/wikiSources', async (orig) => {
 });
 
 import { reconcileSources, holdsFeedItem } from '../src/services/wiki/wikiBackfill';
-import { landFeedItem } from '../src/services/wiki/wikiIntake';
+import { landFeedItem, landEmailText } from '../src/services/wiki/wikiIntake';
 import { sourceId } from '../src/services/wiki/wikiSources';
 import { pruneUserFeedEvents } from '../src/services/maintenance/queueArchiveMaintenanceService';
 
@@ -183,6 +183,20 @@ describe('wiki reconcile', () => {
     expect(await holdsFeedItem(asItem(row), { repair: true })).toBe(true);
     expect(t.store.get(idFor('email', 'm5'))!.body).toBe('The whole email text.');
     expect(await holdsFeedItem(asItem(row))).toBe(true);
+  });
+
+  it('an email landed with no feed item (his sent mail) keeps its text, its people and its SENT label', async () => {
+    await landEmailText({
+      clientNumber: 'T-1', userId: 2, gmailMessageId: 'sent-1', threadId: 'th9', subject: 'Re: Quote',
+      from: 'me@x.com', to: 'ali@y.com', cc: null, receivedAt: new Date('2026-11-13T05:00:00Z'), bodyText: 'Approved.', labels: ['SENT'],
+    });
+    const held = t.store.get(idFor('email', 'sent-1'))!;
+    expect(held.body).toBe('Approved.');
+    expect(held.input).toMatchObject({ kind: 'email', threadKey: 'th9', feedEventId: null });
+    expect(held.input.details).toMatchObject({ from: 'me@x.com', to: 'ali@y.com', labels: ['SENT'] });
+    // Without labels the field is absent, so a later landing never blanks the labels a feed item brought.
+    await landEmailText({ clientNumber: 'T-1', userId: 2, gmailMessageId: 'in-1', receivedAt: new Date(), bodyText: 'x' });
+    expect(t.store.get(idFor('email', 'in-1'))!.input.details).not.toHaveProperty('labels');
   });
 
   it('the pruner keeps a row the Wiki does not hold, and deletes it once it does', async () => {
