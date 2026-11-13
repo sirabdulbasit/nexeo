@@ -179,6 +179,13 @@ export async function getDayBrief(args: {
       clientNumber, userId, attendeeEmails,
     ).catch(() => [] as Array<{ email: string; name: string }>);
     for (const n of nm) if (n.name) attendeeNames[n.email] = n.name;
+    // Not in his contacts: a readable name from the address ("mirza.nabeel@x" -> "Mirza Nabeel"), never the raw address.
+    for (const e of attendeeEmails) {
+      if (attendeeNames[e]) continue;
+      const local = e.split('@')[0] ?? '';
+      const words = local.split(/[._-]+/).filter((w) => /^[a-z]{2,}$/i.test(w));
+      if (words.length) attendeeNames[e] = words.map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+    }
   }
   const ownEmails = [owner?.email, owner?.integrationEmail].filter(Boolean).map((e: string) => e.toLowerCase());
   const threads = openItems.length === 0 ? [] : await prisma.$queryRawUnsafe<Array<{ t: string | null }>>(

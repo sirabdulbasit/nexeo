@@ -223,6 +223,18 @@ router.get('/backfill/status', requireAuth, async (req: Request, res: Response) 
   }
 });
 
+/**
+ * Re-scribe reach (founder 13 Nov: "that should be part of connector for scribe, 30, 60, 90 or entire"). `reach` is
+ * 30 | 60 | 90 | 'all'; it sets how far back mail and calendar are read. Explicit numbers in the body still win.
+ */
+export function reachOpts(body: any): { gmailDays?: number; gmailCap?: number; calendarDaysBack?: number } {
+  const r = body?.reach;
+  if (r === 'all') return { gmailDays: 0, gmailCap: 20000, calendarDaysBack: 3650 };
+  const n = Number(r);
+  if (n === 30 || n === 60 || n === 90) return { gmailDays: n, gmailCap: Math.max(500, n * 100), calendarDaysBack: n };
+  return {};
+}
+
 // ─── Scribe (per-connector historical pull + wiki backfill) ───
 // POST /connectors/scribe/:connectorTypeId
 // Body: { gmailDays?, gmailCap?, calendarDaysBack?, calendarDaysAhead? }
@@ -336,9 +348,10 @@ router.post('/scribe/:connectorTypeId', requireAuth, async (req: Request, res: R
     // stall on a 30+ second Gmail walk. Poll-based UI picks up the
     // completion.
     void runScribeInBackground(user.id, user.clientNumber, uc.id, slug, {
-      gmailDays: Number.isFinite(body.gmailDays) ? Number(body.gmailDays) : undefined,
-      gmailCap: Number.isFinite(body.gmailCap) ? Number(body.gmailCap) : undefined,
-      calendarDaysBack: Number.isFinite(body.calendarDaysBack) ? Number(body.calendarDaysBack) : undefined,
+      ...reachOpts(body),
+      ...(Number.isFinite(body.gmailDays) ? { gmailDays: Number(body.gmailDays) } : {}),
+      ...(Number.isFinite(body.gmailCap) ? { gmailCap: Number(body.gmailCap) } : {}),
+      ...(Number.isFinite(body.calendarDaysBack) ? { calendarDaysBack: Number(body.calendarDaysBack) } : {}),
       calendarDaysAhead: Number.isFinite(body.calendarDaysAhead) ? Number(body.calendarDaysAhead) : undefined,
       whatsappDays: Number.isFinite(body.whatsappDays) ? Number(body.whatsappDays) : undefined,
       whatsappMessagesPerChat: Number.isFinite(body.whatsappMessagesPerChat) ? Number(body.whatsappMessagesPerChat) : undefined,
@@ -511,9 +524,10 @@ router.post('/scribe-all', requireAuth, async (req: Request, res: Response) => {
         },
       });
       void runScribeInBackground(user.id, user.clientNumber, uc.id, uc.connectorType.slug, {
-        gmailDays: Number.isFinite(body.gmailDays) ? Number(body.gmailDays) : undefined,
-        gmailCap: Number.isFinite(body.gmailCap) ? Number(body.gmailCap) : undefined,
-        calendarDaysBack: Number.isFinite(body.calendarDaysBack) ? Number(body.calendarDaysBack) : undefined,
+        ...reachOpts(body),
+        ...(Number.isFinite(body.gmailDays) ? { gmailDays: Number(body.gmailDays) } : {}),
+        ...(Number.isFinite(body.gmailCap) ? { gmailCap: Number(body.gmailCap) } : {}),
+        ...(Number.isFinite(body.calendarDaysBack) ? { calendarDaysBack: Number(body.calendarDaysBack) } : {}),
         calendarDaysAhead: Number.isFinite(body.calendarDaysAhead) ? Number(body.calendarDaysAhead) : undefined,
         whatsappDays: Number.isFinite(body.whatsappDays) ? Number(body.whatsappDays) : undefined,
         whatsappMessagesPerChat: Number.isFinite(body.whatsappMessagesPerChat) ? Number(body.whatsappMessagesPerChat) : undefined,

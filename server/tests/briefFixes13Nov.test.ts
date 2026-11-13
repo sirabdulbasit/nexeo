@@ -26,7 +26,7 @@ describe('the brief', () => {
   });
   it('names attendees we know; never his own address; an unknown one stays an address', () => {
     const out = renderDayBriefBlock(base);
-    expect(out).toContain('- 16:30 ECP Payroll — with Fida Ahmed Khan, new@x.com');
+    expect(out).toContain('- 16:30 ECP Payroll — with Fida Ahmed Khan, new@x.com'); // the map is filled in getDayBrief (readable names there)
     expect(out).not.toContain('basit@x.com');
   });
 });

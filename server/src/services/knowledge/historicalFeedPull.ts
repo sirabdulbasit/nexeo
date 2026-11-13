@@ -139,8 +139,10 @@ async function pullGmailHistory(
   if (!client) { log.warn('no Gmail auth', { userId }); return; }
 
   const gmail = google.gmail({ version: 'v1', auth: client });
+  // Re-scribe reach (founder 13 Nov: "30, 60, 90 or entire"): days <= 0 = the entire mailbox (no date filter).
   const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const afterStr = `${after.getFullYear()}/${after.getMonth() + 1}/${after.getDate()}`;
+  const q = days > 0 ? `after:${afterStr}` : undefined;
 
   let pageToken: string | undefined;
   let pulled = 0;
@@ -148,7 +150,7 @@ async function pullGmailHistory(
   while (pulled < cap) {
     const list = await gmail.users.messages.list({
       userId: 'me',
-      q: `after:${afterStr}`,
+      ...(q ? { q } : {}),
       maxResults: Math.min(100, cap - pulled),
       ...(pageToken ? { pageToken } : {}),
     }).catch((e: any) => { log.warn('gmail list failed', { error: e.message }); return null; });
@@ -159,6 +161,23 @@ async function pullGmailHistory(
       if (pulled >= cap) break;
       try {
         const msg = await gmail.users.messages.get({ userId: 'me', id: m.id!, format: 'metadata', metadataHeaders: ['From', 'Subject', 'Date'] });
+        // His sent mail: the feed drops his own outgoing mail, so it lands through the Wiki's intake (full text), marked
+        // his own, exactly as the daily mailbox check does (DEF-463). Nothing to triage.
+        if ((msg.data.labelIds ?? []).includes('SENT')) {
+          try {
+            const { readEmail } = await import('../adapters/gmailAdapter');
+            const e: any = (await (readEmail as any)(userId, m.id!))?.email;
+            if (e) {
+              const { landEmailText } = await import('../wiki/wikiIntake');
+              const { markSource } = await import('../wiki/wikiStore');
+              const sid = await landEmailText({ clientNumber, userId, gmailMessageId: m.id!, threadId: e.threadId, subject: e.subject, from: e.from, to: e.to, cc: e.cc,
+                receivedAt: e.date && !isNaN(Date.parse(e.date)) ? new Date(e.date) : new Date(), bodyText: e.body || e.snippet || '', labels: e.labels?.length ? e.labels : ['SENT'] } as any);
+              await markSource({ clientNumber, userId }, sid, { kind: 'attention', value: { class: 'own' }, by: 'landing:sent' }).catch(() => undefined);
+              summary.fetched += 1; pulled += 1; summary.ingested += 1;
+              continue;
+            }
+          } catch (e: any) { log.warn('sent mail not landed', { id: m.id, error: String(e?.message ?? e).slice(0, 120) }); }
+        }
         const headers = (msg.data.payload?.headers ?? []) as Array<{ name?: string; value?: string }>;
         const h = (n: string) => headers.find((x) => (x.name || '').toLowerCase() === n)?.value ?? '';
         const fromHdr = h('from');

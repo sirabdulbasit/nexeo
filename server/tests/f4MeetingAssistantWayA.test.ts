@@ -119,10 +119,12 @@ describe('OPS', () => {
     expect(await runMeetingOp('T', 2, 'meeting.delete', { meeting_id: 'mtg_1' }, true, { signatureVerified: true })).toMatchObject({ ok: true, item: { deleted: true } });
     expect(String((exec.mock.calls[0] as any[])[0])).toMatch(/DELETE FROM meeting_records WHERE client_number = \$1 AND user_id = \$2 AND id = \$3/);
   });
-  it('upload is refused while his switch is off: meeting data stays on the computer', async () => {
-    expect(await runMeetingOp('T', 2, 'meeting.upload', { title: 'x', start: '2026-11-12T10:00:00Z', end: '2026-11-12T11:00:00Z' }, true, gate)).toMatchObject({ error: 'switched_off' });
-    switchOn.mockResolvedValue(true);
+  // W-1 / F-4.6 (founder 13 Nov): computer notes are accepted whether the switch is on or off; the switch is no longer
+  // asked. (The old test pinned the refusal; going on into storage here would only exercise the mocks.)
+  it('upload no longer asks the switch; a bad date is still refused', async () => {
+    switchOn.mockClear();
     expect(await runMeetingOp('T', 2, 'meeting.upload', { title: 'x', start: '2026-11-12T11:00:00Z', end: '2026-11-12T10:00:00Z' }, true, gate)).toMatchObject({ error: 'bad_date' });
+    expect(switchOn).not.toHaveBeenCalled();
   });
   it('the record reads in F-4.4 shape, with sources[].way', () => {
     const w: any = toWire({ id: 'mtg_1', event_id: 'ev1', title: 'Sync', platform: 'meet', start_at: new Date('2026-11-12T10:00:00Z'), end_at: new Date('2026-11-12T10:30:00Z'), way: 'google_transcript',

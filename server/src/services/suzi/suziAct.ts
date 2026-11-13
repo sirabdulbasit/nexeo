@@ -27,10 +27,11 @@ import { GAP_OPS, runGapOp } from './suziGaps';
 import { emailDelegate, taskCreate, taskForward } from './suziDelegate';
 import { CALENDAR_OPS, runCalendarOp } from './suziCalendar';
 import { MEETING_OPS, runMeetingOp } from './suziMeetings';
+import { W1_OPS, runW1Op } from './suziW1';
 import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 
-export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -68,6 +69,8 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   if (req.op === 'rule.set') return ruleSet(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
   if (req.op === 'rule.remove') return ruleRemove(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true);
   if (req.op.startsWith('delegation.') || req.op.startsWith('instruction.')) return runDelegationOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
+  // W-1 (agreed 13 Nov): identity, profile and device reports go into the Wiki.
+  if ((W1_OPS as readonly string[]).includes(req.op)) return runW1Op(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, { ...gate, deviceId: req.device_id ?? null });
   if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op === 'task.update' && req.args?.update === 'forward') return taskForward(clientNumber, userId, req.args, req.confirmed_by_user === true, gate, req.timezone);

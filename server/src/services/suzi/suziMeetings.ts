@@ -76,8 +76,8 @@ export async function runMeetingOp(
   }
   if (op === 'meeting.upload') {
     if (!confirmed) return fail('needs_confirmation');
-    const { meetingAssistantOn } = await import('../meetings/meetingProcessor');
-    if (!(await meetingAssistantOn(clientNumber, userId))) return fail('switched_off', 'Meeting Assistant is off: meeting data stays on the computer');
+    // W-1 / F-4.6 (founder 13 Nov): notes taken on his computer go to his record whether Meeting Assistant is on or off.
+    // The switch governs Nexeo joining or reading Google's transcript, not his own notes.
     const start = new Date(text(a.start)); const end = new Date(text(a.end));
     if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return fail('bad_date', 'start and end are always required (C5)');
     const eventId = text(a.event_id) || null;

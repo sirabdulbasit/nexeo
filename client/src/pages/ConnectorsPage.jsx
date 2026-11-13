@@ -95,16 +95,17 @@ export default function ConnectorsPage() {
   // the request is in flight (brief, < 1s); once the server responds the
   // progress banner takes over as the "still running" indicator.
   const [historicalPulling, setHistoricalPulling] = useState(false);
+  // Re-scribe reach (founder 13 Nov: "30, 60, 90 or entire"): 'all' = the entire mailbox and calendar.
   const [historicalDays, setHistoricalDays] = useState(90);
   async function handleHistoricalPull(days) {
     setHistoricalPulling(true);
     try {
       const pullDays = days ?? historicalDays;
-      const { data } = await api.post('/connectors/historical-pull', { days: pullDays });
+      const { data } = await api.post('/connectors/historical-pull', { days: pullDays === 'all' ? 3650 : pullDays });
       const parts = [];
       if (data.triggered?.length) parts.push(`started: ${data.triggered.map((t) => t.slug).join(', ')}`);
       if (data.skipped?.length) parts.push(`skipped: ${data.skipped.map((t) => t.slug).join(', ')}`);
-      setMsg(`Historical pull kicked off (${pullDays} days) — ${parts.join(' · ')}. Progress shown below; you can leave this page.`);
+      setMsg(`Historical pull kicked off (${pullDays === 'all' ? 'everything' : `${pullDays} days`}) — ${parts.join(' · ')}. Progress shown below; you can leave this page.`);
       setMsgType('success');
     } catch (err) {
       setMsg(`Historical pull failed: ${err?.response?.data?.error ?? err.message}`);
@@ -407,7 +408,7 @@ export default function ConnectorsPage() {
 
   async function handleScribeAll(force = false) {
     try {
-      const r = await api.post('/connectors/scribe-all', { force });
+      const r = await api.post('/connectors/scribe-all', { force, reach: historicalDays });
       const queued = r.data?.queued || [];
       const skipped = r.data?.skipped || [];
       if (queued.length === 0) {
@@ -632,8 +633,8 @@ export default function ConnectorsPage() {
               {!isRunning && (
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '4px 8px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 'var(--fs-xs)' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Days:</span>
-                    {[30, 90, 180, 365].map((d) => (
+                    <span style={{ color: 'var(--text-muted)' }}>How far back:</span>
+                    {[30, 60, 90, 'all'].map((d) => (
                       <button
                         key={d}
                         onClick={() => setHistoricalDays(d)}
@@ -643,7 +644,7 @@ export default function ConnectorsPage() {
                           border: 'none', padding: '2px 8px', borderRadius: 6,
                           cursor: 'pointer', fontFamily: 'inherit', fontSize: 'var(--fs-xs)',
                         }}
-                      >{d}</button>
+                      >{d === 'all' ? 'All' : `${d}d`}</button>
                     ))}
                   </div>
                   <button
@@ -652,7 +653,7 @@ export default function ConnectorsPage() {
                     disabled={historicalPulling}
                     title="Pull email / calendar / attachments from the selected time window and rebuild Brain memory from it."
                   >
-                    {historicalPulling ? '⏳ Pulling…' : `⏪ Historical Pull (${historicalDays}d)`}
+                    {historicalPulling ? '⏳ Pulling…' : `⏪ Historical Pull (${historicalDays === 'all' ? 'all' : `${historicalDays}d`})`}
                   </button>
                   <button
                     style={{ ...s.btn, ...s.btnPrimary, whiteSpace: 'nowrap' }}
