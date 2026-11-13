@@ -21,6 +21,16 @@ function arg(name: string): string | undefined {
 (async () => {
   const clientNumber = arg('client');
   const userId = Number(arg('user'));
+  // --backfill-sources: bring the stored feed items and old email text into the Wiki's source store.
+  if (process.argv.includes('--backfill-sources')) {
+    if (!clientNumber || !userId) { console.error('usage: wikiRebuild --client <number> --user <id> --backfill-sources'); process.exit(2); }
+    const { backfillSources } = await import('../services/wiki/wikiBackfill');
+    const { countSources } = await import('../services/wiki/wikiSources');
+    const r = await backfillSources(clientNumber, userId);
+    console.log(JSON.stringify({ ...r, sources_by_kind: await countSources(clientNumber, userId) }));
+    await prisma.$disconnect();
+    return;
+  }
   const write = process.argv.includes('--write');
   if (!clientNumber || !userId || write === process.argv.includes('--dry-run')) {
     console.error('usage: wikiRebuild --client <number> --user <id> (--dry-run [--out <dir>] | --write)');
@@ -40,7 +50,7 @@ function arg(name: string): string | undefined {
     }
   }
   console.log(
-    JSON.stringify({ stored_items: r.items, notes: r.notes.length, by_type: r.byType, written: r.written, created: r.created, unchanged: r.unchanged, out: out ?? null }),
+    JSON.stringify({ stored_items: r.items, notes: r.notes.length, by_type: r.byType, written: r.written, created: r.created, unchanged: r.unchanged, retired: r.retired, out: out ?? null }),
   );
   await prisma.$disconnect();
 })().catch((e) => {

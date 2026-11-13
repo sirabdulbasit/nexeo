@@ -70,6 +70,20 @@ export async function ingestEmailBody(p: IngestEmailBodyParams): Promise<string 
       return null;
     }
 
+    // Wiki first (docs/Wiki-Knowledge.md §0.1.2): the full text of the email is
+    // the text of its source in the Wiki. It replaces the preview the feed item
+    // landed with. A failure here must not stop the rest of this function.
+    try {
+      const { landEmailText } = await import('../wiki/wikiIntake');
+      await landEmailText({
+        clientNumber: p.clientNumber, userId: p.userId, gmailMessageId: p.gmailMessageId,
+        feedEventId: p.feedEventId, threadId, subject: String(subject), from, to, cc,
+        receivedAt: p.receivedAt, bodyText,
+      });
+    } catch (err: any) {
+      log.warn('wiki source landing failed', { messageId: p.gmailMessageId, error: err?.message });
+    }
+
     // Resolve canonical person so the email_message page is linked to
     // the same entity_person the sender_history/topic are linked to.
     let entityId: string | null = null;

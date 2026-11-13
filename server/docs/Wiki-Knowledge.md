@@ -120,6 +120,34 @@ What this requires of everything built now:
   every user of the client, whichever source each chose.
 - **Existing start:** `obsidianVaultService.ts` already exports a vault to the user's Drive (export only).
 
+### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
+
+Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
+
+An outside review of this document the same day (recorded score 57.2 of 100, verdict UNVERIFIED) set the standard below. It is adopted in full. The Wiki must be able to answer: **what do we know, why do we believe it, what changed, and who may see it.**
+
+| # | Standard | Where it stands |
+|---|---|---|
+| 1 | **One document, no contradictions.** Superseded decisions are marked; the build order follows the latest rules | Done 13 Nov (§5, §6, §6b marked) |
+| 2 | **A note has a permanent identity; its title is a label.** Aliases and outside identifiers (an email address, a record id) do the matching. A link that could mean two notes stays unresolved. People are merged on evidence, never on a matching name alone | Not met: a note is found by type and title; a link picks the most recent match; the builder merges two addresses that share a name |
+| 3 | **Shared and private are designed together.** One note, a shared layer and each reader's private layer. Permissions govern summaries, citations, backlinks, search and exports, not only the note. A shared summary never carries what was learned from one user's private mail | Not met: required before more company knowledge is added |
+| 4 | **Facts carry their history.** An important property records its source, when it took effect, when it was recorded, and whether it was stated or inferred. A correction supersedes the earlier claim and keeps it. A commitment is completed only on sufficient evidence | Not met |
+| 5 | **Everything is in the Wiki, handled by its kind.** Secrets never enter search, embeddings, model context or exports. A receipt keeps its integrity when a note is edited. A note's text, properties, citations and links change together or not at all, with a revision check so one writer cannot overwrite another | Not met: `writeNote` makes its changes in separate steps |
+| 6 | **A store is retired on evidence, not on a count.** Its information and permissions were preserved; every reader and writer moved; the replacement survives replay and repeated intake; the derived view is rebuilt from the Wiki; a real user task still works. For commitments this includes state changes, authorisation and dispatch receipts | The ledger (§0.4) counts stores; no store has been retired yet |
+| 7 | **Pruning protects useful history.** "Less relevant", "superseded" and "safe to archive" are different. Sources and the user's corrections are kept; merges are reversible; the 30 and 90 day settings live in `behaviorConfig` and are treated as guesses to be checked | Not met: §7 is a plan; retirement of a note is reversible |
+
+**Order of work** (the review's, adopted):
+
+1. Reconcile this document. **Done.**
+2. Source durability: every fetched item and its text is a lasting source in the Wiki (§6b A1). **Built 13 Nov; see §8.**
+3. Identity, permissions and write consistency (standards 2, 3, 5).
+4. Meaning notes: projects, topics, decisions, commitments, with the history of each claim (standard 4, §6b A2).
+5. Move the readers and writers, feature by feature (§6b B and C).
+6. Retire the old stores, each on the evidence of standard 6 (§6b D).
+7. Pruning (standard 7, §7).
+
+It is done when the ledger shows nothing outside the Wiki **and** every row of the table above reads "met", each with its test and its check on production.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
@@ -174,11 +202,11 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 
 1. **The wiki is the master.** Contacts and action items are derived from it.
 2. **Rebuild is allowed.** Nexeo is still in testing, so the wiki may be rebuilt in the new structure instead of migrating the old pages one by one.
-3. **Feed and Think: leave them.** This role does not change the feed code or the thinking code, and does not need to agree anything with them. The wiki is made strong on its own side; the others can move to it later.
-4. **Suzi is not involved** in this work.
-5. **Obsidian's way of working, inside Nexeo's database.** The wiki behaves like Obsidian (a note per thing, `[[links]]` in the text, backlinks, properties) but its home is the Nexeo database. It is not a vault of files, and opening it in the Obsidian app is not a goal.
+3. ~~**Feed and Think: leave them.**~~ **Superseded** by decision 6 and §0.6: every reader and writer of knowledge goes through the one door. Kept for the history. *As decided then:* This role does not change the feed code or the thinking code, and does not need to agree anything with them. The wiki is made strong on its own side; the others can move to it later.
+4. ~~**Suzi is not involved** in this work.~~ **Superseded** by §0 (13 Nov): Suzi follows the Wiki-first rule; a change to what she receives is agreed with Suzi Master first (§0.5.3).
+5. **Obsidian's way of working, inside Nexeo's database.** *Amended by §0.6 (13 Nov): the Nexeo Wiki is the default; the user's own Obsidian vault is a planned per-user option, so a note must translate to an Obsidian note and back.* As decided on the 12th: The wiki behaves like Obsidian (a note per thing, `[[links]]` in the text, backlinks, properties) but its home is the Nexeo database. It is not a vault of files, and opening it in the Obsidian app is not a goal.
 
-Because of decision 3, the earlier plan to move the roughly 35 writers and 50 readers behind one door is dropped. The wiki builds its notes itself from what the feeds have already stored.
+~~Because of decision 3, the earlier plan to move the roughly 35 writers and 50 readers behind one door is dropped.~~ **Superseded:** the one door is required (§0.6). Every reader and writer moves behind `wikiStore`, feature by feature (§6b).
 6. **The old pages go, completely (2026-11-12).** "Old pages should not be read, nor part of wiki, and should not be updated through scribe or any feed." This lifts decision 3 for whatever reads or writes the old pages: that code may now be changed.
 7. **Deploy step 2c.** Done as D-209.
 8. **One wiki (2026-11-12).** There is no "my wiki" and "company wiki" for the user to choose between; it is one wiki, like Obsidian. Who may read a note is still enforced underneath: a note built from one user's email, meetings and chat is readable by that user only; a shared note is readable by every user of the company.
@@ -194,11 +222,12 @@ Because of decision 3, the earlier plan to move the roughly 35 writers and 50 re
 | 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is still there until its readers move (§6b). | **Deployed 2026-11-12 16:22 PKT as D-209.** First automatic run 16:38 PKT: user 2, 3 notes rewritten, 321 unchanged. The Scribe path has not been exercised |
 | 2d | **The Wiki screen shows the new wiki**: notes only by default (People, Companies, Meetings, Groups), the older pages behind a "Which wiki" switch; a note shows its properties, its `[[links]]` as buttons and its backlinks. Notes carry `metadata.wiki = 2`; `GET /brain/wiki` takes `set=new` or `set=old`. | **Deployed 2026-11-12 17:00 PKT as D-211.** Not yet looked at in a browser |
 | 2e | **One wiki; integration records are notes**: the Wiki screen has no private / company switch in the new wiki. A record an integration stores as Context is taken into the wiki after every write (`wikiStore.adoptAsNote`): marked as a note, and linked through `**About:** [[record title]]` to the note with that title (a person, a company), waiting if there is none yet. The integration writer keeps its own identity, hashing, stale and ledger rules; the row stays `org_doc`, scope tenant, shown as "Integration records". | **Deployed 2026-11-12 17:30 PKT as D-213.** No integration has written a record yet, so the adopt step has run only in tests |
+| A1 | **The Wiki's source store** (`wiki_sources`, `wiki_note_sources`; `wikiSources.ts`, `wikiIntake.ts`, `wikiBackfill.ts`): every fetched item lands as a source with its own id, conversation, time, people and text; an email's full text replaces its preview and is never overwritten by one; a transcript can be kept encrypted; a note cites its sources and the citations are its trail. The builder reads sources, not the feed queue, so history outlasts the 30-day pruning. | See §8 |
 | 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
 | 5 | **Upkeep**: merge duplicates, link orphans, mark stale. | After 2 |
-| 6 | ~~Full vault mirror to Drive~~ | Dropped by decision 5. The existing Drive export job is left as it is |
+| 6 | **The user's own Obsidian vault as his knowledge source** (§0.6): a per-user choice in Settings; the store behind `wikiStore` is then the vault. | Not built. The existing Drive export job is the starting point |
 
 No schema change was needed for step 1: notes are rows in `wiki_pages`, links are rows in `wiki_page_links` with `link_type = 'wikilink'`, properties and unresolved links live in `metadata`.
 
@@ -247,13 +276,13 @@ Measured 2026-11-12: 58 runtime files select old page types by name, on about 25
 | B2 | Contacts and recognising a sender | `entityCatalogRoutes`, `personalContactsRoutes`, `scopedContacts`, `personIdentityService`, `senderTriage`, `brainInboxService`, `openItemGate` |
 | B3 | Triage and priority | `criticalityEngineService`, `contextEnricher`, readers of the sender pages |
 | B4 | Briefs | `dayBrief`, `morningBriefService`, `briefRoutes` |
-| B5 | Brain's own working pages (`observation`, `answer`, `gap`, `mind_state`, `feedback`) | These are not knowledge from feeds; they leave `wiki_pages` for a store of their own |
+| B5 | Brain's own working pages (`observation`, `answer`, `gap`, `mind_state`, `feedback`) | ~~They leave `wiki_pages` for a store of their own.~~ **Superseded by §0.3:** they stay in the Wiki, as Brain's own record notes, kept out of what is retrieved as knowledge |
 
 **C. Old writers are switched off**, each when its readers have moved: the ingest hooks in `feedIngestionService` (person page, propagation, WhatsApp body, email body, attachments, sender pages, wiki scribe), Scribe's sender-page rebuild, the nightly scribe backfill, the concept synthesizer, the entity sweep, the meeting digest, and the mirrors that write pages (`odooWikiMirror`, integrations `contextWriter`, folder scribe).
 
 **D. Each old page type is archived** (moved to archive tables, restorable) once nothing reads or writes it.
 
-Order: A1 → A2 → B1 → A3 → B2 → B3 → B4 → B5, with C and D following each B step.
+Order: see §0.7 (the standard and the order, which replaces the order first written here).
 
 ## 7. How the wiki prunes itself
 

@@ -92,7 +92,9 @@ describe('buildNotes', () => {
   });
 
   it('cites its sources and is the same on a second run', () => {
-    expect(find(notes, 'person', 'Hina Shah')!.sources).toHaveLength(1);
+    expect(find(notes, 'person', 'Hina Shah')!.sourceIds).toHaveLength(1);
+    // The trail is complete: every item a person appears in is cited.
+    expect(find(notes, 'person', 'Ali Khan')!.sourceIds!.length).toBeGreaterThanOrEqual(7);
     expect(buildNotes(items, ctx)).toEqual(notes);
   });
 

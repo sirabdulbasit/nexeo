@@ -23,6 +23,11 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
+import { citeSources } from './wikiSources';
+
+// The one door: sources are read and written through here too.
+export { saveSource, citeSources, sourcesOf, readSource, listSources, countSources } from './wikiSources';
+export type { Source, SourceRef, SourceInput, SourceKind } from './wikiSources';
 
 
 /** Marks a row of `wiki_pages` as a note of the new wiki (`metadata.wiki`); the old pages do not carry it. */
@@ -51,6 +56,8 @@ export interface NoteInput {
   scope?: 'user' | 'tenant';
   /** Where the content came from. A source already cited by the note is not cited twice. */
   sources?: NoteSource[];
+  /** The sources in the Wiki's source store this note was learned from (wikiSources). */
+  sourceIds?: string[];
   /** Who is writing: 'feed:gmail', 'user:12', 'upkeep'. */
   actor: string;
 }
@@ -252,8 +259,24 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
     await prisma.wikiPage.update({ where: { id }, data: { sourceCount } });
   }
 
+  if (input.sourceIds?.length) await citeSources(id, input.sourceIds);
+
   await recount(touched);
   return { id, created, linked: targets.size, unresolved };
+}
+
+/**
+ * Take a note out of the wiki without deleting it: readers skip a retired
+ * note, its links are removed, and writing the note again brings it back.
+ */
+export async function retireNote(noteId: string, actor: string): Promise<void> {
+  const links = await prisma.wikiPageLink.findMany({
+    where: { linkType: WIKILINK, OR: [{ fromPageId: noteId }, { toPageId: noteId }] },
+    select: { fromPageId: true, toPageId: true },
+  });
+  await prisma.wikiPageLink.deleteMany({ where: { linkType: WIKILINK, OR: [{ fromPageId: noteId }, { toPageId: noteId }] } });
+  await prisma.wikiPage.update({ where: { id: noteId }, data: { status: 'superseded', lastUpdatedBy: actor, lastUpdatedAt: new Date() } });
+  await recount(links.flatMap((l) => [l.fromPageId, l.toPageId]));
 }
 
 /**

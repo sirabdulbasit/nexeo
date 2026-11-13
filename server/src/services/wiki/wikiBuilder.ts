@@ -22,11 +22,10 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { writeNote, WIKI_GENERATION, type NoteInput } from './wikiStore';
+import { writeNote, retireNote, citeSources, listSources, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
-const SOURCE_LIMIT = 20;
 const BIG_MEETING = 25;
 
 export interface StoredItem {
@@ -53,7 +52,7 @@ const GENERIC_DOMAINS = new Set([
   'gmail.com', 'googlemail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'icloud.com',
   'live.com', 'aol.com', 'protonmail.com', 'proton.me', 'msn.com', 'me.com',
 ]);
-const JUNK_LOCAL = /^(no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster|bounces?|notifications?|notify|newsletter|news|alerts?|updates?|info|marketing|promo|billing-noreply|calendar-notification|drive-shares-(dm-)?noreply|comments-noreply)([+.\-_].*)?$/i;
+const JUNK_LOCAL = /^(no-?reply|do-?not-?reply|donotreply|mailer-daemon|postmaster|microsoftexchange[a-z0-9]*|bounces?|notifications?|notify|newsletter|news|alerts?|updates?|info|marketing|promo|billing-noreply|calendar-notification|drive-shares-(dm-)?noreply|comments-noreply)([+.\-_].*)?$/i;
 const JUNK_DOMAIN = /(^|\.)(resource\.calendar\.google\.com|group\.calendar\.google\.com|calendar\.google\.com|bounces?\..*|noreply\..*|mailchimp\.com|sendgrid\.net|amazonses\.com)$/i;
 
 export interface Address {
@@ -132,7 +131,8 @@ export function nameFromEmail(email: string): string {
 
 /** A title that can be linked to: no `[`, `]`, `|` or `#`. */
 export function noteTitle(raw: string): string {
-  return cleanTitle((raw ?? '').replace(/[\[\]|#^]/g, ' '));
+  // Quotes around a display name (`'Anil Singh'`) are not part of the name.
+  return cleanTitle((raw ?? '').replace(/[\[\]|#^]/g, ' ').replace(/^['"‘’“”\s]+|['"‘’“”\s]+$/g, ''));
 }
 
 /** Date in Pakistan time, `YYYY-MM-DD`. */
@@ -161,13 +161,9 @@ function bump<K>(m: Map<K, number>, k: K, n = 1): void {
 function top<K>(m: Map<K, number>): K | undefined {
   return [...m.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
 }
-function latestSources(src: Array<{ id: string; at: Date }>): Array<{ feedEventId: string }> {
-  const seen = new Set<string>();
-  return [...src]
-    .sort((a, b) => b.at.getTime() - a.at.getTime())
-    .filter((s) => !seen.has(s.id) && seen.add(s.id))
-    .slice(0, SOURCE_LIMIT)
-    .map((s) => ({ feedEventId: s.id }));
+/** Every source a note was learned from, each once, newest first. */
+function citedSources(src: Array<{ id: string; at: Date }>): string[] {
+  return [...new Set([...src].sort((a, b) => b.at.getTime() - a.at.getTime()).map((s) => s.id))];
 }
 
 /** Stored items in, notes out. Pure. */
@@ -495,7 +491,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         chatMessages: p.directChats + p.spaceMessages,
         knownFrom: [...p.reasons].sort(),
       },
-      sources: latestSources(p.sources),
+      sourceIds: citedSources(p.sources),
     });
   }
 
@@ -511,7 +507,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       body: [`Chat space. ${g.messages} messages stored, last on ${day(g.last)}.`, '', '## People who write here',
         ...members.map((m) => `- ${wikiLink(m.title)} — ${m.n} ${m.n === 1 ? 'message' : 'messages'}`)].join('\n'),
       properties: { space: g.space, messages: g.messages, lastOn: day(g.last) },
-      sources: latestSources(g.sources),
+      sourceIds: citedSources(g.sources),
     });
   }
 
@@ -541,7 +537,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         occurrences: dates.length, firstOn: day(dates[0]), lastOn: day(dates[dates.length - 1]),
         nextOn: next ? day(next) : null, link: m.link, attendees: attendees.length,
       },
-      sources: latestSources(m.sources),
+      sourceIds: citedSources(m.sources),
     });
   }
 
@@ -550,13 +546,24 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
   return notes.sort((a, b) => order[a.type] - order[b.type] || a.title.localeCompare(b.title));
 }
 
-/** Load what the feeds stored for one user. */
+/** The kind of a source, as the feed type the builder reads. */
+const FEED_TYPE: Record<string, string> = { email: 'gmail', calendar: 'gcal', chat: 'gchat' };
+
+/**
+ * Load what the Wiki holds for one user: its sources, which outlast the feed
+ * queue (a fetched item is pruned after 30 days; its source stays).
+ */
 export async function loadStoredItems(clientNumber: string, userId: number): Promise<StoredItem[]> {
-  const rows = await (prisma as any).feedEvent.findMany({
-    where: { clientNumber, userId, sourceType: { in: ['gmail', 'gcal', 'gchat'] } },
-    select: { id: true, sourceType: true, rawPayload: true, eventAt: true, createdAt: true },
-  });
-  return rows.map((r: any) => ({ id: r.id, sourceType: r.sourceType, at: r.eventAt ?? r.createdAt, payload: r.rawPayload ?? {} }));
+  const sources = await listSources(clientNumber, userId, ['email', 'calendar', 'chat']);
+  return sources.map((s) => ({
+    id: s.id,
+    sourceType: FEED_TYPE[s.kind],
+    at: s.occurredAt ?? new Date(0),
+    payload: {
+      ...s.details,
+      ...(s.kind === 'email' ? { threadId: s.threadKey ?? s.details.threadId, subject: s.title ?? s.details.subject } : {}),
+    },
+  }));
 }
 
 async function loadContext(clientNumber: string, userId: number): Promise<BuildContext> {
@@ -582,6 +589,8 @@ export interface RebuildResult {
   created: number;
   /** Notes whose text and properties were already what the build produced. */
   unchanged: number;
+  /** Notes the build no longer produces, taken out of the wiki (restorable). */
+  retired: number;
   byType: Record<string, number>;
 }
 
@@ -608,15 +617,18 @@ export async function rebuildWikiForUser(
   let written = 0;
   let created = 0;
   let unchanged = 0;
+  let retired = 0;
   if (!opts.dryRun) {
     const existing = await (prisma as any).wikiPage.findMany({
       where: { clientNumber, userId, lastUpdatedBy: BUILDER_ACTOR },
-      select: { pageType: true, title: true, bodyMarkdown: true, metadata: true },
+      select: { id: true, pageType: true, title: true, bodyMarkdown: true, metadata: true, status: true },
     });
     const stored = new Map<string, any>(existing.map((e: any) => [`${e.pageType}|${e.title}`, e]));
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
-      if (have && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
+      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
+        // The text is current, but a new source may still belong to its trail.
+        if (n.sourceIds?.length) await citeSources(have.id, n.sourceIds);
         unchanged += 1;
         continue;
       }
@@ -624,12 +636,21 @@ export async function rebuildWikiForUser(
       written += 1;
       if (r.created) created += 1;
     }
+    // A note the build no longer produces (a person now known by a fuller name,
+    // a sender now recognised as a mailbox) is retired, so it does not linger
+    // as a second copy. Retired, not deleted: it can be restored.
+    const built = new Set(notes.map((n) => `${n.type}|${cleanTitle(n.title)}`));
+    for (const [key, have] of stored) {
+      if (built.has(key) || have.status === 'superseded') continue;
+      await retireNote(have.id, BUILDER_ACTOR);
+      retired += 1;
+    }
   }
-  return { items: items.length, notes, written, created, unchanged, byType };
+  return { items: items.length, notes, written, created, unchanged, retired, byType };
 }
 
 /** Build the notes for every active user, one after another. */
-export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; error?: string }>> {
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
   const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
   return results.map((r) => ({
@@ -637,6 +658,7 @@ export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; 
     written: r.result?.written ?? 0,
     created: r.result?.created ?? 0,
     unchanged: r.result?.unchanged ?? 0,
+    retired: r.result?.retired ?? 0,
     ...(r.error ? { error: r.error } : {}),
   }));
 }

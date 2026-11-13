@@ -170,6 +170,24 @@ export async function ingest(input: RawEventInput): Promise<IngestResult> {
       } as any,
     });
 
+    // Wiki first (docs/Wiki-Knowledge.md §0.1.2): every fetched item lands in the
+    // Wiki as a source, with its own id, conversation, time, people and text.
+    // Fire-and-forget like the hooks below; the hourly backfill-safe builder
+    // and a re-run of this call make a missed landing harmless.
+    if (input.userId !== undefined) {
+      void import('../wiki/wikiIntake')
+        .then(({ landFeedItem }) => landFeedItem({
+          id: row.id,
+          clientNumber: input.clientNumber,
+          userId: input.userId!,
+          sourceType: input.sourceType,
+          sourceId: input.sourceId,
+          payload: (input.payload ?? {}) as Record<string, any>,
+          at: eventAt ?? row.createdAt,
+        }))
+        .catch((err: any) => console.warn(`[wikiIntake] landing failed for ${row.id}: ${err?.message}`));
+    }
+
     // Tier 1 #8 — Entity discipline: lightweight UPSERT of an
     // entity_person wiki page for this sender so Brain has a stable
     // reference id from now on. Heavy enrichment (signals + body) is
