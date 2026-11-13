@@ -334,7 +334,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | Live 13 Nov (§0.13.2) |
 | 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
 | 8 | A source knows which version of its text it holds | Live 13 Nov (§0.13.3) |
-| 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
+| 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Built 13 Nov (§0.13.6) |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
 | 12 | Proven private: two users and two clients through every path | Run 13 Nov: 22 of 22; four faults found and fixed (DEF-471 to 473); Drive export and meaning search read from code only (§0.15) |
@@ -378,6 +378,21 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 - Two writers marking the same source at once now wait for each other (`markSource` takes a transaction lock per source, user, kind and key), so neither write is lost.
 
 Checked on the production database with throwaway rows, 6 of 6: five markers at once leave one current mark and five history rows with no error; another user and a company source cannot be removed; removal takes 6 marks and 1 citation with it and leaves nothing behind.
+
+#### 0.13.6 Part 9 is built: every rule is a note (Wiki session, 13 Nov 2026)
+
+`src/services/wiki/wikiRuleNotes.ts`, run with the other notes (after every Scribe and every hour). One note of type `rule` per rule, carried over from the stores that hold rules today, facts only, no model. Each note says:
+
+- **what kind it is:** standing instruction, rule, delegation, permission, learned pattern, or system rule;
+- **whether it acts by itself**, by his ruling of 13 Nov 17:10: yes for everything that is on, except a learned pattern, which only suggests;
+- what it applies to (`[[linked]]` to the person or company note when there is one), what it does, his own words, who set it and when;
+- the store and row it is kept in, as its outside identifier. A typed instruction and the email rule made from it are one note.
+
+Company and system rules are shared notes, written once per client. Removed rules are not notes; a rule that disappears from its store is retired. The stores stay the working copy that acts (`Rules.md`); moving the readers to the notes is the step after.
+
+**On production, 13 Nov 18:40 PKT, for the founder:** 63 rule notes: 8 standing instructions (5 acting, 3 paused), 33 rules (31 muted senders, 2 email rules set through Suzi), 2 learned patterns (suggesting only), 2 WhatsApp permissions, and 18 system rules shared with the company. A second run changes nothing. Checked: `tests/wikiRuleNotes.test.ts` (5 tests; a mutant that lets a pattern act is caught).
+
+Not yet: rules of the integrations, the "how to work with you" note (Nexeo-Builder writes it from Suzi's profile.update), and readers reading the notes instead of the stores.
 
 #### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)
 

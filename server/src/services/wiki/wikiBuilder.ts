@@ -631,6 +631,8 @@ export interface RebuildResult {
   /** Notes folded into another on evidence (restorable). */
   merged: number;
   byType: Record<string, number>;
+  /** The rule notes built with them (null on a dry run). */
+  rules?: { rules: number; written: number; unchanged: number; retired: number } | { error: string } | null;
 }
 
 function sameProperties(stored: unknown, built: Record<string, unknown> | undefined): boolean {
@@ -712,11 +714,22 @@ export async function rebuildWikiForUser(
       retired += 1;
     }
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType };
+  // Rule notes are built with the other notes (Wiki-Knowledge §0.13 part 9). A failure there does
+  // not undo the notes above; it is reported with the result.
+  let rules: { rules: number; written: number; unchanged: number; retired: number } | { error: string } | null = null;
+  if (!opts.dryRun) {
+    try {
+      const { rebuildRuleNotesForUser } = await import('./wikiRuleNotes');
+      rules = await rebuildRuleNotesForUser(clientNumber, userId);
+    } catch (err: any) {
+      rules = { error: String(err?.message ?? err).slice(0, 200) };
+    }
+  }
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules };
 }
 
 /** Build the notes for every active user, one after another. */
-export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; error?: string }>> {
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
   const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
   return results.map((r) => ({
@@ -727,6 +740,7 @@ export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; 
     retired: r.result?.retired ?? 0,
     renamed: r.result?.renamed ?? 0,
     merged: r.result?.merged ?? 0,
+    rules: r.result?.rules ?? null,
     ...(r.error ? { error: r.error } : {}),
   }));
 }
