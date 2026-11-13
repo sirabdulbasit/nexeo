@@ -198,8 +198,10 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   reads `meeting.list` after his meetings. The recap is a draft, sent under the send rules (R2). (Detail agreed
   13 Nov 2026 16:10:35 PKT.)
 - **F-4.8 Reads.** `meeting.list` {from?, to?, person?}, `meeting.get` {meeting_id} (with sources[].way), the knowledge
-  route across his own records only, and the pack's `meetings_recorded[]` since the last brief: title, when, a one-line
-  outcome, the count of proposed action items.
+  route across his own records only, and the pack's `meetings_recorded[]` since the last brief: {meeting_id, title,
+  start, end, outcome: record_ready | not_covered | failed, action_items_proposed, summary?}. `outcome` is the status;
+  `summary` is the first sentence of the minutes, at most 160 characters, on record_ready rows only (agreed 13 Nov 2026,
+  Nexeo 1de016db).
 - **F-4.9 Acts and status.** `meeting.attend` {event_id | join_url, way}, `meeting.leave` {meeting_id},
   `meeting.delete` {meeting_id} (signed, irreversible). Nexeo pushes `meeting.status`: Way A `transcribing`,
   `transcript_ready`, `record_ready`; Way B `joining`, `waiting_to_be_let_in`, `in`, `left`, `refused`, `ended`,
