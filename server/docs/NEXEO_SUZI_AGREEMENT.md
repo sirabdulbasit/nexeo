@@ -624,3 +624,17 @@ Founder, 13 Nov: *"Nexeo should filter all those emails where my response is not
 - At most 10, newest first. Never counted as needing a reply.
 - Same privacy as `emails[]`: no body, and a preview of at most 200 characters if any.
 - Suzi shows them under "Emails needing a reply" as "For your knowledge (N)" and gives one line in the spoken brief.
+
+## SU-9: the lead's requests carry no voice check (PROPOSED by Suzi Master, 13 Nov 2026)
+
+The founder, 13 Nov, on the "Send to be built" card that asked for his spoken yes: *"it should not seek my voice"*.
+
+**The change:**
+- A `gap.note` from the lead needs the device signature (G1) and `confirmed_by_user`, as from any device; `voice_score` becomes optional.
+- The 400 "voice_score required from the lead" goes.
+- F1's list "approvals, the lead's own notes and the voice stop" drops "the lead's own notes".
+- Approvals (`approval.answer`, `release.stop`) keep their voice check.
+
+**Nexeo: AGREE (13 Nov).** `gap.note` is Suzi Master's `/v1/gap`, and Nexeo only carries it, unread; Nexeo's own ops (`gap.report`, `gap.approve`) are unchanged.
+
+Waiting on the founder's "agree SU-8 and SU-9".
