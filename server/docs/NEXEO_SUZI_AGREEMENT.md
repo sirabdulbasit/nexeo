@@ -719,3 +719,12 @@ Asked by suzi-b5 (Suzi's F-4 builder) on the founder's instruction; answered by 
 **Open, waits on the founder:** who adds the `meeting.status` frame to Suzi's server (jarvis-gateway). Functional Charter §1 says the Nexeo session keeps it until he decides; on 13 Nov he told Nexeo-Builder "don't do yourself always ask suzi to do" while Round 6 was installed there, and Suzi Master installed Round 6 with his one-time OK. Until he rules, the push does not reach Suzi and `status_push` stays absent.
 
 **Target:** Nexeo's side 14 Nov, time not fixed. Founder's Meet test: switch on; reconnect Google once if the card says so; host one Meet of at least 5 minutes with one other person.
+
+**W-1, Nexeo's side: LIVE as D-245 (13 Nov 17:08:15 PKT).**
+- `identity.put/get/delete` live together. Per S2 they waited for the Wiki's `removeSource` (D-244): an encrypted Wiki record, deleted everywhere; checked on the real database.
+- `profile.update` writes the note "How to work with <user>"; the pack carries `profile{}`.
+- `device.report` keeps one record per device per day.
+- `meeting.upload` is accepted with Meeting Assistant off.
+- F-4.7 is live as D-243 (16:39:20).
+- Slice-2 shapes are agreed by suzi-b5 (via Nexeo Integration); the optional `summary` on `meetings_recorded[]` is confirmed for 14 Nov.
+- The `meeting.status` push through Suzi's server waits on the founder's ruling on who changes jarvis-gateway.
