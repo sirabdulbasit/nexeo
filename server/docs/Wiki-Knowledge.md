@@ -172,7 +172,7 @@ It is done when the ledger shows nothing outside the Wiki **and** every row of t
 4. **A rule prepares; his yes acts.** Ignore marks the item "ignored by your rule" and sends nothing; delegate prepares the forward and holds it for his one yes (as Suzi's email rules already do, F-2.4).
 5. **Exact duplicates cleaned:** his Demo VM ignore rule existed 4 times (saved on 12 and 13 Nov); 3 copies turned off (not deleted), the oldest kept. A repeated save now folds into the existing rule (DEF-454, D-222).
 
-**Until A3 lands, interim (Nexeo-Builder):** My Rules lists Suzi's email rules beside the standing instructions, with Remove = `rule.remove`; a typed instruction that is an email rule also becomes the email rule Suzi's list applies, linked to the instruction (pause or archive carries over). This is DEF-457. It is not built yet: the owner asked to agree how rules work first, and this section is that agreement.
+**Until A3 lands, interim (Nexeo-Builder):** My Rules lists Suzi's email rules beside the standing instructions, with Remove = `rule.remove`; a typed instruction that is an email rule also becomes the email rule Suzi's list applies, linked to the instruction (pause or archive carries over). This is DEF-457, **live since D-224 (13 Nov 13:04 PKT)**; paused rules are listed too (DEF-460, D-227, 13:41 PKT). Details in `Rules.md` §2.4 and §8.
 
 ### 0.10 Rules are Wiki knowledge, so Nexeo thinks with them (owner, 2026-11-13, Wiki session)
 

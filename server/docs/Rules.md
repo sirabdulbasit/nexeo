@@ -87,11 +87,17 @@ it into a structured rule and follows it from then on.
 > - Checked after the restore: `getActiveInstructions` returns 5 (was 0), and one full linter run
 >   left all 8 pages `active`.
 >
-> **Known gap (13 Nov 2026):** a paused instruction is not shown on this tab. `GET /brain/instructions`
-> lists through `getActiveInstructions`, which returns only `metadata.status = 'active'`, so the
-> page's own "paused" pill and **Resume** button never receive a paused rule: pressing **Pause**
-> makes a rule disappear with no way back from the page. The 3 paused above can be resumed only
-> through `PATCH /brain/instructions/:id/status` until the list returns paused rules too.
+> **Paused rules are listed (DEF-460, live D-227, 13 Nov 2026 13:41 PKT).** `GET /brain/instructions` asks
+> `getActiveInstructions(..., {includePaused: true})`, so a paused rule shows with its "paused" pill and
+> **Resume**. Brain's own reads still take active rules only. Checked live: the tab receives his 5 active
+> and 3 paused instructions. (Before this, a paused rule vanished from the page with no way back.)
+>
+> **A typed rule that is an email rule (DEF-457, live D-224).** When a standing instruction of his own is an
+> incoming-email rule ("always ignore Demo VM alerts", "always delegate Raazia's emails to Asad"), it also
+> becomes the email rule Suzi's list applies (`instructionEmailRules.ts` → `ruleSet`), linked by
+> `payload.suzi.instruction_id`. The value must be in his words, and a person must resolve to exactly one of his
+> people; otherwise it stays an instruction to Brain only. Pause or archive turns the email rule off, active
+> turns it on (a second write today: see §11 proposal 1).
 
 ### 2.5 How Brain uses it
 - **Every answer and draft:** `getActiveInstructions` loads up to 30 active rules (client rules
@@ -194,14 +200,14 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
 
 | Store | What | Where it is managed |
 |---|---|---|
-| `user_action_rules` | Action rules ("when X, do Y") in DRAFT → SUGGEST → AUTO mode. Includes Suzi's email rules (`email_delegate`, `email_ignore`) set with `rule.set` / `rule.remove` | Through the API only: `/brain/action-rules` (`brainAskRoutes.ts`) and Suzi `act`. **The client has no screen for them.** |
+| `user_action_rules` (other than Suzi's email rules) | Action rules ("when X, do Y") in DRAFT → SUGGEST → AUTO mode | Through the API only: `/brain/action-rules` (`brainAskRoutes.ts`). Suzi's email rules in this store ARE shown: see the note below |
 | `delegation_matrix` | Who owns which area, and who it escalates to | Elsewhere in Settings |
 | Quiet hours and language | `users.notification_preferences.brain_channel` | Settings |
 
-> **Known gap (13 Nov 2026):** `suziEmailRules.ts` describes `user_action_rules` as "the rules
-> the portal shows", but no tab on My Rules reads `/brain/action-rules`. Rules that you or Suzi set by
-> voice or chat therefore cannot be seen or deleted in the portal. Showing them needs a new tab or a
-> section on this page.
+> **Suzi's email rules are shown (DEF-457, live D-224, 13 Nov 2026 13:04 PKT).** The Standing Instructions tab
+> has an "Email rules" section (`GET /brain/instructions` → `emailRules`, from `listEmailRules`) with **Remove**,
+> which is `rule.remove` (`DELETE /brain/email-rules/:id`), so the rule is gone on Suzi too. A rule read from one
+> of his instructions shows once, as the instruction. Other `user_action_rules` still have no screen.
 
 ---
 
@@ -225,6 +231,10 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | DEF-458: the hourly wiki linter no longer relabels a standing instruction as `orphan` or `stale` (it made every instruction unread within the hour). No instruction's status was changed by this commit; restoring the 12 affected ones waits for the owner | (this commit, Wiki session) |
 | 2026-11-13 | DEF-458, data only (owner's decision): 5 standing instructions of user 2 restored to active and 3 paused, through `updateInstructionStatus`. Brain reads 5 instructions again (was 0). Gap recorded in §2.4: paused instructions are not listed on the tab | (this commit, Wiki session) |
 | 2026-11-13 | Third outside review answered; proposal recorded in §11 (nothing built, no behaviour change) | (this commit, Wiki session) |
+| 2026-11-13 | DEF-454 (D-222): `rule.set` with the same kind and match folds into his existing rule; his 4 copies of the Demo VM ignore rule became 1 (3 turned off, not deleted) | 9fa8222 |
+| 2026-11-13 | DEF-457 (D-224): Suzi's email rules shown on the Standing Instructions tab with Remove; a typed email-rule instruction also makes the email rule, linked by `instruction_id` (§2.4, §8) | c991ee2 |
+| 2026-11-13 | DEF-460 (D-227): paused instructions listed with Resume (§2.4) | e535895 |
+| 2026-11-13 | Text corrected after the third review (§2.4, §8, §11 row 3); no behaviour change | (this commit, Nexeo-Builder) |
 
 ---
 
@@ -236,6 +246,6 @@ From the third outside review of the Wiki and rules. Each point was checked agai
 |---|---|---|
 | 1 | Pausing or archiving an instruction switches its email rule in a second, best-effort write (`updateInstructionStatus`); if that write fails the email rule stays on. Removing the email rule (`rule.remove`) leaves the instruction it came from active | Both rows change in one database transaction, in both directions |
 | 2 | `getActiveInstructions` turns a database error into an empty list, and readers ask for 30, 50 or 100 rules | One governed read: the rules, or "could not be read"; no reader's own limit; nothing that needs a rule check runs by itself while rules are unavailable; Suzi's rules document keeps its last version |
-| 3 | §8 above still says the email rules have no screen (DEF-457 added it, DEF-460 lists paused rules) | Text corrected with proposal 0 |
+| 3 | §8 above still said the email rules have no screen (DEF-457 added it, DEF-460 lists paused rules) | **Done 13 Nov** (§2.4, §8 corrected) |
 | 4 | §4 says an ACTIVE pattern "acts without asking"; the owner's ruling of 13 Nov says a rule prepares and his yes acts. §6 says deletion "cannot be undone"; the Wiki keeps history | **Owner's ruling needed** on ACTIVE patterns (none is ACTIVE on production today) |
 | 5 | Rules live in eleven stores | One rule note per rule in the Wiki (`Wiki-Knowledge.md` §0.10), marked instruction, learned suggestion, permission or system rule; this page stays the place rules are controlled |
