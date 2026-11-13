@@ -728,3 +728,13 @@ Asked by suzi-b5 (Suzi's F-4 builder) on the founder's instruction; answered by 
 - F-4.7 is live as D-243 (16:39:20).
 - Slice-2 shapes are agreed by suzi-b5 (via Nexeo Integration); the optional `summary` on `meetings_recorded[]` is confirmed for 14 Nov.
 - The `meeting.status` push through Suzi's server waits on the founder's ruling on who changes jarvis-gateway.
+
+## Founder's rulings, 13 Nov 2026 ~17:15 PKT (Nexeo-Builder session)
+
+1. **Suzi's server (jarvis-gateway) stays Nexeo's**, as Functional Charter §1 says and Suzi Master agrees. Today's round 6 install by Suzi Master was a one-time exception. The `meeting.status` relay is Nexeo's to add (slice 2, 14 Nov).
+2. **T22, really sending: "Suzi can do all which Nexeo can do".**
+   - The per-user switch is retired as the gate: Suzi really sends when Nexeo can send for him, meaning his Google account is connected.
+   - The signed, confirmed, voiced yes is still required, and the 10-second undo hold is kept.
+   - An emergency OFF list (`feature_suzi_email_send_off_users`) can stop one user.
+   - Live with D-246.
+3. Relayed by the Wiki session (17:10): learned patterns only suggest. What has become a rule, a delegation or a standing instruction, Nexeo and Suzi do by themselves. This supersedes "a rule prepares; his yes acts" (F-2.4 delegate rules hold the forward). The change to Suzi's delegate rules is proposed to Suzi Master before it is built.

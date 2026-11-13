@@ -4,7 +4,8 @@
  * suziEmail hands a send here only when ALL of these hold:
  *   - Suzi's server verified the device's signature (`signature_verified`, which only Suzi's server can set);
  *   - the user said yes (`confirmed_by_user`) and the voice lock passed (`voice_score` present);
- *   - the user is on the switch SEND_SWITCH, a comma-separated list of user ids per tenant, empty by default.
+ *   - Nexeo itself can send for him: his Google account is connected (founder, 13 Nov 2026: "Suzi can do all which Nexeo
+ *     can do"; the separate per-user switch SEND_SWITCH is retired as the gate and kept only as an emergency OFF list).
  *
  * A send is then HELD for SEND_HOLD_MS. `email.undo` inside the hold cancels it, and the draft stays in Gmail
  * Drafts. Gmail can't unsend, so the hold is the only undo there is. After the hold, the saved Gmail draft
@@ -25,11 +26,19 @@ const SLACK_MS = 250;
 
 export type SendState = 'held' | 'sending' | 'sent' | 'cancelled' | 'failed';
 
-/** Off unless this user's id is on the tenant's list. */
+export const SEND_OFF_SWITCH = 'feature_suzi_email_send_off_users';
+
+/**
+ * Founder, 13 Nov 2026: "Suzi can do all which Nexeo can do". Suzi really sends when Nexeo can send for him (his Google
+ * account connected), with the signed, confirmed, voiced yes checked by the caller and the undo hold kept. An emergency
+ * OFF list (SEND_OFF_SWITCH) can still stop one user.
+ */
 export async function maySendForReal(clientNumber: string, userId: number): Promise<boolean> {
   const { getFlagValue } = await import('../featureFlagService');
-  const list = await getFlagValue(clientNumber, SEND_SWITCH, '');
-  return list.split(',').map((s) => s.trim()).filter(Boolean).includes(String(userId));
+  const off = await getFlagValue(clientNumber, SEND_OFF_SWITCH, '').catch(() => '');
+  if (off.split(',').map((x) => x.trim()).filter(Boolean).includes(String(userId))) return false;
+  const u = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { integrationProvider: true, integrationStatus: true } as any }).catch(() => null) as any;
+  return u?.integrationProvider === 'google' && u?.integrationStatus === 'active';
 }
 
 let schedule: (fn: () => void, ms: number) => void = (fn, ms) => { setTimeout(fn, ms); };

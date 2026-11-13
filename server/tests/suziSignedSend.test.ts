@@ -23,6 +23,7 @@ vi.mock('../src/db/prisma', () => ({
     $executeRawUnsafe: (...a: any[]) => exec(...a),
     agentAction: { findFirst: (...a: any[]) => find(...a), update: (...a: any[]) => update(...a) },
     feedEvent: { findFirst: async () => ({ sourceId: 'gm1' }) },
+    user: { findFirst: async () => googleUser },
   },
 }));
 const saveDraft = vi.fn();
@@ -34,13 +35,15 @@ vi.mock('../src/services/gmailService', () => ({
   getEmailHeadersForReply: async () => ({ threadId: 'th1', rfcMessageId: '<m1>', references: null }),
 }));
 const flag = vi.fn();
+// Founder 13 Nov: "Suzi can do all which Nexeo can do" -> Suzi sends when Nexeo can (Google connected).
+let googleUser: any = { integrationProvider: 'google', integrationStatus: 'active' };
 vi.mock('../src/services/featureFlagService', () => ({ getFlagValue: (...a: any[]) => flag(...a) }));
 const auditFn = vi.fn();
 vi.mock('../src/services/auditLogService', () => ({ audit: (...a: any[]) => auditFn(...a) }));
 vi.mock('../src/services/llmRouter', () => ({ callLLM: async () => ({ text: 'x' }) }));
 
 import { runEmailOp } from '../src/services/suzi/suziEmail';
-import { releaseHeldSend, resumeHeldSends, setSendScheduler, SEND_HOLD_MS, SEND_SWITCH, LATE_LIMIT_MS } from '../src/services/suzi/suziSend';
+import { releaseHeldSend, resumeHeldSends, setSendScheduler, SEND_HOLD_MS, SEND_OFF_SWITCH, LATE_LIMIT_MS } from '../src/services/suzi/suziSend';
 
 const timers: Array<{ fn: () => void; ms: number }> = [];
 setSendScheduler((fn, ms) => { timers.push({ fn, ms }); });
@@ -52,12 +55,12 @@ beforeEach(() => {
   for (const f of [query, exec, find, update, saveDraft, sendDraft, flag, auditFn]) f.mockReset();
   timers.length = 0;
   saveDraft.mockResolvedValue({ success: true, draftId: 'g1' });
-  flag.mockResolvedValue('3, 2');
+  flag.mockResolvedValue(''); // nobody on the emergency OFF list
   find.mockResolvedValue(draft());
 });
 
 describe('the gate', () => {
-  it('signed, confirmed, voiced, on the switch: held for 10 seconds, nothing sent yet', async () => {
+  it('signed, confirmed, voiced, Google connected: held for 10 seconds, nothing sent yet', async () => {
     const before = Date.now();
     const r: any = await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED);
     expect(r.ok).toBe(true);
@@ -65,7 +68,7 @@ describe('the gate', () => {
     const at = new Date(r.item.send_at).getTime();
     expect(at - before).toBeGreaterThanOrEqual(SEND_HOLD_MS);
     expect(r.item.undo_until).toBe(r.item.send_at);
-    expect(flag).toHaveBeenCalledWith('T', SEND_SWITCH, '');
+    expect(flag).toHaveBeenCalledWith('T', SEND_OFF_SWITCH, '');
     const written = update.mock.calls.at(-1)![0].data.output;
     expect(written.send).toMatchObject({ state: 'held', voice_score: 0.92 });
     expect(written.gmailDraftId).toBe('g1');
@@ -78,15 +81,17 @@ describe('the gate', () => {
     expect(r.item).toEqual({ draft_id: '7', saved_to_gmail_drafts: true, sent: false, gmail_draft_id: 'g1' });
     expect(timers).toHaveLength(0);
   });
-  it('signed, but the user is not on the switch (12 is not 2): not sent', async () => {
-    flag.mockResolvedValue('12,23');
+  it('on the emergency OFF list: not sent', async () => {
+    flag.mockResolvedValue('12,2');
     const r: any = await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED);
     expect(r.item.sent).toBe(false);
     expect(timers).toHaveLength(0);
   });
-  it('the switch is empty by default', async () => {
+  it('Google not connected (Nexeo itself could not send): not sent', async () => {
     flag.mockResolvedValue('');
-    expect(((await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED)) as any).item.sent).toBe(false);
+    googleUser = { integrationProvider: 'google', integrationStatus: 'expired' };
+    try { expect(((await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED)) as any).item.sent).toBe(false); }
+    finally { googleUser = { integrationProvider: 'google', integrationStatus: 'active' }; }
   });
   it('signed without a voice score: refused, nothing saved', async () => {
     expect(await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, { signatureVerified: true, voiceScore: null }))
