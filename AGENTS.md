@@ -84,6 +84,8 @@ Model versions occupying either seat may change without renegotiating this contr
 7. **Cleanup is deterministic, reversible, capped.** Quarantine → grace → soft-close with audit metadata; never hard-delete user data; never let an LLM decide deletions.
 8. **Data windows/thresholds** go through `behaviorConfig` (user → tenant → env → default, clamped) — no new scattered constants for tunable behavior. **Clarification (agreed 2026-07-17): low-level bounded connector/protocol retry backoffs (e.g. media re-fetch delays, provider retry spacing) are protocol constants owned by their module — they are not business policy and do not belong in behaviorConfig. Protocol constants must remain bounded, deterministic, documented, and tested; add an environment override when operational tuning is justified by production evidence.**
 
+9. **Wiki first (owner, 2026-11-12 and 13: "nothing should be stored or saved outside of wiki").** All knowledge is placed in and retrieved from the Wiki (Obsidian-style notes and the sources they cite); any other store is an index or cache derived from it. A change that would keep knowledge outside the Wiki is a release blocker. The rule, the boundary and the moves: `server/docs/WIKI_FIRST.md`.
+
 ## 3. Codebase conventions
 
 - Registries are the source of truth: action metadata lives on `action_definitions.operationalMetadata` (seeded in `seedActionDefinitions.ts`); capability prompts are GENERATED — never re-introduce hand-maintained capability/connector side-maps.

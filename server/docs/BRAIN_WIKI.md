@@ -1,6 +1,6 @@
 # Brain Wiki
 
-Written 2026-11-12 by the Brain Wiki session. Owner direction is in §1, his decisions in §5, the build order in §6, pruning in §7 and the state in §8.
+Written 2026-11-12 by the Brain Wiki session. **The product-wide rule this Wiki serves (owner, 13 Nov: "nothing should be stored or saved outside of wiki") is `WIKI_FIRST.md`; every part of Nexeo and Suzi follows it.** Owner direction is in §1, his decisions in §5, the build order in §6, pruning in §7 and the state in §8.
 
 ## 1. Owner direction (2026-11-12)
 
