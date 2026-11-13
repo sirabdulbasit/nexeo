@@ -752,3 +752,26 @@ Asked by suzi-b5 (Suzi's F-4 builder) on the founder's instruction; answered by 
 - **Charter:** Functional_Charter.md mirrored byte for byte from Suzi commit bf4c923, sha256 dec95d27…f842.
 - **Next:** Nexeo-Builder builds; Suzi's next release drops the "ready to delegate" batch.
 - **13 Nov ~18:00 PKT, F-2.4 review safeguards (P1-1 to P1-6):** after an outside review of Nexeo's first build, auto-forward was switched off (D-248 shipped P1-6). Suzi Master wrote the safeguards into the F-2.4 bullet (Suzi e91a012): only email received after the rule was set and within 7 days; the person on his company's own domain, never a shared provider; office hours by his time zone's day; nothing goes when the daily count can't be checked; a held forward re-checked at release (rule active, sending allowed). They only narrow what a rule may forward, so no new founder decision. **Nexeo AGREE**; mirrored, sha256 a0868536…3830. Auto-forward stays OFF until P1-1 to P1-5 are proven live; Suzi keeps the ready batch until then.
+
+## F-2.4 text: re-queue and "sending" (13 Nov 2026) and F-2.5-source: where an action comes from (proposed by Suzi Master, 13 Nov 2026)
+
+**F-2.4 mirror.** Suzi Master wrote Nexeo-Builder's proofs (b) and (c) into F-2.4:
+- a change of the rule's person or their email during the hold cancels the forward and queues it again for the new person;
+- the pack marks the row `state: "sending"` until Gmail returns the sent id and it reads back as sent, and then delivered.
+
+Mirrored byte for byte from Suzi 81af84a (sha256 7afb5286…), Nexeo commit 544ccced, checked with cmp; only F-2.4 changed. Asked of Nexeo-Builder: which of Suzi 1.2.64's two shapes the pack uses (action `"sending"`, or `"delegated"` with `state: "sending"`).
+
+**F-2.5-source, proposal.** It comes from the founder's question on a task card, 13 Nov: *"from where it comes?"*. Each `actions[]` item gets an optional `source: {kind: email | meeting | whatsapp | manual | suzi, from?, subject?, at?, thread_id?, meeting_id?}`.
+- `from` is the sender's display name.
+- `subject` is at most 120 characters.
+- `at` is ISO 8601 with the offset.
+- It carries no body text.
+
+Suzi 1.2.64 already shows it as "From: Email: <name> · "<subject>" · <time>" when it is present.
+
+**Nexeo: AGREE (13 Nov 18:31:50 PKT), with:**
+- **n1, Wiki first:** `source` is read from the action's commitment note: the source it was first learned from, which is its first citation (Wiki-Knowledge §0.1 point 5). No new store is added. Until items have moved to notes, it is read from the item's own origin.
+- **n2:** when the origin is unknown, `source` is left out; it is never guessed.
+- **n3:** `from` falls back to the sender's email address only when no display name is known. Only the user's own items carry it, as today.
+
+Built by Nexeo-Builder. The live time goes to suzi-8f.
