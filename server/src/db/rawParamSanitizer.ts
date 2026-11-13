@@ -45,6 +45,7 @@
  * is still producing them.
  */
 import createLogger from '../utils/logger';
+import { callerOf } from './rawQueryObservability';
 
 const log = createLogger('raw-param-sanitizer');
 
@@ -149,9 +150,10 @@ export function installRawParamSanitizers(
   for (const op of operations) {
     const original = client[op];
     if (typeof original !== 'function') continue;
-    const bound = original.bind(client);
     try {
-      client[op] = (...args: unknown[]) => {
+      // A plain function that passes the caller's `this` on, so a statement
+      // issued on a transaction client stays in that transaction (DEF-464).
+      client[op] = function sanitizedRaw(this: unknown, ...args: unknown[]) {
         const r = sanitizeRawArgs(args);
         if (r.stripped > 0) {
           // Count only. Never the values.
@@ -159,9 +161,9 @@ export function installRawParamSanitizers(
             operation: op, characters: r.stripped,
           });
         }
-        return bound(...(r.value as unknown[]));
+        return original.apply(callerOf(this, op, client), r.value as unknown[]);
       };
-      if (client[op] !== bound && client[op].length === 0) wrapped += 1;
+      if (client[op] !== original && client[op].length === 0) wrapped += 1;
     } catch {
       /* counted as not wrapped */
     }

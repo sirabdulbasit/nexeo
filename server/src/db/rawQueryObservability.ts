@@ -305,15 +305,29 @@ export const CALLER_STACK_FRAMES = 40;
 /**
  * Wrap the four raw operations on ONE client object, in place.
  *
- * Applied to the exported client AND to every transaction client, because a
- * `tx` handed to a `$transaction` callback is a different object built by
- * Prisma's internals — wrapping only the top-level client leaves
- * transactional raw calls completely unobserved. `brainResetRoutes` alone has ten such calls. Missing that would have been the
- * `protection-with-two-implementations` shape from the inside: one real choke
- * point, one silent path around it, and a guard that reads as complete.
+ * Applied ONCE, to the exported client. A `tx` handed to a `$transaction`
+ * callback is a proxy over that client: its raw operations resolve to these
+ * same wrappers, so transactional raw calls are observed without installing
+ * anything on the `tx` (measured on the live database, 13 Nov 2026: 2 of 2
+ * transactional calls observed, in two successive transactions).
+ *
+ * It was installed on every `tx` as well until DEF-464. That did two wrong
+ * things: the assignment landed on the SHARED client underneath (so each
+ * transaction added one more wrapper layer to it), and the wrapper it read to
+ * re-wrap was already bound to the main client, so every raw statement inside a
+ * transaction ran outside it.
  *
  * `sqlTextOf` is passed in so this module keeps no Prisma dependency.
  */
+/**
+ * The object a raw operation was called on: the transaction client when it was
+ * called as `tx.$op(...)`, otherwise the client the wrapper was installed on (a
+ * method read off the client and called on its own has no caller to speak of).
+ */
+export function callerOf(self: unknown, op: string, client: Record<string, any>): Record<string, any> {
+  return self && typeof (self as Record<string, any>)[op] === 'function' ? (self as Record<string, any>) : client;
+}
+
 export function installRawQueryObservers(
   client: Record<string, any>,
   sqlTextOf: (args: unknown) => string,
@@ -322,18 +336,24 @@ export function installRawQueryObservers(
   for (const op of OBSERVED_RAW_OPERATIONS) {
     const original = client[op];
     if (typeof original !== 'function') continue;
-    const bound = original.bind(client);
     try {
-      client[op] = (...args: unknown[]) => {
+      // A plain function, NOT an arrow bound to `client` (DEF-464). A transaction
+      // client is a proxy over this one, so `tx.$queryRawUnsafe(...)` reaches this
+      // same wrapper with `this` = the transaction. Passing that `this` on is what
+      // keeps the statement INSIDE its transaction; binding to `client` sent every
+      // transactional raw statement to the main connection, where it committed on
+      // its own and survived a rollback.
+      client[op] = function observedRaw(this: unknown, ...args: unknown[]) {
+        const self = callerOf(this, op, client);
         // Synchronous, on the caller's own frames. See `observeRawQuery`.
         const callerStack = captureCallerStack();
-        return observeRawQuery(op, sqlTextOf(args), callerStack, () => bound(...args));
+        return observeRawQuery(op, sqlTextOf(args), callerStack, () => original.apply(self, args));
       };
       // An extended client is a Proxy. If its `set` trap ignores the write, or
       // the property is getter-only under module strict mode, the assignment
       // can silently not take — and the observer would then be installed in
       // name only. Confirm by reading back.
-      if (client[op] !== bound && client[op].length === 0) wrapped += 1;
+      if (client[op] !== original && client[op].length === 0) wrapped += 1;
     } catch {
       /* counted as not wrapped below */
     }

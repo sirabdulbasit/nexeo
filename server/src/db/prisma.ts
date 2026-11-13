@@ -295,28 +295,24 @@ noteObserversInstalled('client', installRawQueryObservers(prisma as any, sqlText
 installRawParamSanitizers(prisma as any, OBSERVED_RAW_OPERATIONS);
 
 /**
- * The transaction path, which the first deploy missed and production proved it
- * missed: after `c769cb4` shipped, 47 anonymous `22021` errors appeared with
- * ZERO attributed lines, because a `tx` handed to a `$transaction` callback is a
- * different object built by Prisma's internals and never passed through the
- * wrapper above. `brainResetRoutes` alone makes ten transactional raw-execute
- * calls. One choke point with a silent path around it is not a choke point.
+ * The transaction path (DEF-464). Nothing is installed on a transaction client.
+ *
+ * A `tx` handed to a `$transaction` callback is a proxy over `prisma`, so its
+ * four raw operations resolve to the wrappers installed just above, called with
+ * `this` = the transaction. Those wrappers pass `this` on, which is what keeps
+ * a raw statement INSIDE its transaction, observed and sanitized like any other.
+ *
+ * Until 13 Nov 2026 this file re-installed both wrappers on every `tx`. Measured
+ * on the live database that day: a raw read inside a transaction did not see a
+ * row the same transaction had just created, and a raw write survived the
+ * rollback. Cause: the wrapper read off the `tx` was the main client's, already
+ * bound to the main client, so re-wrapping it sent the statement to the main
+ * connection; and assigning onto the `tx` landed on the shared client beneath
+ * it, adding one more wrapper layer per transaction. Twelve files run raw
+ * statements inside transactions and none of them was atomic.
+ *
+ * `tests/def464RawQueriesStayInTheirTransaction.test.ts` holds this in place.
  */
-const originalTransaction = (prisma as any).$transaction.bind(prisma);
-(prisma as any).$transaction = (arg: unknown, ...rest: unknown[]) => {
-  // The array form (`$transaction([p1, p2])`) carries no client to wrap; those
-  // promises were already created through the wrapped methods.
-  if (typeof arg !== 'function') return originalTransaction(arg, ...rest);
-  return originalTransaction((tx: Record<string, any>) => {
-    installRawQueryObservers(tx, sqlTextOf);
-    // The transaction path needs the sanitizer for the same reason it needed the
-    // observer: a `tx` is a different object Prisma builds internally, and the
-    // first deploy of the observer missed it and production proved it missed —
-    // 47 anonymous failures with zero attributed lines.
-    installRawParamSanitizers(tx, OBSERVED_RAW_OPERATIONS);
-    return (arg as (t: unknown) => unknown)(tx);
-  }, ...rest);
-};
 
 /**
  * The statement text out of whichever arg shape the operation uses: the

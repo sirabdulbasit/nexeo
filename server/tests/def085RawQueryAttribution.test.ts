@@ -361,21 +361,17 @@ describe('DEF-085 — the interception has ONE implementation and no bypass', ()
     expect(observerSrc).toContain('setRawQueryFindingReporter');
   });
 
-  it('observes a TRANSACTION client too — the bypass production actually proved', () => {
-    // Found the hard way. After the first deploy, production produced 47
-    // anonymous 22021 errors and ZERO attributed lines, because a `tx` handed to
-    // a $transaction callback is a different object built by Prisma's internals
-    // and never went through the top-level wrapper. brainResetRoutes alone makes
-    // ten tx.$executeRawUnsafe calls. One choke point with a silent path around
-    // it is not a choke point.
+  it('observes a TRANSACTION client too — without installing anything on it (DEF-464)', () => {
+    // First deploy: a `tx` was unobserved (47 anonymous 22021 errors, zero attributed lines).
+    // Second: both wrappers were re-installed on every `tx`, which observed it and, measured on
+    // the live database on 13 Nov 2026, sent every transactional raw statement to the main
+    // connection, outside its transaction. Now the wrapper installed once on the client passes
+    // the caller's `this` on, so a `tx` (a proxy over the client) is observed AND stays in its
+    // transaction. Proven behaviourally in def464RawQueriesStayInTheirTransaction.test.ts.
     const code = stripComments(prismaSrc);
-    expect(code).toMatch(/\$transaction\s*=/);
-    // The tx object must be observed before the caller's callback runs on it.
-    const install = code.lastIndexOf('installRawQueryObservers(tx');
-    expect(install).toBeGreaterThan(-1);
-    // Mutation: dropping the tx wrapping leaves every transactional raw query
-    // unattributed, which is the state that produced the 47 silent failures.
-    expect((code.match(/installRawQueryObservers\(/g) ?? []).length).toBe(2);
+    expect(code).not.toMatch(/\$transaction\s*=/);
+    expect(code).not.toContain('installRawQueryObservers(tx');
+    expect((code.match(/installRawQueryObservers\(/g) ?? []).length).toBe(1);
   });
 
   it('wraps the four operations on any client object handed to it', () => {
@@ -399,9 +395,9 @@ describe('DEF-085 — the interception has ONE implementation and no bypass', ()
     });
   });
 
-  it('leaves the array form of $transaction alone — it carries no client to wrap', () => {
+  it('leaves $transaction itself alone, in both its forms', () => {
     const code = stripComments(prismaSrc);
-    expect(code).toMatch(/typeof arg !== 'function'/);
+    expect(code).not.toContain('originalTransaction');
   });
 
   it('reads only the statement text, never the parameters, when building the shape', () => {
