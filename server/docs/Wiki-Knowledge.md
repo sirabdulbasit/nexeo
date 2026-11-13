@@ -239,6 +239,25 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Who builds:** 1 and 2 are in the rule code (Nexeo-Builder session, told 13 Nov 13:45 PKT); 0 and 3 to 6 are the Wiki's. No capability point is claimed for any of this until the chains pass on production.
 
+### 0.12 Every email lands in the Wiki, marked by the rules; briefs read from the Wiki (owner, 2026-11-13)
+
+*"all emails should be land in wiki and marked with rules (none of email should be msised) morning brief or Suzi will extract emails, actionable items, meetings from wiki"*
+
+1. **Every email lands in the Wiki. None is missed.** The source store (A1) already takes every fetched email's text. The rule now: no email exists only in `feed_events` or only in a triage cache. Proof: for any day, the count of his fetched emails equals the count of email sources in the Wiki.
+2. **Each email is marked by the rules.** Each email in the Wiki carries its marks, kept with it rather than recomputed per screen:
+   - whether it needs him (DEF-459 `needsYou`);
+   - "for your knowledge" with the reason (escalation, risk, own thread, team);
+   - which of his rules applied (ignore or delegate by rule, `by_rule`);
+   - the action item made from it, if any;
+   - the meeting it belongs to, if any.
+   Today these marks are computed in the triage cache (`triage_decision_cache`) and the partition, outside the Wiki. Moving them onto the email's Wiki entry is the change.
+3. **The morning brief and Suzi read from the Wiki.** Emails needing him, For your knowledge, action items and meetings are read from those marked Wiki entries. Nexeo's WhatsApp brief, the Day Brief page and Suzi's pack all read the same entries, so they cannot disagree.
+4. **Who builds:**
+   - The Wiki session: landing, the marks' place on the note, completeness proof.
+   - Nexeo-Builder: writing the DEF-459 judgement and the rule marks onto the email's Wiki entry, and switching the brief and the pack to read from the Wiki.
+   - Suzi Master: agrees the pack reading from the Wiki before it changes what Suzi receives (§0.5 rule 3).
+   - Not built yet: the Wiki session proposes the shape first.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
