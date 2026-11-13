@@ -502,6 +502,8 @@ These are the founder's words in Suzi Master's session, 12 Nov: *"it should be s
   - **The record:** `google_transcript`, 3 lines named by speaker, minutes written, no decisions or items.
   - **Gaps sent to Nexeo-Builder:** polling misses meetings that have no calendar event; the title is empty with no calendar event.
   - **Not yet verified:** extraction of decisions and action items, the `meeting.status` push, and `meetings_recorded[]` (slice 2).
+  - **Both gaps closed: D-216, a5515fb, live 12 Nov 22:45 PKT (Nexeo-Builder).** The poller also lists his conferences that ended 15 minutes to 24 hours ago (C5 match to his event by Meet code, else an overlapping event, else its own record). A meeting with no calendar event is titled "Meet at HH:MM" at once, then the model's short title; a calendar title is never replaced.
+  - **Re-read done:** the test record still has 3 lines after its one later re-read, so Google added nothing late. Its title stays empty, because the fallback applies to new records only.
 
 ## F-2.8 and F-2.10: AGREED by the founder, 12 Nov 2026 19:47 PKT
 

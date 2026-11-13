@@ -232,6 +232,20 @@ async function contextOf(clientNumber: string, userId: number, a: any, ownEmails
     }
   }
   if (a.threadId) {
+    // Owner, 13 Nov ("Nexeo should see these intelligently"): judge from the real text of the conversation, not
+    // 200-character previews. A preview cut his "TMC Context is done" reply down to its first lines about access,
+    // so a settled ask came back as new. Quoted history is cut so each message is its own words.
+    try {
+      const { fetchEmailThreadContext } = await import('../gmailService');
+      const msgs = await fetchEmailThreadContext(userId, String(a.threadId), 6);
+      if (msgs.length) {
+        const own = (t: string) => t.split(/\n\s*On .{5,200}wrote:\s*\n|\n-{2,}\s*Original Message|\n\s*From: .+\n\s*Sent: /i)[0];
+        return {
+          text: clean(a.preview || a.subject),
+          around: msgs.map((m) => `${m.from === 'me' ? 'HIM' : clean(m.fromName) || 'someone'}: ${clean(own(m.text)).slice(0, 700)}`),
+        };
+      }
+    } catch { /* fall back to the stored previews below */ }
     const rows = await prisma.$queryRawUnsafe<Array<{ s: string | null; t: string | null }>>(
       `SELECT sender_email AS s, raw_payload->>'snippet' AS t FROM feed_events
         WHERE client_number = $1 AND user_id = $2 AND raw_payload->>'threadId' = $3 ORDER BY created_at DESC LIMIT 8`,
@@ -263,6 +277,8 @@ export async function judgeAsks(args: {
       `You prepare the "New asks" section of ${who}'s morning brief. Each candidate is a message with the conversation around it (HIM = ${who}).`,
       `Keep a candidate only if it is a concrete ask of ${who} himself that is still open: someone wants him to decide, approve, reply with something specific, provide, review, or meet with a purpose.`,
       'Drop it if it is small talk, a greeting, a thank-you, a confirmation, a link with no request, something asked of someone else, or a matter settled later in the conversation (also by him).',
+      `A business system asking ${who} himself to approve or acknowledge something (a timesheet, an invoice, a ticket escalation) IS an ask, not a mere notification.`,
+      `It is settled when HIM later says it is done, completed, delivered, shared, sent or answered, even if the asker had asked for a plan or a date to finish it: a finished thing needs no plan.`,
       `Drop it if it is the same matter as one of his open items, a calendar event today, or another kept candidate (keep only the clearest one).`,
       'For each kept candidate write one line in plain English: who wants what from him, in your own words, at most 18 words. No quotes, no links, no raw subject lines.',
       'Answer strict JSON only: {"keep":[{"id":"<candidate id>","line":"..."}]}',

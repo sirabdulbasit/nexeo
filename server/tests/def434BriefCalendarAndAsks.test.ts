@@ -88,3 +88,13 @@ describe('owner 11-12: asks judged in their conversation, no repeats, own words'
     expect((await judgeAsks(base)).length).toBe(2);
   });
 });
+
+describe('owner 13 Nov: "Nexeo should see these intelligently"', () => {
+  it('the judge is told a finished thing settles the ask, and a system asking him to acknowledge is an ask', async () => {
+    gemini.mockResolvedValue(JSON.stringify({ keep: [] }));
+    await judgeAsks({ clientNumber: 'T', userId: 2, ownEmails: [], ownName: 'Basit Ahmed', candidates: [{ itemType: 'email', from: 'x', subject: 's' }] as any, openTitles: [], calendarTitles: [] });
+    const system = String((gemini.mock.calls[0] as any[])[0]);
+    expect(system).toMatch(/settled when HIM later says it is done.*a finished thing needs no plan/);
+    expect(system).toContain('A business system asking Basit Ahmed himself to approve or acknowledge something');
+  });
+});
