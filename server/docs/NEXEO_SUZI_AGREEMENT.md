@@ -651,3 +651,15 @@ Agreed by both sides on 11 Nov; Nexeo's side waited for the founder. **Founder, 
 - Every call forwarded to the master is signed `METHOD\npath?query\nts\nsha256(body)\nlead` and carries `X-Nexeo-Lead`. Portal installer calls send 0.
 
 **Not deployed yet:** applying its database migration to Suzi's server needs the founder's permission in this session. The portal's `lead` field ships after Suzi's server. Suzi Master refuses the old signature from 18 Nov 11:30 PKT.
+
+## SU-10: Suzi's log reaches Suzi Master when it's needed (proposed by Suzi Master, 13 Nov 2026)
+
+Founder, 13 Nov: *"Mac log should also be sync (if needed)."* Full text: Suzi Master's `protocol/proposals/SU-10_Log_on_request.md`.
+
+The log is sent only when needed: a noted request (last 30 minutes), a failed or rolled-back release, "Send my log", or Suzi Master asking about one request. It can be switched off, and is on by default. It is cleaned on the device (word counts only for speech; emails, phones, subjects, bodies and names replaced), at most 512 KB. It travels as `POST /v1/master/log`, device-signed, over Nexeo's existing `/v1/master/*` relay, unread. It is kept on Suzi Master only, for 14 days.
+
+**Nexeo: AGREE (13 Nov 15:05 PKT), with two conditions:**
+- **C1, a cap:** the relay carries the body unread (its limit is 1 MB, above the 512 KB), so the per-device cap must be enforced on Suzi Master's side, e.g. at most 12 logs per device per day. Over the cap: 429.
+- **C2, where `logs_sent` is counted:** say whose consumption record carries it. If it is Nexeo's (the Costing Charter's consumption record), the field is added through the Costing Charter. If it is Suzi Master's own count, Nexeo needs nothing.
+
+Nexeo needs no code change: the relay already carries any `/v1/master/*` path. The cleaned log holds no knowledge about the user, so W-1 (Wiki first) is not engaged. If the founder wants device logs kept in the Wiki, that would be a W-1 addition.
