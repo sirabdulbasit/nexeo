@@ -5,6 +5,12 @@
 > review sequencing are gone; everything below — the BUILDER/REVIEWER split, the product
 > invariants, the codebase conventions, the environment facts, and the verification matrix
 > — remains in force. **Owner-only deployment was superseded on 2026-08-07 (see §0).**
+>
+> **Corrected by Basit's word, 2026-11-13** (no product rule changed): work lands on
+> `release/cmp-2026-08-16`; the handoff record is the three Brain documents, `Wiki-Knowledge.md`
+> and `Rules.md`, not `Changes_Made.md` (closed, kept as history); the BUILDER runs production
+> commands (§0); `npm run build` is not run in this tree (`server/dist` is immutable, see
+> `CLAUDE.md`); Codex reviews are advisory, arrive through Basit, and gate nothing.
 
 ## 0. Deploy authority — amended by Basit, 2026-08-07
 
@@ -42,7 +48,7 @@ Two agents work this repo in fixed roles. **Roles flipped by Basit on 2026-07-21
 
 | Role | Agent | Responsibility |
 |---|---|---|
-| **BUILDER / RELEASE** | Claude | Investigate, implement, test, document, commit, push, and hand Basit the production deploy commands. Self-verification is mandatory and published with exact numbers. |
+| **BUILDER / RELEASE** | Claude | Investigate, implement, test, document, commit, push, and run the production deploy (§0; until 2026-08-07 the commands were handed to Basit). Self-verification is mandatory and published with exact numbers. |
 | **REVIEWER / ADVISOR** | Codex | Review published diffs and `Changes_Made.md` sections; give expert opinion, gap findings, and alternative approaches. **Never commit, push, or deploy.** |
 
 Model versions occupying either seat may change without renegotiating this contract. **Change flow (Basit, 2026-07-22 — supersedes 2026-07-21):** (1) BEFORE building, the BUILDER writes a CHANGE PROPOSAL (intent, root-cause evidence, files to touch, tests planned, risks) and gets the REVIEWER's approval via Basit; (2) once approved, the BUILDER implements, self-verifies (exact numbers), commits, pushes, and hands Basit the deploy commands — deployment follows the build directly, with Basit's pull/build output as the record; (3) after a successful deploy, the BUILDER sends the REVIEWER a post-deploy update: implementation and documentation SHAs, exact test/build results, complete production pull output, deployed production HEAD, health and acceptance evidence, rollback status, and any deviations, failures, or unresolved gates; the REVIEWER then performs the post-deployment expert review (no pre-deploy diff-review gate). The BUILDER must stop and request renewed approval if implementation materially deviates from the approved proposal — especially on scope, invariants, migrations, dependencies, or production architecture. Failed pulls, dirty-tree conflicts, failed builds, migration or acceptance failures remain stop-and-report conditions; no destructive recovery commands may be improvised. (Accepted by REVIEWER 2026-07-22.) Trivial documentation-only edits and ledger records are exempt from pre-approval. ~~**Deployment authorization remains exclusively Basit's — he executes every production command.**~~ **Superseded by §0 (Basit, 2026-08-07): the BUILDER executes production commands himself.** The "How to test" requirement survives the transfer — the BUILDER now *runs* those checks and reports the exact output, stating what success vs failure looked like (Basit, 2026-07-21).
@@ -54,20 +60,20 @@ Model versions occupying either seat may change without renegotiating this contr
 ## 1. BUILDER / RELEASE (Claude) — duties and hard limits
 
 **Do:**
-- Implement fixes/features on branch `feat/nexeo-one-brain`. Commit and push completed, self-verified work (stage only intended paths — never `git add -A`).
-- Document EVERY change in **`Changes_Made.md`** (repo root, append a dated section). This is the binding handoff contract. Include: observed behavior, confirmed root cause (from code, not hypothesis), files changed (complete list — omissions have been caught before), tests added, exact verification numbers, known issues deliberately not fixed, and whether a migration is included.
+- Implement fixes/features on branch `release/cmp-2026-08-16` (was `feat/nexeo-one-brain` until August 2026). Commit and push completed, self-verified work (stage only intended paths — never `git add -A`, never `git add <directory>`).
+- Document EVERY change where it belongs, in the same commit: every defect and fix in `server/docs/brain_change_log.md`, every chat log in `server/docs/brain_chat_log.md`, every deploy (predicted before, observed after) in `server/docs/brain_evaluation_chart.md`, every change to the Wiki in `server/docs/Wiki-Knowledge.md`, every change to rules in `server/docs/Rules.md`. This is the binding handoff contract. (`Changes_Made.md` held it until 18 Aug 2026; it is closed and kept as history.) Include: observed behavior, confirmed root cause (from code, not hypothesis), files changed (complete list — omissions have been caught before), tests added, exact verification numbers, known issues deliberately not fixed, and whether a migration is included.
 - For every bug that came from a real Brain conversation: append a `## Chat N` entry to `server/docs/brain_chat_archive.md` **and** a paired executable `chatN` scenario in `server/tests/brainScenarios.ts`. The archive-sync meta-test enforces this pairing — the suite goes red if you add one without the other.
 - Verify before handoff, from `tmcai/server/`:
   ```bash
   npx tsc --noEmit        # must be clean
   npx vitest run          # must be 0 failed, no unhandled errors
-  npm run build           # must pass
   git diff --check        # must be clean
   ```
-  Report the EXACT numbers in `Changes_Made.md`. The REVIEWER may independently re-run them; inflated or stale numbers break trust.
+  `npx tsc --noEmit` is the build check. `npm run build` is never run in this tree: `server/dist` is the running deploy and is locked (`chattr +i`); a build that emits happens only in a clean clone, inside a deploy (see `CLAUDE.md`).
+  Report the EXACT numbers in the change-log row or the deploy row. The REVIEWER may independently re-run them; inflated or stale numbers break trust.
 
 **Never:**
-- Never run anything against production directly — production commands are handed to Basit, who executes them.
+- Never run anything against production outside the deploy rules of §0 and `CLAUDE.md`. Since 2026-08-07 the BUILDER runs the production commands himself (§0); it no longer hands them to Basit.
 - Never run `prisma migrate dev` (migration-ledger drift). New schema = a new folder under `server/prisma/migrations/<date>_<name>/migration.sql`, written **idempotently** (`IF NOT EXISTS`, guarded `DO $$` blocks), plus matching `schema.prisma` models. Runtime code must never `CREATE TABLE` — schema comes from migrations only.
 - Never send real email/WhatsApp/calendar invites from tests or scripts; providers stay mocked.
 - Never touch, delete, or commit these user-owned files: `server/docs/nexeo_self_learning&development.md`, `tenant-scope-audit-2026-05-22.md`. Never stage `.env`, tokens, or `whatsapp-sessions/`.
@@ -150,18 +156,18 @@ Every audit follows this order:
 Added code, green tests, or deployment alone do not earn capability points. Scores move only
 when a build creates verified behavior or removes a verified structural blocker.
 
-**REVIEWER (Codex) duties:** read the published diff **and** the `Changes_Made.md` section; check archive↔scenario pairing, tenant scoping, invariant touches, migration idempotency + deploy ordering, and whether the fix covers the **class**, not just the reported instance; return findings as expert opinion via Basit. The BUILDER answers every finding with evidence or a fix — findings are never silently dropped. Claims either agent can't back with command output don't count.
+**REVIEWER (Codex) duties** *(advisory since 2026-07-31: a review arrives through Basit and gates nothing; the BUILDER still answers every finding)*: read the published diff **and** the change-log and chart rows; check archive↔scenario pairing, tenant scoping, invariant touches, migration idempotency + deploy ordering, and whether the fix covers the **class**, not just the reported instance; return findings as expert opinion via Basit. The BUILDER answers every finding with evidence or a fix — findings are never silently dropped. Claims either agent can't back with command output don't count.
 
 **Verification matrix (agreed 2026-07-17):**
-- Always: server `npx tsc --noEmit`, full `npx vitest run` (0 failed, no unhandled errors), server `npm run build`, `git diff --check`.
+- Always: server `npx tsc --noEmit`, full `npx vitest run` (0 failed, no unhandled errors), `git diff --check`. Server `npm run build` only in a clean clone, as part of a deploy (see §1).
 - When client files change: client `npm run build` (Vite chunk-size warnings are non-blocking).
 - When Prisma schema or migrations change: use the project-local Prisma version; verify Prisma generation, schema/migration parity, migration idempotency, and deployment ordering; after production application, verify the affected columns/tables through a metadata query without printing `DATABASE_URL` or credentials. Never use `npx prisma` on production.
 
 **Publication — release state is determined from Git, never from handoff prose.** Before publication, the REVIEWER runs `git status --short --branch`, inspects the complete diff, checks branch divergence, and verifies the intended release history. If the release is already committed and the remote branch is in sync, publication is complete: report the existing SHA and proceed to deployment review; **never recreate or re-commit an already-pushed release** (e.g. `7ef719b`). Stage only explicitly listed paths (never `git add -A` / `git add .`); exclude the preserved user-owned files. Use an available authenticated Git publication mechanism. Plain Git over HTTPS is sufficient for this repository; GitHub CLI is not required unless the selected workflow specifically needs it. Release safety depends on verified local/remote SHAs and reviewed file scope, not on a particular Git client.
 
-**Production HEAD verification:** before deployment, record the application release SHA and current `origin/feat/nexeo-one-brain` SHA. Inspect every commit and changed file between them. After `git pull --ff-only`, deployment proceeds only when production HEAD equals the pre-recorded remote SHA, `git merge-base --is-ancestor <application-release-sha> HEAD` succeeds, and all intervening commits were explicitly reviewed. A commit is documentation-only only when its actual file delta contains documentation files exclusively. Any unreviewed application-code change is a stop-and-report condition.
+**Production HEAD verification:** before deployment, record the application release SHA and current `origin/release/cmp-2026-08-16` SHA. Inspect every commit and changed file between them. After `git pull --ff-only`, deployment proceeds only when production HEAD equals the pre-recorded remote SHA, `git merge-base --is-ancestor <application-release-sha> HEAD` succeeds, and all intervening commits were explicitly reviewed. A commit is documentation-only only when its actual file delta contains documentation files exclusively. Any unreviewed application-code change is a stop-and-report condition.
 
-**Deployment Records — `Changes_Made.md` is the two-way ledger.** BUILDER owns implementation sections and appends dated build entries. The REVIEWER appends clearly-marked, append-only **"Deployment Record — <date> — <SHA>"** sections; neither agent edits, reorders, or deletes the other's sections. Each Deployment Record distinguishes four SHAs explicitly:
+**Deployment Records.** *Since 2026-11-13 the record of a deploy is its row in `server/docs/brain_evaluation_chart.md` and its line in `server/docs/orchestrator/state/deploy-manifests`; what follows about `Changes_Made.md` is kept as history and the SHA rules below still apply to the chart row.* `Changes_Made.md` was the two-way ledger. BUILDER owned implementation sections and appends dated build entries. The REVIEWER appends clearly-marked, append-only **"Deployment Record — <date> — <SHA>"** sections; neither agent edits, reorders, or deletes the other's sections. Each Deployment Record distinguishes four SHAs explicitly:
 1. **application release SHA** (the reviewed code commit, e.g. `7ef719b`),
 2. **reviewed remote HEAD** (what origin pointed to at review time),
 3. **production deployed SHA** (`git rev-parse HEAD` on the box after pull),
