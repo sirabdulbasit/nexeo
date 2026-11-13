@@ -68,11 +68,25 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
     `UPDATE agent_actions SET output = jsonb_set(output, '{send,state}', '"sending"'), updated_at = now()
       WHERE id = $1 AND action_type = '${DRAFT_TYPE}' AND output->'send'->>'state' = 'held'
         AND (output->'send'->>'send_at')::timestamptz <= $2
-      RETURNING client_number, user_id, output->>'gmailDraftId' AS gmail_draft_id, (output->'send'->>'send_at')::timestamptz AS send_at`,
+      RETURNING client_number, user_id, output->>'gmailDraftId' AS gmail_draft_id, (output->'send'->>'send_at')::timestamptz AS send_at,
+                input->'delegate'->>'rule_id' AS rule_id, (input->'delegate'->>'by_rule') = 'true' AS by_rule`,
     id, now,
   );
-  const r = rows[0];
+  const r = rows[0] as any;
   if (!r) return 'skipped';
+  // F-2.4 review P1: a forward made by a RULE is re-checked at the moment it goes: the rule must still be active and
+  // he must still be allowed to send (not on the send-off list). Anything unreadable or changed = not sent (fail closed).
+  if (r.by_rule) {
+    const still = await prisma.$queryRawUnsafe<Array<{ ok: boolean }>>(
+      `SELECT EXISTS (SELECT 1 FROM user_action_rules WHERE id = $1 AND client_number = $2 AND user_id = $3 AND is_active = TRUE) AS ok`,
+      r.rule_id, r.client_number, r.user_id,
+    ).catch(() => [{ ok: false }]);
+    const mayStill = await maySendForReal(r.client_number, r.user_id).catch(() => false);
+    if (!still[0]?.ok || !mayStill) {
+      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), error: !still[0]?.ok ? 'the rule was removed or paused before it went' : 'sending is switched off for him' });
+      return 'skipped';
+    }
+  }
   if (now.getTime() - new Date(r.send_at).getTime() > LATE_LIMIT_MS) {
     await finish(id, r.client_number, r.user_id, 'failed', { failed_at: now.toISOString(), error: 'not sent: the server was down when it was due' });
     return 'late';
