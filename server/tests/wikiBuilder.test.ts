@@ -143,6 +143,28 @@ describe('buildNotes', () => {
     expect(find(confirmed, 'person', 'Sara Malik')!.body).not.toContain('Possibly the same person');
   });
 
+  it('gives a meeting its calendar series as its identity: instances of one series, one id', () => {
+    const notes = buildNotes([
+      cal('2026-11-03', { eventId: 'abc123_20261103T050000Z', title: 'Weekly sync', attendees: 'hina@one.com', organizer: 'basit@acme.com' }),
+      cal('2026-11-10', { eventId: 'abc123_20261110T050000Z', title: 'Weekly sync', attendees: 'hina@one.com', organizer: 'basit@acme.com' }),
+    ], ctx);
+    expect(find(notes, 'meeting', 'Weekly sync')!.ids).toEqual(['event:abc123']);
+  });
+
+  it('one calendar series is one meeting note, titled as it was last held, even when its title changed', () => {
+    const notes = buildNotes([
+      cal('2026-11-11', { eventId: 'uat9_20261111T100000Z', title: 'UAT Session (Wednesday 11th)', attendees: 'hina@one.com', organizer: 'basit@acme.com' }),
+      cal('2026-11-12', { eventId: 'uat9_20261112T100000Z', title: 'UAT Session (Thursday 12th)', attendees: 'hina@one.com, omar@one.com', organizer: 'basit@acme.com' }),
+    ], ctx);
+    expect(titlesOf(notes, 'meeting')).toEqual(['UAT Session (Thursday 12th)']);
+    const m = find(notes, 'meeting', 'UAT Session (Thursday 12th)')!;
+    expect(m.ids).toEqual(['event:uat9']);
+    expect(m.properties).toMatchObject({ occurrences: 2 });
+    // Every link in every note still points at a note that was built.
+    const titles = new Set(notes.map((n) => n.title.toLowerCase()));
+    for (const n of notes) for (const l of extractWikiLinks(n.body)) expect(titles.has(l.key), `${n.title} -> ${l.key}`).toBe(true);
+  });
+
   it('gives a company and a standing group their outside identifiers', () => {
     const notes = buildNotes([
       mail('2026-11-01', { threadId: 'a', subject: 'A', from: 'Hina Shah <hina@one.com>', to: 'basit@acme.com', userRepliedThread: true }),

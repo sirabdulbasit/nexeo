@@ -170,6 +170,10 @@ function citedSources(src: Array<{ id: string; at: Date }>): string[] {
   return [...new Set([...src].sort((a, b) => b.at.getTime() - a.at.getTime()).map((s) => s.id))];
 }
 
+function lastOf(m: { dates: Date[] }): number {
+  return m.dates.reduce((t, d) => Math.max(t, d.getTime()), 0);
+}
+
 /** Stored items in, notes out. Pure. */
 export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] {
   const ownKey = titleKey(ctx.userName ?? '');
@@ -254,6 +258,8 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
   interface MeetingDraft {
     title: string; dates: Date[]; attendees: Set<string>; organizers: Set<string>;
     link: string | null; description: string | null; big: boolean; sources: Array<{ id: string; at: Date }>;
+    /** The calendar series behind it (Google's event id without the instance suffix): its permanent identity. */
+    series: Set<string>;
   }
   const meetings = new Map<string, MeetingDraft>();
   const seenOccurrences = new Set<string>();
@@ -270,9 +276,11 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const occurrence = `${key}|${it.payload.eventId ?? ''}|${when.toISOString()}`;
     const repeat = seenOccurrences.has(occurrence);
     seenOccurrences.add(occurrence);
-    const m = meetings.get(key) ?? { title, dates: [], attendees: new Set<string>(), organizers: new Set<string>(), link: null, description: null, big: false, sources: [] };
+    const m = meetings.get(key) ?? { title, dates: [], attendees: new Set<string>(), organizers: new Set<string>(), link: null, description: null, big: false, sources: [], series: new Set<string>() };
     if (!repeat) m.dates.push(when);
     m.sources.push({ id: it.id, at: when });
+    // A recurring event's instances are `<series>_<start>`: the series is the meeting's identity.
+    if (it.payload.eventId) m.series.add(String(it.payload.eventId).split('_')[0]);
     if (it.payload.link) m.link = String(it.payload.link);
     if (it.payload.description) m.description = String(it.payload.description).slice(0, 1500);
     if (others.length > BIG_MEETING) m.big = true;
@@ -292,6 +300,26 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
   }
 
   // Chat: a group note per shared space; people by name (chat carries no address).
+  // One calendar series is one meeting, whatever its title became (a meeting renamed mid-series, or
+  // a title that carries the date). Drafts that share a series are folded into the one held last;
+  // every key keeps pointing at it, so a person's list of meetings links to the surviving title.
+  const bySeries = new Map<string, MeetingDraft>();
+  for (const [key, m] of [...meetings.entries()].sort((a, b) => lastOf(b[1]) - lastOf(a[1]))) {
+    const into = [...m.series].map((x) => bySeries.get(x)).find((d) => d && d !== m);
+    if (into) {
+      into.dates.push(...m.dates);
+      for (const e of m.attendees) into.attendees.add(e);
+      for (const e of m.organizers) into.organizers.add(e);
+      into.sources.push(...m.sources);
+      into.big = into.big || m.big;
+      into.link = into.link ?? m.link;
+      into.description = into.description ?? m.description;
+      for (const x of m.series) into.series.add(x);
+      meetings.set(key, into);
+    }
+    const owner = into ?? m;
+    for (const x of owner.series) bySeries.set(x, owner);
+  }
   interface GroupDraft { title: string; space: string; members: Map<string, number>; messages: number; last: Date; sources: Array<{ id: string; at: Date }> }
   const groups = new Map<string, GroupDraft>();
   const chatPeople = new Map<string, { name: string; items: StoredItem[]; direct: number; spaces: Map<string, { count: number; last: Date }> }>();
@@ -536,7 +564,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     });
   }
 
-  for (const m of meetings.values()) {
+  for (const m of new Set(meetings.values())) {
     const dates = [...m.dates].sort((a, b) => a.getTime() - b.getTime());
     const past = dates.filter((d) => d.getTime() <= now);
     const next = dates.find((d) => d.getTime() > now);
@@ -562,6 +590,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         occurrences: dates.length, firstOn: day(dates[0]), lastOn: day(dates[dates.length - 1]),
         nextOn: next ? day(next) : null, link: m.link, attendees: attendees.length,
       },
+      ...(m.series.size ? { ids: [...m.series].sort().map((e) => `event:${e}`) } : {}),
       sourceIds: citedSources(m.sources),
     });
   }
