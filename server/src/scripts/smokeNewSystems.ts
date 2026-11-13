@@ -55,27 +55,8 @@ async function main() {
       await deleteRule(clientNumber, userId, rule.id);
     }
 
-    // ── 2. Multi-step plan executor ──────────────────────────
-    console.log('\n=== 2. Plan Executor ===');
-    const { executePlan } = await import('../services/actions/planExecutor');
-    // Conservative test: a plan with one valid step + one step using
-    // a placeholder reference. We don't need the actions to actually
-    // succeed — we just want to verify the executor walks correctly.
-    try {
-      const result = await executePlan(clientNumber, userId, {
-        clientNumber, userId,
-        goal: 'Smoke test plan',
-        origin: 'smoke',
-        steps: [
-          { id: 'step1', actionType: 'tag_entity', payload: { entityId: 'test:smoke', tags: ['plan-smoke'] }, rationale: 'smoke step', confidence: 0.95 },
-        ],
-      });
-      console.log('plan status:', result.plan.status);
-      console.log('ran/succ/fail/skip:', result.ranSteps, result.succeeded, result.failed, result.skipped);
-      console.log('step outcomes:', result.plan.steps.map((s) => `${s.id}:${s.status}`).join(', '));
-    } catch (err: any) {
-      console.log('plan executor error:', err.message);
-    }
+    // ── 2. (removed 2026-11-13: the multi-step plan executor was never wired
+    //       into production and was deleted per SIMPLIFICATION_PLAN "unused code")
 
     // ── 3. Criticality calibration consumer ──────────────────
     console.log('\n=== 3. Criticality Calibration ===');

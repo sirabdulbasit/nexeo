@@ -278,9 +278,7 @@ const RAW_SQL_EXCEPTIONS: { file: string; reason: string; linePattern: string }[
   // welcomeService: system-wide dashboard data (SA view)
   { file: 'welcomeService.ts', reason: 'System-wide stats for welcome briefing', linePattern: 'system_logs' },
   { file: 'welcomeService.ts', reason: 'System-wide token usage stats', linePattern: 'token_usage' },
-  // slaMonitorService: system-wide SLA monitoring
-  { file: 'slaMonitorService.ts', reason: 'System-wide SLA metrics from audit_log', linePattern: 'audit_log' },
-  { file: 'slaMonitorService.ts', reason: 'System-wide intent breakdown', linePattern: 'intent_type' },
+  // slaMonitorService removed 2026-11-13 (never imported; SIMPLIFICATION_PLAN "unused code").
 ];
 
 function isRawSqlException(filePath: string, sql: string): boolean {
@@ -378,7 +376,6 @@ describe('Cross-Tenant Isolation', () => {
       'services/chatHistoryService.ts',
       'services/dataManagementService.ts',
       'services/welcomeService.ts',
-      'services/slaMonitorService.ts',
     ];
 
     for (const relPath of targetFiles) {

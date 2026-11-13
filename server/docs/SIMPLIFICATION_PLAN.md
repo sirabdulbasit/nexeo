@@ -90,6 +90,17 @@ Raw results (scratchpad, this session): `simplify_screens_server.json`, `simplif
 - **Step 1 (screens):** LIVE, D-147 (client, c342e4a).
 - **Server half of step 1, plus learning moved into the server:** LIVE, D-148 (5758cce).
 - **Nightly build cron line:** REMOVED 11-03 ~12:10 PKT. The crontab backup is in /root/backups. The first server-run LEARN pass is due 11-04 07:30 PKT.
+- **Dead-file prune, 2026-11-13 ~12:30 PKT (no deploy needed, no runtime change):** removed the
+  files from step 2 "unused code" and step 3 "never scheduled" that nothing in the runtime graph
+  imports (proved by an import-reachability scan from `server.ts`, tests and scripts):
+  `services/adapters/driveAdapter.ts`, `utils/swallowedError.ts`, `services/slaMonitorService.ts`,
+  `services/actions/planExecutor.ts` (its block in `smokeNewSystems.ts` removed),
+  `jobs/embeddingBackfill.ts`, `jobs/junkContactCleanupJob.ts`; plus root `TMC_LOGO.png` and
+  `Nexeo_logo.jpeg` (byte-identical copies of `client/public/tmc-logo.png` / `nexeo-logo.jpeg`).
+  `tsc --noEmit` clean, vitest 464 files / 5215 tests passed, 0 failed. Running `dist` never
+  loaded these files. Still open from these steps: the `config` zod schema, `transfer_to_agent`,
+  the 29 smoke scripts (needs `operatorScriptParity.test.ts` + `tsconfig.build.json` re-tiered),
+  the May backfills, `pubsubHandler` (waits on the fleet routes), routes and jobs with timers.
 - **Next:**
   - step 2 (server removals, plus retiring `tmcai-agents`)
   - step 3 (jobs and scripts)
