@@ -637,4 +637,6 @@ The founder, 13 Nov, on the "Send to be built" card that asked for his spoken ye
 
 **Nexeo: AGREE (13 Nov).** `gap.note` is Suzi Master's `/v1/gap`, and Nexeo only carries it, unread; Nexeo's own ops (`gap.report`, `gap.approve`) are unchanged.
 
-Waiting on the founder's "agree SU-8 and SU-9".
+**The founder AGREED SU-8 and SU-9 on 13 Nov in Suzi Master's session** (reported by Suzi Master; his words are in the sign-off of `SuziUpgrade_Charter.md`, section 6): *"it should be sent automatically if I am lead"*; *"all other request from other suzi clients who are not lead, it will come to lead first, when lead approve then go to build"*; *"it should not seek my voice"* (twice). Live on Suzi Master's side the same day (Suzi 1.2.41).
+
+The charter mirror is now `server/docs/SuziUpgrade_Charter.md`, byte for byte (sha256 4339fe79…cd42a), replacing `Master_Charter.md` (renamed by the founder on 11 Nov).

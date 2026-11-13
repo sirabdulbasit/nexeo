@@ -1,9 +1,10 @@
-# Suzi Master ⇄ Nexeo: Charter
+# Suzi Upgrade Charter (Suzi Master ⇄ Nexeo)
 
-**AGREED by Suzi Master and Nexeo, 2026-11-10 21:04:20 PKT** (drafted by Suzi Master 21:03:05; Nexeo's G1 and G2 folded in). One document in its final state (founder,
+**AGREED by Suzi Master and Nexeo, 2026-11-10 21:04:20 PKT; round 6 (how the lead is known) agreed 2026-11-11 11:29:30 PKT** (drafted by Suzi Master 21:03:05; Nexeo's G1 and G2 folded in). One document in its final state (founder,
 10 Nov: "build one agreed document between you both"). It replaces the round-by-round text of rounds 1–5, which
 stays in git history (`git log -- protocol/Master_Charter.md`) and in Nexeo's `server/docs/NEXEO_SUZI_AGREEMENT.md`
-("T30"). It also replaces `protocol/Master_API.md`. Nexeo's mirror: `/var/www/tmcai/server/docs/Master_Charter.md`.
+("T30"). It also replaces `protocol/Master_API.md`. Named `SuziUpgrade_Charter.md` (founder, 11 Nov 2026; formerly `Master_Charter.md`). Suzi Master's copy:
+`protocol/SuziUpgrade_Charter.md` in `suzi-client`; Nexeo's copy: `/var/www/tmcai/server/docs/SuziUpgrade_Charter.md`.
 
 ## 1. The rule
 
@@ -33,8 +34,8 @@ and suzi client").
 
 | Comes from | Kind | Route |
 |---|---|---|
-| **Lead** (founder's Mac) | bug or feature | Suzi notes it; his voice-verified yes is the approval → the master builds, tests, signs → **lead first** → the lead self-builds and runs it → Suzi on the lead asks "Send this build to everyone?" → his voice-verified yes → **all** |
-| **Another Suzi** | **bug** | Its user's yes → the master builds, tests, signs → **straight to all** (no lead test, no founder approval) |
+| **Lead** (founder's Mac) | bug or feature | Suzi notes it and sends it at once (SU-8), signed, no voice asked (SU-9); his request is the approval → the master builds, tests, signs → **lead first** → the lead self-builds and runs it → Suzi on the lead asks "Send this build to everyone?" → his voice-verified yes → **all** |
+| **Another Suzi** | **bug** | Its user's yes → **asked of the founder on the lead** (SU-8.2) → his yes → the master builds, tests, signs → **straight to all** (no lead test) |
 | **Another Suzi** | **new feature / capability** | Its user's yes → asked of the founder on the lead → his yes → the master builds → lead first → his yes → all |
 
 - **The floor (D1).** A "bug" whose fix needs a new capability, or touches **cost, privacy, sends or a new way of
@@ -63,16 +64,23 @@ G-1 to G-9 (Nexeo's T28 list) carry over as they stand; Nexeo's `gap.report` / `
 
 **The founder's yes is signed end to end (F1).** Approvals, the lead's own notes and the voice stop carry the lead
 device's own signature, forwarded unchanged; the master accepts them only from the lead's did, with the lead's
-pinned key, `confirmed_by_user` and his voice score. A fault at the relay cannot fake his yes.
+pinned key and `confirmed_by_user`. Approvals and the voice stop also carry his voice score; his own notes don't
+need it (SU-9). A fault at the relay cannot fake his yes.
 
-**Every gap note is signed by its device (G1).** A non-lead bug fix goes to everyone on its user's yes, so that yes is
-signed too: every note uses the signed form, checked against the did's key (`X-Nexeo-Device-Key`; paired devices use
-their pairing key, connect-key devices register one through Nexeo's `/v1/device-key`). The voice score is required only
-from the lead. A device with no key gets 403 "register a device key first".
+**Every gap note is signed by its device (G1).** A note from another Suzi goes to the lead first and is built only on his
+yes (SU-8.2); its own user's yes is signed too: every note uses the signed form, checked against the did's key (`X-Nexeo-Device-Key`; paired devices use
+their pairing key, connect-key devices register one through Nexeo's `/v1/device-key`). No note needs a voice score
+(SU-9); a spoken request is sent the moment Suzi notes it (SU-8). A device with no key gets 403 "register a device key first".
 
-**The lead mark (F2).** The founder marks the lead on the master by device number (`master.admin lead <did>`, the did
-as shown on the portal). The lead's device key is pinned on its first signed request after that; a different key for
-that did is refused until he marks it again. It is not Nexeo's `primary`.
+**The lead mark (F2, round 6).** The lead is the device on a **lead key**: a Suzi Desktop key made on Nexeo's portal
+by a user of type SA (the platform-wide super admin; a tenant's Admin, AD, never makes a lead key). Lead is fixed when
+the key is made (the portal passes lead=true to Suzi's server, which stores it with the key); keys made before round 6
+are not lead; Nexeo does not re-check the role on each request, so a person who loses SA has their keys removed
+(device delete). Nexeo sends the flag, signed, on every forwarded request (section 4). The first time the master sees a
+did with lead=1, that did becomes THE lead, and both it and the previous lead are told once by notice; a did already
+seen as lead never takes it back (two SA devices don't swap). `master.admin lead <did>` stays as a manual override.
+The lead's device key is pinned on its first signed request after it becomes the lead; a different key for that did is
+refused until it is marked again. It is not Nexeo's `primary`.
 
 ## 4. The wire
 
@@ -80,6 +88,11 @@ that did is refused until he marks it again. It is not Nexeo's `primary`.
 
 One string form: `"METHOD\npath\nts\nsha256hex(body)"`, `path` = the raw path with its query as the receiver sees
 it (forwarded requests: `/v1/<path>?<query>`; the master's calls: the path as it arrives at 4012), `ts` = unix seconds, refused if more than 60 s off; an empty body hashes `""`.
+
+**Round 6, Nexeo's signature only:** `"METHOD\npath?query\nts\nsha256hex(body)\nlead"`, `lead` = `1` or `0`, also
+sent as `X-Nexeo-Lead: 1|0` on every request Nexeo sends the master (portal installer calls: `0`). The master accepts
+the round-5 form (no lead line, never a lead) until 2026-11-18 11:30 PKT, then refuses it. The master's own signature
+is unchanged.
 
 | Who signs | Headers | Key (Ed25519, raw 32 bytes, base64) |
 |---|---|---|
@@ -102,7 +115,7 @@ client gets `503 master_unavailable`.
 | `GET /v1/latest?version=<v>&base=<n>` | — | `200 {"action":"update","manifest":{…}}` (the lead also gets builds before his yes), or `200 {"action":"rollback","version","reason"}` (its version was stopped), or `204` |
 | `GET /v1/code/<file>` | — | The signed zip, if offered to this device; else 404 |
 | `POST /v1/report` | `{version, step, why}`, `step` ∈ `staged failed trying healthy rolled_back` | `200 {"ok":true}` |
-| `POST /v1/gap` | Always signed (G1): `{signed: {op:"gap.note", args:{label: "bug"\|"feature", text, confirmed_by_user: true, voice_score?}, idempotency_key, ts}, sig}`; `voice_score` required from the lead | `200 {"id":"G-n","state":"approved"\|"new"}`; 403 without a valid device signature; 400 without `confirmed_by_user` |
+| `POST /v1/gap` | Always signed (G1): `{signed: {op:"gap.note", args:{label: "bug"\|"feature", text, confirmed_by_user: true, voice_score?}, idempotency_key, ts}, sig}`; `voice_score` optional (SU-9) | `200 {"id":"G-n","state":"approved"\|"new"}`; 403 without a valid device signature; 400 without `confirmed_by_user` |
 | `POST /v1/approval` | `{signed: {op:"approval.answer", args:{id, yes, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
 | `POST /v1/stop` | `{signed: {op:"release.stop", args:{version, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
 | `GET /v1/installer/<os>/latest` | — (called by Nexeo's portal for a signed-in user; signed, no did); `os` = `macos` \| `windows` | The installer, streamed; `Accept-Ranges: bytes`, Range → 206; `X-Installer` = base64 of the signed `{os, version, file, sha256, size, made, sig}`; `404` when none yet |
@@ -132,8 +145,10 @@ A non-lead feature note → `approval.ask` kind `feature_note` to the lead.
 3. Suzi Master has no public address: it listens on `127.0.0.1:8790` only and accepts only Nexeo-signed requests.
 4. Every build and installer is signed by the master's release key (private half only on the Ubuntu box), and every
    client checks it, so neither Nexeo nor anyone else can change code.
-5. **Changes**: nothing here changes without both sides' AGREE, recorded with the date and time (PKT, from the
-   clock), before any build that depends on it. The founder approves anything on cost, privacy, sends or a new way of
+5. **Changes** (founder, 11 Nov 2026): both sides hold this same document, `SuziUpgrade_Charter.md`, byte for byte.
+   Nothing here changes without both sides' AGREE, recorded in section 6 with the date and time (PKT, from the
+   clock), before any build that depends on it; a change counts only once both copies are identical again (same
+   SHA-256), and each side checks the other's. The founder approves anything on cost, privacy, sends or a new way of
    reaching the user.
 
 ## 6. Sign-off
@@ -143,3 +158,12 @@ A non-lead feature note → `approval.ask` kind `feature_note` to the lead.
 | Suzi Master | AGREE (draft author) | 2026-11-10 21:03:05 |
 | Nexeo | AGREE with G1 (every gap note signed) and G2 (urgent notice reach) | 2026-11-10 21:04:20 |
 | Suzi Master | AGREE G1, G2; the charter is agreed | 2026-11-10 21:05 |
+| Suzi Master | Round 6 proposed (founder: the lead is the key a super admin makes) | 2026-11-11 11:22:56 |
+| Nexeo | AGREE round 6 with C1 (SA only, fixed at key creation), C2 (the query stays in the signed path), C3 (a did becomes lead only the first time seen as lead), C4 | 2026-11-11 11:26 |
+| Suzi Master | AGREE C1–C4; round 6 agreed; the master accepts both forms (live) | 2026-11-11 11:29:30 |
+| Suzi Master | Proposed (founder): renamed `SuziUpgrade_Charter.md`, both sides hold the same copy, rule 5.5 | 2026-11-11 11:41:26 |
+| Nexeo | AGREE: renamed SuziUpgrade_Charter.md, both sides hold the same copy, rule 5.5 | 2026-11-11 11:42 |
+| Suzi Master | Agreed; this file is the one both sides hold | 2026-11-11 11:42:21 |
+| Founder | SU-8 and SU-9, in Suzi Master's session: "it should be sent automatically if I am lead"; "all other request from other suzi clients who are not lead, it will come to lead first, when lead approve then go to build"; "it should not seek my voice" (twice) | 2026-11-13 |
+| Nexeo | AGREE SU-8 (17:07:07, 12 Nov) and SU-9 (13 Nov) | 2026-11-13 |
+| Suzi Master | Proposed and AGREE SU-8, SU-9; master and Suzi changed the same day (Suzi 1.2.41) | 2026-11-13 |
