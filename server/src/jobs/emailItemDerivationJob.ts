@@ -121,9 +121,14 @@ export async function judgeEmailActionability(email: {
       ' "description": string (<=200 chars, names the sender and the ask),',
       ' "priority": "critical"|"high"|"medium"|"low",',
       ' "dueDateISO": "YYYY-MM-DD" or null (only if the email itself names a date),',
+      // DEF-468: the anchor. DEF-470: an ask of someone else is not his.
+      'DATES: resolve any date the email names against the email\'s SENT date given below ("today", "Friday", "30 November" with no year = the sent date\'s year, or the next year if that date has already passed). Never output a year before the sent date\'s year unless the email writes that year.',
+      'ADDRESSING: To, Cc and the owner\'s own addresses are given. If the ask is addressed to someone else (by name, e.g. "@Nabeel please", or he is only in Cc and no ask is put to him), it is NOT actionable for him. An email FROM one of his own addresses is never actionable for him.',
       ' "reason": string (<=100 chars, why actionable or not)}',
     ].join('\n');
-    const user = `From: ${email.from}\nSubject: ${email.subject}\n\n${email.snippet}`;
+    const e: any = email;
+    const user = [`From: ${email.from}`, e.to ? `To: ${e.to}` : '', e.cc ? `Cc: ${e.cc}` : '', e.ownAddresses ? `Owner's own addresses: ${e.ownAddresses}` : '',
+      e.sentAt ? `Sent: ${e.sentAt}` : '', `Today: ${new Date().toISOString().slice(0, 10)}`, `Subject: ${email.subject}`, '', email.snippet].filter((x) => x !== '').join('\n');
     const r = await callGemini(system, user, { flash: true, maxTokens: 512, responseMimeType: 'application/json' });
     const parsed = JSON.parse((r as any).text ?? (r as any)) as Judgement;
     if (typeof parsed?.actionable !== 'boolean') return null;
@@ -259,7 +264,9 @@ export async function runEmailItemDerivation(): Promise<DerivationSummary> {
           where: { id: row.userId, clientNumber: row.clientNumber },
           select: { email: true, integrationEmail: true } as any,
         });
-        const senderEmail = String(row.senderEmail ?? '').toLowerCase();
+        // DEF-469 (closes DEF-430): sender_email is often "Name <addr>"; compare the parsed, normalised address.
+        const rawSender = String(row.senderEmail ?? '');
+        const senderEmail = (rawSender.match(/<([^>]+)>/)?.[1] ?? rawSender).trim().toLowerCase();
         const ownEmails = [
           (owner as any)?.email, (owner as any)?.integrationEmail,
         ].filter(Boolean).map((s: string) => s.toLowerCase());
@@ -413,6 +420,10 @@ export async function runEmailItemDerivation(): Promise<DerivationSummary> {
             subject: String(p.subject ?? '(no subject)').slice(0, 300),
             // gchat has no sender email — the display name carries who spoke.
             from: String(p.from ?? p.senderDisplayName ?? row.senderEmail ?? '(unknown sender)').slice(0, 200),
+            // DEF-468: when it was sent (the anchor for any date it names); DEF-470: who it was addressed to.
+            sentAt: String(p.date ?? (row.createdAt instanceof Date ? row.createdAt.toISOString() : '')).slice(0, 80),
+            to: String(p.to ?? '').slice(0, 400), cc: String(p.cc ?? '').slice(0, 400),
+            ownAddresses: ownEmails.join(', '),
             // gchat's full text beats its 200-char snippet; gmail has snippet only.
             snippet: String((row.sourceType === 'gchat' ? p.text : p.snippet) ?? p.snippet ?? '').slice(0, 1500),
           };
@@ -439,9 +450,10 @@ export async function runEmailItemDerivation(): Promise<DerivationSummary> {
 
         const title = String(judged.title ?? email.subject).slice(0, 120);
         const description = String(judged.description ?? `From ${email.from}: ${email.subject}`).slice(0, 500);
-        const dueDate = judged.dueDateISO && /^\d{4}-\d{2}-\d{2}$/.test(judged.dueDateISO)
-          ? new Date(`${judged.dueDateISO}T12:00:00Z`)
-          : null;
+        const { screenDueDate } = await import('../services/openItems/openItemGate');
+        const screened = screenDueDate(judged.dueDateISO && /^\d{4}-\d{2}-\d{2}$/.test(judged.dueDateISO) ? new Date(`${judged.dueDateISO}T12:00:00Z`) : null);
+        if (screened.suspect) log.warn('DEF-468: misread due year dropped', { feedEventId: row.id, read: screened.suspect });
+        const dueDate = screened.dueDate;
         const priority = (['critical', 'high', 'medium', 'low'] as const).includes(judged.priority as any)
           ? judged.priority as 'critical' | 'high' | 'medium' | 'low'
           : 'medium';

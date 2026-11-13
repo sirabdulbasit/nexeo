@@ -65,7 +65,7 @@ export async function createItem(userId: number, clientNumber: string, input: Cr
     const verdict = qualifyAutoOpenItem({
       title: input.title,
       body: input.description ?? '',
-      dueDate: input.dueDate,
+      dueDate: (await import('./openItems/openItemGate')).screenDueDate(input.dueDate ?? null).dueDate, // DEF-468
       archetype: typeof inputMeta.archetype === 'string' ? (inputMeta.archetype as string) : null,
       intent: typeof inputMeta.pass2Intent === 'string' ? (inputMeta.pass2Intent as string) : null,
       confidence: typeof inputMeta.confidence === 'number' ? (inputMeta.confidence as number) : undefined,

@@ -97,7 +97,21 @@ function parseDelegateeFromDescription(desc: string | null | undefined): string 
 /**
  * Run the gate. Caller must respect block=true and skip create.
  */
+/**
+ * DEF-468 (CIRCLING time-of-day-drift): a due date more than 60 days before the item is made is a misread year, not a
+ * real deadline (seen: "30 November" -> 2023-11-30 on a task made 13 Nov 2026, its follow-up fired 7 minutes later).
+ * Such a date is not kept: the item has no due date (so nothing fires as overdue) and the bad value is noted.
+ */
+export const DUE_SUSPECT_DAYS = 60;
+export function screenDueDate(due: Date | null | undefined, now = new Date()): { dueDate: Date | null; suspect: string | null } {
+  if (!due || isNaN(due.getTime())) return { dueDate: null, suspect: null };
+  if (due.getTime() < now.getTime() - DUE_SUSPECT_DAYS * 86_400_000) return { dueDate: null, suspect: due.toISOString().slice(0, 10) };
+  return { dueDate: due, suspect: null };
+}
+
 export async function gateOpenItemCreate(input: GateInput): Promise<GateOutput> {
+  // DEF-468: a misread year never reaches a slot decision or a follow-up.
+  if (input.dueDate) input = { ...input, dueDate: screenDueDate(input.dueDate).dueDate };
   // 1) Private-contact filter.
   if (input.sourceFeedEventId) {
     try {

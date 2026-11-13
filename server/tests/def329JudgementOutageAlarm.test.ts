@@ -74,6 +74,7 @@ vi.mock('../src/services/geminiService', () => ({
 }));
 
 vi.mock('../src/services/openItems/openItemGate', () => ({
+  screenDueDate: (d: any) => ({ dueDate: d ?? null, suspect: null }), // DEF-468 screen (identity in these tests)
   __esModule: true,
   gateOpenItemCreate: async () => ({
     block: false, status: 'NEW', delegateeId: null, delegateeName: null, delegateeEmail: null, missingSlots: [],

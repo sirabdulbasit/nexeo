@@ -87,6 +87,7 @@ vi.mock('../src/services/itemLifecycle/lifecycleService', () => ({
 }));
 
 vi.mock('../src/services/openItems/openItemGate', () => ({
+  screenDueDate: (d: any) => ({ dueDate: d ?? null, suspect: null }), // DEF-468 screen (identity in these tests)
   __esModule: true,
   gateOpenItemCreate: async () => state.gateResult,
 }));

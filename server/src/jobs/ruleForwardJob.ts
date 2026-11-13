@@ -17,6 +17,8 @@ import prisma from '../db/prisma';
 import createLogger from '../utils/logger';
 
 const log = createLogger('rule-forward');
+/** OFF until the outside review's P1 findings are fixed and proven (Wiki session, 13 Nov). One switch for job, auto:true and the pack. */
+export const RULE_FORWARD_ENABLED = false;
 export const RULE_FORWARD_EVERY_MS = 5 * 60_000;
 export const RULE_FORWARD_DAY_CAP = 20;
 const LOOKBACK_MS = 24 * 60 * 60_000;
@@ -88,6 +90,7 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
 }
 
 export function scheduleRuleForward(): void {
+  if (!RULE_FORWARD_ENABLED) { log.info('rule forward is switched off (P1 review fixes pending)'); return; }
   const tick = (): void => {
     void import('./jobRunner')
       .then(({ protectedTick }) => protectedTick('rule_forward', 'important', () => runRuleForward()))
