@@ -295,9 +295,11 @@ export async function runActionLifecycleSweep(options: { dryRun?: boolean; now?:
   // applies to work Brain owns — there is nobody to chase but itself, and the
   // owner has explicitly asked not to be asked. Filtered here rather than in
   // the query so the skip is countable and visible.
-  const { isBrainOwned, BRAIN_OWNED_SKIP_REASON } = await import('../services/openItems/brainOwnership');
-  const items = (allItems as any[]).filter((item) => !isBrainOwned(item));
-  const brainOwnedSkipped = (allItems as any[]).length - items.length;
+  const { isBrainOwned, isWatchOnly, BRAIN_OWNED_SKIP_REASON } = await import('../services/openItems/brainOwnership');
+  const ownedOut = (allItems as any[]).filter((item) => !isBrainOwned(item));
+  // CL-092: a watched item (someone else was asked) is never chased either.
+  const items = ownedOut.filter((item) => !isWatchOnly(item));
+  const brainOwnedSkipped = (allItems as any[]).length - ownedOut.length;
   if (brainOwnedSkipped > 0) {
     log.info('skipped brain-owned items', { count: brainOwnedSkipped, reason: BRAIN_OWNED_SKIP_REASON });
   }

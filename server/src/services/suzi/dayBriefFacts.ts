@@ -189,10 +189,10 @@ export async function buildDayBriefFacts(clientNumber: string, userId: number, o
 
   const actions = await prisma.openItem.findMany({
     where: { clientNumber, userId, status: { in: OPEN }, NOT: { type: 'email' } } as any,
-    select: { id: true, title: true, priority: true, status: true, dueDate: true },
+    select: { id: true, title: true, priority: true, status: true, dueDate: true, metadata: true },
     orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     take: 200,
-  }).catch(() => { missing.push({ source: 'actions', status: 'error' }); return [] as Array<{ id: string; title: string; priority: string; status: string; dueDate: Date | null }>; });
+  }).then(async (all: any[]) => { const { isWatchOnly } = await import('../openItems/brainOwnership'); return all.filter((r) => !isWatchOnly(r)).map(({ metadata: _m, ...r }) => r); }).catch(() => { missing.push({ source: 'actions', status: 'error' }); return [] as Array<{ id: string; title: string; priority: string; status: string; dueDate: Date | null }>; });
   const attention = email ? await loadAttentionEmails(clientNumber, userId, opts.attentionTimeoutMs) : { items: [], loading: false };
   const emailsLoading = attention.loading;
   if (emailsLoading) missing.push({ source: 'email', status: 'loading' });

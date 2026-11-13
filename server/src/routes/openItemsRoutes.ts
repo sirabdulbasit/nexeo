@@ -22,7 +22,11 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       entityId: req.query.entityId as string | undefined,
       sourceFeed: req.query.sourceFeed as string | undefined,
     });
-    res.json({ items });
+    // CL-092 (owner 13 Nov, "should I see this?"): a watched item (someone else was asked) is not in his Action Center
+    // list; it comes back separately as `watching` so a Watching group can show it.
+    const { isWatchOnly } = await import('../services/openItems/brainOwnership');
+    const all = items as any[];
+    res.json({ items: all.filter((i) => !isWatchOnly(i)), watching: all.filter((i) => isWatchOnly(i)) });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

@@ -97,5 +97,15 @@ export function isBrainOwned(item: { delegateeName?: string | null; delegateeEma
  * Why a Brain-owned item is skipped, for the log line at the skip site.
  * Kept here so the reason and the rule cannot drift apart.
  */
+/**
+ * Owner 13 Nov 2026 (CL-092): a task made from an email that asked someone else is WATCHED, not his. It carries
+ * metadata.watch {person, email?, why, since}: nobody chases him for it (lifecycle worker, prompt queue) and it is not
+ * in his pending-task lists (Suzi, the brief). The item stays open so the record of who was asked is kept.
+ */
+export function isWatchOnly(item: { metadata?: unknown }): boolean {
+  const w = (item?.metadata as any)?.watch;
+  return !!(w && typeof w === 'object' && String(w.person ?? '').trim());
+}
+
 export const BRAIN_OWNED_SKIP_REASON =
   'brain-owned item — owner is told when it is done or blocked, never chased (DEF-109)';

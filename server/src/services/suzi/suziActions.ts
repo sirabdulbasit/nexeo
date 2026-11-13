@@ -49,9 +49,9 @@ export async function listPendingActions(clientNumber: string, userId: number, o
   const today = localDate(opts.now ?? new Date(), tz);
   const rows = await prisma.openItem.findMany({
     where: { clientNumber, userId, status: { in: OPEN }, NOT: { type: 'email' } } as any,
-    select: ITEM_SELECT,
+    select: { ...ITEM_SELECT, metadata: true } as any,
     take: 500,
-  });
+  }).then(async (all: any[]) => { const { isWatchOnly } = await import('../openItems/brainOwnership'); return all.filter((r) => !isWatchOnly(r)); }); // CL-092 (Suzi Master: no objection, 13 Nov 18:39)
   // A status history that can't be read leaves changed_at to the other records, never to updated_at.
   const status = await statusRowsFor(clientNumber, userId, rows.map((r) => r.id)).catch(() => new Map<string, StatusRow[]>());
   const actions = rows.map((r) => toSuziAction(r, tz, today, userId, status.get(r.id))).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));

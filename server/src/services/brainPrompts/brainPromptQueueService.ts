@@ -719,9 +719,9 @@ export async function sendNextPrompt(userId: number, clientNumber: string): Prom
         // DEF-176: the tenant's own items only — a stale-subject verdict must
         // never be read off another tenant's item that shares an id shape.
         where: { id: { in: withItems.map((x) => x.itemId) }, clientNumber },
-        select: { id: true, status: true, delegateeName: true, delegateeEmail: true },
+        select: { id: true, status: true, delegateeName: true, delegateeEmail: true, metadata: true },
       });
-      const { isBrainOwned } = await import('../openItems/brainOwnership');
+      const { isBrainOwned, isWatchOnly } = await import('../openItems/brainOwnership');
       const byId = new Map(items.map((i) => [i.id, i]));
       stalePromptIds = withItems.filter((x) => {
         const item = byId.get(x.itemId);
@@ -730,7 +730,7 @@ export async function sendNextPrompt(userId: number, clientNumber: string): Prom
         const terminal = ['DONE', 'CLOSED', 'CANCELLED'].includes(String(item.status).toUpperCase());
         // DEF-109: an item reassigned to Brain since queueing must stop
         // chasing the owner, exactly as a freshly-queued one would.
-        return terminal || isBrainOwned(item);
+        return terminal || isBrainOwned(item) || isWatchOnly(item); // CL-092: a watched item is not his to be asked about
       }).map((x) => x.candidate.id);
     } catch (err: any) {
       // Fail OPEN: if the lookup breaks, send the prompt. A missed
