@@ -437,6 +437,21 @@ Checked 13 Nov: none of them is in the Wiki (no page and no source holds them; t
 
 The line is the one above: a user's own rules (My Rules, delegations, standing instructions) are knowledge and are in the Wiki (§0.10); the rules for builders are not.
 
+### 0.15 Fourth outside review (13 Nov, at `b09da740`): findings answered
+
+Advisory; plan score 88 (85 before); capability scores carried forward, none credited. Checked against the code the same hour.
+
+| # | Finding | Checked | Owner and answer |
+|---|---|---|---|
+| P1 | The automatic forward (`ruleForwardJob.ts`) decides "internal" from the domains of his own accounts (a shared provider such as gmail.com would count), matches the To list by substring, reopens the daily cap when the count query fails, counts the day in the database's time zone, and can let a waiting email age out after 24 hours | **All true.** The job is committed (`b09da740`) but **not in the live build**, and no email has been forwarded by a rule | Nexeo-Builder, told 17:40 PKT: fix before it is deployed |
+| P1 | Releasing a held send does not re-check the rule (paused or removed meanwhile) or the send-off switch | **True** (`suziSend.releaseHeldSend`) | Nexeo-Builder: re-check both at the moment of sending, fail closed, and prove it |
+| P2 | Privacy is not proven end to end | True; it is part 12 | **Wiki session: moved first**, before rule notes |
+| P2 | Rule reads stop at 1,000 and only log it | True (`RULES_READ_CEILING`) | Nexeo-Builder: return "complete or not"; no automatic action on an incomplete set |
+| P2 | Connectors "All" is 20,000 emails and 10 years, not "everything" | True (`connectorRoutes.ts:232`) | Nexeo-Builder: resumable, and say "complete" or "stopped at the cap" |
+| P3 | This document's last "Next step" still asked for identity, which is live; `Rules.md` kept the old 30-rule wording | True | Fixed in this commit |
+
+The owner's latest ruling stands and the review says to keep it: **learned patterns only suggest; rules, delegations and standing instructions act by themselves within their scope.** The findings above are about enforcing that scope, not about asking him again.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
@@ -671,4 +686,4 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 - Citations that cross a client, cross a user, or put a private source on a shared note: 0 of 4,228.
 - **Not yet seen on production:** the pruner's check on a real run (the daily job first runs 24 hours after a restart); a citation actually refused (none has been attempted; the three queries were run on the production database inside a rolled-back transaction).
 
-**Next step:** §0.7 step 3 — identity (a permanent note identity with aliases and outside identifiers; ambiguous links left unresolved; no merging of people on a name alone), the shared and private layers, and atomic writes with a revision check. Then the remaining intake (attachments, meeting transcripts, integration and KPI notes, conversations), then meaning notes.
+**Current state and next step (13 Nov 2026, 17:45 PKT) — this line replaces every earlier "next step" in this document.** Live: structure parts 1 to 8 (§0.13 checklist; identity and all-or-nothing writes §0.13.2, source versions §0.13.3, marks §0.12.1). Not built: rule notes (9), meaning notes (10), the rest of intake (11), the privacy proof (12), pruning (13); the readers have not moved to the Wiki; the rebuild has not run. **Next, in this order:** the privacy matrix (12, moved first by the fourth review, §0.15), then rule notes (9) with the "You" note, then the cost check and meaning notes (10). Sections §3 and §8 above this line are records of their day, not the current state.

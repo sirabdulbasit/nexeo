@@ -100,7 +100,7 @@ it into a structured rule and follows it from then on.
 > turns it on (a second write today: see §11 proposal 1).
 
 ### 2.5 How Brain uses it
-- **Every answer and draft:** `getActiveInstructions` loads up to 30 active rules (client rules
+- **Every answer and draft:** `getActiveInstructions` loads every active rule up to a ceiling of 1,000 (DEF-461 removed the old limit of 30; client rules
   first, then yours). `renderInstructionsBlock` adds them to the prompt as
   *"Standing instructions (non-negotiable)"*, with who wrote each rule and when (DEF-248). Three places use this block:
   the legacy composer, the reasoning composer and the voice context (`brainComposer.ts`,
@@ -239,6 +239,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | DEF-464 (platform, found by the Wiki session): a raw statement inside a database transaction ran outside it, so the "one transaction" of §11 row 1 (an instruction and its email rule, DEF-461) was not atomic wherever it used a raw statement. Fixed in `src/db/`; to be re-checked on the real database by Nexeo-Builder after D-236. No rule behaviour changed by the commit itself | 8c112b1 (Wiki session) |
 | 2026-11-13 | Owner's decision (`Wiki-Knowledge.md` §0.13.5): WhatsApp is only for talking with Suzi, and instructions given there act (send or reply to an email, create or update an action item). A rule or instruction given over WhatsApp is the same rule as one typed on My Rules; WhatsApp messages themselves are not fetched as knowledge. No code changed by this row | (this commit, Wiki session) |
 | 2026-11-13 | Owner's ruling 17:10 PKT: what he does or asks is learned as a pattern that only suggests next time; what has become a rule, delegation or standing instruction is done by Nexeo and Suzi by themselves (supersedes "a rule prepares; his yes acts"). §4 and §11 row 4 updated. No code changed by this row | (this commit, Wiki session) |
+| 2026-11-13 | Fourth outside review answered (`Wiki-Knowledge.md` §0.15): the automatic forward and the release of a held send must re-check scope and revocation before sending; rule reads must say whether they are complete. All with Nexeo-Builder, not built; the forward job is not deployed. §2.5 no longer says 30 rules | (this commit, Wiki session) |
 | 2026-11-13 | DEF-454 (D-222): `rule.set` with the same kind and match folds into his existing rule; his 4 copies of the Demo VM ignore rule became 1 (3 turned off, not deleted) | 9fa8222 |
 | 2026-11-13 | DEF-457 (D-224): Suzi's email rules shown on the Standing Instructions tab with Remove; a typed email-rule instruction also makes the email rule, linked by `instruction_id` (§2.4, §8) | c991ee2 |
 | 2026-11-13 | DEF-460 (D-227): paused instructions listed with Resume (§2.4) | e535895 |
