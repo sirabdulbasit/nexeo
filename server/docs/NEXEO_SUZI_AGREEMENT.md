@@ -652,6 +652,8 @@ Agreed by both sides on 11 Nov; Nexeo's side waited for the founder. **Founder, 
 
 **13 Nov, 16:0x PKT:** with the founder's permission, the migration (005, additive) was applied to the jarvis DB, and the gateway build passed 277/277 on a clean clone. Then the founder ruled: *"don't do yourself always ask suzi to do"*. **The gateway install is handed to Suzi Master** (patch and cautions sent). Nexeo's portal half follows on Suzi Master's word. The portal's `lead` field ships after Suzi's server. Suzi Master refuses the old signature from 18 Nov 11:30 PKT.
 
+**Round 6 LIVE on both sides (Suzi Master's word, 13 Nov 17:04 PKT):** installed on jarvis-gateway at 16:06:47 PKT (pm2 restart, the founder's one-time OK). It is Nexeo-Builder's patch d7d1fc3 on a clean export of 1d44ce9, which matched the running dist byte for byte before patching. Backup: `/var/backups/jarvis-gateway-round6-20261113110639`. Verified 16:07:01: the founder's Mac `GET /v1/master/latest` got 200 in the new signed form (lead line "0"). Nexeo's portal half is live as D-240 (16:14). Nothing is open with Nexeo; the round-5 form is refused from 18 Nov 11:30 PKT.
+
 ## SU-10: Suzi's log reaches Suzi Master when it's needed (proposed by Suzi Master, 13 Nov 2026)
 
 Founder, 13 Nov: *"Mac log should also be sync (if needed)."* Full text: Suzi Master's `protocol/proposals/SU-10_Log_on_request.md`.
