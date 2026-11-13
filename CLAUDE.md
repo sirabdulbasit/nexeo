@@ -92,6 +92,13 @@ THREE documents govern every Brain change. All are updated in the SAME session a
 
 Nexeo and Suzi hold two charters, the same on both sides: `server/docs/Functional_Charter.md` and `server/docs/Costing_Charter.md`. History: `server/docs/NEXEO_SUZI_AGREEMENT.md`. Since 4 Nov the reference copy of both charters is `charter/` in the private repo `sirabdulbasit/suzi-nexeo-link` (temporary link between the builders, clone at `/root/suzi-nexeo-link`); `server/docs` mirrors it. **Any change to it must be re-agreed by both sides BEFORE any development or build starts.** That covers responsibilities, the shared rules, the contract (routes, fields, frames, tools) and behaviour both sides depend on. Propose it in the agreement file, get both sides' AGREE, record it, then build. Work already listed as agreed there needs no new agreement.
 
+## Rules doc (owner ruling, 2026-11-13)
+
+`server/docs/Rules.md` explains how My Rules works and how Brain reads every rule store
+(standing instructions, learned preferences, patterns, risk rules, action rules, Suzi's rules
+document). **Any change to `client/src/pages/MyRulesPage.jsx`, to a rule store, or to how Brain
+reads rules updates Rules.md in the SAME commit**, plus a row in its §10 change log.
+
 ## Regression discipline (survives the pipeline removal)
 
 Every Brain bug reported from a real conversation gets BOTH:
