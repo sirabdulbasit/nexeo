@@ -330,8 +330,8 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 3 | Links written in the text as `[[Title]]`; backlinks; a link to a note not yet written waits and connects | Live |
 | 4 | Sources kept apart from notes; a note cites its sources; the citations are its trail | Live |
 | 5 | Marks on a source (needs him, rule applied, handled), with history | Live since 13 Nov; being filled |
-| 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | **Built 13 Nov (§0.13.2)** |
-| 7 | A note's text, properties, links and citations change together or not at all | **Built 13 Nov (§0.13.2)** |
+| 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | Live 13 Nov (§0.13.2) |
+| 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
 | 8 | A source knows which version of its text it holds | Not built |
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
@@ -358,7 +358,9 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - **Left as they are, for him to rule on:** 876 WhatsApp sources landed by the first backfill (510 of user 2, 366 of user 3). No note cites them. Nothing is deleted without his word.
    - **Open:** what he tells Nexeo over WhatsApp (an instruction, a correction) is a conversation with Brain, not a feed item. Whether those conversations are kept in the Wiki, as conversations, is his decision and is not built.
 
-#### 0.13.2 Parts 6 and 7 are built: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026)
+#### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)
+
+**On production after the three deploys (15:38 PKT):** 361 notes of the active user, every one with a revision; 1,222 links, none pointing at a page that is not a live note (50 did before); 0 unresolved and 0 ambiguous links; 4,248 citations, none breaking the citation rule; a second build writes nothing. Not yet seen on real data: a rename (no name changed between builds), a merge, the server's own hourly build with the new writer.
 
 **What a note's identity is now** (`wikiStore.ts`):
 
