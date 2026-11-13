@@ -160,6 +160,20 @@ It is done when the ledger shows nothing outside the Wiki **and** every row of t
 3. **Checked on 13 Nov:** no other project on this server (`vm`, `tokr`, `shireme`, `tmcmde`, `qlik-bridge`, `ai-integration`) has code that calls Nexeo's Wiki or reads its tables, and none carries this rule in its instructions. No machine token is issued (0 in `agent_api_tokens`).
 4. **Copies that leave Nexeo, for the owner to rule on:** the hourly export of contacts and pages to the user's own Google Drive ("Nexeo Vault", `obsidianVaultService`), which is the planned starting point of §0.6; and the Notion mirror job, which pushes pages to Notion for a user with Notion connected (no user has it connected today).
 
+### 0.9 Rules: one set, everywhere (owner, 2026-11-13)
+
+*"don't do anything by yourself, it should be part of Nexeo rules."* He looked at My Rules, saw "No standing instructions yet", while his Demo VM ignore rule (set through Suzi) was live in `user_action_rules`, which My Rules does not show.
+
+**His decisions (13 Nov, Nexeo-Builder session):**
+
+1. **One rule, one Wiki note** (A3), read by every part: Brain, Suzi's email list (`by_rule`), the brief, the Action Center. My Rules shows every rule, whoever made it (typed by him, set through Suzi, or learned by Brain), and Remove there removes it everywhere.
+2. **A rule he types, or says to Suzi, works everywhere.** Nexeo reads his words into the rule (what it applies to, the match, the action) and shows it on My Rules exactly as it will act, so he can correct it. Unsure means it stays an instruction to Brain only.
+3. **Learned patterns only propose.** A pattern shows as "Brain suggests: …" and does nothing until he says yes. Checked 13 Nov: already true in code (the miner only moves DRAFT to SHADOW; ACTIVE only through his Activate, `shadowRoutes.ts` promote).
+4. **A rule prepares; his yes acts.** Ignore marks the item "ignored by your rule" and sends nothing; delegate prepares the forward and holds it for his one yes (as Suzi's email rules already do, F-2.4).
+5. **Exact duplicates cleaned:** his Demo VM ignore rule existed 4 times (saved on 12 and 13 Nov); 3 copies turned off (not deleted), the oldest kept. A repeated save now folds into the existing rule (DEF-454, D-222).
+
+**Until A3 lands, interim (Nexeo-Builder):** My Rules lists Suzi's email rules beside the standing instructions, with Remove = `rule.remove`; a typed instruction that is an email rule also becomes the email rule Suzi's list applies, linked to the instruction (pause or archive carries over). This is DEF-455. It is not built yet: the owner asked to agree how rules work first, and this section is that agreement.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
