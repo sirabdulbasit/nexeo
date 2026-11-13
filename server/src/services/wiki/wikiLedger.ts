@@ -36,6 +36,7 @@ export const WIKI_LEDGER: Record<string, LedgerEntry> = {
   "wiki_page_links": { kind: 'wiki', to: "The Wiki itself" },
   "wiki_page_sources": { kind: 'wiki', to: "The Wiki itself" },
   "wiki_pages": { kind: 'wiki', to: "The Wiki itself" },
+  "wiki_source_marks": { kind: 'wiki', to: "The Wiki itself: what is known about a source beyond its text (needs him, rule applied, handled)" },
   "wiki_sources": { kind: 'wiki', to: "The Wiki itself: the text notes were learned from" },
   // Person and company notes (B2)
   "entities": { kind: 'knowledge', to: "Person and company notes (B2)" },

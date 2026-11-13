@@ -53,11 +53,11 @@ His other decisions the same day:
 
 ### 0.4 The ledger: every store, and where it goes
 
-Counted on production on 2026-11-13 (13:45 PKT): **144 tables**. (The first count that morning was 161: the 19 leftover backup copies were then removed on the owner's word, and the Wiki's two source tables were added. The table below is the current count; rows outside the Wiki are as counted that morning.) Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
+Counted on production on 2026-11-13 (14:00 PKT): **145 tables** (144 until the marks table of §0.12.1 was added that afternoon). (The first count that morning was 161: the 19 leftover backup copies were then removed on the owner's word, and the Wiki's two source tables were added. The table below is the current count; rows outside the Wiki are as counted that morning.) Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
 
 | Kind | Tables | Rows | Rule |
 |---|---|---|---|
-| The Wiki | 5 | 68,781 | This is the Wiki: notes, links, citations and the source store |
+| The Wiki | 6 | 68,781 | This is the Wiki: notes, links, citations, the source store and the marks on sources |
 | Knowledge outside the Wiki | 70 | 146,539 | Moves in as notes or sources |
 | Trail outside the Wiki | 34 | 156,647 | Moves in as record notes and citations |
 | Settings, identity and secrets outside the Wiki | 24 | 232 | Moves in; secrets encrypted, device signing keys stay on the device (S1) |
@@ -258,7 +258,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - Suzi Master: agrees the pack reading from the Wiki before it changes what Suzi receives (§0.5 rule 3).
    - Not built yet: the Wiki session proposes the shape first.
 
-#### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: proposed, not built)
+#### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: agreed by Nexeo-Builder; the store is BUILT, see the end of this section)
 
 **No note per email.** An email is a **source** (§7: a source only adds to notes). A note per email is what the old wiki did: half of its 15,800 pages. So the marks sit **on the source**, and the things an email leads to are notes that cite it.
 
@@ -289,7 +289,9 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 1. **Fetched = landed.** Already enforced hourly by the reconcile (§0.7 step 2). What it cannot see is an email that the connector never fetched: that needs the mailbox's own list of message ids for the day compared with the sources, and any id not held fetched and landed. That comparison calls the mail provider, so it is a Feed job; the Wiki answers "which of these ids do you hold" (`sourcesHeld`).
 2. **Landed = marked.** `countUnmarked` for the day is 0.
 
-**Order:** the marks store (one migration, four functions, tests) is small and is what the other half is waiting for, so it is built **before** item 3 of §0.11. Nexeo-Builder then writes the DEF-459 judgement and the rule marks through `markSource` and moves the brief readers; the pack change goes to Suzi Master first.
+**Built 13 Nov 2026 (the store only):** table `wiki_source_marks` (migration `20261113_wiki_source_marks`, applied to production 14:00 PKT, run twice to prove it repeats), `src/services/wiki/wikiMarks.ts`, re-exported by `wikiStore`: `markSource`, `clearMark`, `marksOf`, `markHistory`, `listMarkedSources`, `countUnmarked`. Checked: `tests/wikiMarks.test.ts` (9 tests, 3 of 3 mutants killed) and 16 of 16 checks on the production database with throwaway rows under a client that does not exist (set, no-op, supersede with history, two rules by key, clear, window list with and without a mark filter, unmarked count 2 then 0, another user's source refused, another client refused, each user reading only their own mark on a shared source, two writers at once leaving one current mark), rows removed afterwards. **No email carries a mark yet:** writing the marks and moving the readers is the next part.
+
+**Order:** the marks store was built **before** item 3 of §0.11 because the other half was waiting for it. Nexeo-Builder then writes the DEF-459 judgement and the rule marks through `markSource` and moves the brief readers; the pack change goes to Suzi Master first.
 
 ## 1. Owner direction (2026-11-12)
 

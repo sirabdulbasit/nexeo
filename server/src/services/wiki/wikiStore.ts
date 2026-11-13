@@ -31,6 +31,8 @@ export {
   sourcesOf, readSource, listSources, countSources,
 } from './wikiSources';
 export type { Source, SourceRef, SourceInput, SourceKind, CiteParty, Writer } from './wikiSources';
+export { markSource, clearMark, marksOf, markHistory, listMarkedSources, countUnmarked, MarkRefused, MARK_KINDS } from './wikiMarks';
+export type { Mark, MarkInput, MarkKind, MarkedSource } from './wikiMarks';
 
 
 /** Marks a row of `wiki_pages` as a note of the new wiki (`metadata.wiki`); the old pages do not carry it. */

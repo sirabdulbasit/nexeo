@@ -67,7 +67,8 @@ describe('Wiki first: the ledger of every store', () => {
     expect(count('trail')).toBeLessThanOrEqual(34);
     expect(count('setup')).toBeLessThanOrEqual(24);
     expect(count('working')).toBeLessThanOrEqual(10);
-    expect(count('wiki')).toBe(5);
+    // 6 since 13 Nov: the marks on a source (wiki_source_marks) are part of the Wiki.
+    expect(count('wiki')).toBe(6);
     expect(OUTSIDE_KINDS).toEqual(['knowledge', 'trail', 'setup']);
   });
 
