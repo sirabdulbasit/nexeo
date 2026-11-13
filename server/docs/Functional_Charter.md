@@ -144,6 +144,7 @@ Every brief, the morning brief or one section, starts with one summary line per 
   - Only he sets rules on his own mailbox.
   - A subject match is a case-insensitive substring.
 - **F-2.5 pack `emails[].by_rule`:** fields {action: ready|delegated|ignored, rule_id, person_name?, task_id?, at}. These emails are listed apart from those needing a reply.
+- **F-2.5a pack `actions[].source`** (agreed 13 Nov 2026; founder: "from where it comes?"): optional {kind: email | meeting | whatsapp | manual | suzi, from?, subject?, at?, thread_id?, meeting_id?}. `from` is the sender's display name, or their email address only when no name is known; subject at most 120 characters; at is ISO with the offset; never body text. It comes from the action's commitment note in the Wiki (its first citation; until items move to notes, from the item's own origin), and is left out when the origin is unknown, never guessed. Suzi shows it on the task card as "From".
 - **F-2.6 `calendar.update` / `calendar.cancel`:**
   - Only for events he organises; anything else gets 409 not_organizer.
   - Signed + voice_score for a cancel, or for any change once anyone else is invited.
