@@ -400,7 +400,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Checked:** `tests/wikiSourceVersions.test.ts` and the new cases in `tests/wikiReconcile.test.ts` (same-length correction, newer shorter text, replay, out-of-order arrival; 4 of 4 mutants killed); on the production database with throwaway rows, 11 of 11 (the four cases, a preview and a full text in both orders, an encrypted text, four writers at once ending as one row with the latest text), rows removed. On production the migration dated every text already held and marked 645 email sources as holding only a preview.
 
-**Live as D-241 and D-242 (16:28 and 16:36 PKT).** D-241's reconcile did not converge: it re-landed about 640 email texts on every run, because the old email pages for those emails hold only the same preview the source already has. D-242 makes the reconcile skip a text the source already holds. After it: two runs, both users, 0 missing, 0 texts landed; 640 email sources still say they hold a preview, which is the truth (the full email was never fetched for them; the rebuild's full read brings it). Not yet seen: a real correction arriving on production.
+**Live as D-241 and D-242 (16:19 and 16:24 PKT).** D-241's reconcile did not converge: it re-landed about 640 email texts on every run, because the old email pages for those emails hold only the same preview the source already has. D-242 makes the reconcile skip a text the source already holds. After it: two runs, both users, 0 missing, 0 texts landed; 640 email sources still say they hold a preview, which is the truth (the full email was never fetched for them; the rebuild's full read brings it). Not yet seen: a real correction arriving on production.
 
 ## 1. Owner direction (2026-11-12)
 
