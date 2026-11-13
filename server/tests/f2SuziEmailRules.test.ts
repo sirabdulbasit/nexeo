@@ -19,6 +19,7 @@ vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: strin
 vi.mock('../src/services/suzi/suziRules', () => ({ rulesDocument: async () => ({ rules_version: 12 }) }));
 
 import { ruleSet, ruleRemove, ruleFor, type SuziEmailRule } from '../src/services/suzi/suziEmailRules';
+import { RULE_FORWARD_ENABLED } from '../src/jobs/ruleForwardJob';
 
 beforeEach(() => { tx.mockClear(); exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
 
@@ -26,7 +27,7 @@ describe('rule.set', () => {
   it('a delegate rule is stored as his own DRAFT rule, with the person', async () => {
     const r: any = await ruleSet('T', 2, { kind: 'email_delegate', match: { by: 'domain', value: '@Vendor.com' }, person_id: 'p1', note: 'handle quotes' }, true);
     expect(r.item).toMatchObject({ kind: 'email_delegate', match: { by: 'domain', value: 'vendor.com' }, person_name: 'Ali Raza', rules_version: 12 });
-    expect(r.item.auto).toBe(true); // F-2.4 C4: a delegate rule acts by itself
+    expect(r.item.auto).toBe(RULE_FORWARD_ENABLED ? true : undefined); // F-2.4 C4: acts by itself only once the switch is on
     const [sql, , client, user, , , cond, type, payload] = exec.mock.calls[0];
     expect(sql).toContain("'DRAFT'");
     expect(sql).toContain("'user'");

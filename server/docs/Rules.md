@@ -244,6 +244,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | DEF-457 (D-224): Suzi's email rules shown on the Standing Instructions tab with Remove; a typed email-rule instruction also makes the email rule, linked by `instruction_id` (§2.4, §8) | c991ee2 |
 | 2026-11-13 | DEF-460 (D-227): paused instructions listed with Resume (§2.4) | e535895 |
 | 2026-11-13 | Text corrected after the third review (§2.4, §8, §11 row 3); no behaviour change | (this commit, Nexeo-Builder) |
+| 2026-11-13 | F-2.4 automatic forward by a delegate rule, review P1-1 to P1-6 built (charter safeguards, mirror sha a0868536): only email received after the rule was set and within 7 days; recipient on his company's own domain (the client's users' domains, never a shared provider such as gmail.com); To parsed into exact mailboxes; the daily cap counted on his time-zone day; nothing goes when the count, the rules or his time zone cannot be read; a held send is re-checked at release (rule still active, he may still send). Proof: `tests/f24P1Fixes.test.ts` (13 tests; two reverted fixes each turned a test red). **Still switched OFF** (`RULE_FORWARD_ENABLED=false`); the P1-6 release check is live (D-248), P1-1 to P1-5 are not deployed. Not proven yet: concurrent ticks and a restart, a recipient change during the hold, the receipt before a 'delivered' claim | (this commit, Nexeo-Builder) |
 
 ---
 
