@@ -332,7 +332,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 5 | Marks on a source (needs him, rule applied, handled), with history | Live since 13 Nov; being filled |
 | 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | Live 13 Nov (§0.13.2) |
 | 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
-| 8 | A source knows which version of its text it holds | Built 13 Nov (§0.13.3) |
+| 8 | A source knows which version of its text it holds | Live 13 Nov (§0.13.3) |
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
@@ -383,7 +383,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Not in this part:** meeting notes have no outside identifier yet (a rescheduled or retitled event could otherwise pull two notes into one); a screen for "these two are one person"; typed links (`[[person:Ali]]`) for the ambiguous case.
 
-#### 0.13.3 Part 8 is built: a source knows which version of its text it holds (Wiki session, 13 Nov 2026)
+#### 0.13.3 Part 8 is LIVE: a source knows which version of its text it holds (Wiki session, 13 Nov 2026; D-241, D-242)
 
 **What was wrong** (third review, §0.11 item 4): a source kept its text and a fingerprint, but not when that text was fetched nor whether it was only a preview. The reconcile asked only "is there text?", and email recovery compared lengths. So a correction of the same length was invisible, and an older text arriving late could replace a newer one.
 
@@ -398,7 +398,9 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **The hourly reconcile uses the same rule** (`wikiBackfill.needsLanding`): a stored item is landed when its source is missing, has no text, or holds a different text the item's is newer than. An email's full text is landed wherever the source holds nothing or only a preview; length is no longer looked at.
 
-**Checked:** `tests/wikiSourceVersions.test.ts` and the new cases in `tests/wikiReconcile.test.ts` (same-length correction, newer shorter text, replay, out-of-order arrival; 4 of 4 mutants killed); on the production database with throwaway rows, 11 of 11 (the four cases, a preview and a full text in both orders, an encrypted text, four writers at once ending as one row with the latest text), rows removed. On production the migration dated every text already held (9,095 sources) and marked 645 email sources as holding only a preview.
+**Checked:** `tests/wikiSourceVersions.test.ts` and the new cases in `tests/wikiReconcile.test.ts` (same-length correction, newer shorter text, replay, out-of-order arrival; 4 of 4 mutants killed); on the production database with throwaway rows, 11 of 11 (the four cases, a preview and a full text in both orders, an encrypted text, four writers at once ending as one row with the latest text), rows removed. On production the migration dated every text already held and marked 645 email sources as holding only a preview.
+
+**Live as D-241 and D-242 (16:28 and 16:36 PKT).** D-241's reconcile did not converge: it re-landed about 640 email texts on every run, because the old email pages for those emails hold only the same preview the source already has. D-242 makes the reconcile skip a text the source already holds. After it: two runs, both users, 0 missing, 0 texts landed; 640 email sources still say they hold a preview, which is the truth (the full email was never fetched for them; the rebuild's full read brings it). Not yet seen: a real correction arriving on production.
 
 ## 1. Owner direction (2026-11-12)
 
