@@ -260,7 +260,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 5. **Progress (13 Nov):**
    - The marks store is live (Wiki session, D-229).
    - Attention marks are written from each fresh triage judgement (Nexeo-Builder, DEF-462, **live D-230 14:11 PKT**, verified on the reported thread).
-   - The daily "none missed" check is built (Nexeo-Builder, DEF-463), deploying next. Every 3 hours it compares today's and yesterday's inbox and sent ids with the Wiki, lands what is missing (sent mail through `landEmailText`, marked `own`), and keeps the day's counts as one `record` source.
+   - The daily "none missed" check is live (Nexeo-Builder, DEF-463, D-232 14:19 PKT). Every 3 hours it compares today's and yesterday's inbox and sent ids with the Wiki, lands what is missing (sent mail through `landEmailText`, marked `own`), and keeps the day's counts as one `record` source.
    - Still to come: rule marks, the action item and meeting marks, and the readers' switch.
 
 #### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: agreed by Nexeo-Builder; the store is LIVE as D-229, 14:04 PKT; see the end of this section)
