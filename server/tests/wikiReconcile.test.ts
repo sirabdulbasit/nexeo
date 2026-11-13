@@ -116,7 +116,7 @@ describe('wiki reconcile', () => {
   });
 
   it('a landing that fails again is counted and named, and lands on a later run', async () => {
-    feedRow('whatsapp', 'w1', { waMessageId: 'w1', body: 'hello' });
+    feedRow('gchat', 'spaces/1/messages/7', { messageName: 'spaces/1/messages/7', text: 'hello' });
     t.failNext = 1;
     const first = await reconcileSources('T-1', 2);
     expect(first).toMatchObject({ missing: 1, landed: 0, failed: 1 });
@@ -143,9 +143,11 @@ describe('wiki reconcile', () => {
     expect(t.store.get(idFor('chat', 'spaces/1/messages/9'))!.body).toBe('the text');
   });
 
-  it('a feed type the Wiki does not know is not counted as missing', async () => {
+  it('a feed type the Wiki does not take (WhatsApp, or one it does not know) is not counted as missing and not landed', async () => {
     feedRow('fax', 'f1', { text: 'x' });
-    expect(await reconcileSources('T-1', 2)).toMatchObject({ feedItems: 1, missing: 0, landed: 0, failed: 0 });
+    feedRow('whatsapp', 'w1', { waMessageId: 'w1', body: 'hello' });
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ feedItems: 2, missing: 0, landed: 0, failed: 0 });
+    expect(t.store.size).toBe(0);
   });
 
   it('an email\'s full text held only by an old email page is landed, once, and a pruned email is recreated', async () => {

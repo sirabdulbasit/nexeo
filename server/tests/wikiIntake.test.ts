@@ -31,11 +31,11 @@ describe('wikiIntake', () => {
     expect(s.details).not.toHaveProperty('description');
   });
 
-  it('chat, WhatsApp and tasks land with their text; a voice note lands as its transcript', () => {
+  it('chat and tasks land with their text; WhatsApp is not a feed and is not landed', () => {
     expect(sourceFromFeedItem(item('gchat', { messageName: 'spaces/1/messages/9', threadName: 'spaces/1/threads/3', spaceDisplayName: 'Deals', senderDisplayName: 'Ali', text: 'ok' })))
       .toMatchObject({ kind: 'chat', externalId: 'spaces/1/messages/9', threadKey: 'spaces/1/threads/3', title: 'Deals', body: 'ok' });
-    expect(sourceFromFeedItem(item('whatsapp', { waMessageId: 'w1', chatId: 'c@lid', senderName: 'Me', body: '', voiceTranscript: 'call Ali' })))
-      .toMatchObject({ kind: 'whatsapp', externalId: 'w1', threadKey: 'c@lid', body: 'call Ali' });
+    // Owner, 13 Nov 2026: "whatsapp will not be part of feed".
+    expect(sourceFromFeedItem(item('whatsapp', { waMessageId: 'w1', chatId: 'c@lid', senderName: 'Me', body: 'call Ali', voiceTranscript: 'call Ali' }))).toBeNull();
     expect(sourceFromFeedItem(item('gtasks', { title: 'Renew licence', notes: 'by Friday' }, 'task-7')))
       .toMatchObject({ kind: 'task', externalId: 'task-7', title: 'Renew licence', body: 'by Friday' });
   });

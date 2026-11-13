@@ -3,7 +3,7 @@
  * (docs/Wiki-Knowledge.md §0.1.2: "Placed in the Wiki").
  *
  * `sourceFromFeedItem` is the one place that says how a fetched item (an
- * email, a calendar entry, a chat or WhatsApp message, a task) becomes a
+ * email, a calendar entry, a chat message, a task) becomes a
  * source: its own id, its conversation, its title, its time, who was in it,
  * and its text. `landFeedItem` stores it. The feed calls it once per item;
  * calling it again for the same item changes nothing.
@@ -20,8 +20,11 @@ export interface FeedItem {
   at: Date;
 }
 
+// WhatsApp is not a feed (owner, 13 Nov 2026: "whatsapp will not be part of feed"): it is the
+// line between the user and Nexeo, not a place knowledge is fetched from. A WhatsApp feed row is
+// not a source, so it is not landed and the reconcile does not count it as missing.
 const KIND: Record<string, SourceKind> = {
-  gmail: 'email', gcal: 'calendar', gchat: 'chat', whatsapp: 'whatsapp', gtasks: 'task',
+  gmail: 'email', gcal: 'calendar', gchat: 'chat', gtasks: 'task',
 };
 
 function list(v: unknown): string[] {
@@ -70,17 +73,6 @@ export function sourceFromFeedItem(item: FeedItem): SourceInput | null {
       title: p.spaceDisplayName ?? p.subject ?? null,
       participants: list(p.senderDisplayName),
       body: p.text ?? p.formattedText ?? p.snippet ?? null,
-      details,
-    };
-  }
-  if (kind === 'whatsapp') {
-    return {
-      ...base,
-      externalId: String(p.waMessageId ?? item.sourceId),
-      threadKey: p.chatId ?? null,
-      title: p.senderName ?? null,
-      participants: list(p.senderName ?? p.phoneNumber),
-      body: p.voiceTranscript ?? p.body ?? null,
       details,
     };
   }

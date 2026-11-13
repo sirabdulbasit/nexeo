@@ -28,7 +28,7 @@ Written 2026-11-12 by the Brain Wiki session. This is the one document of the Wi
 
 | Part | Writes to the Wiki | Reads from the Wiki |
 |---|---|---|
-| Feed (email, calendar, chat, WhatsApp, integrations, Suzi's reports) | Hands each item over once, with its source id; the Wiki decides which notes it belongs to | — |
+| Feed (email, calendar, chat, tasks, integrations, Suzi's reports; **not WhatsApp**, §0.13.1) | Hands each item over once, with its source id; the Wiki decides which notes it belongs to | — |
 | Wiki (the Brain Wiki role) | Writes, links and prunes notes; keeps sources; keeps every note's citations | — |
 | Think (Brain, briefs, suggestions) | Only through the same intake as any feed | Everything it answers or decides from |
 | Action Center | Through Think: a new or changed commitment note | The commitment notes, their state and their trail |
@@ -339,9 +339,19 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 **Two things a re-scribe cannot bring back, so they are carried over, not rebuilt:**
 
 - **What he typed or decided himself:** his standing instructions and email rules, muted senders, his corrections, the marks "handled" and "ignore once", and the decisions and delegations log. No feed holds these.
-- **What the providers no longer give:** his WhatsApp messages to Nexeo, conversations with Brain and Suzi, and meeting minutes whose transcript has expired at the provider.
+- **What the providers no longer give:** conversations with Brain and Suzi, and meeting minutes whose transcript has expired at the provider. (WhatsApp is not a feed and is not re-read, §0.13.1.)
 
-**One setting decides how much comes back.** A Scribe run today fetches the last 30 days or 500 emails, calendar 30 days back and 60 ahead, WhatsApp 14 days (`historicalFeedPull.ts`). The Wiki holds his email back to April only because the old pages kept it. A rebuild by today's Scribe would therefore hold about one month. How far back a rebuild reaches is **his decision**, and becomes a setting, not a constant.
+**One setting decides how much comes back.** A Scribe run today fetches the last 30 days or 500 emails, calendar 30 days back and 60 ahead, WhatsApp 14 days (`historicalFeedPull.ts`). The Wiki holds his email back to April only because the old pages kept it. A rebuild by today's Scribe would therefore hold about one month. How far back a rebuild reaches is **his decision**, and becomes a setting, not a constant. **Decided: the first read takes everything** (§0.13.1).
+
+#### 0.13.1 Decided the same afternoon: the first read, and WhatsApp (owner, 13 Nov 2026, 14:40 PKT)
+
+1. **The first read takes everything.** *"How far back, first time should read entire."* On a rebuild, the whole mailbox (inbox and sent) and all past calendar entries are landed as sources, newest first, resumable. Measured from April to November: 300 to 700 emails and about 1 MB of text a month, so years of mail is tens of megabytes. Landing and the facts-only notes use no model.
+2. **Proposed with it, not yet confirmed by him:** the model reads only the recent part. Judging "needs him", action items and project notes for the last 90 days (a setting); older mail is landed, builds people, company and meeting notes, and is marked `attention = { class: 'history' }` without a model, so "landed = marked" still holds. A model reads an old conversation only when something current links to it. Reason: one model call per email over years of mail would break the cost target (Costing Charter) and turn old requests into open action items.
+3. **WhatsApp is not a feed.** *"whatsapp will not be part of feed."* It is the line between the user and Nexeo, not a place knowledge is fetched from (his rulings of 4 and 5 Nov say the same of other people's messages). So:
+   - A WhatsApp feed row is not landed as a source (`wikiIntake`, D-234) and the reconcile does not count it as missing. No WhatsApp row has entered the feed since 7 Aug 2026.
+   - A rebuild does not read WhatsApp.
+   - **Left as they are, for him to rule on:** 876 WhatsApp sources landed by the first backfill (510 of user 2, 366 of user 3). No note cites them. Nothing is deleted without his word.
+   - **Open:** what he tells Nexeo over WhatsApp (an instruction, a correction) is a conversation with Brain, not a feed item. Whether those conversations are kept in the Wiki, as conversations, is his decision and is not built.
 
 ## 1. Owner direction (2026-11-12)
 
