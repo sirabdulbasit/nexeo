@@ -17,7 +17,8 @@
  *  2. called on the client, or read off it and called on its own, it runs on the client;
  *  3. both wrappers still do their job on a transactional call (observe, sanitize);
  *  4. nothing is installed per transaction, so the wrappers never stack;
- *  5. neither wrapper binds the operation to the client it was installed on.
+ *  5. neither wrapper binds the operation to the client it was installed on;
+ *  6. no array-form transaction carries a raw statement (DEF-466, found by Nexeo-Builder's re-check).
  */
 import { describe, it, expect, vi } from 'vitest';
 import fs from 'fs';
@@ -91,6 +92,30 @@ describe('DEF-464: a raw statement stays in the transaction it was issued on', (
     expect(client.$queryRawUnsafe).toBe(wrapper); // the client's method is the one installed at boot, still
     expect(observed).toEqual(['A', 'B', 'C']); // each statement observed once, not once per earlier transaction
     expect(ran.map((r) => r.on)).toEqual(['tx-a', 'tx-b', 'main']);
+  });
+
+  it('6. no array-form transaction carries a raw statement (DEF-466)', () => {
+    // A wrapped raw operation does not return a Prisma promise, so `prisma.$transaction([..., prisma.$executeRawUnsafe(...)])`
+    // runs the raw statement at once, outside any transaction, and is then refused by Prisma. Found live on 13 Nov 2026 in
+    // updateInstructionStatus (DEF-466). Raw statements belong in the callback form, on the `tx` handle.
+    const root = path.join(__dirname, '..', 'src');
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) walk(path.join(dir, e.name));
+        else if (e.name.endsWith('.ts')) files.push(path.join(dir, e.name));
+      }
+    };
+    walk(root);
+    const offenders: string[] = [];
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+      for (const m of src.matchAll(/\$transaction\(\s*\[([\s\S]*?)\]\s*[,)]/g)) {
+        if (/\$(executeRaw|queryRaw)/.test(m[1])) offenders.push(path.relative(root, f));
+      }
+    }
+    // Known and dead: its tables (gcp_billing_*) were dropped from the database. It may only shrink.
+    expect([...new Set(offenders)].sort()).toEqual(['services/gcpBilling/gcpBillingService.ts']);
   });
 
   it('5. the source: no wrapper binds to its client, and nothing is installed on a tx', () => {
