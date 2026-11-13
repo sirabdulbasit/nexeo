@@ -692,3 +692,14 @@ A contract detail of F-4 (agreed), with no cost, privacy or sends involved:
 - **(Q2)** Polling `meeting.list` every 5 minutes for 90 minutes after a meeting, otherwise every 30 minutes, is accepted until the status push exists.
 
 Nexeo builds (a), (b) and Q1 next. Slice 2 (the status push, the pack's `attendees[]` / `meetings_recorded[]`, transcription switched on) is estimated for 14 Nov and later.
+
+## W-1 "Wiki first": AGREED by the founder (2026-11-13 16:25:47 PKT)
+
+In the Nexeo-Builder session, answering "agree W-1 (with S1)": *"agreed from my side"*. With Suzi Master's AGREE (S1–S3 and five ops) and Nexeo's AGREE (bbdf47e), **W-1 is agreed by all three**. S1 is included: the device's signing keys never leave the computer.
+
+Next, as planned:
+- Suzi Master drafts the charter text; Nexeo mirrors it byte for byte.
+- Suzi builds its side.
+- Nexeo builds its side: the `meeting.upload` switch gate removed for computer notes; identity, `profile.update` and `device.report` into the Wiki's encrypted source store.
+
+Same answer, on the rebuild: *"i will scrine or rescribe from connector"*. The Wiki is rebuilt by re-scribing from the connectors. On the older open items (TMC Context into the Wiki, the 2,000-page limit, the KPI notes, Suzi's send switch, "fix the brief", the email-to-item gate): *"leave it we will build new wiki from new feed from connector and rules"*. They are **closed as superseded** by the rebuild.
