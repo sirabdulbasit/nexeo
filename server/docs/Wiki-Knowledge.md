@@ -38,11 +38,18 @@ Written 2026-11-12 by the Brain Wiki session. This is the one document of the Wi
 | Portal | Only through Nexeo's routes, which write notes | Views of notes |
 | **Suzi** (charter) | Holds no data (agreed 5 Nov). Everything she captures or is told goes to Nexeo, which writes it to the Wiki | Nexeo's knowledge route and day pack, both views of the Wiki; she cites note titles |
 
-### 0.3 What is not knowledge (proposed boundary, owner to confirm)
+### 0.3 Nothing is kept outside the Wiki (owner's decision, 2026-11-13)
 
-These are mechanics, not knowledge, and are proposed to stay outside the Wiki: accounts and sign-in, OAuth tokens and
-secrets, the audit trail, job and run bookkeeping, idempotency and delivery logs, outbound queues, consumption counters,
-and caches or indexes derived from the Wiki. None of them holds a fact about the world that exists nowhere else.
+Asked whether mechanics could stay outside, the owner chose **everything into the Wiki**: the audit trail, usage and job
+history, device settings and identity (voiceprints, faceprint, the enrolment voice sample), and the rest. Secrets
+(sign-in, OAuth tokens, keys) are kept **encrypted** in it and are never shown as text. What runs from them (queues,
+in-flight sends) may keep a working copy, but the Wiki holds the record.
+
+His other decisions the same day:
+- **Meeting notes taken on the computer always go to the Wiki**, with Meeting Assistant on or off.
+- **The enrolment voice sample is kept as well as the prints.**
+- **What Suzi learns about him goes to the Wiki** ("remember me, how to communicate with me"). Lessons that apply to every
+  user are product learning, sent to Suzi Master. Suzi decides intelligently which is which.
 
 ### 0.4 Knowledge still outside the Wiki, and who moves it
 

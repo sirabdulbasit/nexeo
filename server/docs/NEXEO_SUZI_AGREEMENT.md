@@ -564,3 +564,16 @@ Suzi Master had already said AGREE to both, by message on 11 Nov:
 2. Is the 8 s raw voice sample kept, or only the prints?
 3. Should the personalisation counts follow him across devices?
 4. Nexeo's §0.3 boundary of mechanics (now including CW-3).
+
+**Founder's decisions on W-1, 13 Nov 2026 09:59 PKT, in Nexeo's session:**
+1. **CW-1 not accepted:** computer meeting notes always go to the Wiki, with Meeting Assistant on or off.
+2. **Voice sample:** keep both the raw 8 s sample and the prints.
+3. **Personalisation:** *"store them in Nexeo (wiki), and remember me so how to communicate with me, but Suzi will also learn things generically that could be applicable for all, here since decide the things intelligently which are user specific and which are not generic"*. What is user-specific goes to his Wiki; what is generic goes to Suzi Master as product learning.
+4. **The mechanics boundary is not accepted:** everything listed goes into the Wiki, including the audit trail, usage and job history, and device and voice identity. Secrets are kept encrypted.
+
+Points 1, 3 and 4 change agreed text, so the amended W-1 needs Suzi Master's AGREE again:
+- **F-4.6** "voiceprints never leave the computer" now becomes identity stored in the Wiki;
+- **F-4.10**'s local exception is removed;
+- a new channel is needed for Suzi's learned personalisation.
+
+CW-2 (feedback about Suzi herself goes to Suzi Master) was not decided by the founder and stands as agreed unless he says otherwise.
