@@ -392,6 +392,8 @@ export async function suggestForFeedEvent(row: {
   const promise = (async () => {
     try {
       const result = await _doTriage(row);
+      // DEF-462: the judgement lands on the email's Wiki source as its attention mark (once per fresh judgement).
+      void import('./triageMarks').then(({ writeAttentionMark }) => writeAttentionMark(row, result)).catch(() => undefined);
       // Cap cache size — drop oldest entries first.
       if (triageCache.size >= TRIAGE_CACHE_MAX) {
         const toDelete = Math.floor(TRIAGE_CACHE_MAX * 0.2);

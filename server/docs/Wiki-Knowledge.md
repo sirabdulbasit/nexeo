@@ -257,6 +257,10 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - Nexeo-Builder: writing the DEF-459 judgement and the rule marks onto the email's Wiki entry, and switching the brief and the pack to read from the Wiki.
    - Suzi Master: agrees the pack reading from the Wiki before it changes what Suzi receives (§0.5 rule 3).
    - Not built yet: the Wiki session proposes the shape first.
+5. **Progress (13 Nov):**
+   - The marks store is live (Wiki session, D-229).
+   - Attention marks are written from each fresh triage judgement (Nexeo-Builder, DEF-462, deploying as D-230).
+   - Still to come: rule marks, the daily "none missed" check (Nexeo-Builder owns it), the action item and meeting marks, and the readers' switch.
 
 #### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: agreed by Nexeo-Builder; the store is LIVE as D-229, 14:04 PKT; see the end of this section)
 
