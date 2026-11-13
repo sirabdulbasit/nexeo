@@ -60,6 +60,22 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
     ? `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ready to delegate to ${person!.name}`
     : `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ignore`;
   const payload = { suzi: { kind, by, value, ...(person ? { person_id: person.id, person_name: person.name, person_email: person.email } : {}), ...(note ? { note } : {}) } };
+  // The same kind and match again folds into his existing rule (its person and note take the new values), so saving
+  // a rule twice never leaves two (Suzi Master, 13 Nov: the founder saved the Demo VM rule twice).
+  const same = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT id FROM user_action_rules
+      WHERE client_number = $1 AND user_id = $2 AND scope = 'user' AND is_active = TRUE AND action_type = $3
+        AND trigger_condition = $4::jsonb
+      ORDER BY created_at ASC LIMIT 1`,
+    clientNumber, userId, SUZI_RULE_TYPE[kind], JSON.stringify(condition),
+  );
+  if (same[0]) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE user_action_rules SET name = $2, nl_original = $3, action_payload = $4::jsonb, updated_at = now() WHERE id = $1`,
+      same[0].id, what.slice(0, 200), what.slice(0, 2000), JSON.stringify(payload),
+    );
+    return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, rules_version: await rulesVersion(clientNumber, userId) } };
+  }
   const id = `uar_${crypto.randomBytes(6).toString('hex')}`;
   // DRAFT: the rule store's own executor never fires it. Suzi's flow is the only one that acts on it.
   await prisma.$executeRawUnsafe(

@@ -17,7 +17,7 @@ vi.mock('../src/services/suzi/suziRules', () => ({ rulesDocument: async () => ({
 
 import { ruleSet, ruleRemove, ruleFor, type SuziEmailRule } from '../src/services/suzi/suziEmailRules';
 
-beforeEach(() => { exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); });
+beforeEach(() => { exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
 
 describe('rule.set', () => {
   it('a delegate rule is stored as his own DRAFT rule, with the person', async () => {
@@ -44,6 +44,20 @@ describe('rule.set', () => {
     await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'Newsletter' } }, true);
     expect(exec.mock.calls[0][7]).toBe('suzi_email_ignore');
     expect(JSON.parse(exec.mock.calls[0][6])).toEqual({ subjectContains: 'newsletter' });
+  });
+});
+
+describe('rule.set twice', () => {
+  it('the same kind and match folds into his existing rule: its id comes back, nothing new is written', async () => {
+    query.mockResolvedValueOnce([{ id: 'uar_old' }]);
+    const r: any = await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'Demo VM' } }, true);
+    expect(r).toMatchObject({ ok: true, item: { rule_id: 'uar_old', existing: true, match: { by: 'subject', value: 'demo vm' }, rules_version: 12 } });
+    const [sel, c, u, type, cond] = query.mock.calls[0];
+    expect(sel).toMatch(/is_active = TRUE AND action_type = \$3\s+AND trigger_condition = \$4::jsonb/);
+    expect([c, u, type, JSON.parse(cond)]).toEqual(['T', 2, 'suzi_email_ignore', { subjectContains: 'demo vm' }]);
+    expect(exec).toHaveBeenCalledTimes(1);
+    expect(exec.mock.calls[0][0]).toMatch(/^UPDATE user_action_rules/);
+    expect(exec.mock.calls[0][1]).toBe('uar_old');
   });
 });
 
