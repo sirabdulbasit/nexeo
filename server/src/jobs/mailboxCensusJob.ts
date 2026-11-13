@@ -80,7 +80,7 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
     if (!e) { log.warn('a missing email could not be read', { userId: u.userId, id: g, error: r.error }); continue; }
     const receivedAt = e.date && !isNaN(Date.parse(e.date)) ? new Date(e.date) : start;
     if (sentSet.has(g) && !inbox.includes(g)) {
-      await landEmailText({ clientNumber: u.clientNumber, userId: u.userId, gmailMessageId: g, threadId: e.threadId, subject: e.subject, from: e.from, to: e.to, cc: e.cc, receivedAt, bodyText: e.body || e.snippet || '' });
+      await landEmailText({ clientNumber: u.clientNumber, userId: u.userId, gmailMessageId: g, threadId: e.threadId, subject: e.subject, from: e.from, to: e.to, cc: e.cc, receivedAt, bodyText: e.body || e.snippet || '', labels: Array.isArray(e.labels) && e.labels.length ? e.labels : ['SENT'] });
     } else {
       // The normal feed path: it lands the email in the Wiki and triage judges it (then marks it).
       await ingest({ clientNumber: u.clientNumber, userId: u.userId, sourceType: 'gmail', sourceId: g, sender: { email: e.from },

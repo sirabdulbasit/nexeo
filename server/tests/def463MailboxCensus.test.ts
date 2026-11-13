@@ -37,7 +37,7 @@ describe('the daily check', () => {
     expect(ingest).toHaveBeenCalledTimes(1);
     expect((ingest.mock.calls[0] as any[])[0]).toMatchObject({ sourceType: 'gmail', sourceId: 'i2' });
     expect(landEmailText).toHaveBeenCalledTimes(1);
-    expect((landEmailText.mock.calls[0] as any[])[0]).toMatchObject({ gmailMessageId: 's2', bodyText: 'full text', from: 'me@x.com' });
+    expect((landEmailText.mock.calls[0] as any[])[0]).toMatchObject({ gmailMessageId: 's2', bodyText: 'full text', from: 'me@x.com', labels: ['SENT'] });
     expect(markSource).toHaveBeenCalledWith({ clientNumber: 'T', userId: 2 }, 'src_s1', { kind: 'attention', value: { class: 'own' }, by: SENT_MARK_BY });
     expect(markSource).toHaveBeenCalledWith({ clientNumber: 'T', userId: 2 }, 'src_s2', { kind: 'attention', value: { class: 'own' }, by: SENT_MARK_BY });
     expect(r).toMatchObject({ inbox: 2, sent: 2, held: 4, stillMissing: 0, fetchedLate: ['i2', 's2'], marked: 3, unmarked: 1 });
