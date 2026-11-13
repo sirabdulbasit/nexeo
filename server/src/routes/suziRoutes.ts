@@ -65,8 +65,15 @@ router.post('/api-key', keyLimiter, async (req: Request, res: Response) => {
     res.status(400).json({ error: 'Validity must be 7, 30 or 90 days, or never' });
     return;
   }
+  // Round 6: a lead key (gets new builds first and moves the lead on the master) is asked for explicitly and only an SA
+  // user may make one (charter C1). Opt-in, so an SA making a key for another computer never moves the lead by accident.
+  const lead = req.body?.lead === true;
+  if (lead && (req as any).user?.userType !== 'SA') {
+    res.status(403).json({ error: 'Only a super admin can make a lead key' });
+    return;
+  }
   try {
-    res.json(await createApiKey(ownerOf(req), validityDays as SuziKeyValidity));
+    res.json(await createApiKey(ownerOf(req), validityDays as SuziKeyValidity, { lead }));
   } catch (err) {
     fail(res, err);
   }

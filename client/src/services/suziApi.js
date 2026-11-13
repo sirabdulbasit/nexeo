@@ -9,8 +9,8 @@ export function errorText(e) {
 }
 
 /** The signed-in person's own API key, valid for `validityDays` (7, 30, 90 or 'never'). Shown once. */
-export async function createApiKey(validityDays = 30) {
-  const { data } = await api.post(`${BASE}/api-key`, { validityDays });
+export async function createApiKey(validityDays = 30, lead = false) {
+  const { data } = await api.post(`${BASE}/api-key`, { validityDays, ...(lead ? { lead: true } : {}) });
   return data; // { apiKey, keyPrefix, expiresAt, validityDays, serverUrl, connectLink }
 }
 

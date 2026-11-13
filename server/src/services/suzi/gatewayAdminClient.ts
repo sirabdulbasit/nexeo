@@ -118,13 +118,15 @@ export interface SuziApiKey {
  * A new API key for THIS person (each user gets their own; it is never shared or reused), valid for
  * `validityDays` ('never' = until disconnected). The gateway keeps only its hash, so this is the one moment it can be shown.
  */
-export async function createApiKey(owner: SuziOwner, validityDays: SuziKeyValidity): Promise<SuziApiKey> {
+export async function createApiKey(owner: SuziOwner, validityDays: SuziKeyValidity, opts: { lead?: boolean } = {}): Promise<SuziApiKey> {
   const data = await call('POST', '/admin/api-keys', {
     user_id: String(owner.userId),
     tenant_id: owner.clientNumber,
     user_name: owner.displayName,
     validity_days: validityDays,
     created_by: 'nexeo-web',
+    // Round 6 (SuziUpgrade_Charter §4): a lead key, made only by an SA user, fixed when made. Live on the gateway since 13 Nov 16:06.
+    ...(opts.lead === true ? { lead: true } : {}),
   });
   const expiryOk = validityDays === 'never' ? data?.expires_at === null : typeof data?.expires_at === 'string';
   if (typeof data?.api_key !== 'string' || !expiryOk || !/^https?:\/\/[^\s]+$/.test(String(data?.server_url ?? ''))) {

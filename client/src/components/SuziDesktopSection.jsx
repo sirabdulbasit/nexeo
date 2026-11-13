@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { InlineConfirm, formatPkt } from '../pages/admin/integrations/integrationUi';
 import { createApiKey, disconnectDevice, errorText, installerLink, listDevices, listInstallers } from '../services/suziApi';
+import { useAuth } from '../context/AuthContext';
 
 // Link T30: which installer fits this visitor's computer; both are always shown.
 const THIS_OS = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? 'macos' : /Win/i.test(navigator.platform || navigator.userAgent) ? 'windows' : null;
@@ -13,6 +14,10 @@ const VALIDITY = [7, 30, 90, 'never'];
 
 export default function SuziDesktopSection() {
   const [validity, setValidity] = useState(30);
+  // Round 6: a super admin may make the LEAD key (that computer gets new builds first). Opt-in, never by default.
+  const { user } = useAuth();
+  const isSA = user?.userType === 'SA';
+  const [lead, setLead] = useState(false);
   const [issued, setIssued] = useState(null); // { apiKey, keyPrefix, expiresAt, validityDays, serverUrl, connectLink }
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(null); // 'url' | 'key' | 'both'
@@ -36,7 +41,8 @@ export default function SuziDesktopSection() {
     setMsg(null);
     setCopied(null);
     try {
-      setIssued(await createApiKey(validity));
+      setIssued(await createApiKey(validity, isSA && lead));
+      setLead(false);
       await load();
     } catch (e) {
       setMsg({ ok: false, text: errorText(e) });
@@ -86,6 +92,15 @@ export default function SuziDesktopSection() {
             </label>
           ))}
         </div>
+        {isSA && (
+          <label style={{ display: 'flex', gap: 6, alignItems: 'flex-start', fontSize: 13, marginBottom: 10, cursor: 'pointer', maxWidth: 560 }}>
+            <input type="checkbox" checked={lead} onChange={(e) => setLead(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>
+              <strong>This computer is the lead.</strong> It gets every new Suzi build first, to try before it goes to everyone.
+              Only tick this for the one computer that should be the lead: using this key moves the lead to it.
+            </span>
+          </label>
+        )}
         <button className="settings-btn" onClick={generate} disabled={busy}>
           {busy ? <><span className="btn-spinner" /> Generating…</> : issued ? 'Generate another key' : 'Generate API key'}
         </button>
