@@ -23,6 +23,8 @@ const MAX_IDENTITY_BYTES = 3 * 1024 * 1024;
 const MAX_REPORT_BYTES = 256 * 1024;
 
 const identityId = (kind: string) => `identity:${kind}`;
+/** S2: identity ops go live together, only once identity.delete can remove a print from the Wiki everywhere. */
+export const IDENTITY_LIVE = false;
 
 async function userName(clientNumber: string, userId: number): Promise<string> {
   const u = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { name: true, email: true } as any }).catch(() => null) as any;
@@ -48,6 +50,9 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
   if (op === 'identity.put' || op === 'identity.get' || op === 'identity.delete') {
     const kind = text(a.kind);
     if (!(IDENTITY_KINDS as readonly string[]).includes(kind)) return fail('bad_kind', 'kind is voiceprint, faceprint or voice_sample');
+    // S2 (founder's safeguard): identity must be deletable everywhere. Until the Wiki has a removal door, NONE of the
+    // identity ops is live: storing a print that cannot be deleted would break S2 (Suzi Master, 13 Nov; option (a)).
+    if (!IDENTITY_LIVE) return fail('not_yet', 'identity storage waits until it can also be deleted (W-1, S2); nothing was stored');
     if (op === 'identity.get') {
       const src = await readSource(clientNumber, userId, sourceId(clientNumber, userId, 'record', identityId(kind))).catch(() => null);
       if (!src?.body) return fail('not_found');

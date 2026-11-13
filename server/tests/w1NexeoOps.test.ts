@@ -24,19 +24,14 @@ const signed = { signatureVerified: true, deviceId: 'dev-1' };
 const unsigned = { signatureVerified: false, deviceId: 'dev-1' };
 beforeEach(() => { saved.length = 0; notes.length = 0; stored = null; });
 
-describe('identity', () => {
-  it('put: signed and confirmed, stored encrypted per kind; get reads it back', async () => {
+describe('identity (S2: not live until it can be deleted)', () => {
+  it('put, get and delete all answer not_yet and store nothing', async () => {
     expect(W1_OPS).toEqual(['identity.put', 'identity.get', 'identity.delete', 'profile.update', 'device.report']);
-    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' }, true, unsigned)).toMatchObject({ error: 'needs_signature' });
-    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA' }, false, signed)).toMatchObject({ error: 'needs_confirmation' });
-    expect(await runW1Op('T', 2, 'identity.put', { kind: 'retina', data: 'AAAA' }, true, signed)).toMatchObject({ error: 'bad_kind' });
-    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' }, true, signed)).toMatchObject({ ok: true, item: { kind: 'voiceprint', stored: true } });
-    expect(saved[0]).toMatchObject({ kind: 'record', externalId: 'identity:voiceprint', encrypt: true, details: { type: 'identity', kind: 'voiceprint', device_id: 'dev-1' } });
-    expect(await runW1Op('T', 2, 'identity.get', { kind: 'voiceprint' }, false, unsigned)).toMatchObject({ ok: true, item: { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' } });
-  });
-  it('delete is not_yet and writes nothing', async () => {
-    expect(await runW1Op('T', 2, 'identity.delete', { kind: 'faceprint' }, true, signed)).toMatchObject({ error: 'not_yet' });
+    for (const op of ['identity.put', 'identity.get', 'identity.delete']) {
+      expect(await runW1Op('T', 2, op, { kind: 'voiceprint', data: 'AAAA', model: 'm' }, true, signed)).toMatchObject({ error: 'not_yet' });
+    }
     expect(saved).toHaveLength(0);
+    expect(await runW1Op('T', 2, 'identity.put', { kind: 'retina', data: 'AAAA' }, true, signed)).toMatchObject({ error: 'bad_kind' });
   });
 });
 
