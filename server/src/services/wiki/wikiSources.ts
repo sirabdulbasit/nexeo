@@ -159,10 +159,10 @@ export class CitationRefused extends Error {
  * note's client, so a source of another client is never even loaded. Called
  * before a note's text is written, and again when the citation rows are made.
  */
-export async function assertCitable(note: CiteParty, sourceIds: string[]): Promise<void> {
+export async function assertCitable(note: CiteParty, sourceIds: string[], db: any = prisma): Promise<void> {
   const ids = [...new Set(sourceIds.filter(Boolean))];
   if (ids.length === 0) return;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; client_number: string; user_id: number; scope: string }>>(
+  const rows: Array<{ id: string; client_number: string; user_id: number; scope: string }> = await db.$queryRawUnsafe(
     `SELECT id, client_number, user_id, scope FROM wiki_sources WHERE client_number = $1 AND id = ANY($2::text[])`,
     note.clientNumber, ids,
   );
@@ -186,23 +186,23 @@ export interface Writer {
  * client and must be the writer's own or a shared one, and every source is
  * checked against the note (`assertCitable`). If one is refused, none is cited.
  */
-export async function citeSources(writer: Writer, noteId: string, sourceIds: string[]): Promise<void> {
+export async function citeSources(writer: Writer, noteId: string, sourceIds: string[], db: any = prisma): Promise<void> {
   const ids = [...new Set(sourceIds.filter(Boolean))];
   if (ids.length === 0) return;
-  const notes = await prisma.$queryRawUnsafe<Array<{ client_number: string; user_id: number; scope: string }>>(
+  const notes: Array<{ client_number: string; user_id: number; scope: string }> = await db.$queryRawUnsafe(
     `SELECT client_number, user_id, scope FROM wiki_pages
       WHERE id = $1 AND client_number = $2 AND (scope = 'tenant' OR user_id = $3)`,
     noteId, writer.clientNumber, writer.userId,
   );
   if (!notes[0]) throw new Error(`wikiSources.citeSources: no note ${noteId} that ${writer.clientNumber}/${writer.userId} may write`);
-  await assertCitable({ clientNumber: notes[0].client_number, userId: Number(notes[0].user_id), scope: notes[0].scope }, ids);
-  await prisma.$executeRawUnsafe(
+  await assertCitable({ clientNumber: notes[0].client_number, userId: Number(notes[0].user_id), scope: notes[0].scope }, ids, db);
+  await db.$executeRawUnsafe(
     `INSERT INTO wiki_note_sources (note_id, source_id)
      SELECT $1, s FROM unnest($2::text[]) AS s
      ON CONFLICT (note_id, source_id) DO NOTHING`,
     noteId, ids,
   );
-  await prisma.$executeRawUnsafe(
+  await db.$executeRawUnsafe(
     `UPDATE wiki_pages SET source_count =
         (SELECT COUNT(*) FROM wiki_page_sources WHERE wiki_page_id = $1)
       + (SELECT COUNT(*) FROM wiki_note_sources WHERE note_id = $1)

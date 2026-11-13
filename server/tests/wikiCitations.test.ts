@@ -17,6 +17,7 @@ const t = vi.hoisted(() => ({
 
 vi.mock('../src/db/prisma', () => {
   const p: any = {
+    $transaction: async (fn: any) => fn(p),
     // Both reads are confined to the caller's client, as the real queries are.
     $queryRawUnsafe: async (sql: string, a: any, b: any, c?: any) => {
       if (/FROM wiki_sources/.test(sql)) return t.sources.filter((s) => s.client_number === a && (b as string[]).includes(s.id));

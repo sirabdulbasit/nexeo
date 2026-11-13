@@ -325,8 +325,8 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 3 | Links written in the text as `[[Title]]`; backlinks; a link to a note not yet written waits and connects | Live |
 | 4 | Sources kept apart from notes; a note cites its sources; the citations are its trail | Live |
 | 5 | Marks on a source (needs him, rule applied, handled), with history | Live since 13 Nov; being filled |
-| 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | **Not built — next** |
-| 7 | A note's text, properties, links and citations change together or not at all | **Not built — next, with 6** |
+| 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | **Built 13 Nov (§0.13.2)** |
+| 7 | A note's text, properties, links and citations change together or not at all | **Built 13 Nov (§0.13.2)** |
 | 8 | A source knows which version of its text it holds | Not built |
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
@@ -352,6 +352,27 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - A rebuild does not read WhatsApp.
    - **Left as they are, for him to rule on:** 876 WhatsApp sources landed by the first backfill (510 of user 2, 366 of user 3). No note cites them. Nothing is deleted without his word.
    - **Open:** what he tells Nexeo over WhatsApp (an instruction, a correction) is a conversation with Brain, not a feed item. Whether those conversations are kept in the Wiki, as conversations, is his decision and is not built.
+
+#### 0.13.2 Parts 6 and 7 are built: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026)
+
+**What a note's identity is now** (`wikiStore.ts`):
+
+- **Its id never changes; its title is a label.** A note carries **outside identifiers** (`metadata.ids`, written `kind:value`: `email:ali@x.com`, `domain:x.com`, `space:spaces/AAA`). A write that carries one of them finds the note whatever its title has become, and a new title **renames** it: same note, same links, same trail.
+- **Former names still work.** The old title becomes an **alias** (`metadata.aliases`). A link written with an alias reaches the note, and a note can be read by a former name.
+- **A link reaches a note only when exactly one live note answers to the name.** A note titled with the name beats one that only has it as an alias; an integration's record page gives way to any other note; two answers leave the link unresolved and recorded as ambiguous (`metadata.ambiguousLinks`). A link never reaches an old page or a retired note (50 of 1,222 links did, before this).
+- **Identifiers that belong to two notes are refused** (`IdentityConflict`); nothing is written until they are merged on evidence.
+- **Two notes become one only through `mergeNotes`**, which moves the citations and the links pointing at the folded note, and records exactly what it moved; `unmergeNote` puts it back. A merge made on the user's word is remembered (`confirmedSame`) and holds in every later build.
+- **People are no longer merged on a name alone.** The builder merges on the same mailbox name, the same organisation, or the user's word. A work address and a personal one with the same name are two notes that say "Possibly the same person" about each other.
+
+**What a write is now:**
+
+- **One transaction.** A note's text, properties, links and citations are written together or not at all.
+- **A revision** (`metadata.rev`) goes up with every write. A second writer who read an older revision is refused (`WriteConflict`); a job looks again once, a person editing what they read is told.
+- **A builder states the whole note** (`exact`): its identifiers and its trail become exactly what the build produced, so an address that turns out to be someone else is released and a source no longer used leaves the trail.
+
+**Checked:** `tests/wikiIdentity.test.ts` (13 tests) with 8 of 8 mutants killed; the builder's cases in `tests/wikiBuilder.test.ts`; the store's earlier tests unchanged and passing against a stand-in that really rolls back. A dry run on production gives the same 361 notes as before (252 people, 95 meetings, 12 companies, 2 groups): no person on production depended on the name-alone merge.
+
+**Not in this part:** meeting notes have no outside identifier yet (a rescheduled or retitled event could otherwise pull two notes into one); a screen for "these two are one person"; typed links (`[[person:Ali]]`) for the ambiguous case.
 
 ## 1. Owner direction (2026-11-12)
 

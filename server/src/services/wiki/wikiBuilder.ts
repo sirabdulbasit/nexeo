@@ -22,7 +22,7 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { writeNote, retireNote, citeSources, listSources, WIKI_GENERATION, type NoteInput } from './wikiStore';
+import { writeNote, retireNote, mergeNotes, citeSources, listSources, normalizeIds, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
@@ -44,6 +44,8 @@ export interface BuildContext {
   knownPhones?: Map<string, string>;
   /** The moment of the build; defaults to now. Later dates are upcoming, not contact. */
   now?: Date;
+  /** Groups of addresses the user has said are one person (`email:a@x.com`); the only merge that needs no other evidence. */
+  confirmedSame?: string[][];
 }
 
 export type BuiltNote = Omit<NoteInput, 'clientNumber' | 'userId' | 'actor'>;
@@ -153,6 +155,8 @@ interface PersonDraft {
   directChats: number;
   spaceMessages: number;
   sources: Array<{ id: string; at: Date }>;
+  /** Titles of other people with the same name who were NOT merged, for want of evidence. */
+  possiblySame: Set<string>;
 }
 
 function bump<K>(m: Map<K, number>, k: K, n = 1): void {
@@ -196,7 +200,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
   };
   const newDraft = (at: Date): PersonDraft => ({
     title: '', emails: new Map(), names: new Map(), first: at, last: at, reasons: new Set(),
-    threads: new Map(), meetings: new Map(), groups: new Map(), directChats: 0, spaceMessages: 0, sources: [],
+    threads: new Map(), meetings: new Map(), groups: new Map(), directChats: 0, spaceMessages: 0, sources: [], possiblySame: new Set(),
   });
   const touch = (p: PersonDraft, it: StoredItem) => {
     if (it.at < p.first) p.first = it.at;
@@ -347,6 +351,16 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     else byMailbox.set(id, p);
   }
 
+  // One person because the user said so: the addresses he confirmed are one.
+  for (const group of ctx.confirmedSame ?? []) {
+    const emails = new Set(group.filter((x) => x.startsWith('email:')).map((x) => x.slice(6)));
+    const keys = [...byMailbox.entries()].filter(([, d]) => [...d.emails.keys()].some((e) => emails.has(e))).map(([k]) => k);
+    for (const k of keys.slice(1)) {
+      mergeInto(byMailbox.get(keys[0])!, byMailbox.get(k)!);
+      byMailbox.delete(k);
+    }
+  }
+
   // Name each person: the name they are most often written with; a one-word
   // name gives way to a fuller one read from the address.
   const orgsOf = (p: PersonDraft) =>
@@ -360,18 +374,25 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     if (tokens(name).length < 2 && tokens(fromAddress).length >= 2) name = fromAddress;
     let title = noteTitle(fixNameOrder(name)) || emails[0];
     if (titleKey(title) === ownKey) continue; // the user's own other address
-    // Same name: one person when the addresses do not put them at two different organisations.
+    // Same name: one person only on evidence, which is the same mailbox name or the same
+    // organisation. A matching name alone (a work address and a personal one, say) is not
+    // evidence: they stay two notes that point at each other until the user says they are one
+    // (docs/Wiki-Knowledge.md §0.7 standard 2).
     const into = byName.get(titleKey(title));
     if (into) {
       const a = orgsOf(into);
       const b = orgsOf(p);
       const locals = new Set([...into.emails.keys()].map((e) => e.split('@')[0]));
       const sameMailbox = emails.some((e) => locals.has(e.split('@')[0]));
-      if (sameMailbox || a.size === 0 || b.size === 0 || [...a].some((o) => b.has(o))) {
+      if (sameMailbox || [...a].some((o) => b.has(o))) {
         mergeInto(into, p);
         continue;
       }
-      title = noteTitle(`${title} (${domainOf(emails[0])})`);
+      let second = noteTitle(`${title} (${domainOf(emails[0])})`);
+      if (byName.has(titleKey(second))) second = noteTitle(`${title} (${emails[0]})`);
+      title = second;
+      p.possiblySame.add(into.title);
+      into.possiblySame.add(title);
     }
     p.title = title;
     byName.set(titleKey(title), p);
@@ -447,6 +468,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       title: domain,
       body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`)].join('\n'),
       properties: { domains, people: names.length },
+      ids: domains.map((d) => `domain:${d}`),
     });
   }
 
@@ -459,6 +481,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     if (emails.length) lines.push(`**Email:** ${emails.join(', ')}`);
     if (phone) lines.push(`**Phone:** ${phone}`);
     lines.push(`**Last contact:** ${day(p.last)}`);
+    if (p.possiblySame.size) lines.push(`**Possibly the same person:** ${[...p.possiblySame].sort().map((t) => wikiLink(t)).join(', ')}`);
     if (p.meetings.size) {
       lines.push('', '## Meetings');
       for (const [k, v] of recent(p.meetings).slice(0, LIST_LIMIT)) {
@@ -491,6 +514,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         chatMessages: p.directChats + p.spaceMessages,
         knownFrom: [...p.reasons].sort(),
       },
+      ids: emails.map((e) => `email:${e}`),
       sourceIds: citedSources(p.sources),
     });
   }
@@ -507,6 +531,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       body: [`Chat space. ${g.messages} messages stored, last on ${day(g.last)}.`, '', '## People who write here',
         ...members.map((m) => `- ${wikiLink(m.title)} — ${m.n} ${m.n === 1 ? 'message' : 'messages'}`)].join('\n'),
       properties: { space: g.space, messages: g.messages, lastOn: day(g.last) },
+      ...(g.space ? { ids: [`space:${g.space}`] } : {}),
       sourceIds: citedSources(g.sources),
     });
   }
@@ -579,7 +604,17 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
     if (k.name && !String(k.name).includes('@')) knownNames.set(email, k.name);
     if (k.phone) knownPhones.set(email, k.phone);
   }
-  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones };
+  // What the user has said is one person stays one person in every build.
+  const people = await (prisma as any).wikiPage.findMany({
+    where: { clientNumber, userId, pageType: 'person', status: 'active' },
+    select: { metadata: true },
+  });
+  const confirmedSame: string[][] = [];
+  for (const p of people) {
+    const groups = (p.metadata as any)?.confirmedSame;
+    if (Array.isArray(groups)) for (const g of groups) if (Array.isArray(g) && g.length > 1) confirmedSame.push(g.map(String));
+  }
+  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame };
 }
 
 export interface RebuildResult {
@@ -591,6 +626,10 @@ export interface RebuildResult {
   unchanged: number;
   /** Notes the build no longer produces, taken out of the wiki (restorable). */
   retired: number;
+  /** Notes found by their identifier and given a new title. */
+  renamed: number;
+  /** Notes folded into another on evidence (restorable). */
+  merged: number;
   byType: Record<string, number>;
 }
 
@@ -618,39 +657,63 @@ export async function rebuildWikiForUser(
   let created = 0;
   let unchanged = 0;
   let retired = 0;
+  let renamed = 0;
+  let merged = 0;
   if (!opts.dryRun) {
     const existing = await (prisma as any).wikiPage.findMany({
       where: { clientNumber, userId, lastUpdatedBy: BUILDER_ACTOR },
       select: { id: true, pageType: true, title: true, bodyMarkdown: true, metadata: true, status: true },
     });
     const stored = new Map<string, any>(existing.map((e: any) => [`${e.pageType}|${e.title}`, e]));
+    const sameIds = (have: unknown, built?: string[]) => JSON.stringify(normalizeIds(have)) === JSON.stringify(normalizeIds(built ?? []));
+    // Every note this run stands behind, by its id: a note found by its identifier and renamed is
+    // still the same note, so the retiring below goes by id, not by title.
+    const kept = new Set<string>();
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
-      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
+      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length && sameIds(have.metadata?.ids, n.ids)) {
         // The text is current, but a new source may still belong to its trail.
         if (n.sourceIds?.length) await citeSources({ clientNumber, userId }, have.id, n.sourceIds);
         unchanged += 1;
+        kept.add(have.id);
         continue;
       }
-      const r = await writeNote({ ...n, clientNumber, userId, actor: BUILDER_ACTOR });
+      const input = { ...n, clientNumber, userId, actor: BUILDER_ACTOR, exact: true };
+      let r;
+      try {
+        r = await writeNote(input);
+      } catch (err) {
+        if (!(err instanceof IdentityConflict)) throw err;
+        // The build put identifiers of two notes into one thing, which it does only on evidence
+        // (the same mailbox at one organisation, or the user's word): fold the notes together.
+        const titled = existing.find((e: any) => err.noteIds.includes(e.id) && e.title === cleanTitle(n.title));
+        const survivor = titled?.id ?? err.noteIds[0];
+        for (const other of err.noteIds) {
+          if (other === survivor) continue;
+          await mergeNotes({ clientNumber, userId }, survivor, other, BUILDER_ACTOR, 'the build found one thing behind both identifiers');
+          kept.add(other);
+          merged += 1;
+        }
+        r = await writeNote(input);
+      }
+      kept.add(r.id);
       written += 1;
       if (r.created) created += 1;
+      if (r.renamedFrom) renamed += 1;
     }
-    // A note the build no longer produces (a person now known by a fuller name,
-    // a sender now recognised as a mailbox) is retired, so it does not linger
-    // as a second copy. Retired, not deleted: it can be restored.
-    const built = new Set(notes.map((n) => `${n.type}|${cleanTitle(n.title)}`));
-    for (const [key, have] of stored) {
-      if (built.has(key) || have.status === 'superseded') continue;
+    // A note the build no longer produces (a sender now recognised as a mailbox) is retired, so it
+    // does not linger as a second copy. Retired, not deleted: it can be restored.
+    for (const have of existing) {
+      if (kept.has(have.id) || have.status === 'superseded') continue;
       await retireNote(have.id, BUILDER_ACTOR);
       retired += 1;
     }
   }
-  return { items: items.length, notes, written, created, unchanged, retired, byType };
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType };
 }
 
 /** Build the notes for every active user, one after another. */
-export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; error?: string }>> {
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
   const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
   return results.map((r) => ({
@@ -659,6 +722,8 @@ export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; 
     created: r.result?.created ?? 0,
     unchanged: r.result?.unchanged ?? 0,
     retired: r.result?.retired ?? 0,
+    renamed: r.result?.renamed ?? 0,
+    merged: r.result?.merged ?? 0,
     ...(r.error ? { error: r.error } : {}),
   }));
 }

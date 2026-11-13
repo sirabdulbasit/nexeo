@@ -106,4 +106,51 @@ describe('buildNotes', () => {
     ], ctx);
     expect(titlesOf(two, 'person')).toEqual(['Ali Raza', 'Ali Raza (two.com)', 'Hector Puyol']);
   });
+
+  // docs/Wiki-Knowledge.md §0.7 standard 2: people are one on evidence, never on a matching name alone.
+  it('does not merge a work address and a personal one on the name alone: two notes that point at each other', () => {
+    const notes = buildNotes([
+      mail('2026-11-01', { threadId: 'a', subject: 'A', from: 'Sara Malik <sara.malik@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-02', { threadId: 'b', subject: 'B', from: 'Sara Malik <smalik88@gmail.com>', to: 'basit@acme.com', userRepliedThread: true }),
+    ], ctx);
+    expect(titlesOf(notes, 'person')).toEqual(['Sara Malik', 'Sara Malik (gmail.com)']);
+    const work = find(notes, 'person', 'Sara Malik')!;
+    const personal = find(notes, 'person', 'Sara Malik (gmail.com)')!;
+    expect(work.ids).toEqual(['email:sara.malik@one.com']);
+    expect(personal.ids).toEqual(['email:smalik88@gmail.com']);
+    expect(work.body).toContain('**Possibly the same person:** [[Sara Malik (gmail.com)]]');
+    expect(personal.body).toContain('**Possibly the same person:** [[Sara Malik]]');
+  });
+
+  it('merges on evidence: the same mailbox name, the same organisation, or the user\'s word', () => {
+    const items = [
+      mail('2026-11-01', { threadId: 'a', subject: 'A', from: 'Omar Zaid <omar.zaid@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-02', { threadId: 'b', subject: 'B', from: 'Omar Zaid <omar.zaid@gmail.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-03', { threadId: 'c', subject: 'C', from: 'Hina Shah <hina@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-04', { threadId: 'd', subject: 'D', from: 'Hina Shah <h.shah@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-05', { threadId: 'e', subject: 'E', from: 'Sara Malik <sara.malik@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      mail('2026-11-06', { threadId: 'f', subject: 'F', from: 'Sara Malik <smalik88@gmail.com>', to: 'basit@acme.com', userRepliedThread: true }),
+    ];
+    const plain = buildNotes(items, ctx);
+    // Same mailbox name (omar.zaid@…) and same organisation (two one.com addresses): one note each.
+    expect([...find(plain, 'person', 'Omar Zaid')!.ids!].sort()).toEqual(['email:omar.zaid@gmail.com', 'email:omar.zaid@one.com']);
+    expect([...find(plain, 'person', 'Hina Shah')!.ids!].sort()).toEqual(['email:h.shah@one.com', 'email:hina@one.com']);
+    expect(titlesOf(plain, 'person')).toEqual(['Hina Shah', 'Omar Zaid', 'Sara Malik', 'Sara Malik (gmail.com)']);
+    // He said the two Sara Maliks are one person: from then on they are built as one.
+    const confirmed = buildNotes(items, { ...ctx, confirmedSame: [['email:sara.malik@one.com', 'email:smalik88@gmail.com']] });
+    expect(titlesOf(confirmed, 'person')).toEqual(['Hina Shah', 'Omar Zaid', 'Sara Malik']);
+    expect([...find(confirmed, 'person', 'Sara Malik')!.ids!].sort()).toEqual(['email:sara.malik@one.com', 'email:smalik88@gmail.com']);
+    expect(find(confirmed, 'person', 'Sara Malik')!.body).not.toContain('Possibly the same person');
+  });
+
+  it('gives a company and a standing group their outside identifiers', () => {
+    const notes = buildNotes([
+      mail('2026-11-01', { threadId: 'a', subject: 'A', from: 'Hina Shah <hina@one.com>', to: 'basit@acme.com', userRepliedThread: true }),
+      chat('2026-11-02', { spaceName: 'spaces/AAA', spaceDisplayName: 'Deals', spaceType: 'SPACE', senderDisplayName: 'Hina Shah', text: 'one' }),
+      chat('2026-11-03', { spaceName: 'spaces/AAA', spaceDisplayName: 'Deals', spaceType: 'SPACE', senderDisplayName: 'Hina Shah', text: 'two' }),
+    ], ctx);
+    expect(find(notes, 'company', 'one.com')!.ids).toEqual(['domain:one.com']);
+    const group = notes.find((x) => x.type === 'group');
+    if (group) expect(group.ids).toEqual(['space:spaces/AAA']);
+  });
 });

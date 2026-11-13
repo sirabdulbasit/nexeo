@@ -12,70 +12,19 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const t = vi.hoisted(() => ({ pages: [] as any[], links: [] as any[], sources: [] as any[], seq: 0 }));
-
-vi.mock('../src/db/prisma', () => {
-  const eq = (a: string, f: any) =>
-    typeof f === 'string' ? a === f : f.mode === 'insensitive' ? a.toLowerCase() === f.equals.toLowerCase() : a === f.equals;
-  const match = (p: any, w: any): boolean =>
-    Object.entries(w ?? {}).every(([k, v]: [string, any]) => {
-      if (k === 'AND') return v.every((c: any) => match(p, c));
-      if (k === 'OR') return v.some((c: any) => match(p, c));
-      if (k === 'title') return eq(p.title, v);
-      if (k === 'id' && v && typeof v === 'object') return p.id !== v.not;
-      if (k === 'metadata') return (p.metadata?.[v.path[0]] ?? []).includes(v.array_contains[0]);
-      return p[k] === v;
-    });
-  const page = (id: string) => t.pages.find((p) => p.id === id);
-  const linkMatch = (l: any, w: any) =>
-    Object.entries(w ?? {}).every(([k, v]: [string, any]) =>
-      k === 'fromPage' ? match(page(l.fromPageId), v) : k === 'toPage' ? match(page(l.toPageId), v) : l[k] === v,
-    );
-  const p: any = {
-    wikiPage: {
-      findUnique: async ({ where }: any) => page(where.id) ?? null,
-      findFirst: async ({ where }: any) => t.pages.find((x) => match(x, where)) ?? null,
-      findMany: async ({ where }: any) => t.pages.filter((x) => match(x, where)),
-      create: async ({ data }: any) => {
-        const row = { id: `p${++t.seq}`, scope: 'user', inboundLinks: 0, outboundLinks: 0, sourceCount: 0, ...data };
-        t.pages.push(row);
-        return row;
-      },
-      update: async ({ where, data }: any) => Object.assign(page(where.id), data),
-    },
-    wikiPageLink: {
-      findMany: async ({ where }: any) =>
-        t.links.filter((l) => linkMatch(l, where)).map((l) => ({ ...l, fromPage: page(l.fromPageId), toPage: page(l.toPageId) })),
-      deleteMany: async ({ where }: any) => {
-        t.links = t.links.filter((l) => !linkMatch(l, where));
-      },
-      createMany: async ({ data }: any) => {
-        for (const d of data)
-          if (!t.links.some((l) => l.fromPageId === d.fromPageId && l.toPageId === d.toPageId && l.linkType === d.linkType)) t.links.push(d);
-      },
-      count: async ({ where }: any) => t.links.filter((l) => linkMatch(l, where)).length,
-    },
-    wikiPageSource: {
-      findFirst: async ({ where }: any) => t.sources.find((s) => Object.entries(where).every(([k, v]) => s[k] === v)) ?? null,
-      create: async ({ data }: any) => t.sources.push(data),
-      count: async ({ where }: any) => t.sources.filter((s) => s.wikiPageId === where.wikiPageId).length,
-    },
-  };
-  return { __esModule: true, default: p, prisma: p };
+vi.mock('../src/db/prisma', async () => {
+  const { prismaFake } = await import('./helpers/wikiPrismaFake');
+  return { __esModule: true, default: prismaFake, prisma: prismaFake };
 });
 
+import { t, resetWiki } from './helpers/wikiPrismaFake';
 import { writeNote, getNote, adoptAsNote, WIKILINK } from '../src/services/wiki/wikiStore';
 import { renderRecordBody } from '../src/services/integrations/engine/contextWriter';
 
 const base = { clientNumber: 'T-1', userId: 1, actor: 'test' };
 const titles = (refs: Array<{ title: string }>) => refs.map((r) => r.title);
 
-beforeEach(() => {
-  t.pages = [];
-  t.links = [];
-  t.sources = [];
-  t.seq = 0;
-});
+beforeEach(() => resetWiki());
 
 describe('wikiStore', () => {
   it('turns [[links]] in the text into links, and returns backlinks on read', async () => {
