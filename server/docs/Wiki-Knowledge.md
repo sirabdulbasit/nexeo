@@ -391,6 +391,15 @@ Checked on the production database with throwaway rows, 6 of 6: five markers at 
 
 **On production, 13 Nov 19:33–19:50 PKT, for the founder, his whole history:** 371 conversations read, **$0.34 in all** (402 calls, 0 failed). **72 projects, 155 topics, 48 decisions, 341 commitments**: 160 open (60 of them his own), 74 done, 7 dropped, 100 kept as history. 1 link of 616 notes still waits for its note. Checked: `tests/wikiMeaning.test.ts` (7 tests, model mocked).
 
+**Checked against his own word the same evening, and corrected (meaning-v2).** He went through his Action Center at 19:00 (with Nexeo-Builder): 13 tasks his, 8 someone else's ("watch"), 10 closed at his yes. The first build matched only 6 of his 13, gave him 4 of the 8 that are not his, kept 7 closed ones open, and listed 50 more "his" open items. Four causes, all fixed:
+
+1. **Brain's own mail was read as his conversations:** the Day Brief, "Intervention needed" prompts and alerts are sent from his address to himself (244 threads). They are no longer conversations.
+2. **Who owes a task:** the model now gives a task to the person it is put to (named, or the To recipient), never to someone only in Cc; a delegation he gives is his follow-through, with the delegate named.
+3. **His word wins over the model:** his Action Center rulings are read with the conversation each came from (`loadRulings`): his own open tasks stay open and his, a "watch" goes to the person he named, a task he closed is done. A task he confirmed that the model did not find becomes a commitment note from his list. A rebuild cannot bring back what he ruled.
+4. **One task in several conversations is one commitment**, citing them all.
+
+After the fixes, against his rulings: **13 of 13** of his tasks are open notes owned by him; none of the 8 "watch" tasks is his; every task he closed is closed (two he named as open, Green Belt sponsor and the Vision Metric feeds, stay open). 31 further open asks to him were found that are not in his Action Center; each note says whether he ruled on it (`ruledBy`), so readers can tell confirmed from new. Re-reading everything with the corrected prompt cost $0.26; meaning notes have cost $0.60 in all.
+
 **Not yet:** the Action Center, the brief and Suzi still read action items from `open_items`, not from commitment notes (moving them is the readers' step, Nexeo-Builder's); a commitment's open or done state is the model's reading of one conversation, not yet joined with replies in other conversations; meetings' transcripts are not read yet (part 11).
 
 #### 0.13.6 Part 9 is LIVE: every rule is a note (Wiki session, 13 Nov 2026; D-250, 18:22 PKT)

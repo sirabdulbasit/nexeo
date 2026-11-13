@@ -27,7 +27,7 @@ export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
 export const OPEN_WINDOW_DAYS = 60;
 const MODEL = 'gemini-flash';
-const PROMPT_VERSION = 'meaning-v1';
+const PROMPT_VERSION = 'meaning-v2';
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_THREAD_CHARS = 20000;
 /** Conversations read by the model at once. */
@@ -54,12 +54,14 @@ Rules:
 - A project is a named piece of work with a goal (a client engagement, an implementation, a proposal). Use its usual name, short. Not a person, not a company, not a meeting.
 - A topic is a recurring subject that is not a project (pricing, hiring, payroll). At most 3.
 - A decision is something that was decided in this conversation, by whom, on which date.
-- A commitment is something someone said they would do, or was asked to do and accepted. owner = who owes it (email address from the conversation), to = who it is owed to. state: "done" when a later message shows it was done, "dropped" when it was cancelled, else "open". evidence: the few words that show the state. date: when it was committed.
+- A commitment is something someone said they would do, or was asked to do and accepted. owner = who owes it (email address from the conversation), to = who it is owed to.
+- Who owes it is the person the request is put to: the person named in it, or the To recipient of the message that asks. Someone only in Cc does not owe it. An ask sent to a group names its owner only when one person is named; otherwise leave owner empty.
+- When the executive delegates work to someone, the delegate owes the work and he owes its follow-through: record it once, owner = the executive, to = the delegate, and say "delegated" in evidence. state: "done" when a later message shows it was done, "dropped" when it was cancelled, else "open". evidence: the few words that show the state. date: when it was committed.
 - Only what the conversation says. Never invent names, dates or emails. Leave a field empty when it is not there.
 - Newsletters, notifications and automated mail: return empty lists.`;
 
 /** The conversations the user wrote in, with their emails oldest first. */
-export function conversationsOf(sources: Source[], ownEmails: Set<string>): Conversation[] {
+export function conversationsOf(sources: Source[], ownEmails: Set<string>, alsoKeys?: Set<string>): Conversation[] {
   const byThread = new Map<string, Source[]>();
   for (const s of sources) {
     const key = s.threadKey || s.id;
@@ -70,9 +72,20 @@ export function conversationsOf(sources: Source[], ownEmails: Set<string>): Conv
     const from = String((s.details as any)?.from ?? '').toLowerCase();
     return labels.includes('SENT') || [...ownEmails].some((e) => from.includes(e));
   };
+  // Brain's own mail (the Day Brief, digests) is sent from his address to his address: it is not a
+  // conversation he had with anyone.
+  const toSelfOnly = (s: Source) => {
+    const d = s.details as any;
+    const from = emailOrNull(d?.from);
+    const to = [d?.to, d?.cc].filter(Boolean).join(',').toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) ?? [];
+    // Only when the recipients are known and are all his own: an email with no recipient field is not taken for Brain's mail.
+    return !!from && ownEmails.has(from) && to.length > 0 && to.every((e) => ownEmails.has(e));
+  };
   const out: Conversation[] = [];
-  for (const [key, list] of byThread) {
-    if (!list.some(wrote)) continue;
+  for (const [key, all] of byThread) {
+    const list = all.filter((s) => !toSelfOnly(s));
+    if (list.length === 0) continue;
+    if (!list.some(wrote) && !alsoKeys?.has(key)) continue;
     const sorted = [...list].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0));
     out.push({ key, subject: sorted[sorted.length - 1].title ?? sorted[0].title ?? '(no subject)', sources: sorted, last: sorted[sorted.length - 1].occurredAt ?? new Date(0) });
   }
@@ -156,10 +169,37 @@ export function openNow(state: string, lastActivity: Date, now: Date, windowDays
 
 type Built = Omit<Parameters<typeof writeNote>[0], 'clientNumber' | 'userId' | 'actor'>;
 
+/**
+ * His own word on an action item (the Action Center), which the reader keeps over the model's reading
+ * (owner, 13 Nov 2026): it is his ("mine"), not his and someone else's ("watch"), or closed at his yes.
+ */
+export interface Ruling {
+  itemId: string;
+  thread: string | null;
+  title: string;
+  kind: 'mine' | 'watch' | 'closed';
+  ownerEmail?: string | null;
+  ownerName?: string | null;
+  why?: string | null;
+  delegate?: string | null;
+}
+
+const RSTOP = new Set('the a an and or of to for on in with from by your you his her their is be get make send give tell add order report reply share follow up who what why how this that about into at it its as are was were will ki karni hai'.split(' '));
+function rwords(t: string): Set<string> {
+  return new Set(String(t).toLowerCase().replace(/[^a-z0-9\u0600-\u06ff ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !RSTOP.has(w)));
+}
+/** How much two task descriptions say the same thing: shared words over the shorter one. */
+export function sameTask(a: string, b: string): number {
+  const A = rwords(a); const B = rwords(b);
+  let n = 0;
+  for (const w of A) if (B.has(w)) n += 1;
+  return n / Math.max(1, Math.min(A.size, B.size));
+}
+
 /** Extractions in, notes out. Pure. */
 export function buildMeaningNotes(
   items: Array<{ conv: Conversation; ex: Extracted }>,
-  ctx: { personByEmail: Map<string, string>; now: Date; ownEmails?: Set<string> },
+  ctx: { personByEmail: Map<string, string>; now: Date; ownEmails?: Set<string>; rulings?: Ruling[] },
 ): Built[] {
   const own = ctx.ownEmails ?? new Set<string>();
   const person = (e?: string | null) => (e && own.has(e) ? 'you' : e && ctx.personByEmail.get(e) ? wikiLink(ctx.personByEmail.get(e)!) : e ?? null);
@@ -176,6 +216,7 @@ export function buildMeaningNotes(
     return out;
   };
 
+  const usedRulings = new Set<string>();
   for (const { conv, ex } of items) {
     const sourceIds = conv.sources.map((s) => s.id);
     const convPeople = peopleOf(conv);
@@ -213,17 +254,29 @@ export function buildMeaningNotes(
         sourceIds,
       });
     }
-    for (const c of ex.commitments) {
-      const open = openNow(c.state, conv.last, ctx.now);
+    for (const c0 of ex.commitments) {
+      // His word on the same task in the same conversation wins over the model's reading.
+      // A ruling from the same conversation matches on fewer shared words than one whose conversation is not known.
+      const ruling = (ctx.rulings ?? []).filter((r) => r.thread === conv.key || !r.thread)
+        .map((r) => ({ r, s: sameTask(r.title, c0.what) })).filter((x) => x.s >= (x.r.thread ? 0.34 : 0.5)).sort((x, y) => y.s - x.s)[0]?.r;
+      if (ruling) usedRulings.add(ruling.itemId);
+      const ownFirst = [...own][0] ?? null;
+      const c = ruling?.kind === 'watch' ? { ...c0, owner: ruling.ownerEmail ?? c0.owner, evidence: `not his: ${ruling.why ?? 'he watches it'}` }
+        : ruling?.kind === 'mine' ? { ...c0, owner: own.has(c0.owner ?? '') ? c0.owner : ownFirst, state: 'open' as const, evidence: c0.evidence ?? 'his task (confirmed in his Action Center)' }
+          : ruling?.kind === 'closed' ? { ...c0, state: 'done' as const, evidence: `closed at his word: ${ruling.why ?? ''}`.trim() }
+            : c0;
+      const ownerLabelEmail = ruling?.kind === 'watch' && !ruling.ownerEmail ? null : c.owner;
+      const open = ruling?.kind === 'mine' ? true : openNow(c.state, conv.last, ctx.now);
       const shownState = c.state === 'open' && !open ? 'history' : c.state;
-      const owner = c.owner ? (own.has(c.owner) ? 'you' : ctx.personByEmail.get(c.owner) ?? c.owner) : 'unknown';
+      const owner = ruling?.kind === 'watch' && !ruling.ownerEmail ? ruling.ownerName ?? 'someone else'
+        : ownerLabelEmail ? (own.has(ownerLabelEmail) ? 'you' : ctx.personByEmail.get(ownerLabelEmail) ?? ownerLabelEmail) : 'unknown';
       const title = cleanTitle(`${c.what} (${owner})`).slice(0, 180);
       for (const pt of projectTitles) projects.get(titleKey(pt))?.commitments.push(title);
       notes.push({
         type: 'commitment', title,
         body: [
           `**What:** ${c.what}`,
-          `**Owed by:** ${person(c.owner) ?? 'not named'}`,
+          `**Owed by:** ${ruling?.kind === 'watch' && !ruling.ownerEmail ? ruling.ownerName ?? 'someone else' : person(c.owner) ?? 'not named'}`,
           ...(c.to ? [`**Owed to:** ${person(c.to)}`] : []),
           `**State:** ${shownState === 'history' ? 'open when last discussed, no activity since; kept as history' : shownState}`,
           ...(c.due ? [`**Due:** ${c.due}`] : []),
@@ -232,7 +285,7 @@ export function buildMeaningNotes(
           ...(projectTitles.length ? [`**Project:** ${projectTitles.map((t) => wikiLink(t)).join(', ')}`] : []),
           `**Conversation:** ${conv.subject}`,
         ].join('\n'),
-        properties: { state: shownState, openNow: open, owner: c.owner ?? null, ownedByYou: !!c.owner && own.has(c.owner), to: c.to ?? null, due: c.due, lastActivity: day(conv.last), conversation: conv.key },
+        properties: { what: c.what, state: shownState, openNow: open, owner: c.owner ?? null, ownedByYou: ruling?.kind === 'watch' ? false : !!c.owner && own.has(c.owner), to: c.to ?? null, due: c.due, lastActivity: day(conv.last), conversation: conv.key, ...(ruling ? { ruledBy: 'him', ruling: ruling.kind, actionItem: ruling.itemId } : {}) },
         ids: [`commitment:${conv.key}:${titleKey(c.what).slice(0, 80)}`],
         sourceIds,
       });
@@ -269,6 +322,51 @@ export function buildMeaningNotes(
       sourceIds: [...new Set(t.convs.flatMap((c) => c.sources.map((s) => s.id)))],
     });
   }
+  // A task he confirmed as his that the model did not find becomes a commitment note from his own list.
+  const convByKey = new Map(items.map((i) => [i.conv.key, i.conv]));
+  for (const r of ctx.rulings ?? []) {
+    if (r.kind !== 'mine' || usedRulings.has(r.itemId)) continue;
+    const conv = r.thread ? convByKey.get(r.thread) : undefined;
+    notes.push({
+      type: 'commitment', title: cleanTitle(`${r.title} (you)`).slice(0, 180),
+      body: [
+        `**What:** ${r.title}`, '**Owed by:** you', ...(r.delegate ? [`**Delegated to:** ${r.delegate}`] : []),
+        '**State:** open', '**Evidence:** "his task (confirmed in his Action Center)"',
+        ...(conv ? [`**Last activity:** ${day(conv.last)}`, `**Conversation:** ${conv.subject}`] : []),
+      ].join('\n'),
+      properties: { what: r.title, state: 'open', openNow: true, owner: [...own][0] ?? null, ownedByYou: true, to: null, due: null, lastActivity: conv ? day(conv.last) : null, conversation: r.thread, ruledBy: 'him', ruling: 'mine', actionItem: r.itemId },
+      ids: [`commitment:item:${r.itemId}`],
+      sourceIds: conv ? conv.sources.map((s) => s.id) : [],
+    });
+  }
+
+  // One task in several conversations is one commitment: same owner and the same words. The newest keeps
+  // its title and state; it cites every conversation.
+  const commitments = notes.filter((n) => n.type === 'commitment');
+  const dropped = new Set<Built>();
+  const rename = new Map<string, string>();
+  for (let i = 0; i < commitments.length; i += 1) {
+    const a = commitments[i];
+    if (dropped.has(a)) continue;
+    for (let j = i + 1; j < commitments.length; j += 1) {
+      const b = commitments[j];
+      if (dropped.has(b) || (a.properties as any).owner !== (b.properties as any).owner) continue;
+      if (sameTask(String((a.properties as any).what ?? a.title), String((b.properties as any).what ?? b.title)) < 0.6) continue;
+      const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
+      keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
+      // His word on either copy holds for the one note.
+      if ((gone.properties as any).ruledBy && !(keep.properties as any).ruledBy) {
+        keep.properties = { ...keep.properties, ...Object.fromEntries(['state', 'openNow', 'ownedByYou', 'ruledBy', 'ruling', 'actionItem'].map((k) => [k, (gone.properties as any)[k]])) };
+        keep.body = gone.body;
+      }
+      dropped.add(gone);
+      rename.set(titleKey(gone.title), keep.title);
+      if (keep === b) break;
+    }
+  }
+  for (let i = notes.length - 1; i >= 0; i -= 1) if (dropped.has(notes[i])) notes.splice(i, 1);
+  for (const n of notes) n.body = n.body.replace(/\[\[([^\]|]+)\]\]/g, (m, t) => (rename.has(titleKey(t)) ? `[[${rename.get(titleKey(t))}]]` : m));
+
   // A topic that is also a project is the project.
   const projectKeys = new Set([...projects.keys()]);
   // One title per type: a repeated decision or commitment title keeps the first. Projects and
@@ -283,6 +381,39 @@ export function buildMeaningNotes(
     seen.add(k);
     return true;
   });
+}
+
+/**
+ * His word on his action items, from the Action Center (open_items), with the conversation each came
+ * from: his open tasks, the ones he said are someone else's ("watch"), and the ones he closed.
+ * Closed by an older automatic clean-up (no `closedBy`) is not his word and is not read.
+ */
+export async function loadRulings(clientNumber: string, userId: number): Promise<Ruling[]> {
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT o.id, o.title, o.status, o.metadata, o.delegatee_name,
+            COALESCE(s1.thread_key, s2.thread_key, o.metadata->'derivedFrom'->>'threadId') AS thread,
+            o.metadata->'sourceEmail'->>'link' AS link
+       FROM open_items o
+       LEFT JOIN wiki_sources s1 ON s1.client_number = o.client_number AND s1.user_id = o.user_id AND s1.feed_event_id = o.source_feed_event_id
+       LEFT JOIN wiki_sources s2 ON s2.client_number = o.client_number AND s2.user_id = o.user_id AND s2.feed_event_id = o.metadata->'derivedFrom'->>'feedEventId'
+      WHERE o.client_number = $1 AND o.user_id = $2
+        AND (o.status IN ('NEW','TRIAGED','DRAFT','DELEGATED') OR o.metadata ? 'closedBy' OR o.metadata ? 'watch')`,
+    clientNumber, userId,
+  ).catch(() => []);
+  const fromLink = (link: string | null) => {
+    const m = link ? String(link).match(/thread-f:(\d+)/) : null;
+    try { return m ? BigInt(m[1]).toString(16) : null; } catch { return null; }
+  };
+  const out: Ruling[] = [];
+  for (const r of rows) {
+    const m = r.metadata ?? {};
+    const thread = r.thread ?? fromLink(r.link);
+    const title = String(r.title ?? '').replace(/^Watch \([^)]*\):\s*/, '');
+    if (m.watch) out.push({ itemId: r.id, thread, title, kind: 'watch', ownerEmail: m.watch.email ?? null, ownerName: m.watch.person ?? null, why: m.watch.why ?? null });
+    else if (m.closedBy && ['CLOSED', 'CANCELLED', 'DONE'].includes(r.status)) out.push({ itemId: r.id, thread, title, kind: 'closed', why: m.closedBy.why ?? null });
+    else if (['NEW', 'TRIAGED', 'DRAFT', 'DELEGATED'].includes(r.status)) out.push({ itemId: r.id, thread, title, kind: 'mine', delegate: r.delegatee_name ?? null });
+  }
+  return out;
 }
 
 /**
@@ -306,7 +437,12 @@ export async function rebuildMeaningForUser(
     const labels = Array.isArray((s.details as any)?.labels) ? (s.details as any).labels : [];
     if (labels.includes('SENT')) { const e = emailOrNull((s.details as any)?.from); if (e) ownEmails.add(e); }
   }
-  const convs = conversationsOf(sources, ownEmails);
+  const rulings = await loadRulings(clientNumber, userId);
+  // A conversation he did not write in still counts when one of his tasks came from it, or when it was judged to need him.
+  const attention = await marksOf(clientNumber, userId, sources.map((x) => x.id));
+  const alsoKeys = new Set<string>(rulings.map((r) => r.thread).filter((t): t is string => !!t));
+  for (const x of sources) if ((attention.get(x.id) ?? []).some((m) => m.kind === 'attention' && (m.value as any)?.class === 'needs_you')) alsoKeys.add(x.threadKey || x.id);
+  const convs = conversationsOf(sources, ownEmails, alsoKeys);
   const call = opts.call ?? (async (sys: string, msg: string) => {
     const { callLLM } = await import('../llmRouter');
     const r = await callLLM(sys, msg, { providers: [MODEL as any], maxTokens: 2000, timeoutMs: 60_000, userId, clientNumber, purpose: 'wiki_meaning' });
@@ -350,7 +486,7 @@ export async function rebuildMeaningForUser(
   });
   const personByEmail = new Map<string, string>();
   for (const p of people as any[]) for (const id of p.metadata?.ids ?? []) if (String(id).startsWith('email:')) personByEmail.set(String(id).slice(6), p.title);
-  const notes = renameClashes(buildMeaningNotes(items, { personByEmail, now, ownEmails }),
+  const notes = renameClashes(buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings }),
     await prisma.wikiPage.findMany({
       where: { clientNumber, OR: [{ scope: 'tenant' }, { userId }], status: 'active', metadata: { path: ['wiki'], equals: WIKI_GENERATION }, NOT: { lastUpdatedBy: MEANING_ACTOR } },
       select: { title: true },
