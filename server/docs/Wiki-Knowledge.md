@@ -362,7 +362,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 1. **The rebuild is a re-scribe from the connectors.** *"i will scrine or rescribe from connector."* He runs it himself, from the Connectors screen. So Scribe is the door the rebuild goes through, and it has to reach everything (§0.13.1 item 1) and write the new structure.
 2. **The 90-day line for the model is still not ruled on** (§0.13.1 item 2). He was asked and answered about how the rebuild is run, not about that line. To be asked again, directly, before meaning notes are built.
-3. **W-1 is agreed by all three** (*"agreed from my side"*): the agreement with Suzi on what she reads from the Wiki. Recorded in `NEXEO_SUZI_AGREEMENT.md`.
+3. **W-1, "Wiki first", is agreed by all three** (*"agreed from my side"*, 16:25 PKT): the founder, Nexeo and Suzi Master, with safeguard S1 (a device's signing keys stay on the device). The rule of §0 now binds Suzi's side too. Recorded in `NEXEO_SUZI_AGREEMENT.md`.
 4. **Older open items are closed as superseded by the rebuild.** *"leave it we will build new wiki from new feed from connector and rules."* That covers: TMC Context into the Wiki, the 2,000-page limit, KPI notes as a separate item, Suzi's send switch, "fix the brief", and the email-to-item gate. None of them is worked on as its own item; what each needs comes from the new Wiki, built from the connectors' feed and his rules.
 
 #### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)
