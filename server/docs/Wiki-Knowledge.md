@@ -76,6 +76,25 @@ derived index. Owner of each move in brackets.
 3. A change that alters what Suzi receives is agreed with Suzi Master first (`NEXEO_SUZI_AGREEMENT.md`).
 4. The three Brain documents record each move (DEF rows, chart rows).
 
+### 0.6 Two kinds of wiki, chosen per user (owner, 2026-11-13)
+
+*"i want everything should be part of wiki, where in future we may have 2 options of wiki: 1. Nexeo Wiki (Currently we
+are using it) 2. Obsidian wiki (but next we will add this as an option for each user to select his knoweldge source)"*
+
+1. **Nexeo Wiki:** in Nexeo's database, Obsidian-style. It is in use now and is every user's default.
+2. **Obsidian wiki:** the user's own Obsidian vault as his knowledge source, chosen per user in Settings. Coming next;
+   not built.
+
+What this requires of everything built now:
+- **One door.** Every part reads and writes knowledge only through the Wiki store's interface (`wikiStore`: write note,
+  get note, links, backlinks, sources). Nothing reaches into the Nexeo Wiki's tables directly, so the store behind the
+  door can be either kind for a given user.
+- **Obsidian's own shapes.** A note is Markdown with properties (front matter), `[[links]]` and tags; sources are files
+  a note links to. A Nexeo Wiki note must translate to an Obsidian note and back without loss.
+- **Per-user choice.** The knowledge source is a setting of each user. Company knowledge (integrations) still reaches
+  every user of the client, whichever source each chose.
+- **Existing start:** `obsidianVaultService.ts` already exports a vault to the user's Drive (export only).
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
