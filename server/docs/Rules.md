@@ -70,6 +70,15 @@ it into a structured rule and follows it from then on.
 | `fulfilled` | A one-off is done (e.g. a todo) | Set by Brain |
 | `archived` | Removed from the list | **Archive** |
 
+> **Found and fixed 13 Nov 2026 (DEF-458).** A rule is read only while its page status is
+> `active` **and** its own `metadata.status` is `active`. The hourly wiki linter
+> (`wikiLinterService.ts`) relabelled every page that has no links as `orphan`, and an
+> instruction has no links. So every standing instruction stopped being read within an hour of
+> being saved: Brain did not follow it and this tab showed "No standing instructions yet",
+> although the user's own setting still said active. The linter now leaves alone any page that
+> keeps its own lifecycle. **The 12 instructions already relabelled are not restored yet:**
+> switching months-old orders back on changes what Brain does, so that waits for the owner's yes.
+
 ### 2.5 How Brain uses it
 - **Every answer and draft:** `getActiveInstructions` loads up to 30 active rules (client rules
   first, then yours). `renderInstructionsBlock` adds them to the prompt as
@@ -199,3 +208,4 @@ fields changes the shared contract, so both sides must agree first (see
 | Date | Change | Commit |
 |---|---|---|
 | 2026-11-13 | Document created from the code as it stands (no behaviour change). The §8 gap was found while writing it | (this commit) |
+| 2026-11-13 | DEF-458: the hourly wiki linter no longer relabels a standing instruction as `orphan` or `stale` (it made every instruction unread within the hour). No instruction's status was changed by this commit; restoring the 12 affected ones waits for the owner | (this commit, Wiki session) |

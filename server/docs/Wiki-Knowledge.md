@@ -174,6 +174,36 @@ It is done when the ledger shows nothing outside the Wiki **and** every row of t
 
 **Until A3 lands, interim (Nexeo-Builder):** My Rules lists Suzi's email rules beside the standing instructions, with Remove = `rule.remove`; a typed instruction that is an email rule also becomes the email rule Suzi's list applies, linked to the instruction (pause or archive carries over). This is DEF-457. It is not built yet: the owner asked to agree how rules work first, and this section is that agreement.
 
+### 0.10 Rules are Wiki knowledge, so Nexeo thinks with them (owner, 2026-11-13, Wiki session)
+
+*"read rules.md. this should also be part of wiki so Nexeo can improve its thinking, reasoning, proactiveness, alertness etc."*
+
+Read as: every rule `docs/Rules.md` describes is a **rule note** in the Wiki, linked to the people, companies and topics it names, so the thinking part is given a person's rules with everything else known about that person, can say which rule made it alert him, and can see rules that repeat or contradict each other. This is A3 of the ledger and builds on §0.9 (one rule, one note).
+
+**Three conditions, from the review he pasted with it, adopted as requirements:**
+
+1. **Complete and current. No rule is dropped silently.** Two drops existed on 13 Nov:
+   - The hourly wiki linter relabelled every standing instruction `orphan` (an instruction has no links), and the reader accepts only `active`. All 12 instructions on production were unread: Brain followed none and My Rules showed "No standing instructions yet". The same job had turned every deleted or retired page back into a live one (0 of 16,204 pages were left deleted or retired). **Fixed as DEF-458:** the linter labels only pages whose status is its to set (`linterOwns`). The 12 instructions are **not restored yet**: that waits for the owner's yes.
+   - `getActiveInstructions` reads at most 30 rules and says nothing when there are more. Not reached today (8). To be closed when rule notes are read instead.
+2. **What kind of rule it is stays visible.** A rule note says who made it and what it is: an instruction in his words, a learned pattern (proposes only, §0.9.3), a permission (what may be done without asking), or a system rule. They are never merged into one list without that mark.
+3. **Private stays private.** A personal rule and its evidence are the user's alone; a client rule is shared inside the client and nowhere else; a client rule winning over a personal one never opens a private note. The citation rule of §0.7 standard 3 (`mayCite`) applies to rule notes as to any note.
+
+**The rule stores on production, counted 13 Nov:**
+
+| Store | Rows | What it is |
+|---|---|---|
+| Standing instructions (`wiki_pages`, type `instruction`) | 12 (8 of user 2, 4 of user 3) | His typed orders. In the Wiki's table, but not linked notes |
+| `user_action_rules` | 4 | Action rules, including the email rules set through Suzi |
+| `shadow_rules` | 2 | Patterns learned from his decisions |
+| `user_prompt_overlay` | 0 | Learned preferences on how to answer him |
+| `risk_rules` | 8 | Risk Radar checks |
+| `gate_rules` | 10 | What may become an action item |
+| `muted_senders` | 31 | Senders he silenced |
+| `wa_sender_policy` | 12 | Who Nexeo may read or message on WhatsApp |
+| `delegation_matrix`, `delegation_authorization_grants`, `risk_rule_overrides`, `gate_rule_overrides`, `rule_lifecycle` | 0 each | Empty today |
+
+**Build, first slice (not built yet):** one `rule` note per row of every store above, facts only, no model: his words, what it applies to, what it does, who made it, its state; `[[links]]` to the person and company notes it names; the store and row id kept on the note as its outside identifier (§0.7 standard 2), so a rule typed as an instruction and applied as an email rule is one note. Built hourly with the other notes. The stores stay the working copy until each reader moves to the note (§6b); nothing Suzi receives changes without her agreement.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

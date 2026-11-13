@@ -15,6 +15,12 @@
  *
  * The linter NEVER deletes. It only labels. The MD sees stale/orphan in the
  * Knowledge Center index and decides what to do.
+ *
+ * It labels only pages whose status is its to set (`linterOwns`, DEF-458).
+ * Until 2026-11-13 it relabelled every row of `wiki_pages`, which
+ *   - made every standing instruction 'orphan' within the hour (an instruction
+ *     has no links), so Brain and My Rules, which read status 'active', saw none;
+ *   - turned every deleted or retired page back into a live one.
  */
 import prisma from '../../db/prisma';
 import { WIKI_STALE_DAYS } from '../wiki/wikiStaleness';
@@ -26,7 +32,36 @@ export interface LintSummary {
   marked_orphan: number;
   marked_contradicted: number;
   unchanged: number;
+  /** Pages whose status belongs to someone else: left exactly as they are. */
+  not_owned: number;
   durationMs: number;
+}
+
+/** The four labels the linter gives. A page in any other status was put there by its owner. */
+export const LINT_LABELS = ['active', 'stale', 'orphan', 'contradicted'];
+
+/**
+ * Is this page's status the linter's to set?
+ *  - not when its status is not one of the linter's own labels (deleted,
+ *    superseded, draft, …): that is a decision somebody made;
+ *  - not when the page keeps its own lifecycle (`metadata.status`: a standing
+ *    instruction is active, paused, fulfilled or archived by the user's word);
+ *  - not when it is a note of the new wiki (`metadata.wiki`): the wiki store
+ *    sets its status, its link counts and its source count.
+ */
+export function linterOwns(page: { status: string; ownLifecycle: boolean; isNote: boolean }): boolean {
+  return LINT_LABELS.includes(page.status) && !page.ownLifecycle && !page.isNote;
+}
+
+/** The label for a page the linter owns. */
+export function lintLabel(
+  r: { inbound_refs: number; outbound_refs: number; source_refs: number; contradicts_refs: number; last_updated_at: Date },
+  staleCutoff: Date,
+): string {
+  if (r.contradicts_refs > 0) return 'contradicted';
+  if (r.inbound_refs === 0 && r.outbound_refs === 0 && r.source_refs === 0) return 'orphan';
+  if (new Date(r.last_updated_at) < staleCutoff) return 'stale';
+  return 'active';
 }
 
 const STALE_DAYS = WIKI_STALE_DAYS;
@@ -40,6 +75,7 @@ export async function lintAllWikiPages(): Promise<LintSummary> {
     marked_orphan: 0,
     marked_contradicted: 0,
     unchanged: 0,
+    not_owned: 0,
     durationMs: 0,
   };
 
@@ -48,6 +84,8 @@ export async function lintAllWikiPages(): Promise<LintSummary> {
   const rows = await prisma.$queryRawUnsafe<Array<{
     id: string;
     status: string;
+    own_lifecycle: boolean;
+    is_note: boolean;
     last_updated_at: Date;
     inbound_refs: number;
     outbound_refs: number;
@@ -56,6 +94,8 @@ export async function lintAllWikiPages(): Promise<LintSummary> {
   }>>(
     `SELECT wp.id,
             wp.status,
+            (wp.metadata ? 'status') AS own_lifecycle,
+            (wp.metadata ? 'wiki') AS is_note,
             wp.last_updated_at,
             COALESCE((SELECT COUNT(*) FROM wiki_page_links WHERE to_page_id  = wp.id),0)::int AS inbound_refs,
             COALESCE((SELECT COUNT(*) FROM wiki_page_links WHERE from_page_id = wp.id),0)::int AS outbound_refs,
@@ -69,11 +109,11 @@ export async function lintAllWikiPages(): Promise<LintSummary> {
   const staleCutoff = new Date(Date.now() - STALE_DAYS * 24 * 60 * 60 * 1000);
 
   for (const r of rows) {
-    let newStatus = r.status;
-    if (r.contradicts_refs > 0) newStatus = 'contradicted';
-    else if (r.inbound_refs === 0 && r.outbound_refs === 0 && r.source_refs === 0) newStatus = 'orphan';
-    else if (new Date(r.last_updated_at) < staleCutoff) newStatus = 'stale';
-    else if (r.status !== 'draft') newStatus = 'active';
+    if (!linterOwns({ status: r.status, ownLifecycle: r.own_lifecycle === true, isNote: r.is_note === true })) {
+      summary.not_owned += 1;
+      continue;
+    }
+    const newStatus = lintLabel(r, staleCutoff);
 
     const countsDifferent = false; // counters updated below
     if (newStatus === r.status && !countsDifferent) { summary.unchanged += 1; }
