@@ -423,6 +423,20 @@ Checked on the production database with throwaway rows, 6 of 6: five markers at 
 
 **Live as D-241 and D-242 (16:19 and 16:24 PKT).** D-241's reconcile did not converge: it re-landed about 640 email texts on every run, because the old email pages for those emails hold only the same preview the source already has. D-242 makes the reconcile skip a text the source already holds. After it: two runs, both users, 0 missing, 0 texts landed; 640 email sources still say they hold a preview, which is the truth (the full email was never fetched for them; the rebuild's full read brings it). Not yet seen: a real correction arriving on production.
 
+### 0.14 What the Wiki is not: the builders' documents (owner, 2026-11-13, 17:20 PKT)
+
+*"agent.md is builder not knowledge so it should not be part of wiki."*
+
+The Wiki holds what Nexeo knows about its users and their companies. The documents that tell the people and sessions **building** Nexeo how to work are not knowledge and are never put in the Wiki, never read by Brain or Suzi as knowledge, and are not counted by the ledger (§0.4, which counts the database's stores). They live in the code repository:
+
+- `AGENTS.md` (the builders' working contract: product rules, deploy and check rules), the `CLAUDE.md` files, `APP_MENTAL_MODEL.md`, `BRAIN_VISION.md`;
+- the builders' records: `brain_change_log.md`, `brain_chat_log.md`, `brain_chat_archive.md`, `brain_evaluation_chart.md`, `Changes_Made.md`, the deploy list;
+- the descriptions of how the product works: this document, `Rules.md`, `INTEGRATIONS_DESIGN.md`, the charters and the agreement with Suzi.
+
+Checked 13 Nov: none of them is in the Wiki (no page and no source holds them; three email sources match only by the word "agents"). The code names `AGENTS.md` only in comments.
+
+The line is the one above: a user's own rules (My Rules, delegations, standing instructions) are knowledge and are in the Wiki (§0.10); the rules for builders are not.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
