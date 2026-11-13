@@ -37,6 +37,8 @@ export interface SourceInput {
   preview?: boolean;
   /** Keep the text encrypted at rest (transcripts, identity). */
   encrypt?: boolean;
+  /** When this text was fetched. An older text never replaces a newer one. Defaults to now. */
+  asOf?: Date;
   /** The fetched item's other fields. */
   details?: Record<string, unknown>;
 }
@@ -66,8 +68,14 @@ export function sourceId(clientNumber: string, userId: number, kind: string, ext
   return `src_${h.slice(0, 28)}`;
 }
 
-function hashOf(s: string): string {
-  return crypto.createHash('sha256').update(s, 'utf8').digest('hex');
+/** A source's text as it is stored: a structured value is kept as written, and the ends are trimmed. */
+export function textOf(body: unknown): string {
+  return (typeof body === 'string' ? body : body == null ? '' : JSON.stringify(body)).trim();
+}
+
+/** The fingerprint of a text. Two texts are the same version exactly when this is equal. */
+export function textHash(text: string): string {
+  return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
 }
 
 async function seal(plain: string): Promise<string> {
@@ -79,48 +87,110 @@ async function unseal(enc: string): Promise<string> {
   return decryptSecret(enc);
 }
 
+/** What the Wiki holds as a source's text: its fingerprint, when it was fetched, and whether it is only a preview. */
+export interface HeldText {
+  hasText: boolean;
+  hash: string | null;
+  asOf: Date | null;
+  isPreview: boolean;
+}
+
+/**
+ * Does the source keep the text it holds, or take the incoming one?
+ * (docs/Wiki-Knowledge.md §0.13 part 8)
+ *  - nothing incoming: keep (a blank never replaces text);
+ *  - nothing held: take;
+ *  - the same text: keep;
+ *  - a preview never replaces text; any full text replaces a preview;
+ *  - of two full texts, the one fetched later wins: an older version arriving
+ *    late, or replayed, never puts the source back.
+ */
+export function keepsHeldText(held: HeldText | null, incoming: { hash: string | null; asOf: Date; isPreview: boolean }): boolean {
+  if (!incoming.hash) return true;
+  if (!held || !held.hasText) return false;
+  if (incoming.hash === held.hash) return true;
+  if (incoming.isPreview) return true;
+  if (held.isPreview) return false;
+  if (held.asOf && incoming.asOf.getTime() < held.asOf.getTime()) return true;
+  return false;
+}
+
 /**
  * Land a source in the Wiki. Safe to call any number of times for the same
- * item: it is one row. Text, title, time and thread are filled in when given
- * and never blanked by a later call that lacks them.
+ * item: it is one row. Title, time and thread are filled in when given and
+ * never blanked by a later call that lacks them. Its text follows
+ * `keepsHeldText`. Read, decide and write happen in one transaction.
  */
-export async function saveSource(input: SourceInput): Promise<{ id: string; created: boolean }> {
+export async function saveSource(input: SourceInput): Promise<{ id: string; created: boolean; textReplaced: boolean }> {
   const externalId = String(input.externalId ?? '').trim();
   if (!externalId) throw new Error('wikiSources.saveSource: a source needs its own id');
   const id = sourceId(input.clientNumber, input.userId, input.kind, externalId);
-  // A feed sometimes hands the text over as a structured value; it is kept as written.
-  const raw: unknown = input.body;
-  const text = (typeof raw === 'string' ? raw : raw == null ? '' : JSON.stringify(raw)).trim();
+  const text = textOf(input.body);
+  const hash = text ? textHash(text) : null;
+  const asOf = input.asOf ?? new Date();
+  const isPreview = !!text && input.preview === true;
   const plain = text && !input.encrypt ? text : null;
   const enc = text && input.encrypt ? await seal(text) : null;
-  const rows = await prisma.$queryRawUnsafe<Array<{ created: boolean }>>(
-    `INSERT INTO wiki_sources
-       (id, client_number, user_id, scope, kind, external_id, feed_event_id, thread_key, title,
-        occurred_at, participants, body_text, body_enc, details, content_hash)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::timestamptz, $11::jsonb, $12, $13, $14::jsonb, $15)
-     ON CONFLICT (client_number, user_id, kind, external_id) DO UPDATE SET
-       feed_event_id = COALESCE(EXCLUDED.feed_event_id, wiki_sources.feed_event_id),
-       thread_key    = COALESCE(EXCLUDED.thread_key, wiki_sources.thread_key),
-       title         = COALESCE(NULLIF(EXCLUDED.title, ''), wiki_sources.title),
-       occurred_at   = COALESCE(EXCLUDED.occurred_at, wiki_sources.occurred_at),
-       participants  = CASE WHEN EXCLUDED.participants = '[]'::jsonb THEN wiki_sources.participants ELSE EXCLUDED.participants END,
-       body_text     = CASE WHEN EXCLUDED.content_hash IS NULL OR ($16::boolean AND wiki_sources.content_hash IS NOT NULL)
-                            THEN wiki_sources.body_text ELSE EXCLUDED.body_text END,
-       body_enc      = CASE WHEN EXCLUDED.content_hash IS NULL OR ($16::boolean AND wiki_sources.content_hash IS NOT NULL)
-                            THEN wiki_sources.body_enc ELSE EXCLUDED.body_enc END,
-       content_hash  = CASE WHEN EXCLUDED.content_hash IS NULL OR ($16::boolean AND wiki_sources.content_hash IS NOT NULL)
-                            THEN wiki_sources.content_hash ELSE EXCLUDED.content_hash END,
-       details       = wiki_sources.details || EXCLUDED.details,
-       scope         = EXCLUDED.scope,
-       updated_at    = now()
-     RETURNING (xmax = 0) AS created`,
-    id, input.clientNumber, input.userId, input.scope ?? 'user', input.kind, externalId,
-    input.feedEventId ?? null, input.threadKey ?? null, input.title ?? null,
-    input.occurredAt ?? null, JSON.stringify(input.participants ?? []),
-    plain, enc, JSON.stringify(input.details ?? {}), text ? hashOf(text) : null,
-    input.preview === true,
-  );
-  return { id, created: rows[0]?.created === true };
+  const common = [
+    input.feedEventId ?? null, input.threadKey ?? null, input.title ?? null, input.occurredAt ?? null,
+    JSON.stringify(input.participants ?? []), JSON.stringify(input.details ?? {}), input.scope ?? 'user',
+  ];
+
+  const run = () => prisma.$transaction(async (tx: any) => {
+    const cur: any[] = await tx.$queryRawUnsafe(
+      `SELECT content_hash, body_as_of, body_is_preview FROM wiki_sources
+        WHERE client_number = $1 AND user_id = $2 AND kind = $3 AND external_id = $4 FOR UPDATE`,
+      input.clientNumber, input.userId, input.kind, externalId,
+    );
+    if (!cur[0]) {
+      await tx.$executeRawUnsafe(
+        `INSERT INTO wiki_sources
+           (id, client_number, user_id, kind, external_id, feed_event_id, thread_key, title, occurred_at,
+            participants, details, scope, body_text, body_enc, content_hash, body_as_of, body_is_preview)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::timestamptz, $10::jsonb, $11::jsonb, $12, $13, $14, $15, $16::timestamptz, $17)`,
+        id, input.clientNumber, input.userId, input.kind, externalId, ...common,
+        plain, enc, hash, hash ? asOf : null, isPreview,
+      );
+      return { id, created: true, textReplaced: false };
+    }
+    const held: HeldText = {
+      hasText: cur[0].content_hash != null, hash: cur[0].content_hash ?? null,
+      asOf: cur[0].body_as_of ?? null, isPreview: cur[0].body_is_preview === true,
+    };
+    const keep = keepsHeldText(held, { hash, asOf, isPreview });
+    const fields = `feed_event_id = COALESCE($2, feed_event_id),
+           thread_key    = COALESCE($3, thread_key),
+           title         = COALESCE(NULLIF($4, ''), title),
+           occurred_at   = COALESCE($5::timestamptz, occurred_at),
+           participants  = CASE WHEN $6::jsonb = '[]'::jsonb THEN participants ELSE $6::jsonb END,
+           details       = details || $7::jsonb,
+           scope         = $8,
+           updated_at    = now()`;
+    if (keep) {
+      // The same text seen again later: it is known to be current as of the later fetch.
+      await tx.$executeRawUnsafe(
+        `UPDATE wiki_sources SET ${fields},
+           body_as_of = CASE WHEN $9::text IS NOT NULL AND content_hash = $9 THEN GREATEST(body_as_of, $10::timestamptz) ELSE body_as_of END
+         WHERE id = $1`,
+        id, ...common, hash, asOf,
+      );
+    } else {
+      await tx.$executeRawUnsafe(
+        `UPDATE wiki_sources SET ${fields},
+           body_text = $9, body_enc = $10, content_hash = $11, body_as_of = $12::timestamptz, body_is_preview = $13
+         WHERE id = $1`,
+        id, ...common, plain, enc, hash, asOf, isPreview,
+      );
+    }
+    return { id, created: false, textReplaced: !keep && held.hasText };
+  });
+  try {
+    return await run();
+  } catch (err: any) {
+    // Two writers landed the same new source at once: the other one's row is there now; decide against it.
+    if (!/23505|unique/i.test(`${err?.code ?? ''} ${err?.meta?.code ?? ''} ${err?.message ?? ''}`)) throw err;
+    return run();
+  }
 }
 
 /** The two sides of a citation: who owns the row and who may read it. */
@@ -212,18 +282,21 @@ export async function citeSources(writer: Writer, noteId: string, sourceIds: str
 }
 
 /**
- * Which of this user's sources the Wiki holds, and whether each one has text.
- * For reconciling intake: a fetched item whose source is not here was missed.
+ * Which of this user's sources the Wiki holds, and what it holds as each one's
+ * text. For reconciling intake: a fetched item whose source is not here was
+ * missed, and one whose text has a different fingerprint may be out of date.
  */
-export async function sourcesHeld(clientNumber: string, userId: number, ids: string[]): Promise<Map<string, { hasText: boolean }>> {
+export async function sourcesHeld(clientNumber: string, userId: number, ids: string[]): Promise<Map<string, HeldText>> {
   const want = [...new Set(ids.filter(Boolean))];
   if (want.length === 0) return new Map();
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; has_text: boolean }>>(
-    `SELECT id, (content_hash IS NOT NULL) AS has_text FROM wiki_sources
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; content_hash: string | null; body_as_of: Date | null; body_is_preview: boolean }>>(
+    `SELECT id, content_hash, body_as_of, body_is_preview FROM wiki_sources
       WHERE client_number = $1 AND user_id = $2 AND id = ANY($3::text[])`,
     clientNumber, userId, want,
   );
-  return new Map(rows.map((r) => [r.id, { hasText: r.has_text === true }]));
+  return new Map(rows.map((r) => [r.id, {
+    hasText: r.content_hash != null, hash: r.content_hash ?? null, asOf: r.body_as_of ?? null, isPreview: r.body_is_preview === true,
+  }]));
 }
 
 const VISIBLE = `s.client_number = $1 AND (s.scope = 'tenant' OR s.user_id = $2)`;

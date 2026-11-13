@@ -18,7 +18,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const t = vi.hoisted(() => ({
   feed: [] as any[],
   emailPages: [] as any[],
-  store: new Map<string, { body: string; input: any }>(),
+  store: new Map<string, { body: string; input: any; asOf?: Date | null; isPreview?: boolean }>(),
   saves: 0,
   failNext: 0,
   deleted: [] as string[],
@@ -39,13 +39,14 @@ vi.mock('../src/db/prisma', () => {
     decisionLog: { findMany: async () => [] },
     $queryRawUnsafe: async (sql: string, _c: string, _u: number, only?: string | null) => {
       if (/page_type = 'email_message'/.test(sql) && /LEFT JOIN wiki_sources/.test(sql)) {
-        // The reconcile query: pages whose text the source does not hold. `have` is recomputed from the store.
+        // The reconcile query: email pages whose source is missing, has no text, or holds only a preview.
         return t.emailPages
           .filter((pg) => !only || pg.metadata.gmailMessageId === only)
-          .map((pg) => {
+          .filter((pg) => {
             const held = [...t.store.values()].find((s) => s.input.kind === 'email' && s.input.externalId === pg.metadata.gmailMessageId);
-            return { body_markdown: pg.body_markdown, metadata: pg.metadata, last_updated_at: new Date('2026-11-01T00:00:00Z'), have: held ? [...held.body].length : null };
-          });
+            return !held || !held.body || held.isPreview === true;
+          })
+          .map((pg) => ({ body_markdown: pg.body_markdown, metadata: pg.metadata, last_updated_at: new Date('2026-11-01T00:00:00Z') }));
       }
       if (/page_type = 'email_message'/.test(sql)) return t.scribed ? [{ id: 'page' }] : []; // the pruner's scribe check
       throw new Error(`unexpected query: ${sql}`);
@@ -58,26 +59,38 @@ vi.mock('../src/services/wiki/wikiSources', async (orig) => {
   const real: any = await orig();
   return {
     ...real,
+    // The same decision the real store makes (`keepsHeldText`), on an in-memory row.
     saveSource: async (input: any) => {
       if (t.failNext > 0) { t.failNext -= 1; throw new Error('database went away'); }
       t.saves += 1;
       const id = real.sourceId(input.clientNumber, input.userId, input.kind, String(input.externalId).trim());
       const had = t.store.get(id);
-      const text = typeof input.body === 'string' ? input.body.trim() : '';
-      const keep = had && had.body && (!text || input.preview);
-      t.store.set(id, { body: keep ? had!.body : text, input: { ...had?.input, ...input } });
-      return { id, created: !had };
+      const text = real.textOf(input.body);
+      const hash = text ? real.textHash(text) : null;
+      const asOf = input.asOf ?? new Date();
+      const held = had ? { hasText: had.body.length > 0, hash: had.body ? real.textHash(had.body) : null, asOf: had.asOf ?? null, isPreview: had.isPreview === true } : null;
+      const keep = real.keepsHeldText(held, { hash, asOf, isPreview: !!text && input.preview === true });
+      t.store.set(id, {
+        body: keep ? had?.body ?? '' : text,
+        asOf: keep ? had?.asOf ?? null : asOf,
+        isPreview: keep ? had?.isPreview === true : !!text && input.preview === true,
+        input: { ...had?.input, ...input },
+      });
+      return { id, created: !had, textReplaced: !keep && !!had?.body };
     },
     sourcesHeld: async (clientNumber: string, userId: number, ids: string[]) =>
       new Map(ids
         .filter((id) => t.store.has(id) && t.store.get(id)!.input.clientNumber === clientNumber && t.store.get(id)!.input.userId === userId)
-        .map((id) => [id, { hasText: t.store.get(id)!.body.length > 0 }])),
+        .map((id) => {
+          const row = t.store.get(id)!;
+          return [id, { hasText: row.body.length > 0, hash: row.body ? real.textHash(row.body) : null, asOf: row.asOf ?? null, isPreview: row.isPreview === true }];
+        })),
   };
 });
 
-import { reconcileSources, holdsFeedItem } from '../src/services/wiki/wikiBackfill';
+import { reconcileSources, holdsFeedItem, needsLanding } from '../src/services/wiki/wikiBackfill';
 import { landFeedItem, landEmailText } from '../src/services/wiki/wikiIntake';
-import { sourceId } from '../src/services/wiki/wikiSources';
+import { sourceId, textHash as sourceTextHash } from '../src/services/wiki/wikiSources';
 import { pruneUserFeedEvents } from '../src/services/maintenance/queueArchiveMaintenanceService';
 
 const OLD = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
@@ -199,6 +212,51 @@ describe('wiki reconcile', () => {
     // Without labels the field is absent, so a later landing never blanks the labels a feed item brought.
     await landEmailText({ clientNumber: 'T-1', userId: 2, gmailMessageId: 'in-1', receivedAt: new Date(), bodyText: 'x' });
     expect(t.store.get(idFor('email', 'in-1'))!.input.details).not.toHaveProperty('labels');
+  });
+
+  // Structure part 8: a source knows which version of its text it holds.
+  it('a correction whose live landing failed is recovered, even at the same length', async () => {
+    const first = feedRow('gcal', 'e9', { eventId: 'e9', start: '2026-11-20T10:00:00+05:00', title: 'Review', description: 'Room A' }, new Date('2026-11-10T00:00:00Z'));
+    await landFeedItem({ ...asItem(first), fetchedAt: first.createdAt });
+    // The organiser changes the room; the feed stores the new row, but its landing is lost.
+    feedRow('gcal', 'e9', { eventId: 'e9', start: '2026-11-20T10:00:00+05:00', title: 'Review', description: 'Room B' }, new Date('2026-11-11T00:00:00Z'));
+    const id = idFor('calendar', 'e9@2026-11-20T10:00:00+05:00');
+    expect(t.store.get(id)!.body).toBe('Room A');
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 1, landed: 1 });
+    expect(t.store.get(id)!.body).toBe('Room B');
+    const saves = t.saves;
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 0, landed: 0 });
+    expect(t.saves).toBe(saves);
+  });
+
+  it('a newer, shorter text replaces a longer one; an older text arriving late does not put the source back', async () => {
+    const long = feedRow('gchat', 'spaces/1/messages/5', { messageName: 'spaces/1/messages/5', text: 'The meeting is on Thursday at ten, in the big room.' }, new Date('2026-11-10T00:00:00Z'));
+    const short = feedRow('gchat', 'spaces/1/messages/5', { messageName: 'spaces/1/messages/5', text: 'Cancelled.' }, new Date('2026-11-12T00:00:00Z'));
+    const id = idFor('chat', 'spaces/1/messages/5');
+    // Out of order: the newer row lands first, then the older one.
+    await landFeedItem({ ...asItem(short), fetchedAt: short.createdAt });
+    await landFeedItem({ ...asItem(long), fetchedAt: long.createdAt });
+    expect(t.store.get(id)!.body).toBe('Cancelled.');
+    // A replay of everything changes nothing.
+    await landFeedItem({ ...asItem(long), fetchedAt: long.createdAt });
+    await landFeedItem({ ...asItem(short), fetchedAt: short.createdAt });
+    expect(t.store.get(id)!.body).toBe('Cancelled.');
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 0 });
+  });
+
+  it('needsLanding: missing, without text, or holding an older different text; never for a preview or the same text', () => {
+    const item = (body: string | null, asOf: string, preview = false) =>
+      ({ clientNumber: 'T-1', userId: 2, kind: 'chat' as const, externalId: 'x', body, asOf: new Date(asOf), preview });
+    const held = (body: string, asOf: string, isPreview = false) =>
+      ({ hasText: body.length > 0, hash: body ? sourceTextHash(body) : null, asOf: new Date(asOf), isPreview });
+    expect(needsLanding(undefined, item('a', '2026-11-02'))).toBe(true);
+    expect(needsLanding(held('', '2026-11-01'), item('a', '2026-11-02'))).toBe(true);
+    expect(needsLanding(held('a', '2026-11-01'), item(null, '2026-11-02'))).toBe(false);
+    expect(needsLanding(held('same', '2026-11-01'), item('same', '2026-11-02'))).toBe(false);
+    expect(needsLanding(held('abcd', '2026-11-01'), item('abce', '2026-11-02'))).toBe(true); // same length, newer
+    expect(needsLanding(held('abcd', '2026-11-03'), item('abce', '2026-11-02'))).toBe(false); // the held text is the newer one
+    expect(needsLanding(held('full text', '2026-11-01'), item('full…', '2026-11-05', true))).toBe(false); // a preview is never newer text
+    expect(needsLanding(held('full…', '2026-11-05', true), item('full text', '2026-11-01'))).toBe(true); // any full text beats a preview
   });
 
   it('the pruner keeps a row the Wiki does not hold, and deletes it once it does', async () => {

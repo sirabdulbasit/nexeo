@@ -19,7 +19,7 @@
  */
 import prisma from '../../db/prisma';
 import { landEmailText, sourceFromFeedItem, type FeedItem } from './wikiIntake';
-import { saveSource, sourceId, sourcesHeld, type SourceInput } from './wikiSources';
+import { saveSource, sourceId, sourcesHeld, textHash, textOf, type HeldText, type SourceInput } from './wikiSources';
 
 export interface ReconcileResult {
   /** Stored feed items looked at. */
@@ -47,6 +47,22 @@ function hasText(src: SourceInput): boolean {
   return typeof b === 'string' ? b.trim().length > 0 : b != null;
 }
 
+/**
+ * Does this stored item still have to be landed? Yes when the Wiki does not
+ * hold its source, holds it without the item's text, or holds a different text
+ * that the item's text is newer than (a correction whose live landing failed).
+ * A preview never counts as newer text; `saveSource` decides the same way, so
+ * landing an item twice, or an old one late, changes nothing.
+ */
+export function needsLanding(held: HeldText | undefined, src: SourceInput): boolean {
+  if (!held) return true;
+  if (!hasText(src)) return false;
+  if (!held.hasText) return true;
+  if (src.preview) return false;
+  if (held.hash === textHash(textOf(src.body))) return false;
+  return held.isPreview || !held.asOf || (src.asOf ?? new Date(0)).getTime() > held.asOf.getTime();
+}
+
 function idOf(src: SourceInput): string {
   return sourceId(src.clientNumber, src.userId, src.kind, String(src.externalId).trim());
 }
@@ -64,9 +80,8 @@ async function landMissingEmailTexts(
   onError: (what: string, err: unknown) => void,
   countOnly = false,
 ): Promise<number> {
-  const rows = await prisma.$queryRawUnsafe<Array<{ body_markdown: string | null; metadata: any; last_updated_at: Date; have: number | null }>>(
-    `SELECT p.body_markdown, p.metadata, p.last_updated_at,
-            CASE WHEN s.id IS NULL THEN NULL ELSE length(coalesce(s.body_text, '')) END AS have
+  const rows = await prisma.$queryRawUnsafe<Array<{ body_markdown: string | null; metadata: any; last_updated_at: Date }>>(
+    `SELECT p.body_markdown, p.metadata, p.last_updated_at
        FROM wiki_pages p
        LEFT JOIN wiki_sources s
          ON s.client_number = p.client_number AND s.user_id = p.user_id
@@ -75,23 +90,23 @@ async function landMissingEmailTexts(
         AND p.metadata->>'gmailMessageId' IS NOT NULL
         AND ($3::text IS NULL OR p.metadata->>'gmailMessageId' = $3)
         AND position(E'\\n## Body\\n' in p.body_markdown) > 0
-        AND (s.id IS NULL OR (s.body_enc IS NULL AND length(coalesce(s.body_text, '')) <
-             length(btrim(substr(p.body_markdown, position(E'\\n## Body\\n' in p.body_markdown) + 9), E' \\t\\r\\n'))))`,
+        AND (s.id IS NULL OR s.content_hash IS NULL OR s.body_is_preview)`,
     clientNumber, userId, gmailMessageId,
   );
   let landed = 0;
   for (const pg of rows) {
     const m = (pg.metadata ?? {}) as Record<string, any>;
     const text = emailPageText(pg.body_markdown);
-    // Counted the way the database counts, so a text the source already holds is never landed again.
-    if (!text || (pg.have !== null && [...text].length <= Number(pg.have))) continue;
+    // Only sources with no text or a preview are listed: once the full text is landed, the source
+    // says so itself (`body_is_preview`), and the email is not listed again.
+    if (!text) continue;
     if (countOnly) { landed += 1; continue; }
     const when = m.date && !Number.isNaN(new Date(m.date).getTime()) ? new Date(m.date) : pg.last_updated_at;
     try {
       await landEmailText({
         clientNumber, userId, gmailMessageId: String(m.gmailMessageId), feedEventId: m.feedEventId ?? null,
         threadId: m.threadId ?? null, subject: m.subject ?? null, from: m.from ?? m.senderEmail ?? null,
-        to: m.to ?? null, cc: m.cc ?? null, receivedAt: when, bodyText: text,
+        to: m.to ?? null, cc: m.cc ?? null, receivedAt: when, bodyText: text, asOf: pg.last_updated_at,
       });
       landed += 1;
     } catch (err) { onError(`email ${m.gmailMessageId}`, err); }
@@ -124,7 +139,7 @@ export async function reconcileSources(clientNumber: string, userId: number): Pr
     for (const r of [...rows].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())) {
       const src = sourceFromFeedItem({
         id: r.id, clientNumber, userId, sourceType: r.sourceType, sourceId: r.sourceId,
-        payload: (r.rawPayload ?? {}) as Record<string, any>, at: r.eventAt ?? r.createdAt,
+        payload: (r.rawPayload ?? {}) as Record<string, any>, at: r.eventAt ?? r.createdAt, fetchedAt: r.createdAt,
       });
       if (!src) continue;
       const id = idOf(src);
@@ -133,8 +148,7 @@ export async function reconcileSources(clientNumber: string, userId: number): Pr
     }
     const held = await sourcesHeld(clientNumber, userId, [...wanted.keys()]);
     for (const [id, src] of wanted) {
-      const h = held.get(id);
-      if (h && (h.hasText || !hasText(src))) continue;
+      if (!needsLanding(held.get(id), src)) continue;
       out.missing += 1;
       try {
         await saveSource(src);

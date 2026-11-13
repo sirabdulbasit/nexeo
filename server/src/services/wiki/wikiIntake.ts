@@ -18,6 +18,8 @@ export interface FeedItem {
   sourceId: string;
   payload: Record<string, any>;
   at: Date;
+  /** When the feed stored this item: the version of whatever text it carries. Defaults to `at`. */
+  fetchedAt?: Date;
 }
 
 // WhatsApp is not a feed (owner, 13 Nov 2026: "whatsapp will not be part of feed"): it is the
@@ -38,7 +40,7 @@ export function sourceFromFeedItem(item: FeedItem): SourceInput | null {
   const kind = KIND[item.sourceType];
   if (!kind) return null;
   const p = item.payload ?? {};
-  const base = { clientNumber: item.clientNumber, userId: item.userId, kind, feedEventId: item.id, occurredAt: item.at };
+  const base = { clientNumber: item.clientNumber, userId: item.userId, kind, feedEventId: item.id, occurredAt: item.at, asOf: item.fetchedAt ?? item.at };
   // The fetched fields are kept as they are, minus the text (held once, as the body).
   const { body: _b, text: _t, formattedText: _f, description: _d, threadContext: _c, ...details } = p;
   if (kind === 'email') {
@@ -101,12 +103,15 @@ export async function landEmailText(p: {
   receivedAt: Date; bodyText: string;
   /** The mailbox's own labels, when known ('SENT', 'INBOX'): an email landed with no feed item keeps them here. */
   labels?: string[];
+  /** When this text was fetched; defaults to now. */
+  asOf?: Date;
 }): Promise<string> {
   return (await saveSource({
     clientNumber: p.clientNumber, userId: p.userId, kind: 'email', externalId: p.gmailMessageId,
     feedEventId: p.feedEventId ?? null, threadKey: p.threadId ?? null, title: p.subject ?? null,
     occurredAt: p.receivedAt, participants: [...list(p.from), ...list(p.to), ...list(p.cc)],
     body: p.bodyText,
+    ...(p.asOf ? { asOf: p.asOf } : {}),
     // The same fields a fetched email carries, so an email whose feed item is gone still reads the same.
     details: {
       ...(p.from ? { from: p.from } : {}), ...(p.to ? { to: p.to } : {}), ...(p.cc ? { cc: p.cc } : {}),

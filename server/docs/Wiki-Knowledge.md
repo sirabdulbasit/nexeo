@@ -332,7 +332,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 5 | Marks on a source (needs him, rule applied, handled), with history | Live since 13 Nov; being filled |
 | 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | Live 13 Nov (§0.13.2) |
 | 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
-| 8 | A source knows which version of its text it holds | Not built |
+| 8 | A source knows which version of its text it holds | Built 13 Nov (§0.13.3) |
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
@@ -382,6 +382,23 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 **Found while proving it on the real database, and fixed first (DEF-464):** in this project a raw statement inside a transaction ran **outside** it. The logging wrapper on the database client was bound to the main connection and re-installed on every transaction, so a raw write survived a rollback and a raw read did not see its own transaction's rows. The unit tests could not see this (their stand-in rolls back correctly); the production probe did. So "one transaction" above was not true until the client was fixed, and neither was any other transaction in the server that uses raw statements (twelve files, among them the rule and email-rule change of DEF-461, the integration run engine and the job leader lock). Fixed in `src/db/` and deployed before this part (D-236). After it, on production with throwaway rows: the identity checks pass 18 of 18 and the marks checks 16 of 16, including three writers at once ending as one note.
 
 **Not in this part:** meeting notes have no outside identifier yet (a rescheduled or retitled event could otherwise pull two notes into one); a screen for "these two are one person"; typed links (`[[person:Ali]]`) for the ambiguous case.
+
+#### 0.13.3 Part 8 is built: a source knows which version of its text it holds (Wiki session, 13 Nov 2026)
+
+**What was wrong** (third review, §0.11 item 4): a source kept its text and a fingerprint, but not when that text was fetched nor whether it was only a preview. The reconcile asked only "is there text?", and email recovery compared lengths. So a correction of the same length was invisible, and an older text arriving late could replace a newer one.
+
+**What a source records now** (migration `20261113_wiki_sources_version`, two columns): `body_as_of`, when the text it holds was fetched, and `body_is_preview`, whether that text is only a preview (an email snippet).
+
+**One rule decides which text stays** (`wikiSources.keepsHeldText`, applied inside the transaction that writes the source):
+
+- a blank never replaces text; anything fills an empty source;
+- the same text again changes nothing (the source is only known current as of the later fetch);
+- a preview never replaces text, and any full text replaces a preview, whatever their order;
+- of two full texts, the one fetched later wins: an older version arriving late, or replayed, never puts the source back.
+
+**The hourly reconcile uses the same rule** (`wikiBackfill.needsLanding`): a stored item is landed when its source is missing, has no text, or holds a different text the item's is newer than. An email's full text is landed wherever the source holds nothing or only a preview; length is no longer looked at.
+
+**Checked:** `tests/wikiSourceVersions.test.ts` and the new cases in `tests/wikiReconcile.test.ts` (same-length correction, newer shorter text, replay, out-of-order arrival; 4 of 4 mutants killed); on the production database with throwaway rows, 11 of 11 (the four cases, a preview and a full text in both orders, an encrypted text, four writers at once ending as one row with the latest text), rows removed. On production the migration dated every text already held (9,095 sources) and marked 645 email sources as holding only a preview.
 
 ## 1. Owner direction (2026-11-12)
 

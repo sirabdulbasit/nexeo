@@ -187,6 +187,7 @@ export async function ingest(input: RawEventInput): Promise<IngestResult> {
           sourceId: input.sourceId,
           payload: (input.payload ?? {}) as Record<string, any>,
           at: eventAt ?? row.createdAt,
+          fetchedAt: row.createdAt,
         }))
         .catch((err: any) => console.warn(`[wikiIntake] landing failed for ${row.id}: ${err?.message}`));
     }

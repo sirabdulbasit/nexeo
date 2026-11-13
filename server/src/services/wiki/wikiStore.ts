@@ -42,10 +42,10 @@ import { citeSources, assertCitable } from './wikiSources';
 
 // The one door: sources are read and written through here too.
 export {
-  saveSource, citeSources, assertCitable, mayCite, CitationRefused, sourcesHeld,
+  saveSource, citeSources, assertCitable, mayCite, CitationRefused, sourcesHeld, keepsHeldText, textOf, textHash,
   sourcesOf, readSource, listSources, countSources,
 } from './wikiSources';
-export type { Source, SourceRef, SourceInput, SourceKind, CiteParty, Writer } from './wikiSources';
+export type { Source, SourceRef, SourceInput, SourceKind, CiteParty, Writer, HeldText } from './wikiSources';
 export { markSource, clearMark, marksOf, markHistory, listMarkedSources, countUnmarked, MarkRefused, MARK_KINDS } from './wikiMarks';
 export type { Mark, MarkInput, MarkKind, MarkedSource } from './wikiMarks';
 
