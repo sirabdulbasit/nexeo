@@ -640,3 +640,14 @@ The founder, 13 Nov, on the "Send to be built" card that asked for his spoken ye
 **The founder AGREED SU-8 and SU-9 on 13 Nov in Suzi Master's session** (reported by Suzi Master; his words are in the sign-off of `SuziUpgrade_Charter.md`, section 6): *"it should be sent automatically if I am lead"*; *"all other request from other suzi clients who are not lead, it will come to lead first, when lead approve then go to build"*; *"it should not seek my voice"* (twice). Live on Suzi Master's side the same day (Suzi 1.2.41).
 
 The charter mirror is now `server/docs/SuziUpgrade_Charter.md`, byte for byte (sha256 4339fe79…cd42a), replacing `Master_Charter.md` (renamed by the founder on 11 Nov).
+
+## Round 6 (how the lead is known): the founder's yes, and Nexeo's side (13 Nov 2026)
+
+Agreed by both sides on 11 Nov; Nexeo's side waited for the founder. **Founder, 13 Nov: yes, build it.** He also kept the charter mirror (`SuziUpgrade_Charter.md`, sha256 4339fe79…).
+
+**Nexeo's side (Suzi's server):**
+- Status: built and tested on a clean copy of `1d44ce9`; master-link tests 13/13 pass; the patch is kept.
+- A key made on the portal by an SA user is a lead key, and the device takes its flag.
+- Every call forwarded to the master is signed `METHOD\npath?query\nts\nsha256(body)\nlead` and carries `X-Nexeo-Lead`. Portal installer calls send 0.
+
+**Not deployed yet:** applying its database migration to Suzi's server needs the founder's permission in this session. The portal's `lead` field ships after Suzi's server. Suzi Master refuses the old signature from 18 Nov 11:30 PKT.
