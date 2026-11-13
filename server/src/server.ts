@@ -482,6 +482,10 @@ const server = app.listen(env.port, async () => {
   import('./jobs/meetingReminderJob').then(({ scheduleMeetingReminders }) => {
     scheduleMeetingReminders();
   }).catch((e) => console.warn('[boot] meeting reminders not scheduled:', e?.message));
+  // DEF-463: every 3 hours, today's and yesterday's mailbox against the Wiki; missing email landed, the day recorded.
+  import('./jobs/mailboxCensusJob').then(({ scheduleMailboxCensus }) => {
+    scheduleMailboxCensus();
+  }).catch((e) => console.warn('[boot] mailbox census not scheduled:', e?.message));
   import('./jobs/staleConnectorPing').then(({ scheduleStaleConnectorPing }) => {
     scheduleStaleConnectorPing();
   }).catch((e) => console.warn('[staleConnectorPing] start failed:', e.message));
