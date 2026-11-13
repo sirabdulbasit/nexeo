@@ -305,6 +305,44 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Order:** the marks store was built **before** item 3 of §0.11 because the other half was waiting for it. Nexeo-Builder then writes the DEF-459 judgement and the rule marks through `markSource` and moves the brief readers; the pack change goes to Suzi Master first.
 
+### 0.13 Structure first; the content is rebuilt by a re-scribe (owner, 2026-11-13, afternoon)
+
+*"I am not much concerned of loss data with old wiki. My concern that wiki should be well structured as discussed. Once wiki is upgraded we can be able to re-scribe the entire feed/external systems etc to rebuild the wiki with new structure."*
+
+**What this changes:**
+
+1. **The goal is the structure, not carrying the old content over.** The old pages are not migrated or repaired. When the structure is ready, the Wiki is rebuilt from what the feeds and the connected systems hold, and the old pages are archived in one step.
+2. **No more work to rescue old content.** Not done, and no longer planned: fetching his older sent mail once (the rebuild fetches it), recovering text from old email pages beyond what already runs, any backfill of old page types.
+3. **The order of §0.11 changes.** Identity and all-or-nothing writes (item 5) move to the front, because every note type built after them depends on them. The isolation run (item 3) is run on the new structure, before the rebuild.
+4. **The readers still have to move.** "Not concerned about old data" does not make the features that read the old pages safe to break: contacts, sender recognition, triage, the briefs and Suzi read old page types by name (§6a). Each moves to the new notes before the old pages are archived.
+
+**"Well structured" means, as agreed across §0 and §4** (this list is the checklist for "upgraded"):
+
+| # | Part of the structure | Today |
+|---|---|---|
+| 1 | One wiki; who may read follows where it came from (connector = the user's, integration = the company's) | Live |
+| 2 | A note per real thing, typed, with properties: person, company, meeting, group | Live (facts only) |
+| 3 | Links written in the text as `[[Title]]`; backlinks; a link to a note not yet written waits and connects | Live |
+| 4 | Sources kept apart from notes; a note cites its sources; the citations are its trail | Live |
+| 5 | Marks on a source (needs him, rule applied, handled), with history | Live since 13 Nov; being filled |
+| 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | **Not built — next** |
+| 7 | A note's text, properties, links and citations change together or not at all | **Not built — next, with 6** |
+| 8 | A source knows which version of its text it holds | Not built |
+| 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Not built |
+| 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
+| 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
+| 12 | Proven private: two users and two clients through every path | Not run |
+| 13 | Self-pruning that keeps sources and history (§7) | Not built |
+
+**The rebuild, when 6 to 12 are done:** archive every old page and every note; run Scribe for every user and every integration; the builder writes the notes from the sources. It must give the same wiki when run twice.
+
+**Two things a re-scribe cannot bring back, so they are carried over, not rebuilt:**
+
+- **What he typed or decided himself:** his standing instructions and email rules, muted senders, his corrections, the marks "handled" and "ignore once", and the decisions and delegations log. No feed holds these.
+- **What the providers no longer give:** his WhatsApp messages to Nexeo, conversations with Brain and Suzi, and meeting minutes whose transcript has expired at the provider.
+
+**One setting decides how much comes back.** A Scribe run today fetches the last 30 days or 500 emails, calendar 30 days back and 60 ahead, WhatsApp 14 days (`historicalFeedPull.ts`). The Wiki holds his email back to April only because the old pages kept it. A rebuild by today's Scribe would therefore hold about one month. How far back a rebuild reaches is **his decision**, and becomes a setting, not a constant.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
