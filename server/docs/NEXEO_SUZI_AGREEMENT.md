@@ -738,3 +738,16 @@ Asked by suzi-b5 (Suzi's F-4 builder) on the founder's instruction; answered by 
    - An emergency OFF list (`feature_suzi_email_send_off_users`) can stop one user.
    - Live with D-246.
 3. Relayed by the Wiki session (17:10): learned patterns only suggest. What has become a rule, a delegation or a standing instruction, Nexeo and Suzi do by themselves. This supersedes "a rule prepares; his yes acts" (F-2.4 delegate rules hold the forward). The change to Suzi's delegate rules is proposed to Suzi Master before it is built.
+
+## F-2.4 delegate rules forward by themselves: AGREED (13 Nov 2026)
+
+- **Source:** founder's ruling 17:10 PKT (via the Wiki session): "Suzi/Nexeo will do all those which has become part of Rules, Delegation or Standing Instruction by itself"; learned patterns only suggest.
+- **Proposed by Nexeo** (Nexeo-Builder, through Nexeo Integration). **Suzi Master AGREE 17:24 PKT** with C1–C4.
+- **Nexeo AGREE C1–C4:**
+  - C1: pack `by_rule {action:"delegated", rule_id, person_name, task_id, at}`; the brief counts "N emails forwarded by your rules".
+  - C2: `rule.remove` stops further forwards at once; sent ones are not recalled.
+  - C3: the send rules, as written in the charter's F-2.4 bullet (Google connected and not on `feature_suzi_email_send_off_users`; To him only, from someone else, never a replied thread, one forward per message; recipient on his company's domain; office hours; 20 per user per day; attachments go; a task for the person; no undo).
+  - C4: `rule.set` for email_delegate answers `auto: true`.
+- **Founder, in Suzi Master's session:** "Yes, forward automatically", then, with C3 put to him in full: "Yes, as described".
+- **Charter:** Functional_Charter.md mirrored byte for byte from Suzi commit bf4c923, sha256 dec95d27…f842.
+- **Next:** Nexeo-Builder builds; Suzi's next release drops the "ready to delegate" batch.

@@ -126,9 +126,17 @@ Every brief, the morning brief or one section, starts with one summary line per 
   - Runs email.forward through the email.send gate: signed, voice_score, T22 switch, held 10 seconds.
   - The task is created only once the forward has gone out.
   - While held, the item is {state: "held", undo_until}. Once sent, it is {forwarded: true, task_id}.
-- **F-2.4 `rule.set` / `rule.remove`:** fields {kind: email_delegate|email_ignore, match: {by: sender|domain|subject, value}, person_id?, note?}. Returns {rule_id, rules_version}.
+- **F-2.4 `rule.set` / `rule.remove`:** fields {kind: email_delegate|email_ignore, match: {by: sender|domain|subject, value}, person_id?, note?}. Returns {rule_id, rules_version, existing?, auto?}.
   - email_ignore marks a matching email handled and sends nothing.
-  - email_delegate prepares and holds. The brief shows "ready to delegate to X by your rule", and one signed, voiced yes sends the batch.
+  - email_delegate forwards by itself (founder, 13 Nov 2026: what is part of his rules is done by itself; confirmed in Suzi
+    Master's session, attachments and no undo included). Saving one answers `auto: true`. Nexeo forwards a matching email
+    as it lands, with a task for the person noting it was sent by his rule, only when: Nexeo can send for him and he is
+    not on the emergency OFF list; the email is addressed To him (not only Cc/Bcc), from someone else, not on a thread he
+    has replied to, forwarded once; the person has an email on record on his company's own domain (external only if he
+    allows it explicitly); within his office hours (otherwise it waits); at most 20 rule forwards per user per day (the
+    rest wait, and the brief says so). Attachments go with it; nothing is screened beyond the rule's match. There is no
+    undo: he sees each forward (F-2.5) and in the brief ("N emails forwarded by your rules"); `rule.remove` stops further
+    forwards at once, and sent ones aren't recalled.
   - Only he sets rules on his own mailbox.
   - A subject match is a case-insensitive substring.
 - **F-2.5 pack `emails[].by_rule`:** fields {action: ready|delegated|ignored, rule_id, person_name?, task_id?, at}. These emails are listed apart from those needing a reply.
@@ -297,3 +305,4 @@ A dedicated test user per OS, with its own integration key (item 19, from the fo
 - [x] Founder: W-1 decisions, 13 Nov 2026 09:59 PKT, and "agreed from my side" to W-1 with S1, 16:25:47 PKT, in Nexeo's session
 - [x] Nexeo: AGREE W-1 with S1–S3 and the five ops (10:00:19), row 7 detail, W-1.E (D-239), the F-4.7 detail (16:10:35), 13 Nov 2026
 - [x] Suzi Master: AGREE W-1 amended with S1–S3 (09:59:30), row 7 detail, W-1.E (15:20), the F-4.7 detail; text written 13 Nov 2026
+- [x] Founder: F-2.4 delegate rules forward by themselves, with attachments and no undo, confirmed in Suzi Master's session 13 Nov 2026; Nexeo AGREE C1–C4 and its send rules; Suzi Master AGREE
