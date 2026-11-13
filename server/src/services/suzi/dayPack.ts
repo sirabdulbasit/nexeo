@@ -236,7 +236,7 @@ async function withRules(clientNumber: string, userId: number, items: Array<{ em
     // F-2.4 (founder 13 Nov): delegate rules act by themselves, so nothing is held "ready"; the forward shows as a
     // "delegated" row once it has gone (delegatedByRule below).
     if (r.kind === 'email_delegate') return email;
-    return { ...email, by_rule: { action: r.kind === 'email_delegate' ? 'ready' as const : 'ignored' as const, rule_id: r.id, ...(r.person_name ? { person_name: r.person_name } : {}), at } };
+    return { ...email, by_rule: { action: 'ignored' as const, rule_id: r.id, ...(r.person_name ? { person_name: r.person_name } : {}), at } };
   });
   const shown = new Set(out.map((e) => e.thread_id));
   const done = await delegatedByRule(clientNumber, userId, new Date(now.getTime() - 24 * 3600_000));
