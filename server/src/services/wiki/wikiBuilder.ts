@@ -667,6 +667,8 @@ export interface RebuildResult {
   byType: Record<string, number>;
   /** The rule notes built with them (null on a dry run). */
   rules?: { rules: number; written: number; unchanged: number; retired: number } | { error: string } | null;
+  /** The meaning notes built with them (null on a dry run). */
+  meaning?: { read: number; cached: number; failed: number; written: number; retired: number } | { error: string } | null;
 }
 
 function sameProperties(stored: unknown, built: Record<string, unknown> | undefined): boolean {
@@ -759,11 +761,26 @@ export async function rebuildWikiForUser(
       rules = { error: String(err?.message ?? err).slice(0, 200) };
     }
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules };
+  // Meaning notes (projects, topics, decisions, commitments), read by the model (part 10). Only new or
+  // changed conversations cost a call, and at most MEANING_PER_RUN of them per run.
+  let meaning: { read: number; cached: number; failed: number; written: number; retired: number } | { error: string } | null = null;
+  if (!opts.dryRun) {
+    try {
+      const { rebuildMeaningForUser } = await import('./wikiMeaning');
+      const m = await rebuildMeaningForUser(clientNumber, userId, { limit: MEANING_PER_RUN });
+      meaning = { read: m.read, cached: m.cached, failed: m.failed, written: m.written, retired: m.retired };
+    } catch (err: any) {
+      meaning = { error: String(err?.message ?? err).slice(0, 200) };
+    }
+  }
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning };
 }
 
+/** Conversations the model reads per user per build, at most (about $0.001 each on Gemini Flash). */
+const MEANING_PER_RUN = 60;
+
 /** Build the notes for every active user, one after another. */
-export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; error?: string }>> {
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; meaning: RebuildResult['meaning']; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
   const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
   return results.map((r) => ({
@@ -775,6 +792,7 @@ export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; 
     renamed: r.result?.renamed ?? 0,
     merged: r.result?.merged ?? 0,
     rules: r.result?.rules ?? null,
+    meaning: r.result?.meaning ?? null,
     ...(r.error ? { error: r.error } : {}),
   }));
 }

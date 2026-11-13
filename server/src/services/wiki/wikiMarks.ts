@@ -18,7 +18,7 @@
 import prisma from '../../db/prisma';
 import type { Writer, SourceKind } from './wikiSources';
 
-export const MARK_KINDS = ['attention', 'rule', 'handled', 'action_item', 'meeting'] as const;
+export const MARK_KINDS = ['attention', 'rule', 'handled', 'action_item', 'meeting', 'meaning'] as const;
 export type MarkKind = (typeof MARK_KINDS)[number];
 
 export interface MarkInput {

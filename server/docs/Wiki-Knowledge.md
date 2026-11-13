@@ -335,7 +335,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
 | 8 | A source knows which version of its text it holds | Live 13 Nov (§0.13.3) |
 | 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Live 13 Nov (§0.13.6) |
-| 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
+| 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Built 13 Nov (§0.13.7); $0.34 for his whole history |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
 | 12 | Proven private: two users and two clients through every path | Run 13 Nov: 22 of 22; four faults found and fixed (DEF-471 to 473); Drive export and meaning search read from code only (§0.15) |
 | 13 | Self-pruning that keeps sources and history (§7) | Not built |
@@ -378,6 +378,20 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 - Two writers marking the same source at once now wait for each other (`markSource` takes a transaction lock per source, user, kind and key), so neither write is lost.
 
 Checked on the production database with throwaway rows, 6 of 6: five markers at once leave one current mark and five history rows with no error; another user and a company source cannot be removed; removal takes 6 marks and 1 citation with it and leaves nothing behind.
+
+#### 0.13.7 Part 10 is built: projects, topics, decisions and commitments (Wiki session, 13 Nov 2026, evening)
+
+`src/services/wiki/wikiMeaning.ts`, run with the other notes. The first notes the model writes.
+
+- **One model call per conversation he wrote in**, not per email, on Gemini Flash. The answer is kept as a `meaning` mark on the conversation's newest email with a fingerprint of the conversation, so an unchanged conversation is never paid for twice; a changed one is read again. At most 60 conversations are read per user per run.
+- **What the model says is checked before it becomes notes:** malformed answers, one-letter names, unknown states and dates that are not dates are dropped, never guessed. It is told to use only what the conversation says.
+- **Four note types, linked to each other and to the people:** `project` (summary, status, people, decisions, commitments, conversations), `topic`, `decision` (what, by whom, when, which project), `commitment` (what, owed by, owed to, state, due, evidence, last activity). Each cites the emails of its conversation. A commitment he owes says "you".
+- **Old requests are not open items** (his ruling: read the whole history). A commitment is open only when the conversation did not close it and it had activity in the last 60 days (`OPEN_WINDOW_DAYS`, a first guess); otherwise it is kept as history.
+- **Names that clash** with another note (a project named like a person or a mailbox) get their kind in the title, so links are not ambiguous.
+
+**On production, 13 Nov 19:33–19:50 PKT, for the founder, his whole history:** 371 conversations read, **$0.34 in all** (402 calls, 0 failed). **72 projects, 155 topics, 48 decisions, 341 commitments**: 160 open (60 of them his own), 74 done, 7 dropped, 100 kept as history. 1 link of 616 notes still waits for its note. Checked: `tests/wikiMeaning.test.ts` (7 tests, model mocked).
+
+**Not yet:** the Action Center, the brief and Suzi still read action items from `open_items`, not from commitment notes (moving them is the readers' step, Nexeo-Builder's); a commitment's open or done state is the model's reading of one conversation, not yet joined with replies in other conversations; meetings' transcripts are not read yet (part 11).
 
 #### 0.13.6 Part 9 is LIVE: every rule is a note (Wiki session, 13 Nov 2026; D-250, 18:22 PKT)
 
