@@ -28,7 +28,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 | 9 | Live conversation | Facts and data | The conversation model | Wake word, voice lock, listening, transcription, acknowledgements, interruptions, goodbyes, language switching, voice, the 3D character |
 | 10 | Presentation | Data blocks with numbers filled in | Builds `present_report` from data-tool block ids (`present_blocks`); **a number never comes from the model** | The board and the presenter; narration written in the user's language when `say` is empty; Stop and Esc |
 | 11 | Follow-ups | Decides what to chase; reminds others; holds due items while the computer is off | — | Picks the moment, records answers, reports progress |
-| 12 | Meeting Assistant (F-4) | With the user's switch on: gets the transcript (Way A, later Way B), keeps the one meeting record per meeting, proposes action items, serves the reads | — | Asks which meetings, shows status, the meeting card and the brief line; notes on the computer stay opt-in and go to the record only on his yes or his rule |
+| 12 | Meeting Assistant (F-4) | With the user's switch on: gets the transcript (Way A, later Way B), keeps the one meeting record per meeting, proposes action items, serves the reads | — | Asks which meetings, shows status, the meeting card and the brief line; taking notes on the computer stays opt-in per meeting; once taken, they go to his record (F-4.6, W-1) |
 | 13 | Operating the computer | — | Its model chooses tools step by step | Runs them locally under its safety tiers |
 | 14 | Journal | Stores Suzi's reports | Forwards them | Sends follow-up answers, decisions and actions taken; meeting notes only with consent |
 | 15 | Devices | Marks the device in charge (`primary`): the founder's M5 Mac now, later a setting in the Nexeo portal, otherwise the first paired device | Puts `primary` in `welcome` | Only the device in charge runs follow-ups and actions |
@@ -47,7 +47,8 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 - **R5** Never claim an action that didn't happen.
 - **R6 Fail softly:** present what's available and name what's missing; one failed tool call means one short sentence, then end the turn.
 - **R7** State freshness ("as of 3:05") when data is older than about 15 minutes.
-- **R8 Privacy defaults:** meeting data stays local unless the user has turned Meeting Assistant on (F-4.10), idle speech is never sent, the camera stays off unless the user says yes.
+- **R8 Privacy defaults:** meeting notes go to the user's Wiki (W-1, F-4.6, F-4.10); idle speech is never sent; the camera stays off unless the user says yes.
+- **R9 Wiki first (W-1):** all knowledge lives in Nexeo's Wiki. Suzi holds none of her own: her copy, the day pack and the knowledge route are views of the Wiki (section "Wiki first").
 
 **Safety tiers in the desktop app:**
 - **T0, silent:** reading.
@@ -185,11 +186,17 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   - Google's transcript Doc in Drive is recognised as a copy and attached, never digested as separate notes. Older
     Plaud minutes are linked only on the founder's separate yes.
 - **F-4.6 From the computer.** `meeting.upload` {event_id?, title, start, end, transcript[], minutes,
-  action_items[]}, only on his yes for that meeting or by his rule; event_id when known, start and end always. The
-  pack's meetings carry `attendees[{name, email}]` so Suzi can name speakers; voiceprints never leave the computer.
-  Suzi doesn't offer to upload when the record already has `google_transcript` or `participant` (sources[].way).
+  action_items[]} is sent automatically when a meeting noted on the computer ends, with Meeting Assistant on or off
+  (W-1, founder 13 Nov 2026); event_id when known, start and end always. The pack's meetings carry
+  `attendees[{name, email}]` so Suzi can name speakers. Voice identity is kept as W-1 S2 says. Suzi doesn't upload when
+  the record already has `google_transcript` or `participant` (sources[].way).
 - **F-4.7 After the meeting.** Action items are proposed: on his yes, by click or voice, each becomes a task through
-  `task.create` with `source.meeting_id` (F-2.1). The recap is a draft, sent under the send rules (R2).
+  `task.create` with `source {meeting_id, item_id}` (F-2.1): Nexeo marks that item accepted with its task_id (an
+  unknown item_id still makes the task, and the answer says `item_state: "not_found"`). `meeting.item` {meeting_id,
+  item_id, decision: skip | propose} (confirmed, unsigned) answers {meeting_id, item_id, state}; `meeting.get` keeps
+  each item's id, state and task_id. The pack carries `meeting_assistant {on}`. Until `meeting.status` is pushed, Suzi
+  reads `meeting.list` after his meetings. The recap is a draft, sent under the send rules (R2). (Detail agreed
+  13 Nov 2026 16:10:35 PKT.)
 - **F-4.8 Reads.** `meeting.list` {from?, to?, person?}, `meeting.get` {meeting_id} (with sources[].way), the knowledge
   route across his own records only, and the pack's `meetings_recorded[]` since the last brief: title, when, a one-line
   outcome, the count of proposed action items.
@@ -197,8 +204,8 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   `meeting.delete` {meeting_id} (signed, irreversible). Nexeo pushes `meeting.status`: Way A `transcribing`,
   `transcript_ready`, `record_ready`; Way B `joining`, `waiting_to_be_let_in`, `in`, `left`, `refused`, `ended`,
   `record_ready`; either way `not_covered` and `failed {reason}`.
-- **F-4.10 Privacy.** Meeting data stays on the computer unless he has turned Meeting Assistant on; then the record is
-  kept on Nexeo for him alone, and he can delete any record. Records are kept 12 months, then only the minutes and
+- **F-4.10 Privacy.** The meeting record is kept in his Wiki for him alone, whether notes came from the computer or
+  from Meeting Assistant (W-1); he can delete any record. Records are kept 12 months, then only the minutes and
   action items (founder, decision 4). Under Way A, Google's own copy of the transcript is the host's, in his Drive:
   this limit and our delete don't reach it. The consumption record carries counts only.
 - **F-4.11 Cost.** Way A needs no new line; the consumption record counts `meeting_transcript_minutes` (Costing
@@ -206,6 +213,46 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   `meeting_participant_seconds`) before anything of it is built.
 - **Start:** one user, the founder, through the group nexeo-users@tmcltd.com (TMC's Workspace includes Meet
   transcripts; Nexeo's sign-in app is trusted for his unit).
+
+## Meeting reminders while the computer is off (row 7, agreed 13 Nov 2026)
+
+- 10 minutes before each timed meeting on his calendar (not all-day, cancelled or declined by him), Nexeo sends a
+  reminder only when no Suzi device of his is alive (the presence rule). While one is alive, Suzi's own alert covers it,
+  so the two never double. When his latest presence said nudges off, Nexeo sends nothing either.
+- WhatsApp to his registered number first, email if that can't deliver: the title, the time, who it's with and the join
+  link. One message for meetings starting together, once per event and start; quiet hours apply. A user with no Suzi
+  device always gets it.
+
+## Wiki first (W-1, agreed 13 Nov 2026)
+
+Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for the whole product, Suzi included.
+
+- **W-1.1** All knowledge lives in Nexeo's Wiki (R9). Suzi's copy, the day pack and the knowledge route are views of it.
+- **W-1.2** Everything Suzi captures goes to Nexeo, which places it in the Wiki: meeting notes (F-4.6), what she learns
+  about the user (`profile.update`), identity (`identity.put`), and her settings, audit and usage (`device.report`).
+- **W-1.3** Suzi cites note titles; the knowledge route returns them.
+- **W-1.4** Later changes to what Suzi receives are proposed first.
+- **W-1.5** The pack's `emails[]` and `fyi[]` are read from the Wiki's marked email sources; a rule is a mark on each
+  email it covers, and `email.mark` writes a "handled" mark (same fields and caps; agreed 13 Nov 2026 15:20, live D-239).
+- **Split rule:** what is about this user, or would be wrong for another user, is USER and goes to his Wiki. What
+  helps everyone and holds no personal data is GENERIC and goes to Suzi Master (`learning.note`, SuziUpgrade Charter).
+  When unsure, it is USER. Requests and training feedback about Suzi herself go to Suzi Master under the SuziUpgrade
+  Charter; once a note is sent Suzi drops his verbatim words, and keeps training rounds as counts.
+- **S1** The device's signing key and the keys that encrypt storage on the computer never leave it, not even
+  encrypted. Other secrets (an AI key, a voice key) go to Nexeo's encrypted secret store, never into a note's text.
+- **S2** Identity (voiceprints, faceprint, the 8 s voice sample) is stored encrypted, readable only by that user's own
+  signed-in devices, used only to verify that user (never to identify others, never for training). A note holds a
+  reference, not the data. Deleting it removes it everywhere.
+- **S3** Every user is told before enrolment that their prints are kept encrypted in the company knowledge store, and
+  once on screen that meeting notes are saved there.
+
+| Op | What | Signed |
+|---|---|---|
+| `meeting.upload` | F-4.6, sent when a meeting noted on the computer ends | no (confirmed) |
+| `identity.put` {kind: voiceprint \| faceprint \| voice_sample, data, model} / `identity.get` {kind} / `identity.delete` {kind} | S2; get answers only to the same user's device | put and delete |
+| `profile.update` {notes[{key, value, evidence_count, updated}]} | USER learning, one person note "How to work with <user>"; the pack returns `profile{}` | no (confirmed) |
+| `device.report` {settings, audit[], usage} | daily, extending /v1/usage | no |
+| `learning.note` | GENERIC learning, relayed unread to Suzi Master (SuziUpgrade Charter) | yes, by the device |
 
 ## 5. Credentials (Google project nexeo-tmc)
 
@@ -245,3 +292,6 @@ A dedicated test user per OS, with its own integration key (item 19, from the fo
 - [x] Nexeo: AGREE F-4 (N1–N8 with C1–C7, Way A's wording), 12 Nov 2026
 - [x] Suzi Master: proposed and AGREE F-4, 12 Nov 2026 (the same text)
 - [ ] Founder: decide items 1 (owner of Suzi's server) and 19 (test accounts)
+- [x] Founder: W-1 decisions, 13 Nov 2026 09:59 PKT, and "agreed from my side" to W-1 with S1, 16:25:47 PKT, in Nexeo's session
+- [x] Nexeo: AGREE W-1 with S1–S3 and the five ops (10:00:19), row 7 detail, W-1.E (D-239), the F-4.7 detail (16:10:35), 13 Nov 2026
+- [x] Suzi Master: AGREE W-1 amended with S1–S3 (09:59:30), row 7 detail, W-1.E (15:20), the F-4.7 detail; text written 13 Nov 2026

@@ -118,6 +118,7 @@ client gets `503 master_unavailable`.
 | `POST /v1/gap` | Always signed (G1): `{signed: {op:"gap.note", args:{label: "bug"\|"feature", text, confirmed_by_user: true, voice_score?}, idempotency_key, ts}, sig}`; `voice_score` optional (SU-9) | `200 {"id":"G-n","state":"approved"\|"new"}`; 403 without a valid device signature; 400 without `confirmed_by_user` |
 | `POST /v1/approval` | `{signed: {op:"approval.answer", args:{id, yes, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
 | `POST /v1/stop` | `{signed: {op:"release.stop", args:{version, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
+| `POST /v1/learning` | Signed (W-1, `learning.note`): `{signed: {op:"learning.note", args:{text, evidence_count}, idempotency_key, ts}, sig}`; `text` at most 400 characters, GENERIC only (W-1 split rule: nothing about one user, no names, no personal data) | `200 {"ok":true}`; 403 without a valid device signature; 400 when empty |
 | `POST /v1/log` | Signed (SU-10): `{signed: {op:"log.send", args:{gap_id?, version, reason, lines}, idempotency_key, ts}, sig}`; `reason` ∈ `gap failed rolled_back asked user`; `lines` at most 512 KB, cleaned on the device | `200 {"ok":true}`; 403 without a valid device signature; 429 over 12 logs per device per day |
 | `GET /v1/installer/<os>/latest` | — (called by Nexeo's portal for a signed-in user; signed, no did); `os` = `macos` \| `windows` | The installer, streamed; `Accept-Ranges: bytes`, Range → 206; `X-Installer` = base64 of the signed `{os, version, file, sha256, size, made, sig}`; `404` when none yet |
 
@@ -130,6 +131,11 @@ client gets `503 master_unavailable`.
 - **Kept.** On Suzi Master only, for 14 days, then deleted. Never passed on. At most 12 per device per day (Nexeo C1: 429 over
   it). The count `logs_sent` is the master's own and is not in Nexeo's consumption record (Nexeo C2).
 - **Carried.** Nexeo carries it unread over the existing relay and keeps none of it.
+
+**W-1, what Suzi learns** (Functional Charter, "Wiki first"): what she learns about one user goes to his Wiki
+(`profile.update`). What would help every user and holds no personal data goes here as a `learning.note`. The master
+keeps it as product learning for the builder, the way it keeps requests, and never passes it on. When unsure, it is
+the user's and goes to his Wiki.
 
 ### B. Master → Nexeo: `http://127.0.0.1:4012`
 
@@ -181,3 +187,4 @@ A non-lead feature note → `approval.ask` kind `feature_note` to the lead.
 | Founder | SU-10, in Suzi Master's session: "Mac log should also be sync (if needed)" | 2026-11-13 |
 | Nexeo | AGREE SU-10 with C1 (a per-device cap on the master, 429 over it) and C2 (say whose count logs_sent is) | 2026-11-13 |
 | Suzi Master | AGREE C1 (12 per device per day) and C2 (the master's own count); SU-10 agreed. Recorded with it: `/v1/latest` carries `status` (live 14:30, Suzi 1.2.44) | 2026-11-13 |
+| Founder / Nexeo / Suzi Master | W-1 agreed by all three (founder 16:25:47 PKT); `learning.note` relayed unread to the master, as `POST /v1/learning` | 2026-11-13 |
