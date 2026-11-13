@@ -20,7 +20,6 @@ import { getOrCompute } from '../../utils/redisClient';
 
 const log = createLogger('brain-voice-context');
 
-const MAX_INSTRUCTIONS = 10;
 
 // Fix 3 (2026-07-09) — 60s TTL matches the composer caches
 // (persona/prefs/instructions/overlay at brainComposer.ts ~1851). The
@@ -43,9 +42,10 @@ export async function renderBrainVoiceContext(userId: number): Promise<string> {
       // the others (a DB hiccup on instructions shouldn't drop preferences).
       const [instructionsBlock, prefsBlock, governedBlock] = await Promise.all([
         (async () => {
-          const { getActiveInstructions, renderInstructionsBlock } = await import('./instructionService');
-          const rows = await getActiveInstructions(clientNumber, userId, MAX_INSTRUCTIONS);
-          return rows.length ? renderInstructionsBlock(rows) : '';
+          const { getActiveInstructions, renderInstructionsBlock, RULES_UNAVAILABLE_BLOCK } = await import('./instructionService');
+          const rows = await getActiveInstructions(clientNumber, userId).catch(() => null);
+          if (rows === null) return RULES_UNAVAILABLE_BLOCK;
+          return rows.length ? renderInstructionsBlock(rows) : ''; // every reader gets every rule (third review item 2)
         })().catch(() => ''),
         (async () => {
           const { getLearnedPreferences, renderPreferencesBlock } = await import('./preferenceLearnerService');

@@ -52,7 +52,7 @@ export async function matchInstructionsForEvent(
   userId: number,
   input: InstructionMatchInput,
 ): Promise<InstructionMatch[]> {
-  const active = await getActiveInstructions(clientNumber, userId, 50);
+  const active = await getActiveInstructions(clientNumber, userId);
   if (active.length === 0) return [];
 
   const senderBlob = hay([input.senderEmail, input.senderName]);
@@ -160,7 +160,8 @@ export async function findVetoForEvent(
   userId: number,
   input: InstructionMatchInput,
 ): Promise<VetoResult | null> {
-  const active = await getActiveInstructions(clientNumber, userId, 50);
+  // Throws RulesUnavailable when the rules cannot be read: the caller must hold, never read that as "no veto".
+  const active = await getActiveInstructions(clientNumber, userId);
   if (active.length === 0) return null;
 
   const senderBlob = hay([input.senderEmail, input.senderName]);

@@ -253,10 +253,26 @@ export interface ActiveInstructionRow {
  * as the organizational-authoritative layer; user-scope rules follow
  * as personal preferences stacked on top.
  */
+/**
+ * Third review, item 2 (owner approved 13 Nov 2026, Rules.md §11): the rules could not be read. Never an empty list:
+ * an empty list means "he has no rules", which let an auto-action through a veto that was only unreadable.
+ */
+export class RulesUnavailable extends Error {
+  constructor(cause?: string) { super(`standing instructions could not be read${cause ? `: ${cause}` : ''}`); this.name = 'RulesUnavailable'; }
+}
+
+/** What Brain is told when the rules cannot be read: say so, and do nothing that needs them. */
+export const RULES_UNAVAILABLE_BLOCK = [
+  "STANDING INSTRUCTIONS: COULD NOT BE READ just now (a database error, not \"no rules\").",
+  "Do not act on anything that depends on the user's rules. If the user asks about a rule, say the rules could not be read just now.",
+].join('\n');
+
+/** The safety ceiling of the one governed read. Every reader gets the same rules; a user past it is logged. */
+export const RULES_READ_CEILING = 1000;
+
 export async function getActiveInstructions(
   clientNumber: string,
   userId: number,
-  limit = 30,
   /** My Rules only: paused rules too, so a paused rule can be resumed (Rules.md §2.4). Brain never passes it. */
   opts: { includePaused?: boolean } = {},
 ): Promise<ActiveInstructionRow[]> {
@@ -281,8 +297,9 @@ export async function getActiveInstructions(
       ORDER BY (COALESCE(metadata->>'scope', 'user') = 'client') DESC,
                (metadata->>'createdAt') DESC
       LIMIT $3`,
-    clientNumber, userId, limit, opts.includePaused ? ['active', 'paused'] : ['active'],
-  ).catch(() => []);
+    clientNumber, userId, RULES_READ_CEILING, opts.includePaused ? ['active', 'paused'] : ['active'],
+  ).catch((e: any) => { throw new RulesUnavailable(String(e?.message ?? e).slice(0, 120)); });
+  if (rows.length >= RULES_READ_CEILING) log.warn('rules read hit its ceiling', { clientNumber, userId, ceiling: RULES_READ_CEILING });
   return rows as ActiveInstructionRow[];
 }
 
@@ -379,20 +396,21 @@ export async function updateInstructionStatus(
       if (page.userId !== userId) return { ok: false, reason: 'not your instruction' };
     }
     meta.status = status;
-    await prisma.wikiPage.update({
-      where: { id: page.id },
-      data: {
-        metadata: meta as any,
-        status: status === 'archived' ? 'deleted' : 'active',
-        lastUpdatedAt: new Date(),
-        lastUpdatedBy: 'instruction_service',
-      },
-    });
-    // Its email rule follows it: paused or archived = off, active = on (DEF-457).
-    try {
-      const { followInstructionStatus } = await import('../suzi/instructionEmailRules');
-      await followInstructionStatus(clientNumber, page.userId ?? userId, page.id, status === 'active');
-    } catch { /* best effort: the instruction's own status is already saved */ }
+    // Third review item 1 (owner approved 13 Nov 2026): the instruction and its email rule (DEF-457) change in ONE
+    // transaction: both or neither, so a failed second write can never leave the email rule on after a pause.
+    const { followInstructionStatus } = await import('../suzi/instructionEmailRules');
+    await prisma.$transaction([
+      prisma.wikiPage.update({
+        where: { id: page.id },
+        data: {
+          metadata: meta as any,
+          status: status === 'archived' ? 'deleted' : 'active',
+          lastUpdatedAt: new Date(),
+          lastUpdatedBy: 'instruction_service',
+        },
+      }),
+      followInstructionStatus(clientNumber, page.userId ?? userId, page.id, status === 'active'),
+    ]);
     void (async () => {
       try {
         const { invalidate } = await import('../../utils/redisClient');

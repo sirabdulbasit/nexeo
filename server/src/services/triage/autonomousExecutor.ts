@@ -137,7 +137,11 @@ export async function executeIfMatched(event: FeedEventForExec): Promise<ExecRes
         action: undefined,
       };
     }
-  } catch { /* best effort — never crash the executor on a matcher failure */ }
+  } catch (e: any) {
+    // Third review item 2 (owner approved 13 Nov): a veto check that could not run is NOT "no veto". Nothing that
+    // needs a rule check runs by itself while his rules cannot be read; the event stays for him.
+    return { executed: false, reason: `rules_unavailable:${String(e?.message ?? e).slice(0, 80)}`, action: undefined };
+  }
 
   // User-defined action rules — the editor lets the user write rules
   // like "forward Raazia emails to Asad". Each rule has a mode:

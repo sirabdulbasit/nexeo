@@ -68,7 +68,7 @@ describe('the rules document', () => {
     expect(call('FROM users').slice(1)).toEqual([2, 'TMC-0001']);
     expect(call('FROM user_action_rules').slice(1)).toEqual(['TMC-0001', 2]);
     expect(call('FROM delegation_matrix').slice(1)).toEqual(['TMC-0001']);
-    expect(instructions).toHaveBeenCalledWith('TMC-0001', 2, 100);
+    expect(instructions).toHaveBeenCalledWith('TMC-0001', 2);
   });
 });
 

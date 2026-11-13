@@ -200,7 +200,7 @@ async function analyzeInstructionFollowUps(clientNumber: string, userId: number)
   const out: Observation[] = [];
   try {
     const { getActiveInstructions } = await import('./instructionService');
-    const active = await getActiveInstructions(clientNumber, userId, 50);
+    const active = await getActiveInstructions(clientNumber, userId);
 
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;

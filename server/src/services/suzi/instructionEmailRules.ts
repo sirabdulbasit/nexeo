@@ -87,8 +87,11 @@ export async function emailRuleFromInstruction(clientNumber: string, userId: num
   }
 }
 
-/** The instruction's status carries to its email rule: paused or archived = off, active = on. */
-export async function followInstructionStatus(clientNumber: string, userId: number, instructionId: string, active: boolean): Promise<number> {
+/**
+ * The instruction's status carries to its email rule: paused or archived = off, active = on. Returned UNRUN (a Prisma
+ * query is lazy) so the caller puts it in the same transaction as the instruction's own write (third review item 1).
+ */
+export function followInstructionStatus(clientNumber: string, userId: number, instructionId: string, active: boolean) {
   return prisma.$executeRawUnsafe(
     `UPDATE user_action_rules SET is_active = $4, updated_at = now()
       WHERE client_number = $1 AND user_id = $2 AND action_payload->'suzi'->>'instruction_id' = $3`,

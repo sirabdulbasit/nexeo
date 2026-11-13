@@ -20,7 +20,7 @@ import { getBrainPersona } from './brainPersonaService';
 import { getRecentTenantLog } from './tenantLogService';
 import { getSystemCapabilities, renderCapabilitiesBlock } from './systemCapabilitiesService';
 import { getLearnedPreferences, renderPreferencesBlock } from './preferenceLearnerService';
-import { getActiveInstructions, renderInstructionsBlock } from './instructionService';
+import { getActiveInstructions, renderInstructionsBlock, RULES_UNAVAILABLE_BLOCK } from './instructionService';
 import type { InstructionIntent } from '../instructions/instructionExtractor';
 import { renderMatrixBlock as renderDelegationMatrixBlock } from './delegationMatrixService';
 import { getLatestForUser as getLatestRiskFlagDoc } from '../brain/riskRadarService';
@@ -2784,9 +2784,9 @@ export async function compose(
       // Failure is non-fatal and SILENT BY DESIGN in one direction only: if the rules cannot be
       // read, the reply still goes out on the persona alone rather than the turn dying. That is
       // the same trade the legacy path made.
-      const reasoningInstructions = await getActiveInstructions(clientNumber, userId, 30)
-        .catch(() => [] as any[]);
-      const reasoningRulesBlock = renderInstructionsBlock(reasoningInstructions as any);
+      // Third review item 2: unreadable rules are SAID, never rendered as "no rules".
+      const reasoningInstructions = await getActiveInstructions(clientNumber, userId).catch(() => null);
+      const reasoningRulesBlock = reasoningInstructions === null ? RULES_UNAVAILABLE_BLOCK : renderInstructionsBlock(reasoningInstructions as any);
       // DEF-366 — the core rules ride the SAME constant the legacy path reads
       // (one definition, both paths). Before this line the live prompt was
       // persona + tenant rules alone, and every core rule — 1a (DEF-333),
@@ -3393,7 +3393,7 @@ export async function compose(
     getOrCompute(`tenantlog:${clientNumber}:${userId}:15`, 5, () => getRecentTenantLog(clientNumber, userId, 15).catch(() => '')),
     getOrCompute(`caps:${clientNumber}:${userId}`, 120, () => getSystemCapabilities(clientNumber, userId).catch(() => null)),
     getOrCompute(`prefs:${clientNumber}:${userId}`, 60, () => getLearnedPreferences(clientNumber, userId).catch(() => null)),
-    getOrCompute(`instructions:${clientNumber}:${userId}`, 30, () => getActiveInstructions(clientNumber, userId, 30).catch(() => [])),
+    getOrCompute(`instructions:${clientNumber}:${userId}`, 30, () => getActiveInstructions(clientNumber, userId).catch(() => null)),
     renderDelegationMatrixBlock(clientNumber).catch(() => ''),
     getOrCompute(`riskradar:${clientNumber}:${userId}`, 300, () => getLatestRiskFlagDoc(clientNumber, userId).catch(() => null)),
     // Cache 60s — overlay changes only on user edit / new auto-promote.
@@ -3401,7 +3401,7 @@ export async function compose(
   ]);
   const capsBlock = caps ? renderCapabilitiesBlock(caps) : '';
   const prefsBlock = prefs ? renderPreferencesBlock(prefs) : '';
-  const instructionsBlock = renderInstructionsBlock(instructions);
+  const instructionsBlock = instructions === null ? RULES_UNAVAILABLE_BLOCK : renderInstructionsBlock(instructions);
   const radarBlock = renderRiskRadarBlock(latestRadarDoc as any);
   const overlayBlock = renderOverlayBlock(overlayRules ?? []);
 

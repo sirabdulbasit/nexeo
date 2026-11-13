@@ -38,11 +38,11 @@ async function main() {
   console.log('[smoke] user rule id =', u?.id, ' scope =', u?.scope, ' kind =', u?.structured.kind);
 
   console.log('\n[smoke] listing for userA (author of user rule) — expect BOTH:');
-  const activeA = await getActiveInstructions(clientNumber, userAId, 30);
+  const activeA = await getActiveInstructions(clientNumber, userAId);
   for (const a of activeA) console.log(`  [${a.scope}] [${a.kind}] ${a.title}`);
 
   console.log('\n[smoke] listing for userB (different user) — expect CLIENT only:');
-  const activeB = await getActiveInstructions(clientNumber, userBId, 30);
+  const activeB = await getActiveInstructions(clientNumber, userBId);
   for (const a of activeB) console.log(`  [${a.scope}] [${a.kind}] ${a.title}`);
 
   const userAHasBoth = activeA.some((a) => a.scope === 'client') && activeA.some((a) => a.scope !== 'client');

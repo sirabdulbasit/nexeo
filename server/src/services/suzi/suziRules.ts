@@ -40,7 +40,8 @@ export async function rulesContent(clientNumber: string, userId: number): Promis
         WHERE client_number = $1 AND user_id = $2 AND is_active = TRUE ORDER BY id`,
       clientNumber, userId,
     ),
-    getActiveInstructions(clientNumber, userId, 100),
+    // Throws when the rules cannot be read: the pack then leaves the rules out and the desktop keeps its last copy.
+    getActiveInstructions(clientNumber, userId),
   ]);
   const bc = user[0]?.bc ?? {};
   return {

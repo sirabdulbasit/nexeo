@@ -12,9 +12,9 @@ import { getActiveInstructions } from '../src/services/knowledge/instructionServ
 
 describe('paused rules on My Rules', () => {
   it('Brain reads active only; My Rules reads active and paused, with the status', async () => {
-    await getActiveInstructions('T', 2, 30);
+    await getActiveInstructions('T', 2);
     expect((query.mock.calls[0] as any[])[4]).toEqual(['active']);
-    await getActiveInstructions('T', 2, 30, { includePaused: true });
+    await getActiveInstructions('T', 2, { includePaused: true });
     const [sql, , , , statuses] = query.mock.calls[1] as any[];
     expect(statuses).toEqual(['active', 'paused']);
     expect(sql).toMatch(/metadata->>'status' AS status/);

@@ -11,13 +11,16 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const exec = vi.fn();
 const query = vi.fn();
-vi.mock('../src/db/prisma', () => ({ default: { $executeRawUnsafe: (...a: any[]) => exec(...a), $queryRawUnsafe: (...a: any[]) => query(...a) } }));
+// $transaction runs the callback with the same raw functions, so a test sees every write the transaction makes.
+const tx = vi.fn(async (fn: any) => fn({ $executeRawUnsafe: (...a: any[]) => exec(...a), $queryRawUnsafe: (...a: any[]) => query(...a) }));
+vi.mock('../src/db/prisma', () => ({ default: { $executeRawUnsafe: (...a: any[]) => exec(...a), $queryRawUnsafe: (...a: any[]) => query(...a), $transaction: (...a: any[]) => (tx as any)(...a) } }));
+vi.mock('../src/utils/redisClient', () => ({ invalidate: async () => {} }));
 vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: string, _u: number, id: string) => (id === 'p1' ? { id: 'p1', name: 'Ali Raza', email: 'ali@x.com' } : id === 'p2' ? { id: 'p2', name: 'No Mail' } : null) }));
 vi.mock('../src/services/suzi/suziRules', () => ({ rulesDocument: async () => ({ rules_version: 12 }) }));
 
 import { ruleSet, ruleRemove, ruleFor, type SuziEmailRule } from '../src/services/suzi/suziEmailRules';
 
-beforeEach(() => { exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
+beforeEach(() => { tx.mockClear(); exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
 
 describe('rule.set', () => {
   it('a delegate rule is stored as his own DRAFT rule, with the person', async () => {
@@ -72,12 +75,27 @@ describe('rule.set from an instruction (DEF-457)', () => {
 });
 
 describe('rule.remove', () => {
-  it('only his own active rule', async () => {
+  it('only his own active rule; nothing else is written for an unlinked rule', async () => {
+    query.mockResolvedValueOnce([{ instruction_id: null }]);
     expect(await ruleRemove('T', 2, { rule_id: 'uar_1' }, true)).toMatchObject({ ok: true, item: { removed: true, rules_version: 12 } });
-    expect(exec.mock.calls[0][0]).toMatch(/user_id = \$3 AND scope = 'user' AND is_active = TRUE/);
-    expect(exec.mock.calls[0].slice(1)).toEqual(['uar_1', 'T', 2]);
-    exec.mockResolvedValue(0);
+    expect(query.mock.calls[0][0]).toMatch(/user_id = \$3 AND scope = 'user' AND is_active = TRUE\s+RETURNING/);
+    expect(query.mock.calls[0].slice(1)).toEqual(['uar_1', 'T', 2]);
+    expect(exec).not.toHaveBeenCalled();
+    query.mockResolvedValueOnce([]);
     expect(await ruleRemove('T', 2, { rule_id: 'someone-elses' }, true)).toEqual({ ok: false, error: 'not_found' });
+  });
+  it('third review item 1: removing a rule read from an instruction archives the instruction in the SAME transaction', async () => {
+    query.mockResolvedValueOnce([{ instruction_id: 'ins_9' }]);
+    const r: any = await ruleRemove('T', 2, { rule_id: 'uar_7' }, true);
+    expect(r.item).toMatchObject({ rule_id: 'uar_7', removed: true, instruction_archived: 'ins_9' });
+    expect(tx).toHaveBeenCalledTimes(1);
+    expect(exec.mock.calls[0][0]).toMatch(/UPDATE wiki_pages SET status = 'deleted', metadata = jsonb_set\(metadata, '\{status\}', '"archived"'\)/);
+    expect(exec.mock.calls[0].slice(1)).toEqual(['ins_9', 'T', 2]);
+  });
+  it('a failed second write fails the whole removal (the transaction rolls both back)', async () => {
+    query.mockResolvedValueOnce([{ instruction_id: 'ins_9' }]);
+    exec.mockRejectedValueOnce(new Error('db down'));
+    await expect(ruleRemove('T', 2, { rule_id: 'uar_7' }, true)).rejects.toThrow('db down');
   });
 });
 

@@ -96,13 +96,32 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
 export async function ruleRemove(clientNumber: string, userId: number, a: Args, confirmed: boolean): Promise<Result> {
   if (!confirmed) return fail('needs_confirmation');
   const id = text(a.rule_id);
-  const n = await prisma.$executeRawUnsafe(
-    `UPDATE user_action_rules SET is_active = FALSE, updated_at = now()
-      WHERE id = $1 AND client_number = $2 AND user_id = $3 AND scope = 'user' AND is_active = TRUE`,
-    id, clientNumber, userId,
-  );
-  if (!n) return fail('not_found');
-  return { ok: true, item: { rule_id: id, removed: true, rules_version: await rulesVersion(clientNumber, userId) } };
+  // Third review item 1 (owner approved 13 Nov 2026): removing an email rule read from one of his instructions
+  // archives that instruction too, in the same transaction (they are one rule, DEF-457); both or neither.
+  const removed = await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRawUnsafe<Array<{ instruction_id: string | null }>>(
+      `UPDATE user_action_rules SET is_active = FALSE, updated_at = now()
+        WHERE id = $1 AND client_number = $2 AND user_id = $3 AND scope = 'user' AND is_active = TRUE
+        RETURNING action_payload->'suzi'->>'instruction_id' AS instruction_id`,
+      id, clientNumber, userId,
+    );
+    if (!rows.length) return null;
+    const ins = rows[0].instruction_id;
+    if (ins) {
+      await tx.$executeRawUnsafe(
+        `UPDATE wiki_pages SET status = 'deleted', metadata = jsonb_set(metadata, '{status}', '"archived"'),
+                last_updated_at = now(), last_updated_by = 'suzi_rule_remove'
+          WHERE id = $1 AND client_number = $2 AND user_id = $3 AND page_type = 'instruction'`,
+        ins, clientNumber, userId,
+      );
+    }
+    return { instructionId: ins };
+  });
+  if (!removed) return fail('not_found');
+  if (removed.instructionId) {
+    void import('../../utils/redisClient').then(({ invalidate }) => invalidate(`instructions:${clientNumber}:*`)).catch(() => {});
+  }
+  return { ok: true, item: { rule_id: id, removed: true, ...(removed.instructionId ? { instruction_archived: removed.instructionId } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
 }
 
 /** His active Suzi email rules, oldest first, so the first one he made wins a tie. */

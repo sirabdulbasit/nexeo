@@ -33,6 +33,7 @@ vi.mock('../src/utils/redisClient', () => ({
 vi.mock('../src/services/knowledge/instructionService', () => ({
   getActiveInstructions: (...a: any[]) => getInstructions(...a),
   renderInstructionsBlock: (...a: any[]) => renderInstr(...(a as [any[]])),
+  RULES_UNAVAILABLE_BLOCK: 'STANDING INSTRUCTIONS: COULD NOT BE READ',
 }));
 vi.mock('../src/services/knowledge/preferenceLearnerService', () => ({
   getLearnedPreferences: (...a: any[]) => getPrefs(...a),
@@ -56,7 +57,7 @@ describe('renderBrainVoiceContext', () => {
   it('assembles instructions + learned preferences + governed memories for the user', async () => {
     const block = await renderBrainVoiceContext(2);
     expect(resolveTenant).toHaveBeenCalledWith(2);
-    expect(getInstructions).toHaveBeenCalledWith('tmc', 2, expect.any(Number));
+    expect(getInstructions).toHaveBeenCalledWith('tmc', 2);
     expect(block).toContain('always cc finance');
     expect(block).toContain('terse replies preferred');
     expect(block).toContain('Quote money in PKR');
