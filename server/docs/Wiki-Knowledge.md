@@ -471,6 +471,12 @@ Advisory; plan score 88 (85 before); capability scores carried forward, none cre
 
 The owner's latest ruling stands and the review says to keep it: **learned patterns only suggest; rules, delegations and standing instructions act by themselves within their scope.** The findings above are about enforcing that scope, not about asking him again.
 
+### 0.16 One email, one source row; cards agree with what is known (13 Nov, CL-091, Nexeo-Builder)
+
+- **DEF-476:** the feed kept two or three rows per Gmail message, because its dedupe hash covered the whole payload (a read/unread change or a second reader's shape made a new row). The feed now keeps **one row per Gmail message per user**. A later read fills address fields the first row lacked and calls the Wiki's intake (`landFeedItem`, idempotent), so the message is still in the Wiki even if it arrived only by that later read. Rows already doubled are left as they are (no cleanup without the owner's yes); the Wiki already holds one source per message id.
+- **DEF-474 / DEF-475:** the email list that Suzi's pack and the spoken brief read from the Wiki marks, and the web's My Attention, now pass through one step (`triage/cardTruth.ts`). An email with an open task made from it shows the task's priority and line. A calendar invitation he has answered (read from his calendar) leaves the list; an unanswered one says "You haven't replied to this invitation yet." Nothing is written to the Wiki by this step (it is a read-time correction); marking answered invitations in the Wiki is a later step, not built.
+- Verified: unit tests (`def474`, `def475`, `def476`) and the full suite. Not verified: the live cards after the deploy.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

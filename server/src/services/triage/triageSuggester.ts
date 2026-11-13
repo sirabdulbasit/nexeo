@@ -107,6 +107,10 @@ export interface AttentionItem {
   needsYou?: boolean;
   /** DEF-459: needs nothing from him but he should know: why, and which situation (escalation, risk, own_thread, team). */
   forYourKnowledge?: { kind: 'escalation' | 'risk' | 'own_thread' | 'team'; why: string } | null;
+  /** DEF-474: the open task made from this email, when there is one. */
+  openItem?: { id: string; priority: string; dueDate: string | null; title: string } | null;
+  /** DEF-475: his own answer to a calendar invitation (accepted | declined | tentative | needsAction), from his calendar. */
+  inviteResponse?: string | null;
   subject: string;
   preview: string;
   receivedAt: string;
@@ -365,7 +369,9 @@ export function addressingOf(payload: any, userEmails: Set<string>): { to: strin
  * the model gave a reason he should know, else to the Brief as copied, nothing needed. Anything not judged stays in view.
  */
 export type Placement = 'attention' | 'fyi' | 'copied';
-export function placeItem(it: Pick<AttentionItem, 'itemType' | 'needsYou' | 'forYourKnowledge'>): Placement {
+export function placeItem(it: Pick<AttentionItem, 'itemType' | 'needsYou' | 'forYourKnowledge'> & { inviteResponse?: string | null }): Placement {
+  // DEF-475: an invitation he has answered is on his calendar; nothing is left for him to do.
+  if (it.itemType === 'email' && it.inviteResponse && it.inviteResponse !== 'needsAction') return 'copied';
   if (it.itemType !== 'email' || it.needsYou !== false) return 'attention';
   return it.forYourKnowledge ? 'fyi' : 'copied';
 }
@@ -1788,6 +1794,7 @@ export async function buildAttentionList(
   // dropped, so Medium Cc mail asking someone else sat here as "Medium, Draft reply"). The model now reads the ask
   // (it is given To and Cc): an email that needs nothing from him leaves My Attention, to "For your knowledge" when he
   // should know, else to the Brief. placeItem is the ONE rule; buildHandledList calls it too.
+  await import('./inviteResponses').then(({ markInviteResponses }) => markInviteResponses(items, userId)).catch(() => undefined); // DEF-475
   const ccFiltered = items.filter((it) => {
     const place = placeItem(it);
     if (place === 'fyi') collect?.fyi.push(it);
@@ -1796,6 +1803,8 @@ export async function buildAttentionList(
   const ccDropped = items.length - ccFiltered.length;
   items.length = 0;
   items.push(...ccFiltered);
+  // DEF-474: a card with an open task made from it shows the task's priority and line (web and Suzi agree).
+  await import('./cardTruth').then(({ applyOpenItems }) => applyOpenItems(items.filter((i) => i.itemType === 'email') as any, clientNumber, userId)).catch(() => undefined);
 
   // ── Autonomy gate ──
   // Brain's historyDrivenSuggestion can return ≥0.85 confidence with N
@@ -2316,6 +2325,7 @@ export async function buildHandledList(
 
     // Needs you? — the SAME rule as buildAttentionList (placeItem, DEF-459), so an item is in exactly one place.
     // "For your knowledge" items have their own section, not the Brief; "copied" ones are filed here.
+    await import('./inviteResponses').then(({ markInviteResponses }) => markInviteResponses([item], userId)).catch(() => undefined); // DEF-475
     const place = placeItem(item);
     if (place === 'fyi') continue;
     if (place === 'copied') {
@@ -2324,7 +2334,9 @@ export async function buildHandledList(
         bucket: 'auto_cc_only',
         category: 'nexeo_handled',
         decidedAt: extractEventOccurredAt(r).toISOString(),
-        reason: `Nothing needed from you${item.addressing === 'cc' ? ' (you were copied)' : ''}: ${item.rationale}`.slice(0, 300),
+        reason: (item.inviteResponse && item.inviteResponse !== 'needsAction'
+          ? `Calendar invitation you have ${item.inviteResponse === 'tentative' ? 'answered maybe to' : item.inviteResponse}; it is on your calendar`
+          : `Nothing needed from you${item.addressing === 'cc' ? ' (you were copied)' : ''}: ${item.rationale}`).slice(0, 300),
         intendedAction: item.suggestedAction,
       });
       continue;

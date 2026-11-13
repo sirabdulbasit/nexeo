@@ -141,6 +141,40 @@ export async function ingest(input: RawEventInput): Promise<IngestResult> {
     }
   }
 
+  // DEF-476 (CL-091, 13 Nov): ONE row per Gmail message per user. The hash above covers the whole payload, so the
+  // same message came back as a new row whenever a field moved (isUnread, userRepliedThread) or a second reader
+  // stored it in another shape (with or without To/Cc): two or three rows per message, and the email-item job made
+  // a task from each (six Green Belt tasks). Mutable state belongs to gmailReadStateSyncJob, which updates the one
+  // row in place. A later read only fills address fields the first row lacked, and makes sure the Wiki holds the
+  // message (idempotent). A lookup that fails falls through to the normal create (a duplicate is recoverable; a
+  // dropped email is not).
+  if (input.sourceType === 'gmail' && input.userId !== undefined && input.sourceId) {
+    const same = await prisma.feedEvent.findFirst({
+      where: { clientNumber: input.clientNumber, userId: input.userId, sourceType: 'gmail', sourceId: input.sourceId } as any,
+      select: { id: true, rawPayload: true, createdAt: true },
+    }).catch(() => undefined);
+    if (same) {
+      const old = (same.rawPayload ?? {}) as Record<string, unknown>;
+      const add: Record<string, unknown> = {};
+      for (const k of ['to', 'cc', 'bcc', 'labels']) {
+        const v = (input.payload as any)?.[k];
+        const had = old[k];
+        if ((had === undefined || had === null || had === '') && v !== undefined && v !== null && v !== '') add[k] = v;
+      }
+      if (Object.keys(add).length) {
+        await prisma.feedEvent.update({ where: { id: same.id }, data: { rawPayload: { ...old, ...add } as any } }).catch(() => undefined);
+      }
+      const merged = { ...old, ...add } as Record<string, any>;
+      void import('../wiki/wikiIntake')
+        .then(({ landFeedItem }) => landFeedItem({
+          id: same.id, clientNumber: input.clientNumber, userId: input.userId!, sourceType: 'gmail', sourceId: input.sourceId,
+          payload: merged, at: extractSourceEventTime(merged) ?? same.createdAt, fetchedAt: same.createdAt,
+        }))
+        .catch(() => undefined);
+      return { status: 'duplicate', feedEventId: same.id, contentHash };
+    }
+  }
+
   try {
     // Source-native event time (Gmail Date / Calendar start /
     // WhatsApp ts / Tasks updated). Lets every consumer query "when

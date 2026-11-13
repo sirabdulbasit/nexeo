@@ -111,9 +111,11 @@ export async function loadAttentionEmails(clientNumber: string, userId: number, 
     if (w) {
       const { replyStates, UNCHECKED } = await import('./suziReplied');
       const states = await replyStates(userId, w.emails.map((i) => i.threadId));
-      const items = w.emails
+      const open = w.emails
         .map((i) => ({ ...i, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
         .filter((i) => !i.reply.replied_at);
+      const { cardTruth } = await import('../triage/cardTruth'); // DEF-474/475: the task's priority and line; answered invitations out
+      const items = await cardTruth(open as any[], clientNumber, userId);
       return { items: items as any[], loading: false, fyi: w.fyi as any[] };
     }
   } catch { /* fall through to the partition */ }
@@ -130,9 +132,10 @@ export async function loadAttentionEmails(clientNumber: string, userId: number, 
     const emails = part.myAttention.filter((i) => i.itemType === 'email');
     const { replyStates, UNCHECKED } = await import('./suziReplied');
     const states = await replyStates(userId, emails.map((i) => i.threadId));
-    const items = emails
-      .map((i) => ({ ...i, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
-      .filter((i) => !i.reply.replied_at);
+    const { cardTruth } = await import('../triage/cardTruth'); // DEF-474/475 (copies, so the triage cache is untouched)
+    const items = await cardTruth(emails
+      .map((i) => ({ ...i, criticality: i.criticality ? { ...i.criticality } : i.criticality, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
+      .filter((i) => !i.reply.replied_at) as any[], clientNumber, userId);
     // DEF-459: emails that need nothing from him but he should know (same partition).
     return { items, loading: false, fyi: part.forYourKnowledge ?? [] };
   } catch {
