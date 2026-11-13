@@ -334,7 +334,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 | 6 | A permanent identity per note; aliases and outside ids; no merge on a name; an unclear link stays unresolved | Live 13 Nov (§0.13.2) |
 | 7 | A note's text, properties, links and citations change together or not at all | Live 13 Nov (§0.13.2) |
 | 8 | A source knows which version of its text it holds | Live 13 Nov (§0.13.3) |
-| 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Built 13 Nov (§0.13.6) |
+| 9 | Rule notes: one per rule, marked instruction, learned suggestion, permission or system rule (§0.10) | Live 13 Nov (§0.13.6) |
 | 10 | Meaning notes: project, topic, decision, commitment (action items), each fact with its history | Not built; needs a model and a cost check |
 | 11 | Integration, KPI and business-unit notes; transcripts, attachments and conversations as sources | Partly (records adopted as notes) |
 | 12 | Proven private: two users and two clients through every path | Run 13 Nov: 22 of 22; four faults found and fixed (DEF-471 to 473); Drive export and meaning search read from code only (§0.15) |
@@ -379,7 +379,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 Checked on the production database with throwaway rows, 6 of 6: five markers at once leave one current mark and five history rows with no error; another user and a company source cannot be removed; removal takes 6 marks and 1 citation with it and leaves nothing behind.
 
-#### 0.13.6 Part 9 is built: every rule is a note (Wiki session, 13 Nov 2026)
+#### 0.13.6 Part 9 is LIVE: every rule is a note (Wiki session, 13 Nov 2026; D-250, 18:22 PKT)
 
 `src/services/wiki/wikiRuleNotes.ts`, run with the other notes (after every Scribe and every hour). One note of type `rule` per rule, carried over from the stores that hold rules today, facts only, no model. Each note says:
 
