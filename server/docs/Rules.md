@@ -76,8 +76,22 @@ it into a structured rule and follows it from then on.
 > instruction has no links. So every standing instruction stopped being read within an hour of
 > being saved: Brain did not follow it and this tab showed "No standing instructions yet",
 > although the user's own setting still said active. The linter now leaves alone any page that
-> keeps its own lifecycle. **The 12 instructions already relabelled are not restored yet:**
-> switching months-old orders back on changes what Brain does, so that waits for the owner's yes.
+> keeps its own lifecycle. **Restored on the owner's word, 13 Nov 2026, 13:30 PKT**
+> (user 2, through `updateInstructionStatus`, so the cache was cleared):
+> - **Active again, read by Brain (5):** Chase delegated tasks · Follow up on non-responders ·
+>   Follow up on tasks · Communication tracking instructions · Differentiate communication channels.
+> - **Paused by his decision (3):** "Don't ask for confirmation for tasks which I directly
+>   instruct you" and "Don't ask for confirmation" (they conflict with his ruling of the same day
+>   that a rule prepares and his yes acts), and the one-off to-do "Take care of it" (August, no subject).
+> - The 4 instructions of user 3 (switched off since May) were left as they were.
+> - Checked after the restore: `getActiveInstructions` returns 5 (was 0), and one full linter run
+>   left all 8 pages `active`.
+>
+> **Known gap (13 Nov 2026):** a paused instruction is not shown on this tab. `GET /brain/instructions`
+> lists through `getActiveInstructions`, which returns only `metadata.status = 'active'`, so the
+> page's own "paused" pill and **Resume** button never receive a paused rule: pressing **Pause**
+> makes a rule disappear with no way back from the page. The 3 paused above can be resumed only
+> through `PATCH /brain/instructions/:id/status` until the list returns paused rules too.
 
 ### 2.5 How Brain uses it
 - **Every answer and draft:** `getActiveInstructions` loads up to 30 active rules (client rules
@@ -209,3 +223,4 @@ fields changes the shared contract, so both sides must agree first (see
 |---|---|---|
 | 2026-11-13 | Document created from the code as it stands (no behaviour change). The §8 gap was found while writing it | (this commit) |
 | 2026-11-13 | DEF-458: the hourly wiki linter no longer relabels a standing instruction as `orphan` or `stale` (it made every instruction unread within the hour). No instruction's status was changed by this commit; restoring the 12 affected ones waits for the owner | (this commit, Wiki session) |
+| 2026-11-13 | DEF-458, data only (owner's decision): 5 standing instructions of user 2 restored to active and 3 paused, through `updateInstructionStatus`. Brain reads 5 instructions again (was 0). Gap recorded in §2.4: paused instructions are not listed on the tab | (this commit, Wiki session) |
