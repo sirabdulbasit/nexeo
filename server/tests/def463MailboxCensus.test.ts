@@ -18,10 +18,16 @@ vi.mock('../src/services/wiki/wikiSources', () => ({
 const landEmailText = vi.fn(async (p: any) => { heldIds.add(`src_${p.gmailMessageId}`); return `src_${p.gmailMessageId}`; });
 vi.mock('../src/services/wiki/wikiIntake', () => ({ landEmailText: (...a: any[]) => (landEmailText as any)(...a) }));
 const markSource = vi.fn(async () => ({ changed: true }));
-vi.mock('../src/services/wiki/wikiStore', () => ({ markSource: (...a: any[]) => (markSource as any)(...a), countUnmarked: async () => ({ total: 4, unmarked: 1 }) }));
+let unmarkedRows: any[] = [];
+vi.mock('../src/services/wiki/wikiStore', () => ({ markSource: (...a: any[]) => (markSource as any)(...a), countUnmarked: async () => ({ total: 4, unmarked: 1 }), listMarkedSources: async () => unmarkedRows }));
+const suggest = vi.fn(async () => ({ needsYou: undefined, forYourKnowledge: null, rationale: 'auto-acknowledged calendar reply' }));
+vi.mock('../src/services/triage/triageSuggester', () => ({ suggestForFeedEvent: (...a: any[]) => (suggest as any)(...a) }));
+const writeMark = vi.fn(async () => 'marked');
+vi.mock('../src/services/triage/triageMarks', () => ({ writeAttentionMark: (...a: any[]) => (writeMark as any)(...a) }));
+let feedRow: any[] = [];
 const ingest = vi.fn(async (i: any) => { heldIds.add(`src_${i.sourceId}`); return { status: 'new' }; });
 vi.mock('../src/services/feed/feedIngestionService', () => ({ ingest: (...a: any[]) => (ingest as any)(...a) }));
-vi.mock('../src/db/prisma', () => ({ default: {} }));
+vi.mock('../src/db/prisma', () => ({ default: { $queryRawUnsafe: async () => feedRow } }));
 
 import { censusDay, dayBounds, daysToCheck, SENT_MARK_BY } from '../src/jobs/mailboxCensusJob';
 
@@ -29,7 +35,7 @@ const deps = {
   ids: { list: async (box: 'INBOX' | 'SENT') => (box === 'INBOX' ? ['i1', 'i2'] : ['s1', 's2']) },
   readEmail: async (_u: number, id: string) => ({ email: { id, threadId: `t_${id}`, from: id.startsWith('s') ? 'me@x.com' : 'a@x.com', to: 'b@x.com', cc: '', subject: `S ${id}`, snippet: 'snip', date: 'Thu, 13 Nov 2026 09:00:00 +0500', body: 'full text' } }),
 };
-beforeEach(() => { heldIds = new Set(['src_i1', 'src_s1']); saveSource.mockClear(); landEmailText.mockClear(); markSource.mockClear(); ingest.mockClear(); });
+beforeEach(() => { unmarkedRows = []; feedRow = []; suggest.mockClear(); writeMark.mockClear(); heldIds = new Set(['src_i1', 'src_s1']); saveSource.mockClear(); landEmailText.mockClear(); markSource.mockClear(); ingest.mockClear(); });
 
 describe('the daily check', () => {
   it('lands what is missing by the right door, marks sent mail own, and records the day', async () => {
@@ -48,6 +54,27 @@ describe('the daily check', () => {
     const r = await censusDay({ clientNumber: 'T', userId: 2 }, '2026-11-13', 'Asia/Karachi', deps as any, { late: 1 });
     expect(r.fetchedLate).toHaveLength(1);
     expect(r.stillMissing).toBe(1);
+  });
+});
+
+describe('the fixes from the first live run (13 Nov 14:30)', () => {
+  it('a sent email that is ALSO in the inbox lands through the intake, never the feed (the feed drops his own mail)', async () => {
+    const both = { ...deps, ids: { list: async (box: 'INBOX' | 'SENT') => (box === 'INBOX' ? ['x1'] : ['x1']) } };
+    heldIds = new Set();
+    await censusDay({ clientNumber: 'T', userId: 2 }, '2026-11-13', 'Asia/Karachi', both as any, { late: 50 });
+    expect(ingest).not.toHaveBeenCalled();
+    expect((landEmailText.mock.calls[0] as any[])[0]).toMatchObject({ gmailMessageId: 'x1', labels: ['SENT'] });
+  });
+  it('landed = marked: an email triage skipped is judged and marked; a model-down one stays unmarked', async () => {
+    unmarkedRows = [{ id: 'src_n1', externalId: 'n1', marks: [] }, { id: 'src_n2', externalId: 'n2', marks: [{ kind: 'attention' }] }];
+    feedRow = [{ id: 'fe_n1', clientNumber: 'T', userId: 2, sourceType: 'gmail' }];
+    await censusDay({ clientNumber: 'T', userId: 2 }, '2026-11-13', 'Asia/Karachi', deps as any, { late: 50 });
+    expect(suggest).toHaveBeenCalledTimes(1);
+    expect(writeMark).toHaveBeenCalledWith(feedRow[0], { needsYou: false, forYourKnowledge: null });
+    writeMark.mockClear();
+    suggest.mockResolvedValueOnce({ needsYou: undefined, forYourKnowledge: null, rationale: 'LLM unavailable — using deterministic fallback.' });
+    await censusDay({ clientNumber: 'T', userId: 2 }, '2026-11-13', 'Asia/Karachi', deps as any, { late: 50 });
+    expect(writeMark).not.toHaveBeenCalled();
   });
 });
 

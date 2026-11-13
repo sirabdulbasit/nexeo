@@ -58,7 +58,7 @@ export interface CensusDeps {
 
 export interface CensusResult { day: string; inbox: number; sent: number; held: number; fetchedLate: string[]; stillMissing: number; marked: number; unmarked: number }
 
-export async function censusDay(u: { clientNumber: string; userId: number }, day: string, tz: string, deps: CensusDeps, budget: { late: number }): Promise<CensusResult> {
+export async function censusDay(u: { clientNumber: string; userId: number }, day: string, tz: string, deps: CensusDeps, budget: { late: number; judge?: number }): Promise<CensusResult> {
   const { sourceId, sourcesHeld, saveSource } = await import('../services/wiki/wikiSources');
   const { landEmailText } = await import('../services/wiki/wikiIntake');
   const { markSource, countUnmarked } = await import('../services/wiki/wikiStore');
@@ -79,7 +79,9 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
     const e = r.email;
     if (!e) { log.warn('a missing email could not be read', { userId: u.userId, id: g, error: r.error }); continue; }
     const receivedAt = e.date && !isNaN(Date.parse(e.date)) ? new Date(e.date) : start;
-    if (sentSet.has(g) && !inbox.includes(g)) {
+    // Anything he sent lands through the Wiki's intake, even when it is also in his inbox (a mail to himself, or a
+    // thread copy): the feed ingest drops his own outgoing mail (DEF-332 self-echo), so it would never land.
+    if (sentSet.has(g)) {
       await landEmailText({ clientNumber: u.clientNumber, userId: u.userId, gmailMessageId: g, threadId: e.threadId, subject: e.subject, from: e.from, to: e.to, cc: e.cc, receivedAt, bodyText: e.body || e.snippet || '', labels: Array.isArray(e.labels) && e.labels.length ? e.labels : ['SENT'] });
     } else {
       // The normal feed path: it lands the email in the Wiki and triage judges it (then marks it).
@@ -94,6 +96,9 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
     await markSource(writer, sid(g), { kind: 'attention', value: { class: 'own' }, by: SENT_MARK_BY }).catch((e: any) =>
       log.warn('sent mail not marked', { userId: u.userId, id: g, error: String(e?.message ?? e).slice(0, 120) }));
   }
+  // Landed = marked: an email triage never judged (a calendar reply, an automated notice it skipped or handled on its
+  // own) is judged here, so every landed email of the day carries its attention mark. Bounded per run.
+  await markUnjudged(u, start, end, budget);
   const held2 = await sourcesHeld(u.clientNumber, u.userId, all.map(sid));
   const counts = await countUnmarked(u.clientNumber, u.userId, 'email', 'attention', start, end).catch(() => ({ total: 0, unmarked: -1 }));
   const res: CensusResult = {
@@ -112,6 +117,37 @@ export async function censusDay(u: { clientNumber: string; userId: number }, day
     details: { type: 'mailbox_census', provider: 'gmail', day, tz, in_mailbox: { inbox: res.inbox, sent: res.sent }, held: res.held, still_missing: res.stillMissing, fetched_late: res.fetchedLate, marked: res.marked, unmarked: res.unmarked },
   });
   return res;
+}
+
+export const MAX_JUDGE_PER_RUN = 60;
+
+async function markUnjudged(u: { clientNumber: string; userId: number }, start: Date, end: Date, budget: { late: number; judge?: number }): Promise<number> {
+  const { listMarkedSources } = await import('../services/wiki/wikiStore');
+  const { suggestForFeedEvent } = await import('../services/triage/triageSuggester');
+  const { writeAttentionMark } = await import('../services/triage/triageMarks');
+  if (budget.judge === undefined) budget.judge = MAX_JUDGE_PER_RUN;
+  const rows: any[] = await (listMarkedSources as any)(u.clientNumber, u.userId, { kinds: ['email'], since: start, until: end });
+  const unmarked = rows.filter((r) => !(r.marks ?? []).some((m: any) => m.kind === 'attention'));
+  let n = 0;
+  for (const r of unmarked) {
+    if ((budget.judge ?? 0) <= 0) break;
+    const fe = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT id, client_number AS "clientNumber", user_id AS "userId", source_type AS "sourceType", sender_email AS "senderEmail",
+              sender_name AS "senderName", raw_payload AS "rawPayload", created_at AS "createdAt"
+         FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type = 'gmail' AND source_id = $3 LIMIT 1`,
+      u.clientNumber, u.userId, r.externalId,
+    ).catch(() => [] as any[]);
+    if (!fe[0]) continue; // no feed row: landed by intake (his sent mail is marked own above)
+    budget.judge = (budget.judge ?? 0) - 1;
+    const it = await suggestForFeedEvent(fe[0]).catch(() => null);
+    // A skipped or auto-handled email (self, noise, calendar reply) has no needsYou: it needs nothing from him.
+    if (!it) continue;
+    // The model was down: NOT judged, so no mark (it must stay in view; countUnmarked keeps showing it).
+    if (it.needsYou === undefined && /LLM unavailable/i.test(String(it.rationale ?? ''))) continue;
+    const res = await writeAttentionMark(fe[0], it.needsYou === undefined ? { needsYou: false, forYourKnowledge: null } : it);
+    if (res === 'marked') n += 1;
+  }
+  return n;
 }
 
 /** His today and yesterday, in his zone. */
