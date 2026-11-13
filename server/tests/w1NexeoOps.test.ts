@@ -15,23 +15,27 @@ vi.mock('../src/services/wiki/wikiSources', () => ({
   readSource: async () => (stored ? { body: stored } : null),
 }));
 const notes: any[] = [];
-vi.mock('../src/services/wiki/wikiStore', () => ({ writeNote: async (n: any) => { notes.push(n); return {}; }, getNote: async () => null }));
+const removed: string[] = [];
+vi.mock('../src/services/wiki/wikiStore', () => ({ writeNote: async (n: any) => { notes.push(n); return {}; }, getNote: async () => null, removeSource: async (_w: any, id: string) => { removed.push(id); return { removed: true, marks: 0, citations: 0 }; } }));
 vi.mock('../src/db/prisma', () => ({ default: { user: { findFirst: async () => ({ name: 'Basit Ahmed' }) } } }));
 
 import { runW1Op, W1_OPS } from '../src/services/suzi/suziW1';
 
 const signed = { signatureVerified: true, deviceId: 'dev-1' };
 const unsigned = { signatureVerified: false, deviceId: 'dev-1' };
-beforeEach(() => { saved.length = 0; notes.length = 0; stored = null; });
+beforeEach(() => { saved.length = 0; notes.length = 0; stored = null; removed.length = 0; });
 
-describe('identity (S2: not live until it can be deleted)', () => {
-  it('put, get and delete all answer not_yet and store nothing', async () => {
-    expect(W1_OPS).toEqual(['identity.put', 'identity.get', 'identity.delete', 'profile.update', 'device.report']);
-    for (const op of ['identity.put', 'identity.get', 'identity.delete']) {
-      expect(await runW1Op('T', 2, op, { kind: 'voiceprint', data: 'AAAA', model: 'm' }, true, signed)).toMatchObject({ error: 'not_yet' });
-    }
-    expect(saved).toHaveLength(0);
+describe('identity (S2: put, get and delete live together)', () => {
+  it('put: signed and confirmed, stored encrypted per kind; get reads it back; delete removes it through the Wiki door', async () => {
+    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' }, true, unsigned)).toMatchObject({ error: 'needs_signature' });
+    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA' }, false, signed)).toMatchObject({ error: 'needs_confirmation' });
     expect(await runW1Op('T', 2, 'identity.put', { kind: 'retina', data: 'AAAA' }, true, signed)).toMatchObject({ error: 'bad_kind' });
+    expect(await runW1Op('T', 2, 'identity.put', { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' }, true, signed)).toMatchObject({ ok: true, item: { kind: 'voiceprint', stored: true } });
+    expect(saved[0]).toMatchObject({ kind: 'record', externalId: 'identity:voiceprint', encrypt: true, details: { type: 'identity', kind: 'voiceprint', device_id: 'dev-1' } });
+    expect(await runW1Op('T', 2, 'identity.get', { kind: 'voiceprint' }, false, unsigned)).toMatchObject({ ok: true, item: { kind: 'voiceprint', data: 'AAAA', model: 'ecapa-v2' } });
+    expect(await runW1Op('T', 2, 'identity.delete', { kind: 'voiceprint' }, true, unsigned)).toMatchObject({ error: 'needs_signature' });
+    expect(await runW1Op('T', 2, 'identity.delete', { kind: 'voiceprint' }, true, signed)).toEqual({ ok: true, item: { kind: 'voiceprint', deleted: true } });
+    expect(removed).toEqual(['src:record:identity:voiceprint']);
   });
 });
 

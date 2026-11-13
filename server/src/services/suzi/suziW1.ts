@@ -24,7 +24,7 @@ const MAX_REPORT_BYTES = 256 * 1024;
 
 const identityId = (kind: string) => `identity:${kind}`;
 /** S2: identity ops go live together, only once identity.delete can remove a print from the Wiki everywhere. */
-export const IDENTITY_LIVE = false;
+export const IDENTITY_LIVE = true; // the Wiki's removeSource is live (D-244, 13 Nov): put, get and delete go live together
 
 async function userName(clientNumber: string, userId: number): Promise<string> {
   const u = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { name: true, email: true } as any }).catch(() => null) as any;
@@ -61,7 +61,12 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     }
     if (!confirmed) return fail('needs_confirmation');
     if (!gate.signatureVerified) return fail('needs_signature', 'identity changes are signed by the device (W-1, S2)');
-    if (op === 'identity.delete') return fail('not_yet', 'removal from the Wiki is not available yet; nothing was changed');
+    if (op === 'identity.delete') {
+      // S2: deleting removes it everywhere: the source, its marks and every citation, in one transaction (removeSource).
+      const { removeSource } = await import('../wiki/wikiStore');
+      const r: any = await removeSource(writer, sourceId(clientNumber, userId, 'record', identityId(kind)));
+      return r?.removed ? { ok: true, item: { kind, deleted: true } } : fail('not_found');
+    }
     const data = text(a.data);
     if (!data) return fail('bad_data');
     if (Buffer.byteLength(data) > MAX_IDENTITY_BYTES) return fail('too_big', 'at most 3 MB');
