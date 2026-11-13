@@ -705,3 +705,17 @@ Next, as planned:
 - Nexeo builds its side: the `meeting.upload` switch gate removed for computer notes; identity, `profile.update` and `device.report` into the Wiki's encrypted source store.
 
 Same answer, on the rebuild: *"i will scrine or rescribe from connector"*. The Wiki is rebuilt by re-scribing from the connectors. On the older open items (TMC Context into the Wiki, the 2,000-page limit, the KPI notes, Suzi's send switch, "fix the brief", the email-to-item gate): *"leave it we will build new wiki from new feed from connector and rules"*. They are **closed as superseded** by the rebuild.
+
+## F-4 slice 2 shapes: AGREED by both sides (2026-11-13 17:0x PKT)
+
+Asked by suzi-b5 (Suzi's F-4 builder) on the founder's instruction; answered by Nexeo-Builder through Nexeo Integration (the founder's single Nexeo contact for Suzi, 13 Nov). suzi-b5: "the Suzi side AGREES the five shapes" (Suzi branch f4-ahead 45ad00f).
+
+1. **`meeting.status` push (F-4.9):** frame `{type:"meeting.status", meeting_id, event_id?, title, status, reason?, updated?, action_items_proposed?, at}`, statuses as in the charter; a socket frame to the user's live sessions through Suzi's server, like the master/proactive frames. `meeting.list` stays correct, so polling is a safe fallback.
+2. **Pack `meeting_assistant: {on, status_push}`:** `status_push: true` only once the push actually reaches Suzi; until then it is absent and Suzi polls.
+3. **Pack `meetings_recorded[]` since the last brief (F-4.8):** `[{meeting_id, title, start, end, outcome, action_items_proposed, summary?}]`; `outcome` = `record_ready | not_covered | failed`; `action_items_proposed` a count; `summary` (added at suzi-b5's request, Nexeo-Builder CONFIRMED) = the first sentence of the minutes, at most 160 characters, on `record_ready` rows only. Suzi-Master and Nexeo align the F-4.8 wording ("a one-line outcome").
+4. **Calendar attendees:** `[{name, email, self?:true}]` (name from his contacts, else readable from the address) and `organizer_self: bool` per event.
+5. **`meeting.attend` for Way A:** `{event_id, way:"google_transcript"}` → `{meeting_id?, status:"transcribing"|"not_covered"}`; answers `not_yet` until the Meet API transcription switch is verified at a meeting he hosts. `rule.set` kind `meeting_attend` (F-4.2): not built, not dated; follows the same verification.
+
+**Open, waits on the founder:** who adds the `meeting.status` frame to Suzi's server (jarvis-gateway). Functional Charter §1 says the Nexeo session keeps it until he decides; on 13 Nov he told Nexeo-Builder "don't do yourself always ask suzi to do" while Round 6 was installed there, and Suzi Master installed Round 6 with his one-time OK. Until he rules, the push does not reach Suzi and `status_push` stays absent.
+
+**Target:** Nexeo's side 14 Nov, time not fixed. Founder's Meet test: switch on; reconnect Google once if the card says so; host one Meet of at least 5 minutes with one other person.
