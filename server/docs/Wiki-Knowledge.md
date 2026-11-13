@@ -450,6 +450,8 @@ Advisory; plan score 88 (85 before); capability scores carried forward, none cre
 | P2 | Connectors "All" is 20,000 emails and 10 years, not "everything" | True (`connectorRoutes.ts:232`) | Nexeo-Builder: resumable, and say "complete" or "stopped at the cap" |
 | P3 | This document's last "Next step" still asked for identity, which is live; `Rules.md` kept the old 30-rule wording | True | Fixed in this commit |
 
+- **First finding of the privacy matrix (part 12), fixed the same hour: DEF-471.** The Wiki screen's single-page and graph routes decided who may read a page by its type, so any user of a client could read another user's private project, decision, pattern, policy and attachment pages, and through the graph their people and topic pages (about 4,300 on production). Nobody read them: no second user of any client could sign in. Now they read by scope and owner only, and a test fails the build if any route shares a page by type again. The rest of the matrix (sources, marks, search, Suzi's knowledge route, the Drive export) is still to run.
+
 The owner's latest ruling stands and the review says to keep it: **learned patterns only suggest; rules, delegations and standing instructions act by themselves within their scope.** The findings above are about enforcing that scope, not about asking him again.
 
 ## 1. Owner direction (2026-11-12)

@@ -1018,6 +1018,13 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
   const user = (req as any).user;
   const id = String(req.params.id);
 
+  // The page itself must be one the reader may see; otherwise its links say nothing (DEF-471).
+  const root = await prisma.wikiPage.findFirst({
+    where: { id, clientNumber: user.clientNumber, OR: [{ scope: 'tenant' }, { scope: 'user', userId: user.id }] },
+    select: { id: true },
+  });
+  if (!root) return res.status(404).json({ error: 'not found' });
+
   // Outbound — what does this page point at?
   const outbound = await prisma.$queryRawUnsafe<any[]>(
     `SELECT w.id, w.title, w.page_type AS "pageType", w.user_id AS "userId",
@@ -1029,10 +1036,8 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
       WHERE l.from_page_id = $1
         AND w.client_number = $2
         AND w.status NOT IN ('superseded','deleted')
-        AND (
-          w.user_id = $3
-          OR w.page_type IN ('org_doc','policy','project','decision','pattern','attachment_doc','entity_person','topic')
-        )
+        -- Who may read follows whose page it is, never its type (DEF-471): the company's, or the reader's own.
+        AND (w.scope = 'tenant' OR (w.scope = 'user' AND w.user_id = $3))
       ORDER BY w.last_updated_at DESC
       LIMIT 400`,
     id, user.clientNumber, user.id,
@@ -1049,10 +1054,8 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
       WHERE l.to_page_id = $1
         AND w.client_number = $2
         AND w.status NOT IN ('superseded','deleted')
-        AND (
-          w.user_id = $3
-          OR w.page_type IN ('org_doc','policy','project','decision','pattern','attachment_doc','entity_person','topic')
-        )
+        -- Who may read follows whose page it is, never its type (DEF-471): the company's, or the reader's own.
+        AND (w.scope = 'tenant' OR (w.scope = 'user' AND w.user_id = $3))
       ORDER BY w.last_updated_at DESC
       LIMIT 400`,
     id, user.clientNumber, user.id,
@@ -1061,16 +1064,18 @@ router.get('/wiki/pages/:id/graph', async (req: Request, res: Response) => {
   res.json({ outbound, inbound });
 });
 
-/** Single wiki page read — includes tenant-shared types readable by any user. */
+/** Single wiki page read — the reader's own pages and the company's (scope 'tenant'). */
 router.get('/wiki/pages/:id', async (req: Request, res: Response) => {
   const user = (req as any).user;
   const id = String(req.params.id);
   const page = await prisma.wikiPage.findFirst({
     where: {
       id, clientNumber: user.clientNumber,
+      // Who may read follows whose page it is, never its type (DEF-471): a page of another user is
+      // private whatever kind of page it is.
       OR: [
-        { userId: user.id },
-        { pageType: { in: ['org_doc', 'policy', 'project', 'decision', 'pattern', 'attachment_doc'] } },
+        { scope: 'tenant' },
+        { scope: 'user', userId: user.id },
       ],
     },
     select: {
