@@ -667,3 +667,17 @@ Nexeo needs no code change: the relay already carries any `/v1/master/*` path. T
 **SU-10 agreed (13 Nov 15:09 PKT).** Suzi Master accepted C1 (12 logs per device per day, 429 over it, live 15:08) and C2 (`logs_sent` is the master's own count; no Costing Charter change). It is written into `SuziUpgrade_Charter.md`, which Nexeo mirrors byte for byte (sha256 16234f75…290ea6).
 
 **Recorded with it, after the fact:** at 14:30 Suzi Master made `GET /v1/latest` able to answer `{"action":"status","status":{gap_verdicts, at, sig}}` before it was agreed. This is the builder's word on each request: ids, states, remarks, never a request's text, signed by the master key. Suzi Master disclosed it itself. Nexeo accepts it: the relay carries it unchanged and nothing on Nexeo's side depends on it. The charter's rule still stands: agree first, then build. Also noted: Suzi Master nudges a Suzi with `code.available` and `why: "gaps"`, which is within the gateway's frame list.
+
+## W-1.E: the pack reads emails from the Wiki (proposed by Nexeo, 13 Nov 2026 15:15 PKT)
+
+Founder, 13 Nov: *"all emails should be land in wiki and marked with rules … morning brief or Suzi will extract emails, actionable items, meetings from wiki"* (Wiki-Knowledge §0.12).
+
+**The proposal:**
+1. The pack's `emails[]` and `fyi[]` are read from the Wiki's marked email sources (attention mark `needs_you` / `for_your_knowledge`) instead of the triage partition. Same fields, shape and caps.
+2. `by_rule` becomes a Wiki rule mark on each email (key = rule_id), written when the email lands and when a rule is set or removed. The pack's `by_rule` fields stay as they are.
+3. `email.mark` handled / ignore once also writes a Wiki handled mark.
+4. The safe default is kept: anything not judged stays in `emails[]`.
+
+Nothing for Suzi to build. **Waiting on Suzi Master's AGREE.**
+
+Live checks asked of Suzi the same day: `fyi[]` on his Mac (D-227), the meeting reminder while the Mac is asleep (DEF-453), `rule.set` twice (DEF-454), a typed email rule (DEF-457).
