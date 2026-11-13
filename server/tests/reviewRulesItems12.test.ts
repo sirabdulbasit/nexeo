@@ -12,7 +12,10 @@ let readFails = false;
 const query = vi.fn(async () => { if (readFails) throw new Error('connection refused'); return rowsOut; });
 const pageUpdate = vi.fn((a: any) => ({ op: 'page', a }));
 const exec = vi.fn((...a: any[]) => ({ op: 'rule', a }));
-const tx = vi.fn(async (ops: any[]) => ops);
+// DEF-466: the code now runs ONE interactive transaction; the fake records the statements made on the tx handle.
+const txOps: any[] = [];
+const txHandle = { wikiPage: { update: async (a: any) => { txOps.push({ op: 'page', a }); } }, $executeRawUnsafe: async (...a: any[]) => { txOps.push({ op: 'rule', a }); return 1; } };
+const tx = vi.fn(async (fn: any) => fn(txHandle));
 vi.mock('../src/db/prisma', () => ({
   default: {
     $queryRawUnsafe: (...a: any[]) => (query as any)(...a),
@@ -28,14 +31,16 @@ vi.mock('../src/utils/redisClient', () => ({ invalidate: async () => {} }));
 
 import { updateInstructionStatus, getActiveInstructions, RulesUnavailable, RULES_READ_CEILING } from '../src/services/knowledge/instructionService';
 
-beforeEach(() => { rowsOut = []; readFails = false; query.mockClear(); pageUpdate.mockClear(); exec.mockClear(); tx.mockClear(); });
+beforeEach(() => { rowsOut = []; readFails = false; query.mockClear(); pageUpdate.mockClear(); exec.mockClear(); tx.mockClear(); txOps.length = 0; });
 
 describe('item 1: one transaction', () => {
   it.each([['paused', false], ['active', true], ['archived', false]] as const)('%s: the instruction and its email rule in ONE $transaction', async (status, ruleOn) => {
     expect(await updateInstructionStatus('T', 2, 'ins_9', status)).toEqual({ ok: true });
     expect(tx).toHaveBeenCalledTimes(1);
-    const ops = (tx.mock.calls[0] as any[])[0];
+    expect(typeof (tx.mock.calls[0] as any[])[0]).toBe('function'); // interactive, never the array form (DEF-466)
+    const ops = txOps;
     expect(ops.map((o: any) => o.op)).toEqual(['page', 'rule']);
+    expect(exec).not.toHaveBeenCalled(); // nothing on the global client: every statement on tx
     expect(ops[0].a.data.metadata.status).toBe(status);
     expect(ops[1].a[0]).toMatch(/UPDATE user_action_rules SET is_active = \$4/);
     expect(ops[1].a.slice(1)).toEqual(['T', 2, 'ins_9', ruleOn]);

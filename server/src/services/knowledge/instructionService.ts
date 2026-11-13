@@ -398,9 +398,11 @@ export async function updateInstructionStatus(
     meta.status = status;
     // Third review item 1 (owner approved 13 Nov 2026): the instruction and its email rule (DEF-457) change in ONE
     // transaction: both or neither, so a failed second write can never leave the email rule on after a pause.
+    // DEF-466 (13 Nov, found on the real database): the array form refused the wrapped raw statement AFTER running it,
+    // so a pause failed and still flipped the email rule. One interactive transaction, every statement on tx.
     const { followInstructionStatus } = await import('../suzi/instructionEmailRules');
-    await prisma.$transaction([
-      prisma.wikiPage.update({
+    await prisma.$transaction(async (tx) => {
+      await tx.wikiPage.update({
         where: { id: page.id },
         data: {
           metadata: meta as any,
@@ -408,9 +410,9 @@ export async function updateInstructionStatus(
           lastUpdatedAt: new Date(),
           lastUpdatedBy: 'instruction_service',
         },
-      }),
-      followInstructionStatus(clientNumber, page.userId ?? userId, page.id, status === 'active'),
-    ]);
+      });
+      await followInstructionStatus(clientNumber, page.userId ?? userId, page.id, status === 'active', tx as any);
+    });
     void (async () => {
       try {
         const { invalidate } = await import('../../utils/redisClient');
