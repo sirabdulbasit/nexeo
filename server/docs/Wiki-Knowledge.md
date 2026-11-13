@@ -51,21 +51,46 @@ His other decisions the same day:
 - **What Suzi learns about him goes to the Wiki** ("remember me, how to communicate with me"). Lessons that apply to every
   user are product learning, sent to Suzi Master. Suzi decides intelligently which is which.
 
-### 0.4 Knowledge still outside the Wiki, and who moves it
+### 0.4 The ledger: every store, and where it goes
 
-Knowledge still kept outside the new Wiki on 2026-11-13. Each moves in, then its old store is retired or kept only as a
-derived index. Owner of each move in brackets.
+Counted on production on 2026-11-13: **161 tables**. Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
 
-| Store | Holds | Move |
-|---|---|---|
-| Old wiki pages (`wiki_pages` of earlier types, ~15,800, half `email_message`) | Email text, person and sender pages, observations | §6b, A1 to C [Brain Wiki] |
-| `feed_events` | The fetched items | Stays the intake queue; the source text moves to the Wiki's source store, A1 [Brain Wiki] |
-| `open_items` | Action items | Commitment notes, A2; items become a view, DEF-450 [Brain Wiki, then Nexeo-Builder] |
-| `persons`, `entities` | Contacts | Person and company notes, B2 [Brain Wiki] |
-| `meeting_records` (F-4, built 12 Nov) | Meeting records and transcripts | Meeting notes plus the transcript as a source [Nexeo-Builder, once A1 exists; until then it is the only copy and is not deleted] |
-| `user_action_rules`, `delegation_matrix`, instruction pages | Rules, delegations, standing instructions | Rule and instruction notes, A3 [Brain Wiki, then Nexeo-Builder for the Suzi ops] |
-| `kpi_readings` | Integration figures | Notes per KPI and business unit, kept as the exact store underneath (owner, 11-12) [Brain Wiki] |
-| Suzi's working copy | A read-only, encrypted copy | Already derived from Nexeo (charter); nothing to move |
+| Kind | Tables | Rows | Rule |
+|---|---|---|---|
+| The Wiki | 3 | 54,897 | This is the Wiki |
+| Knowledge outside the Wiki | 70 | 146,539 | Moves in as notes or sources |
+| Trail outside the Wiki | 34 | 156,647 | Moves in as record notes and citations |
+| Settings, identity and secrets outside the Wiki | 24 | 232 | Moves in; secrets encrypted, device signing keys stay on the device (S1) |
+| Working copies (may stay) | 10 | 17,756 | May stay; the Wiki holds the record and it can be rebuilt |
+| Leftover backup copies | 19 | 887 | Removed on the owner's yes |
+| Database bookkeeping | 1 | 84 | Stays |
+
+**Outside the Wiki today: 128 tables** (70 knowledge, 34 trail, 24 settings). The rule is met when that number is 0.
+
+| Goes into the Wiki as | Stores (rows on 2026-11-13) |
+|---|---|
+| Person and company notes (B2) | `person_facets` (1,953), `entities` (1,112), `persons` (974), `entity_links` (224), `user_resolution_aliases` (1) |
+| Commitment notes; the item list becomes a view (A2, DEF-450) | `open_items` (614), `delegation_thread_events` (142), `delegation_threads` (10), `delegation_logs` (4) |
+| Meeting notes, transcript as the cited source | `meeting_records` (2) |
+| Sources: the text of every message | `brain_user_messages` (135,641), `messages` (1,825), `whatsapp_messages` (530), `whatsapp_outbound_messages` (459), `brain_inbox_messages` (249), `conversations` (2) |
+| Rule and instruction notes (A3) | `muted_senders` (31), `wa_sender_policy` (12), `gate_rules` (10), `risk_rules` (8), `user_action_rules` (2), `shadow_rules` (2), `delegation_matrix` (0), `gate_rule_overrides` (0), `risk_rule_overrides` (0), `rule_lifecycle` (0), `delegation_authorization_grants` (0) |
+| Notes about the user: memories, preferences, what Brain learned | `governed_brain_memories` (46), `thought_entries` (41), `pattern_insights` (37), `user_learning` (11), `user_memories` (9), `pattern_hidden` (3), `user_profile_memory` (0), `clarification_memory` (0), `agent_memory` (0) |
+| Document notes and their text as sources | `risk_flag_docs` (106), `brain_docs` (2), `domain_knowledge` (0), `knowledge_items` (0), `documents` (0), `chunks` (0), `personal_documents` (0), `personal_chunks` (0), `integration_source_files` (0) |
+| KPI and business-unit notes; kpi_readings stays underneath as the exact figures | `kpi_values` (2,060), `kpi_readings` (192), `kpi_definitions` (1), `okrs` (0) |
+| A note per integration (source, mapping, last run) | `integration_suggestions` (13), `integration_mapping_versions` (6), `integration_syncs` (1) |
+| Notes of what Brain found or was told about itself | `brain_health_findings` (152), `correlation_incident_candidates` (9), `suzi_gaps` (9), `correlation_incidents` (3), `brain_detected_gaps` (1), `brain_development_requests` (0), `brain_product_proposals` (0), `brain_feedback` (0), `feedback` (0), `retrieval_feedback` (0), `proactive_alerts` (0) |
+| Instruction notes: how Brain is told to behave | `action_definitions` (22), `prompt_blocks` (8), `user_prompts` (0), `user_prompt_overlay` (0), `action_dependencies` (0), `capability_registry` (0), `golden_dataset` (0) |
+| The trail of a note: its cited sources and state changes | `brain_action_artifacts` (20,369), `integration_run_changes` (1,576), `item_status_history` (398), `decision_logs` (72), `entity_merge_audit` (14), `integration_runs` (5), `meet_event_receipts` (1), `delegation_matrix_history` (0) |
+| Record notes: what was done, by whom, when | `agent_actions` (3,428), `self_heal_log` (2,455), `suzi_act_log` (54), `audit_logs` (52), `job_runs` (37), `brain_resets` (4), `self_prune_notice_batches` (2), `audit_log` (0), `agent_runs` (0), `action_idempotency_logs` (0), `action_undo_log` (0), `operator_runs` (0), `index_events` (0) |
+| Record notes: usage and cost | `llm_spend` (37,822), `llm_spend_daily` (1,883), `consumption_events` (164), `orchestrator_spend` (118), `token_usage` (0), `token_query_log` (0) |
+| Record notes: how Brain reasoned and was scored | `system_logs` (43,396), `gate_rule_firings` (35,748), `brain_interaction_learning_logs` (3,685), `reasoning_traces` (3,260), `brain_response_evaluations` (2,007), `brain_maturity_snapshots` (97), `shadow_scores` (0) |
+| Setting notes: the account, licences and configuration | `system_config` (38), `connector_types` (35), `tenant_connector_configs` (22), `users` (2), `tenants` (1), `client_licenses` (1), `brain_configs` (1), `whatsapp_config` (1), `tenant_whatsapp_notifier` (1), `suzi_rules_version` (1), `user_tiers` (0), `licenses` (0), `agents` (0), `operator_settings` (0), `criticality_calibration` (0), `scheduled_tasks` (0) |
+| Secrets, kept encrypted in the Wiki and never shown as text | `sessions` (92), `whatsapp_sessions` (20), `user_connectors` (14), `whatsapp_connections` (2), `meet_event_subscriptions` (1), `agent_api_tokens` (0), `approval_tokens` (0), `push_subscriptions` (0) |
+| A queue or cache the product runs from; the Wiki holds the record | `criticality_fusion_cache` (8,078), `feed_events` (6,661), `brain_prompt_queue` (1,848), `triage_decision_cache` (1,025), `notification_queue` (101), `brain_pending_actions` (36), `suzi_presence` (3), `job_leases` (2), `suzi_outbox` (1), `ops_health_state` (1) |
+
+Leftover backup copies (19 tables, 887 rows) are the `…_wipe_…` and `…_2026_05_2x` tables. Brain Reset (`brainResetRoutes.ts`) still creates new ones each time it runs; that stops when the reset is rebuilt on the Wiki's own archive.
+
+Files outside the database that hold anything: the WhatsApp session folder (sign-in state, a secret), uploaded integration files, and the server logs. Suzi's side (the Mac app and her server) keeps a working copy only, by the charter.
 
 ### 0.5 How every change follows the rule
 

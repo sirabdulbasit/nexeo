@@ -528,6 +528,11 @@ const server = app.listen(env.port, async () => {
       const { rebuildWikiForAllUsers } = await import('./services/wiki/wikiBuilder');
       const results = await rebuildWikiForAllUsers();
       console.log(`[wikiBuilder] ${JSON.stringify(results)}`);
+      // Wiki first (Wiki-Knowledge.md §0): a table the ledger does not name is a
+      // store nobody accounted for. Read-only; reported, never acted on.
+      const { unclassifiedTables } = await import('./services/wiki/wikiLedger');
+      const unnamed = await unclassifiedTables();
+      if (unnamed.length) console.warn(`[wikiLedger] tables not in the ledger: ${unnamed.join(', ')}`);
     });
     build();
     setInterval(build, 60 * 60 * 1000);
