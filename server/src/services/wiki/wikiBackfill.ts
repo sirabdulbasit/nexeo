@@ -80,8 +80,8 @@ async function landMissingEmailTexts(
   onError: (what: string, err: unknown) => void,
   countOnly = false,
 ): Promise<number> {
-  const rows = await prisma.$queryRawUnsafe<Array<{ body_markdown: string | null; metadata: any; last_updated_at: Date }>>(
-    `SELECT p.body_markdown, p.metadata, p.last_updated_at
+  const rows = await prisma.$queryRawUnsafe<Array<{ body_markdown: string | null; metadata: any; last_updated_at: Date; held_hash: string | null }>>(
+    `SELECT p.body_markdown, p.metadata, p.last_updated_at, s.content_hash AS held_hash
        FROM wiki_pages p
        LEFT JOIN wiki_sources s
          ON s.client_number = p.client_number AND s.user_id = p.user_id
@@ -99,7 +99,9 @@ async function landMissingEmailTexts(
     const text = emailPageText(pg.body_markdown);
     // Only sources with no text or a preview are listed: once the full text is landed, the source
     // says so itself (`body_is_preview`), and the email is not listed again.
-    if (!text) continue;
+    // An old page that holds nothing but the same preview has nothing to add: the source keeps
+    // saying it holds a preview, which is the truth, and the email is not counted as missing.
+    if (!text || pg.held_hash === textHash(text)) continue;
     if (countOnly) { landed += 1; continue; }
     const when = m.date && !Number.isNaN(new Date(m.date).getTime()) ? new Date(m.date) : pg.last_updated_at;
     try {

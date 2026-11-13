@@ -46,7 +46,10 @@ vi.mock('../src/db/prisma', () => {
             const held = [...t.store.values()].find((s) => s.input.kind === 'email' && s.input.externalId === pg.metadata.gmailMessageId);
             return !held || !held.body || held.isPreview === true;
           })
-          .map((pg) => ({ body_markdown: pg.body_markdown, metadata: pg.metadata, last_updated_at: new Date('2026-11-01T00:00:00Z') }));
+          .map((pg) => {
+            const held = [...t.store.values()].find((s) => s.input.kind === 'email' && s.input.externalId === pg.metadata.gmailMessageId);
+            return { body_markdown: pg.body_markdown, metadata: pg.metadata, last_updated_at: new Date('2026-11-01T00:00:00Z'), held_hash: held?.body ? sourceTextHash(held.body) : null };
+          });
       }
       if (/page_type = 'email_message'/.test(sql)) return t.scribed ? [{ id: 'page' }] : []; // the pruner's scribe check
       throw new Error(`unexpected query: ${sql}`);
@@ -242,6 +245,18 @@ describe('wiki reconcile', () => {
     await landFeedItem({ ...asItem(short), fetchedAt: short.createdAt });
     expect(t.store.get(id)!.body).toBe('Cancelled.');
     expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 0 });
+  });
+
+  it('an old email page that holds only the same preview adds nothing: not landed, not counted as missing, run after run', async () => {
+    const row = feedRow('gmail', 'm8', { subject: 'Short', snippet: 'Only this much was ever fetched' });
+    await landFeedItem(asItem(row));
+    t.emailPages.push({ body_markdown: '# Short\n\n## Body\nOnly this much was ever fetched\n', metadata: { gmailMessageId: 'm8' } });
+    const saves = t.saves;
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 0, emailTexts: 0, failed: 0 });
+    expect(await reconcileSources('T-1', 2)).toMatchObject({ missing: 0, emailTexts: 0 });
+    expect(t.saves).toBe(saves);
+    expect(t.store.get(idFor('email', 'm8'))!.isPreview).toBe(true); // it still says what it holds: a preview
+    expect(await holdsFeedItem(asItem(row))).toBe(true); // and the pruner is not blocked by it
   });
 
   it('needsLanding: missing, without text, or holding an older different text; never for a preview or the same text', () => {
