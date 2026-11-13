@@ -112,13 +112,24 @@ client gets `503 master_unavailable`.
 
 | Master route | Request | Answer |
 |---|---|---|
-| `GET /v1/latest?version=<v>&base=<n>` | — | `200 {"action":"update","manifest":{…}}` (the lead also gets builds before his yes), or `200 {"action":"rollback","version","reason"}` (its version was stopped), or `204` |
+| `GET /v1/latest?version=<v>&base=<n>` | — | `200 {"action":"update","manifest":{…}}` (the lead also gets builds before his yes), or `200 {"action":"rollback","version","reason"}` (its version was stopped), or `204`. With either `update` or `status`, `status` = `{gap_verdicts, at, sig}`: the builder's word on each request (ids, states, remarks, versions; never a request's text), signed by the master key, so My requests moves on between builds (founder 13 Nov: "Pending...Building..."); `{"action":"status","status"}` when there's no new code |
 | `GET /v1/code/<file>` | — | The signed zip, if offered to this device; else 404 |
 | `POST /v1/report` | `{version, step, why}`, `step` ∈ `staged failed trying healthy rolled_back` | `200 {"ok":true}` |
 | `POST /v1/gap` | Always signed (G1): `{signed: {op:"gap.note", args:{label: "bug"\|"feature", text, confirmed_by_user: true, voice_score?}, idempotency_key, ts}, sig}`; `voice_score` optional (SU-9) | `200 {"id":"G-n","state":"approved"\|"new"}`; 403 without a valid device signature; 400 without `confirmed_by_user` |
 | `POST /v1/approval` | `{signed: {op:"approval.answer", args:{id, yes, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
 | `POST /v1/stop` | `{signed: {op:"release.stop", args:{version, confirmed_by_user, voice_score}, idempotency_key, ts}, sig}` | `200 {"ok":true}`; 403 unless the lead (F1) |
+| `POST /v1/log` | Signed (SU-10): `{signed: {op:"log.send", args:{gap_id?, version, reason, lines}, idempotency_key, ts}, sig}`; `reason` ∈ `gap failed rolled_back asked user`; `lines` at most 512 KB, cleaned on the device | `200 {"ok":true}`; 403 without a valid device signature; 429 over 12 logs per device per day |
 | `GET /v1/installer/<os>/latest` | — (called by Nexeo's portal for a signed-in user; signed, no did); `os` = `macos` \| `windows` | The installer, streamed; `Accept-Ranges: bytes`, Range → 206; `X-Installer` = base64 of the signed `{os, version, file, sha256, size, made, sig}`; `404` when none yet |
+
+**SU-10, Suzi's log when it's needed** (founder 13 Nov 2026: "Mac log should also be sync (if needed)"):
+- **When.** A Suzi sends the last 30 minutes of its own log only in these cases: when it notes a request, when a release fails or is rolled
+  back on it, or when its user says or clicks "Send my log". Never continuously, and never with "Send my log when something goes
+  wrong" switched off in Settings (on by default).
+- **What.** Cleaned on the device first. What the user said is a word count only. Email addresses, phone numbers, subjects, bodies,
+  message text and names become placeholders. No keys, tokens, voiceprints, audio or screenshots.
+- **Kept.** On Suzi Master only, for 14 days, then deleted. Never passed on. At most 12 per device per day (Nexeo C1: 429 over
+  it). The count `logs_sent` is the master's own and is not in Nexeo's consumption record (Nexeo C2).
+- **Carried.** Nexeo carries it unread over the existing relay and keeps none of it.
 
 ### B. Master → Nexeo: `http://127.0.0.1:4012`
 
@@ -167,3 +178,6 @@ A non-lead feature note → `approval.ask` kind `feature_note` to the lead.
 | Founder | SU-8 and SU-9, in Suzi Master's session: "it should be sent automatically if I am lead"; "all other request from other suzi clients who are not lead, it will come to lead first, when lead approve then go to build"; "it should not seek my voice" (twice) | 2026-11-13 |
 | Nexeo | AGREE SU-8 (17:07:07, 12 Nov) and SU-9 (13 Nov) | 2026-11-13 |
 | Suzi Master | Proposed and AGREE SU-8, SU-9; master and Suzi changed the same day (Suzi 1.2.41) | 2026-11-13 |
+| Founder | SU-10, in Suzi Master's session: "Mac log should also be sync (if needed)" | 2026-11-13 |
+| Nexeo | AGREE SU-10 with C1 (a per-device cap on the master, 429 over it) and C2 (say whose count logs_sent is) | 2026-11-13 |
+| Suzi Master | AGREE C1 (12 per device per day) and C2 (the master's own count); SU-10 agreed. Recorded with it: `/v1/latest` carries `status` (live 14:30, Suzi 1.2.44) | 2026-11-13 |

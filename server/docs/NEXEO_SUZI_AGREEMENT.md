@@ -663,3 +663,7 @@ The log is sent only when needed: a noted request (last 30 minutes), a failed or
 - **C2, where `logs_sent` is counted:** say whose consumption record carries it. If it is Nexeo's (the Costing Charter's consumption record), the field is added through the Costing Charter. If it is Suzi Master's own count, Nexeo needs nothing.
 
 Nexeo needs no code change: the relay already carries any `/v1/master/*` path. The cleaned log holds no knowledge about the user, so W-1 (Wiki first) is not engaged. If the founder wants device logs kept in the Wiki, that would be a W-1 addition.
+
+**SU-10 agreed (13 Nov 15:09 PKT).** Suzi Master accepted C1 (12 logs per device per day, 429 over it, live 15:08) and C2 (`logs_sent` is the master's own count; no Costing Charter change). It is written into `SuziUpgrade_Charter.md`, which Nexeo mirrors byte for byte (sha256 16234f75…290ea6).
+
+**Recorded with it, after the fact:** at 14:30 Suzi Master made `GET /v1/latest` able to answer `{"action":"status","status":{gap_verdicts, at, sig}}` before it was agreed. This is the builder's word on each request: ids, states, remarks, never a request's text, signed by the master key. Suzi Master disclosed it itself. Nexeo accepts it: the relay carries it unchanged and nothing on Nexeo's side depends on it. The charter's rule still stands: agree first, then build. Also noted: Suzi Master nudges a Suzi with `code.available` and `why: "gaps"`, which is within the gateway's frame list.
