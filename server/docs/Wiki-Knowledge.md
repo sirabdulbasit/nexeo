@@ -394,6 +394,8 @@ Company and system rules are shared notes, written once per client. Removed rule
 
 Not yet: rules of the integrations, the "how to work with you" note (Nexeo-Builder writes it from Suzi's profile.update), and readers reading the notes instead of the stores.
 
+**Company notes got their trail the same evening:** a company cites every source its people's notes cite (on production tmcltd.com cites 950); only 1 note of the builder's is left without a citation. Lists inside a note are now in a stable order (newest first, then by name), so a build that changes nothing writes nothing: three runs in a row wrote 0.
+
 **Meetings got their permanent identity the same evening:** each meeting note carries its calendar series (`event:<series>`, Google's event id without the instance suffix), and drafts that share a series are one meeting titled as it was last held. On production this folded 11 duplicates (for example "AI Recruiter UAT Session (Wednesday 11th…)" and "(Thursday 12th…)", one series): 96 meeting notes became 85, every one with its series; the next build wrote nothing; 0 links point at a page that is not a live note.
 
 #### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)

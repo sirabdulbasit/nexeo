@@ -462,8 +462,9 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
 
   // ── Notes ────────────────────────────────────────────────────────────
   const notes: BuiltNote[] = [];
+  // Newest first; two on the same moment by name, so a build gives the same note every time.
   const recent = <T extends { last: Date }>(m: Map<string, T>) =>
-    [...m.entries()].sort((a, b) => b[1].last.getTime() - a[1].last.getTime());
+    [...m.entries()].sort((a, b) => b[1].last.getTime() - a[1].last.getTime() || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const more = (total: number) => (total > LIST_LIMIT ? [`- …and ${total - LIST_LIMIT} more`] : []);
 
   // Companies: the organisations behind the addresses of the people kept.
@@ -482,11 +483,14 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     return work ? top(orgDomains.get(orgLabel(domainOf(work[0])))!)! : null;
   };
   const companies = new Map<string, Set<string>>();
+  // A company's trail is its people's: every email, meeting and chat the user had with them.
+  const companySources = new Map<string, Array<{ id: string; at: Date }>>();
   for (const p of people) {
     const d = companyOf(p);
     if (!d) continue;
     if (!companies.has(d)) companies.set(d, new Set());
     companies.get(d)!.add(p.title);
+    companySources.set(d, [...(companySources.get(d) ?? []), ...p.sources]);
   }
   for (const [domain, members] of companies) {
     const names = [...members].sort((a, b) => a.localeCompare(b));
@@ -497,6 +501,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`)].join('\n'),
       properties: { domains, people: names.length },
       ids: domains.map((d) => `domain:${d}`),
+      sourceIds: citedSources(companySources.get(domain) ?? []),
     });
   }
 

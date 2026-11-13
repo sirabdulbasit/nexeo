@@ -172,6 +172,9 @@ describe('buildNotes', () => {
       chat('2026-11-03', { spaceName: 'spaces/AAA', spaceDisplayName: 'Deals', spaceType: 'SPACE', senderDisplayName: 'Hina Shah', text: 'two' }),
     ], ctx);
     expect(find(notes, 'company', 'one.com')!.ids).toEqual(['domain:one.com']);
+    // A company cites what its people were learned from.
+    expect(find(notes, 'company', 'one.com')!.sourceIds!.length).toBeGreaterThan(0);
+    expect(find(notes, 'company', 'one.com')!.sourceIds).toEqual(expect.arrayContaining(find(notes, 'person', 'Hina Shah')!.sourceIds!));
     const group = notes.find((x) => x.type === 'group');
     if (group) expect(group.ids).toEqual(['space:spaces/AAA']);
   });
