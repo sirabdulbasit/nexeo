@@ -132,9 +132,11 @@ Every brief, the morning brief or one section, starts with one summary line per 
     Master's session, attachments and no undo included). Saving one answers `auto: true`. Nexeo forwards a matching email
     as it lands, with a task for the person noting it was sent by his rule, only when: Nexeo can send for him and he is
     not on the emergency OFF list; the email is addressed To him (not only Cc/Bcc), from someone else, not on a thread he
-    has replied to, forwarded once; the person has an email on record on his company's own domain (external only if he
-    allows it explicitly); within his office hours (otherwise it waits); at most 20 rule forwards per user per day (the
-    rest wait, and the brief says so). Attachments go with it; nothing is screened beyond the rule's match. There is no
+    has replied to, forwarded once, received after the rule was set and within the last 7 days; the person has an email
+    on record on his company's own domain, never a shared provider such as gmail.com (external only if he allows it
+    explicitly); within his office hours, by his time zone's day (otherwise it waits); at most 20 rule forwards per user
+    per day, and when the count can't be checked nothing goes (the rest wait, and the brief says so). A held forward is
+    checked again when it goes: the rule must still be active and he must still be allowed to send. Attachments go with it; nothing is screened beyond the rule's match. There is no
     undo: he sees each forward (F-2.5) and in the brief ("N emails forwarded by your rules"); `rule.remove` stops further
     forwards at once, and sent ones aren't recalled.
   - Only he sets rules on his own mailbox.
