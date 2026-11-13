@@ -191,7 +191,7 @@ describe('marking', () => {
     const r: any = await runEmailOp('TMC-0001', 2, 'email.mark', { thread_id: 'th1', state: 'no_reply_needed' }, false);
     expect(r.item.emails).toBe(2);
     expect(decision).toHaveBeenCalledTimes(2);
-    expect(decision.mock.calls[0][0].data).toMatchObject({ clientNumber: 'TMC-0001', userId: 2, entityId: 'fe1', userDecision: 'dismissed' });
+    expect(decision.mock.calls[0][0].data).toMatchObject({ clientNumber: 'TMC-0001', userId: 2, entityId: 'fe1', userDecision: 'dismissed', isMatch: false });
     expect(invalidate).toHaveBeenCalledWith('fe2');
   });
   it('an unknown state or thread changes nothing', async () => {

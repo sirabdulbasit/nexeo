@@ -285,7 +285,9 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
       data: {
         id: `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, clientNumber, userId, sessionType: 'decide', itemType: 'email',
         entityId: r.id, connectorSlug: 'gmail', userDecision: decision, actionTaken: `suzi_${text(a.state)}`, dedupHash,
-      } as any,
+        // His own decision, not an accepted AI suggestion. Required by the schema: without it every mark threw (DEF-451).
+        isMatch: false,
+      },
     });
     invalidateTriageCache(r.id);
   }
