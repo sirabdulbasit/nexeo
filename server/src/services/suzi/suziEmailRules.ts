@@ -80,6 +80,8 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
        WHERE id = $1`,
       same[0].id, what.slice(0, 200), what.slice(0, 2000), JSON.stringify(payload),
     );
+    // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
+    void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
     return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, rules_version: await rulesVersion(clientNumber, userId) } };
   }
   const id = `uar_${crypto.randomBytes(6).toString('hex')}`;
@@ -90,6 +92,8 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
      VALUES ($1, $2, $3, 'user', $4, $5, 'inbound_email', $6::jsonb, $7, $8::jsonb, 'DRAFT', 0.85, TRUE, $3)`,
     id, clientNumber, userId, what.slice(0, 200), what.slice(0, 2000), JSON.stringify(condition), SUZI_RULE_TYPE[kind], JSON.stringify(payload),
   );
+  // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
+  void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
   return { ok: true, item: { rule_id: id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
 }
 
@@ -118,6 +122,8 @@ export async function ruleRemove(clientNumber: string, userId: number, a: Args, 
     return { instructionId: ins };
   });
   if (!removed) return fail('not_found');
+  // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
+  void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
   if (removed.instructionId) {
     void import('../../utils/redisClient').then(({ invalidate }) => invalidate(`instructions:${clientNumber}:*`)).catch(() => {});
   }

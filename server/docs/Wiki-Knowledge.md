@@ -261,7 +261,12 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
    - The marks store is live (Wiki session, D-229).
    - Attention marks are written from each fresh triage judgement (Nexeo-Builder, DEF-462, **live D-230 14:11 PKT**, verified on the reported thread).
    - The daily "none missed" check is live (Nexeo-Builder, DEF-463, D-232 14:19, fixed D-233 14:36 PKT). **Proof met, 13 Nov 15:00 (D-235, one counting unit):** 12 Nov: 20 in the mailbox (17 inbox, 3 sent), 19 distinct held, 0 missing, 19 marked, 0 unmarked. 13 Nov: 27 (23 + 4), 26 held, 0 missing, 26 marked, 0 unmarked. The Wiki's own emails dated those days (23 and 29, which include mail Gmail no longer lists in inbox or sent) are all marked too. Every 3 hours it compares today's and yesterday's inbox and sent ids with the Wiki, lands what is missing (sent mail through `landEmailText`, marked `own`), and keeps the day's counts as one `record` source.
-   - Still to come: rule marks, the action item and meeting marks, and the readers' switch.
+   - Built (DEF-465, W-1.E agreed by Suzi Master 15:20), deploying after D-236/D-237:
+     - Suzi's pack and spoken brief read emails and For your knowledge from the Wiki's marks;
+     - rule marks (key = rule id) are written and swept on rule changes;
+     - "mark handled" writes a handled mark;
+     - the daily check judges the whole 7-day window (0 of 125 unmarked on 13 Nov).
+   - Still to come: the action item and meeting marks; the Day Brief page and the WhatsApp brief reading from the Wiki.
 
 #### 0.12.1 The shape of the marks (Wiki session, 13 Nov 2026: agreed by Nexeo-Builder; the store is LIVE as D-229, 14:04 PKT; see the end of this section)
 

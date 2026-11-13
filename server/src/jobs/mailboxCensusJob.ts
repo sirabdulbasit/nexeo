@@ -174,7 +174,7 @@ export async function runMailboxCensus(now = new Date()): Promise<CensusResult[]
   const { resolveUserTimezone } = await import('../services/userTimezoneService');
   const { google } = await import('googleapis');
   const out: CensusResult[] = [];
-  const budget = { late: MAX_LATE_PER_RUN };
+  const budget: { late: number; judge?: number } = { late: MAX_LATE_PER_RUN };
   for (const u of users) {
     try {
       const { client } = await getAuthenticatedClient(u.id);
@@ -186,6 +186,10 @@ export async function runMailboxCensus(now = new Date()): Promise<CensusResult[]
         out.push(r);
         log.info('mailbox census', { userId: u.id, ...r, fetchedLate: r.fetchedLate.length });
       }
+      // DEF-465: Suzi's pack and the brief read the last 7 days from the Wiki, where an email not yet judged shows as
+      // needing him. So the whole 7-day window is judged here too (within the same per-run budget), not only 2 days.
+      const judged = await markUnjudged({ clientNumber: u.clientNumber, userId: u.id }, new Date(now.getTime() - 7 * 86_400_000), now, budget);
+      if (judged) log.info('mailbox census judged older unmarked emails', { userId: u.id, judged });
     } catch (e: any) {
       log.warn('mailbox census failed for user', { userId: u.id, error: String(e?.message ?? e).slice(0, 160) });
     }

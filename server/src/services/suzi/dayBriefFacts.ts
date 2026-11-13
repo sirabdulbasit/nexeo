@@ -100,6 +100,23 @@ export function meetingsForDay(events: RawCalEvent[], day: string, tz: string): 
  * take minutes, and a spoken brief must not wait on that. A timeout reports "loading", not 0.
  */
 export async function loadAttentionEmails(clientNumber: string, userId: number, timeoutMs: number = ATTENTION_TIMEOUT_MS) {
+  // DEF-465, W-1.E (Suzi Master AGREE 13 Nov): emails and fyi come from the Wiki's marked email sources. If the Wiki
+  // cannot be read, the triage partition below answers as before (nothing he must answer can disappear).
+  try {
+    const { loadWikiEmails } = await import('./wikiEmails');
+    const w = await Promise.race([
+      loadWikiEmails(clientNumber, userId),
+      new Promise<null>((r) => { const t = setTimeout(() => r(null), timeoutMs); (t as any).unref?.(); }),
+    ]);
+    if (w) {
+      const { replyStates, UNCHECKED } = await import('./suziReplied');
+      const states = await replyStates(userId, w.emails.map((i) => i.threadId));
+      const items = w.emails
+        .map((i) => ({ ...i, reply: (i.threadId && states.get(i.threadId)) || UNCHECKED }))
+        .filter((i) => !i.reply.replied_at);
+      return { items: items as any[], loading: false, fyi: w.fyi as any[] };
+    }
+  } catch { /* fall through to the partition */ }
   try {
     const { computeBriefPartition } = await import('../triage/briefPartitionService');
     const part = await Promise.race([

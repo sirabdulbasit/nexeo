@@ -15,31 +15,42 @@ import type { AttentionItem } from './triageSuggester';
 const log = createLogger('triage-marks');
 export const TRIAGE_MARK_BY = 'triage:v2';
 
-export function attentionMarkOf(it: Pick<AttentionItem, 'needsYou' | 'forYourKnowledge'>): Record<string, unknown> | null {
-  if (it.needsYou === true) return { class: 'needs_you' };
+export function attentionMarkOf(it: Pick<AttentionItem, 'needsYou' | 'forYourKnowledge'> & { criticality?: { band?: string } | null; rationale?: string | null }): Record<string, unknown> | null {
+  // DEF-465: urgency and the one-line point ride the mark, so readers of the Wiki (Suzi's pack, the brief) keep them.
+  const extra = {
+    ...(it.criticality?.band ? { urgency: it.criticality.band } : {}),
+    ...(it.rationale ? { point: String(it.rationale).slice(0, 200) } : {}),
+  };
+  if (it.needsYou === true) return { class: 'needs_you', ...extra };
   if (it.needsYou !== false) return null;
-  if (it.forYourKnowledge) return { class: 'for_your_knowledge', reason: it.forYourKnowledge.kind, why: it.forYourKnowledge.why };
+  if (it.forYourKnowledge) return { class: 'for_your_knowledge', reason: it.forYourKnowledge.kind, why: it.forYourKnowledge.why, ...extra };
   return { class: 'brief' };
 }
 
 /** Write the email's attention mark onto its Wiki source. Never throws. Returns what happened, for logs and tests. */
 export async function writeAttentionMark(
   row: { id: string; clientNumber: string; userId: number; sourceType: string },
-  it: Pick<AttentionItem, 'needsYou' | 'forYourKnowledge'>,
+  it: Pick<AttentionItem, 'needsYou' | 'forYourKnowledge'> & { criticality?: { band?: string } | null; rationale?: string | null },
 ): Promise<'marked' | 'unchanged' | 'not_judged' | 'not_email' | 'refused' | 'failed'> {
   if (row.sourceType !== 'gmail') return 'not_email';
   const value = attentionMarkOf(it);
   if (!value) return 'not_judged';
   try {
-    const fe = await prisma.$queryRawUnsafe<Array<{ source_id: string | null }>>(
-      `SELECT source_id FROM feed_events WHERE id = $1 AND client_number = $2 AND user_id = $3`, row.id, row.clientNumber, row.userId,
+    const fe = await prisma.$queryRawUnsafe<Array<{ source_id: string | null; sender: string | null; subject: string | null }>>(
+      `SELECT source_id, COALESCE(raw_payload->>'from', sender_email) AS sender, raw_payload->>'subject' AS subject
+         FROM feed_events WHERE id = $1 AND client_number = $2 AND user_id = $3`, row.id, row.clientNumber, row.userId,
     );
     const gmailId = fe[0]?.source_id;
     if (!gmailId) { log.warn('email has no message id; not marked', { feedEventId: row.id }); return 'failed'; }
     const { sourceId } = await import('../wiki/wikiSources');
     const { markSource } = await import('../wiki/wikiStore');
-    const r = await markSource({ clientNumber: row.clientNumber, userId: row.userId }, sourceId(row.clientNumber, row.userId, 'email', gmailId),
-      { kind: 'attention', value, by: TRIAGE_MARK_BY });
+    const sid = sourceId(row.clientNumber, row.userId, 'email', gmailId);
+    const writer = { clientNumber: row.clientNumber, userId: row.userId };
+    const r = await markSource(writer, sid, { kind: 'attention', value, by: TRIAGE_MARK_BY });
+    // DEF-465: and the rule mark his email rules give it.
+    const { suziEmailRules } = await import('../suzi/suziEmailRules');
+    const rules = await suziEmailRules(row.clientNumber, row.userId).catch(() => []);
+    if (rules.length) { const { markRulesOn } = await import('../suzi/wikiEmails'); await markRulesOn(writer, sid, { from: fe[0]?.sender, subject: fe[0]?.subject }, rules); }
     return r.changed ? 'marked' : 'unchanged';
   } catch (e: any) {
     const refused = e?.name === 'MarkRefused';

@@ -266,8 +266,8 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
   const threadId = text(a.thread_id);
   const decision = MARKS[text(a.state)];
   if (!decision) return fail('bad_state');
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; subject: string | null; snippet: string | null; sender_email: string | null }>>(
-    `SELECT id, raw_payload->>'subject' AS subject, raw_payload->>'snippet' AS snippet, sender_email FROM feed_events
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id?: string | null; subject: string | null; snippet: string | null; sender_email: string | null }>>(
+    `SELECT id, source_id, raw_payload->>'subject' AS subject, raw_payload->>'snippet' AS snippet, sender_email FROM feed_events
       WHERE client_number = $1 AND user_id = $2 AND source_type = 'gmail' AND (id = $3 OR raw_payload->>'threadId' = $3)`,
     clientNumber, userId, threadId,
   );
@@ -290,6 +290,15 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
       },
     });
     invalidateTriageCache(r.id);
+    // DEF-465, W-1.E: the same fact on the email in the Wiki (a handled mark), so Suzi, the portal and Brain agree.
+    if (r.source_id) {
+      try {
+        const { sourceId } = await import('../wiki/wikiSources');
+        const { markSource } = await import('../wiki/wikiStore');
+        await markSource({ clientNumber, userId }, sourceId(clientNumber, userId, 'email', r.source_id),
+          { kind: 'handled', value: { how: text(a.state) === 'handled' ? 'handled' : 'ignored_once' }, by: 'suzi' });
+      } catch { /* the answer stays as today (Suzi Master n2); a mark that cannot land is retried on the next mark */ }
+    }
   }
   return { ok: true, item: { thread_id: threadId, state: text(a.state), emails: rows.length } };
 }
