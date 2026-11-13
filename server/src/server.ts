@@ -486,6 +486,10 @@ const server = app.listen(env.port, async () => {
   import('./jobs/mailboxCensusJob').then(({ scheduleMailboxCensus }) => {
     scheduleMailboxCensus();
   }).catch((e) => console.warn('[boot] mailbox census not scheduled:', e?.message));
+  // F-2.4 (founder 13 Nov): his delegate rules forward matching emails by themselves, under the seven send rules (C3).
+  import('./jobs/ruleForwardJob').then(({ scheduleRuleForward }) => {
+    scheduleRuleForward();
+  }).catch((e) => console.warn('[boot] rule forward not scheduled:', e?.message));
   import('./jobs/staleConnectorPing').then(({ scheduleStaleConnectorPing }) => {
     scheduleStaleConnectorPing();
   }).catch((e) => console.warn('[staleConnectorPing] start failed:', e.message));

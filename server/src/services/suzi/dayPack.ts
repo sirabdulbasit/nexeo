@@ -233,6 +233,9 @@ async function withRules(clientNumber: string, userId: number, items: Array<{ em
   const out = items.map(({ email, address }) => {
     const r = rules.length ? ruleFor(rules, { from: address, subject: email.subject }) : null;
     if (!r) return email;
+    // F-2.4 (founder 13 Nov): delegate rules act by themselves, so nothing is held "ready"; the forward shows as a
+    // "delegated" row once it has gone (delegatedByRule below).
+    if (r.kind === 'email_delegate') return email;
     return { ...email, by_rule: { action: r.kind === 'email_delegate' ? 'ready' as const : 'ignored' as const, rule_id: r.id, ...(r.person_name ? { person_name: r.person_name } : {}), at } };
   });
   const shown = new Set(out.map((e) => e.thread_id));

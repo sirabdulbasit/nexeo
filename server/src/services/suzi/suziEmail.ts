@@ -184,7 +184,7 @@ async function updateDraft(clientNumber: string, userId: number, a: Args): Promi
 }
 
 /** T22: how a send arrived. Only Suzi's server sets `signatureVerified`; the device can't. */
-export type SendGate = { signatureVerified: boolean; voiceScore: number | null };
+export type SendGate = { signatureVerified: boolean; voiceScore: number | null; /** F-2.4 auto-forward (founder 13 Nov): sent by this rule, set only by ruleForwardJob. */ byRule?: string };
 const UNSIGNED: SendGate = { signatureVerified: false, voiceScore: null };
 const GOING = new Set(['held', 'sending', 'sent']);
 
@@ -208,7 +208,8 @@ export async function saveToGmailDrafts(clientNumber: string, userId: number, a:
   const gmailDraftId = o.gmailDraftId ?? await saveDraftInGmail(clientNumber, userId, draft, o);
   if (typeof gmailDraftId !== 'string') return gmailDraftId;
   const { maySendForReal, scheduleRelease, SEND_HOLD_MS } = await import('./suziSend');
-  if (!gate.signatureVerified || !(await maySendForReal(clientNumber, userId))) {
+  // A live signed yes, or (F-2.4, founder 13 Nov) one of his delegate rules acting by itself; both only when Nexeo can send.
+  if (!(gate.signatureVerified || gate.byRule) || !(await maySendForReal(clientNumber, userId))) {
     return { ok: true, item: { draft_id: String(draft.id), saved_to_gmail_drafts: true, sent: false, gmail_draft_id: gmailDraftId } };
   }
   const at = new Date(Date.now() + SEND_HOLD_MS).toISOString();

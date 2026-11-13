@@ -26,6 +26,7 @@ describe('rule.set', () => {
   it('a delegate rule is stored as his own DRAFT rule, with the person', async () => {
     const r: any = await ruleSet('T', 2, { kind: 'email_delegate', match: { by: 'domain', value: '@Vendor.com' }, person_id: 'p1', note: 'handle quotes' }, true);
     expect(r.item).toMatchObject({ kind: 'email_delegate', match: { by: 'domain', value: 'vendor.com' }, person_name: 'Ali Raza', rules_version: 12 });
+    expect(r.item.auto).toBe(true); // F-2.4 C4: a delegate rule acts by itself
     const [sql, , client, user, , , cond, type, payload] = exec.mock.calls[0];
     expect(sql).toContain("'DRAFT'");
     expect(sql).toContain("'user'");

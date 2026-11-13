@@ -82,7 +82,7 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
     );
     // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
     void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
-    return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, rules_version: await rulesVersion(clientNumber, userId) } };
+    return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, ...(kind === 'email_delegate' ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
   }
   const id = `uar_${crypto.randomBytes(6).toString('hex')}`;
   // DRAFT: the rule store's own executor never fires it. Suzi's flow is the only one that acts on it.
@@ -94,7 +94,7 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   );
   // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
   void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
-  return { ok: true, item: { rule_id: id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
+  return { ok: true, item: { rule_id: id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), ...(kind === 'email_delegate' ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
 }
 
 export async function ruleRemove(clientNumber: string, userId: number, a: Args, confirmed: boolean): Promise<Result> {

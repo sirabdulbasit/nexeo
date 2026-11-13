@@ -1227,6 +1227,12 @@ function channelsForUrgency(u: Urgency): Array<'text' | 'voicenote' | 'call_cta'
  * it ignores the calendar; making it wait would quietly turn the one urgent
  * path into the same delayed path as everything else.
  */
+/** F-2.4 auto-forward: whether it is outside his office hours now (his brain_channel settings). */
+export async function outsideOfficeHoursFor(userId: number, clientNumber: string): Promise<boolean> {
+  const u = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { notificationPreferences: true } as any }).catch(() => null) as any;
+  return isOutsideOfficeHours(userId, clientNumber, (u?.notificationPreferences as any)?.brain_channel ?? {});
+}
+
 async function isOutsideOfficeHours(userId: number, clientNumber: string, bc: any): Promise<boolean> {
   try {
     const { getBehaviorValue } = await import('../behaviorConfig');

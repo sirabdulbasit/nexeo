@@ -125,7 +125,7 @@ export async function emailDelegate(clientNumber: string, userId: number, a: Arg
   const draftId = (fwd.item as any).draft_id;
   const row = await prisma.agentAction.findFirst({ where: { id: parseInt(draftId, 10), clientNumber, userId } as any });
   if (row) {
-    const delegate = { thread_id: threadId, person_id: person.id, person_name: person.name, person_email: person.email, note: text(a.note), subject: mail.subject, rule_id: ruleId || null };
+    const delegate = { thread_id: threadId, person_id: person.id, person_name: person.name, person_email: person.email, note: text(a.note), subject: mail.subject, rule_id: ruleId || null, ...(text(a.message_id) ? { message_id: text(a.message_id), by_rule: true } : {}) };
     await prisma.agentAction.update({ where: { id: row.id }, data: { input: { ...(row.input as any), delegate } as any } as any });
   }
   const sent = await saveToGmailDrafts(clientNumber, userId, { draft_id: draftId }, true, gate);
