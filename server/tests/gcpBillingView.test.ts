@@ -17,7 +17,10 @@ import { completeAverage, dailySql, isIncomplete, labelSql, markDays, pacificDay
 import gcpRouter from '../src/routes/admin/gcpBillingRoutes';
 import { requireSuperAdmin } from '../src/middleware/auth';
 
-beforeEach(() => { exec.mockReset(); query.mockReset(); transaction.mockReset(); exec.mockResolvedValue(1); transaction.mockResolvedValue([]); });
+beforeEach(() => { exec.mockReset(); query.mockReset(); transaction.mockReset(); exec.mockResolvedValue(1);
+  // DEF-467: the callback form; the fake runs it with a tx handle so the statements made on tx are seen.
+  transaction.mockImplementation(async (fn: any) => (typeof fn === 'function' ? fn({ $executeRawUnsafe: (...a: any[]) => exec(...a) }) : []));
+});
 
 describe('the billing queries', () => {
   it.each([['daily', dailySql], ['label', labelSql]])('%s keeps gross and credits, unrounded, on Pacific days', (_n, sql) => {
@@ -60,6 +63,7 @@ describe('loading', () => {
     const run = async (sql: string) => sql.includes('UNNEST(t.labels)') ? [] : [{ day: '2026-11-06', invoice_month: '202611', project_id: 'p', project_name: 'P', service: 's', sku: 'k', gross: '2.5', credits: '-1' }];
     await syncBilling(new Date('2026-11-10T00:00:00Z'), run);
     expect(transaction).toHaveBeenCalledOnce();
+    expect(typeof (transaction.mock.calls[0] as any[])[0]).toBe('function'); // never the array form
     const insert = exec.mock.calls.find((c) => String(c[0]).startsWith('INSERT INTO gcp_billing_daily'))!;
     expect(JSON.parse(insert[1])[0]).toMatchObject({ gross: '2.5', credits: '-1' });
   });

@@ -95,27 +95,29 @@ export async function syncBilling(now = new Date(), run: BillingQuery = bigQuery
     const [daily, labels] = await Promise.all([run(dailySql(fromDay)), run(labelSql(fromDay))]);
     // An empty answer must not wipe what is already loaded.
     if (daily.length === 0) throw new Error('The billing export returned no rows');
-    await prisma.$transaction([
-      prisma.$executeRawUnsafe(`DELETE FROM gcp_billing_daily WHERE day >= $1::date`, fromDay),
-      prisma.$executeRawUnsafe(`DELETE FROM gcp_billing_label_daily WHERE day >= $1::date`, fromDay),
-      prisma.$executeRawUnsafe(
+    // DEF-467: the CALLBACK form, every statement on tx. A wrapped raw statement is not a Prisma promise: the array form
+    // ran each statement at once, outside any transaction and in no order, then rejected the array (could wipe billing).
+    await prisma.$transaction(async (tx) => {
+      await tx.$executeRawUnsafe(`DELETE FROM gcp_billing_daily WHERE day >= $1::date`, fromDay);
+      await tx.$executeRawUnsafe(`DELETE FROM gcp_billing_label_daily WHERE day >= $1::date`, fromDay);
+      await tx.$executeRawUnsafe(
         `INSERT INTO gcp_billing_daily (day, invoice_month, project_id, project_name, service, sku, gross, credits)
          SELECT day, invoice_month, project_id, project_name, service, sku, gross, credits
            FROM jsonb_to_recordset($1::jsonb) AS x(day date, invoice_month text, project_id text, project_name text, service text, sku text, gross numeric, credits numeric)`,
         JSON.stringify(plain(daily)),
-      ),
-      prisma.$executeRawUnsafe(
+      );
+      await tx.$executeRawUnsafe(
         `INSERT INTO gcp_billing_label_daily (day, invoice_month, project_id, label_key, label_value, gross, credits)
          SELECT day, invoice_month, project_id, label_key, label_value, gross, credits
            FROM jsonb_to_recordset($1::jsonb) AS x(day date, invoice_month text, project_id text, label_key text, label_value text, gross numeric, credits numeric)`,
         JSON.stringify(plain(labels)),
-      ),
-      prisma.$executeRawUnsafe(
+      );
+      await tx.$executeRawUnsafe(
         `INSERT INTO gcp_billing_sync (id, last_ok_at, last_try_at, last_error, rows_loaded) VALUES (1, now(), now(), NULL, $1)
          ON CONFLICT (id) DO UPDATE SET last_ok_at = now(), last_try_at = now(), last_error = NULL, rows_loaded = $1`,
         daily.length,
-      ),
-    ]);
+      );
+    });
     return { rows: daily.length };
   } catch (err: any) {
     const message = String(err?.message ?? 'Billing sync failed').slice(0, 500);

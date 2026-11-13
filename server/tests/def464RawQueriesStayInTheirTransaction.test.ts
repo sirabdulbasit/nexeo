@@ -115,7 +115,7 @@ describe('DEF-464: a raw statement stays in the transaction it was issued on', (
       }
     }
     // Known and dead: its tables (gcp_billing_*) were dropped from the database. It may only shrink.
-    expect([...new Set(offenders)].sort()).toEqual(['services/gcpBilling/gcpBillingService.ts']);
+    expect([...new Set(offenders)].sort()).toEqual([]); // gcpBillingService fixed (DEF-467, Nexeo-Builder)
   });
 
   it('5. the source: no wrapper binds to its client, and nothing is installed on a tx', () => {
