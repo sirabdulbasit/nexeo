@@ -53,7 +53,7 @@ His other decisions the same day:
 
 ### 0.4 The ledger: every store, and where it goes
 
-Counted on production on 2026-11-13: **161 tables**. Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
+Counted on production on 2026-11-13: **161 tables** (144 after the 19 leftover backup copies were removed the same day, on the owner's word, and the Wiki's two source tables were added). Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
 
 | Kind | Tables | Rows | Rule |
 |---|---|---|---|
@@ -88,7 +88,7 @@ Counted on production on 2026-11-13: **161 tables**. Every one is named in `src/
 | Secrets, kept encrypted in the Wiki and never shown as text | `sessions` (92), `whatsapp_sessions` (20), `user_connectors` (14), `whatsapp_connections` (2), `meet_event_subscriptions` (1), `agent_api_tokens` (0), `approval_tokens` (0), `push_subscriptions` (0) |
 | A queue or cache the product runs from; the Wiki holds the record | `criticality_fusion_cache` (8,078), `feed_events` (6,661), `brain_prompt_queue` (1,848), `triage_decision_cache` (1,025), `notification_queue` (101), `brain_pending_actions` (36), `suzi_presence` (3), `job_leases` (2), `suzi_outbox` (1), `ops_health_state` (1) |
 
-Leftover backup copies (19 tables, 887 rows) are the `…_wipe_…` and `…_2026_05_2x` tables. Brain Reset (`brainResetRoutes.ts`) still creates new ones each time it runs; that stops when the reset is rebuilt on the Wiki's own archive.
+Leftover backup copies (19 tables, 887 rows, the `…_wipe_…` and `…_2026_05_2x` tables) were **removed on 13 Nov 2026**: nothing read or restored from them, and a full dump is kept at `/root/nexeo-backups/leftover_backup_tables_2026-11-13.sql.gz`. Brain Reset (`brainResetRoutes.ts`) still creates new ones each time it runs; that stops when the reset is rebuilt on the Wiki's own archive.
 
 Files outside the database that hold anything: the WhatsApp session folder (sign-in state, a secret), uploaded integration files, and the server logs. Suzi's side (the Mac app and her server) keeps a working copy only, by the charter.
 
@@ -147,6 +147,15 @@ An outside review of this document the same day (recorded score 57.2 of 100, ver
 7. Pruning (standard 7, §7).
 
 It is done when the ledger shows nothing outside the Wiki **and** every row of the table above reads "met", each with its test and its check on production.
+
+### 0.8 Who the Wiki handshakes with (owner, 2026-11-13)
+
+*"wiki-knowledge should only handshake within this project and Suzi, not other's project, as per functional charter."*
+
+1. **Two parties only.** Nexeo (the portal's signed-in people and Nexeo's own jobs) and Suzi (the charter's knowledge route and day pack, row 1 of the Functional Charter). No other project reads the Wiki, writes to it, or is bound by this document.
+2. **Enforced.** The Wiki's routes (`/api/v1/wiki/*`, `/api/v1/brain/wiki*`) refuse a caller holding a machine token (`middleware/wikiHandshake.ts`, `tests/wikiHandshake.test.ts`). Suzi's routes have their own sign-in and are untouched.
+3. **Checked on 13 Nov:** no other project on this server (`vm`, `tokr`, `shireme`, `tmcmde`, `qlik-bridge`, `ai-integration`) has code that calls Nexeo's Wiki or reads its tables, and none carries this rule in its instructions. No machine token is issued (0 in `agent_api_tokens`).
+4. **Copies that leave Nexeo, for the owner to rule on:** the hourly export of contacts and pages to the user's own Google Drive ("Nexeo Vault", `obsidianVaultService`), which is the planned starting point of §0.6; and the Notion mirror job, which pushes pages to Notion for a user with Notion connected (no user has it connected today).
 
 ## 1. Owner direction (2026-11-12)
 

@@ -16,6 +16,7 @@ import shadowRoutes from './routes/shadowRoutes';
 import feedRoutes from './routes/feedRoutes';
 import triageRoutes from './routes/triageRoutes';
 import wikiRoutes from './routes/wikiRoutes';
+import { wikiHandshakeOnly } from './middleware/wikiHandshake';
 import draftsRoutes from './routes/draftsRoutes';
 import briefRoutes from './routes/briefRoutes';
 import brainAskRoutes from './routes/brainAskRoutes';
@@ -270,7 +271,8 @@ v1.use('/steering', steeringRoutes);
 v1.use('/shadow', shadowRoutes);
 v1.use('/feed', feedRoutes);
 v1.use('/triage', triageRoutes);
-v1.use('/wiki', wikiRoutes);
+// The Wiki handshakes only with Nexeo and Suzi (Wiki-Knowledge.md §0.8): a machine token is refused.
+v1.use('/wiki', wikiHandshakeOnly, wikiRoutes);
 v1.use('/drafts', draftsRoutes);
 v1.use('/brief', briefRoutes);
 v1.use('/suzi/gateway', suziGatewayRoutes); // DEF-385: before /suzi, which requires a signed-in person

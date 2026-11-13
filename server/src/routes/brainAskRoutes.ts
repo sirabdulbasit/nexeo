@@ -13,6 +13,7 @@
  * tenant_log.
  */
 import { Router, Request, Response } from 'express';
+import { wikiHandshakeOnly } from '../middleware/wikiHandshake';
 import { toastSafeSnippet } from '../db/toastSafeText';
 import prisma from '../db/prisma';
 import { planRetrieval } from '../services/knowledge/brainRetrievalPlanner';
@@ -39,6 +40,10 @@ router.use((req: Request, res: Response, next) => {
   if (!(req as any).user?.clientNumber) return res.status(401).json({ error: 'unauthenticated' });
   next();
 });
+
+// The Wiki handshakes only with Nexeo and Suzi (Wiki-Knowledge.md §0.8): the
+// wiki routes below refuse a caller holding a machine token.
+router.use('/wiki', wikiHandshakeOnly);
 
 // #14 (2026-07-14) — the user's OWN in-flight / unconfirmed / failed
 // actions with honest wording. Strictly user+tenant scoped; retry is
