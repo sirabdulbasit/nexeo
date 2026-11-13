@@ -172,10 +172,17 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   - **Imported (`imported`):** transcripts that already reach Nexeo (Plaud, Otter, Fathom, Fireflies emails; Google's
     transcript Doc in Drive).
 - **F-4.2 Which meetings.** A per-user switch, off by default. With it on, Suzi asks before each meeting with a join
-  link, in the brief and on the meeting alert, until he sets a rule (founder, decision 2). `rule.set` kind
-  `meeting_attend`, match by organiser, attendee, title or "all with a link", set only by him (voice or click, as
-  F-2.4). Any single meeting can be switched on or off by click or voice, before or during it. Way A follows this
-  exactly; a meeting it can't cover gets `not_covered` and no attempt.
+  link, in the brief and on the meeting alert, until he sets a rule (founder, decision 2). Any single meeting can be
+  switched on or off by click or voice, before or during it. Way A follows this exactly; a meeting it can't cover gets
+  `not_covered` and no attempt.
+  - `rule.set` {kind: "meeting_attend", match: {by: organizer | attendee | title | all, value?}, attend: always | never,
+    note?} → {rule_id, rules_version, existing?}; confirmed, unsigned, set only by him (voice or click). `rule.remove`
+    {rule_id} as for F-2.4. Listed in the pack's `rules.action_rules`.
+  - Matching: title contains, case-insensitive and trimmed; organizer and attendee by exact email, lowercase; all = every
+    event with a join link. never beats always; a single-meeting choice beats both; of two equal rules the oldest
+    rule_id is reported.
+  - Each calendar event in the pack carries `attend: {decision: always | never | ask, rule_id?}`, worked out by Nexeo. It
+    is sent only once Way A can switch transcription on; until then Suzi asks as before. (Agreed 13 Nov 2026.)
 - **F-4.3 Everyone knows.** Under Way A, Meet shows every participant that transcription is on. Under Way B she posts
   one chat line on joining ("Suzi is taking notes for \<user's name\>"), never speaks or answers, and leaves at once
   when the host removes her or anyone asks, recording that and why. On his computer notes stay opt-in per meeting and
@@ -212,7 +219,8 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   start, end, outcome: record_ready | not_covered | failed, action_items_proposed, summary?}. `outcome` is the status;
   `summary` is the first sentence of the minutes, at most 160 characters, on record_ready rows only (agreed 13 Nov 2026,
   Nexeo 1de016db).
-- **F-4.9 Acts and status.** `meeting.attend` {event_id | join_url, way}, `meeting.leave` {meeting_id},
+- **F-4.9 Acts and status.** `meeting.attend` {event_id | join_url, way}, `meeting.leave` {event_id} or {meeting_id}
+  (exactly one; both and disagreeing → `bad_args`),
   `meeting.delete` {meeting_id} (signed, irreversible). Nexeo pushes `meeting.status`: Way A `transcribing`,
   `transcript_ready`, `record_ready`; Way B `joining`, `waiting_to_be_let_in`, `in`, `left`, `refused`, `ended`,
   `record_ready`; either way `not_covered` and `failed {reason}`.
