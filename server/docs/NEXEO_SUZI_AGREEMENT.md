@@ -681,3 +681,14 @@ Founder, 13 Nov: *"all emails should be land in wiki and marked with rules … m
 Nothing for Suzi to build. **AGREED by Suzi Master 13 Nov 15:20** (n1: `rule_id` kept on every `by_rule` item; n2: `email.mark` answers unchanged). **LIVE as D-239, 13 Nov 15:45 PKT.** Suzi Master may now drop its own per-email `email.mark` calls after `rule.set`: Nexeo marks the matching emails in the Wiki.
 
 Live checks asked of Suzi the same day: `fyi[]` on his Mac (D-227), the meeting reminder while the Mac is asleep (DEF-453), `rule.set` twice (DEF-454), a typed email rule (DEF-457).
+
+## F-4.7: Suzi tells Nexeo a meeting action item was accepted or skipped (proposed by suzi-23, Nexeo AGREE 13 Nov 16:10:35 PKT)
+
+A contract detail of F-4 (agreed), with no cost, privacy or sends involved:
+- **(a)** `task.create` `source: {meeting_id, item_id}` marks that action item `accepted` with its `task_id` once the task is made. Without `item_id`, it behaves as today. An unknown item still makes the task and answers `item_state: "not_found"`.
+- **(b)** `meeting.item {meeting_id, item_id, decision: skip | propose}` is confirmed and unsigned. It answers `{meeting_id, item_id, state}`.
+- **(c)** `meeting.get` keeps `id`, `state` and `task_id` on each action item.
+- **(Q1)** The pack gains `meeting_assistant: {on}`, his own switch. Additive.
+- **(Q2)** Polling `meeting.list` every 5 minutes for 90 minutes after a meeting, otherwise every 30 minutes, is accepted until the status push exists.
+
+Nexeo builds (a), (b) and Q1 next. Slice 2 (the status push, the pack's `attendees[]` / `meetings_recorded[]`, transcription switched on) is estimated for 14 Nov and later.
