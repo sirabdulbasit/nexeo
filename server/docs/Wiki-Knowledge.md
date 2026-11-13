@@ -128,9 +128,9 @@ An outside review of this document the same day (recorded score 57.2 of 100, ver
 
 | # | Standard | Where it stands |
 |---|---|---|
-| 1 | **One document, no contradictions.** Superseded decisions are marked; the build order follows the latest rules | Done 13 Nov (§5, §6, §6b marked) |
+| 1 | **One document, no contradictions.** Superseded decisions are marked; the build order follows the latest rules | Reconciled twice on 13 Nov. The second review still found three leftovers, fixed the same day: §7 merged notes on a matching title (against standard 2), §7 archived notes without saying their evidence is kept (against standard 7), and the counts of 12 Nov in §3 and §8 read as current. Not called complete: it stays open to the next read |
 | 2 | **A note has a permanent identity; its title is a label.** Aliases and outside identifiers (an email address, a record id) do the matching. A link that could mean two notes stays unresolved. People are merged on evidence, never on a matching name alone | Not met: a note is found by type and title; a link picks the most recent match; the builder merges two addresses that share a name |
-| 3 | **Shared and private are designed together.** One note, a shared layer and each reader's private layer. Permissions govern summaries, citations, backlinks, search and exports, not only the note. A shared summary never carries what was learned from one user's private mail | Not met: required before more company knowledge is added |
+| 3 | **Shared and private are designed together.** One note, a shared layer and each reader's private layer. Permissions govern summaries, citations, backlinks, search and exports, not only the note. A shared summary never carries what was learned from one user's private mail | Not met, one part built 13 Nov: a citation is checked where it is written (`wikiSources.mayCite`, `assertCitable`): never across clients, never another user's own source, never a user's own source on a shared note, and the shared note's text is not written either (`tests/wikiCitations.test.ts`). Production had 0 such citations among 4,228 when the check was added. Still missing: the layered note, and permissions over summaries, backlinks, search and exports |
 | 4 | **Facts carry their history.** An important property records its source, when it took effect, when it was recorded, and whether it was stated or inferred. A correction supersedes the earlier claim and keeps it. A commitment is completed only on sufficient evidence | Not met |
 | 5 | **Everything is in the Wiki, handled by its kind.** Secrets never enter search, embeddings, model context or exports. A receipt keeps its integrity when a note is edited. A note's text, properties, citations and links change together or not at all, with a revision check so one writer cannot overwrite another | Not met: `writeNote` makes its changes in separate steps |
 | 6 | **A store is retired on evidence, not on a count.** Its information and permissions were preserved; every reader and writer moved; the replacement survives replay and repeated intake; the derived view is rebuilt from the Wiki; a real user task still works. For commitments this includes state changes, authorisation and dispatch receipts | The ledger (§0.4) counts stores; no store has been retired yet |
@@ -140,7 +140,10 @@ An outside review of this document the same day (recorded score 57.2 of 100, ver
 
 1. Reconcile this document. **Done.**
 2. Source durability: every fetched item and its text is a lasting source in the Wiki (§6b A1). **Built 13 Nov; see §8.**
-3. Identity, permissions and write consistency (standards 2, 3, 5).
+   - **A missed landing recovers by itself** (second review, 13 Nov). The feed lands each item as it stores it, but a failed landing was only logged and a feed never offers an item twice. Now the stored feed items are the checklist: every hour, before the builder, each item's source is looked up by its own id and whatever the Wiki does not hold is landed (`wikiBackfill.reconcileSources`), for every user who has stored items, active or not. Nothing is remembered between runs, so an interrupted run loses nothing.
+   - **The feed store lets go only of what the Wiki holds.** The daily feed pruner deletes an email's row only when the source store holds the item and, where an email page has the full text, that text (`wikiBackfill.holdsFeedItem`); it lands what is missing first, and keeps the row if it cannot.
+3. Identity, permissions and write consistency (standards 2, 3, 5). The citation check of standard 3 is built (above); identity and all-or-nothing writes are next.
+   - **Proof of behaviour before step 4** (second review, 13 Nov). Meaning notes are not added until one test runs the whole chain and passes: take an item in → correct it later → read back the current fact with its citations → another user cannot read what is private → rebuild the derived view and get the same answer. Run through Nexeo's routes and through Suzi's knowledge route (reading only; anything that changes what Suzi receives is agreed with Suzi first).
 4. Meaning notes: projects, topics, decisions, commitments, with the history of each claim (standard 4, §6b A2).
 5. Move the readers and writers, feature by feature (§6b B and C).
 6. Retire the old stores, each on the evidence of standard 6 (§6b D).
@@ -185,7 +188,9 @@ should follow it", and "create/update one document of wiki, i don't want to see 
 
 The Wiki does not fetch from outside and does not decide what to say or do. Feed and Think do not write notes directly.
 
-## 3. Where the wiki stands today (production, read-only, 2026-11-12)
+## 3. Where the wiki stood when this work began (production, read-only, 2026-11-12)
+
+*A record of the starting point, kept for comparison. These are not current counts; the current state is §8.*
 
 - About 15,800 rows in `wiki_pages` for 5 users. About 7,900 are `email_message` pages: one page per email, not a note about a person, project or topic.
 - 34,009 rows in `wiki_page_links`; 33,785 are type `related`. Only 4 pages carry a `[[link]]` in their text.
@@ -231,7 +236,7 @@ So the boundaries in §2 do not exist in the code yet. That is the first thing t
 | 2c | **The builder runs by itself**: at the end of every Scribe (after the feed pull) and once an hour for every active user. A note that is already current is skipped. The old sender-page rebuild in Scribe is still there until its readers move (§6b). | **Deployed 2026-11-12 16:22 PKT as D-209.** First automatic run 16:38 PKT: user 2, 3 notes rewritten, 321 unchanged. The Scribe path has not been exercised |
 | 2d | **The Wiki screen shows the new wiki**: notes only by default (People, Companies, Meetings, Groups), the older pages behind a "Which wiki" switch; a note shows its properties, its `[[links]]` as buttons and its backlinks. Notes carry `metadata.wiki = 2`; `GET /brain/wiki` takes `set=new` or `set=old`. | **Deployed 2026-11-12 17:00 PKT as D-211.** Not yet looked at in a browser |
 | 2e | **One wiki; integration records are notes**: the Wiki screen has no private / company switch in the new wiki. A record an integration stores as Context is taken into the wiki after every write (`wikiStore.adoptAsNote`): marked as a note, and linked through `**About:** [[record title]]` to the note with that title (a person, a company), waiting if there is none yet. The integration writer keeps its own identity, hashing, stale and ledger rules; the row stays `org_doc`, scope tenant, shown as "Integration records". | **Deployed 2026-11-12 17:30 PKT as D-213.** No integration has written a record yet, so the adopt step has run only in tests |
-| A1 | **The Wiki's source store** (`wiki_sources`, `wiki_note_sources`; `wikiSources.ts`, `wikiIntake.ts`, `wikiBackfill.ts`): every fetched item lands as a source with its own id, conversation, time, people and text; an email's full text replaces its preview and is never overwritten by one; a transcript can be kept encrypted; a note cites its sources and the citations are its trail. The builder reads sources, not the feed queue, so history outlasts the 30-day pruning. | **Deployed 2026-11-13 10:29 PKT as D-218.** User 2: 6,919 sources (5,270 emails back to April, 471 calendar, 665 chat, 510 WhatsApp, 3 tasks), 361 notes citing them. Live check: 8 of 8 items fetched after the restart landed in the same second, emails with full text. Not yet landed as sources: attachments, meeting transcripts (`meeting_records`), integration records, conversations with Brain and Suzi |
+| A1 | **The Wiki's source store** (`wiki_sources`, `wiki_note_sources`; `wikiSources.ts`, `wikiIntake.ts`, `wikiBackfill.ts`): every fetched item lands as a source with its own id, conversation, time, people and text; an email's full text replaces its preview and is never overwritten by one; a transcript can be kept encrypted; a note cites its sources and the citations are its trail. The builder reads sources, not the feed queue, so history outlasts the 30-day pruning. | **Deployed 2026-11-13 10:29 PKT as D-218.** User 2: 6,919 sources (5,270 emails back to April, 471 calendar, 665 chat, 510 WhatsApp, 3 tasks), 361 notes citing them. Live check: 8 of 8 items fetched after the restart landed in the same second, emails with full text. Not yet landed as sources: attachments, meeting transcripts (`meeting_records`), integration records, conversations with Brain and Suzi. **Gap found by the second review, 13 Nov:** the first backfill ran for user 2 only, so the other user with stored items (user 3, switched off since May: 2,925 feed items, 1,924 emails with text) had no source at all, and a landing that failed was never retried. Closed by the hourly reconcile and the pruner's check (§0.7 step 2) |
 | 2b | **The builder, meaning**: project, topic, decision and commitment notes, which need a model to read the email and meeting text. Cost per user to be measured against the Costing Charter before it runs. | Next |
 | 3 | **Contacts derived** from person notes and their properties. | After 2 |
 | 4 | **Action items derived** from commitment notes, keeping the one gate agreed 2026-11-12. | After 3 |
@@ -311,10 +316,10 @@ Owner, 2026-11-12: once the wiki is built, this role decides how it keeps prunin
 
 | Check | Rule | What happens |
 |---|---|---|
-| Duplicate | Same email, same phone, or same title key within one type | Merged into one note; links and sources move to the survivor |
-| Orphan | No links in or out, one source, untouched for 30 days | Archived |
+| Duplicate | Same email address, same phone number or same outside record id. **Never a matching title or name alone** (§0.7 standard 2): two notes that only share a name are listed for the user to decide | Merged into one note; links and citations move to the survivor; the merge is recorded and can be undone |
+| Orphan | No links in or out, one source, untouched for 30 days | The note is archived; its source and its citation are kept |
 | Stale | No new source for 90 days and nothing open against it | Marked stale; left out of what Think is given by default |
-| Empty | No body beyond the title, no properties | Archived |
+| Empty | No body beyond the title, no properties, no citation | Archived |
 | Contradiction | Two notes state different facts for the same property | Flagged for the user, never auto-resolved |
 
 **Never pruned**
@@ -322,14 +327,18 @@ Owner, 2026-11-12: once the wiki is built, this role decides how it keeps prunin
 - A note the user wrote, edited or confirmed.
 - A note with an open commitment linked to it.
 - Shared (tenant) notes.
+- **Sources and citations.** Pruning acts on notes only. No source is removed by upkeep, and an archived note keeps its trail, so what was believed and why can still be read (§0.7 standard 7).
+- The user's corrections, and the earlier claim a correction replaced.
 
-**Archive, not delete.** A pruned note is archived and can be restored; deletion needs the owner's yes. The job records each day how many notes it merged, archived and marked stale, so the pruning itself can be checked.
+**Three different things, never one flag** (§0.7 standard 7): *less relevant* (stale: left out of what Think is given by default, nothing removed), *superseded* (a later fact replaced it: kept as history), *safe to archive* (orphan or empty by the rules above).
 
-The 30-day and 90-day figures are first guesses, to be set from the rebuilt data.
+**Archive, not delete.** A pruned note is archived with its citations and can be restored; deletion needs the owner's yes. The job records each day how many notes it merged, archived and marked stale, so the pruning itself can be checked.
+
+The 30-day and 90-day figures are first guesses. They live in `behaviorConfig`, not in code, and are set from the rebuilt data.
 
 ## 8. State
 
-**What exists in production data (2026-11-12, 09:40 PKT)**
+**The first build, as it was on 2026-11-12, 09:40 PKT** *(a record of that day; current counts are under "Counted on production" below)*
 
 For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wiki_builder'`):
 
@@ -349,7 +358,7 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 **How the builder decides who gets a note**
 
 - Email: only threads the user wrote in. Calendar: meetings with at least one other person, up to 25 invited. Chat: a direct chat, or two or more messages in a standing space.
-- One person across addresses: the same mailbox name at one organisation (`x@tmcltd.com`, `x@tmcltd.ai`), or the same name where the addresses do not place them at two organisations.
+- One person across addresses: the same mailbox name at one organisation (`x@tmcltd.com`, `x@tmcltd.ai`), or the same name where the addresses do not place them at two organisations. *The second is a merge on a name alone; it is against §0.7 standard 2 and goes when identity is built (step 3).*
 - Left out: no-reply and notification senders, shared mailboxes and lists (`hr@`, `accounts@`, `ph.all@`), chat bots, nameless chat ids, chats opened for a single meeting, calendar invitation emails.
 - A recurring meeting is one note; a calendar entry stored twice counts once.
 
@@ -359,7 +368,7 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 - A shared record links to the note of the user who owns the integration. With a second active user, that user's own note of the same person is not linked; the layered note (one note, a shared layer plus each reader's private layer) is the fix and is not built.
 - An employee nobody has dealt with gets a record note but no person note.
 
-- The same person under two different mailbox names is still two notes (for example `malik.irfan@` and `irfan.ahmed@`, or a work and a personal address with different spellings). The user's own personal address appears as a person. Step 5 (merge) handles these.
+- The same person under two different mailbox names is still two notes (for example `malik.irfan@` and `irfan.ahmed@`, or a work and a personal address with different spellings). The user's own personal address appears as a person. Identity (§0.7 step 3) handles these, on evidence and never on the name alone.
 - A shared mailbox whose name is not a role word is taken for a person (`vm@`, "Vision Metric").
 - Company notes are titled by domain (`tmcltd.com`), not by the company's name.
 - Meeting notes with near-identical titles are separate notes.

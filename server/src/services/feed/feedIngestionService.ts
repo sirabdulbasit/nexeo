@@ -172,8 +172,11 @@ export async function ingest(input: RawEventInput): Promise<IngestResult> {
 
     // Wiki first (docs/Wiki-Knowledge.md §0.1.2): every fetched item lands in the
     // Wiki as a source, with its own id, conversation, time, people and text.
-    // Fire-and-forget like the hooks below; the hourly backfill-safe builder
-    // and a re-run of this call make a missed landing harmless.
+    // Fire-and-forget like the hooks below. A landing that fails here is not
+    // retried by the feed (a second fetch of the item returns `duplicate`
+    // above): the hourly reconcile (wikiBackfill.reconcileSources) finds every
+    // stored item the Wiki does not hold and lands it, and the feed pruner
+    // deletes no row the Wiki does not hold.
     if (input.userId !== undefined) {
       void import('../wiki/wikiIntake')
         .then(({ landFeedItem }) => landFeedItem({

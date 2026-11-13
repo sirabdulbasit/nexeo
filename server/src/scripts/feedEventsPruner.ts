@@ -90,6 +90,7 @@ async function main() {
     console.log(`eligible (older 30d)   = ${stats.eligibleByAge}`);
     console.log(`eligible (decided)     = ${stats.eligibleByDecision}`);
     console.log(`blocked (no scribe)    = ${stats.blockedNoScribe}`);
+    console.log(`blocked (not in Wiki)  = ${stats.blockedNoSource}`);
     console.log(`${apply ? 'deleted' : 'would delete'}        = ${stats.deleted}`);
     if (stats.blockedNoScribe > 0) {
       console.log(`\n⚠  ${stats.blockedNoScribe} rows could not be pruned because their scribe sibling is missing.`);

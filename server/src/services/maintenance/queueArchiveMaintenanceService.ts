@@ -41,6 +41,8 @@ export interface PruneStats {
   eligibleByAge: number;
   eligibleByDecision: number;
   blockedNoScribe: number;
+  /** The Wiki's source store does not hold the item (and could not be made to): the row stays. */
+  blockedNoSource: number;
   deleted: number;
 }
 
@@ -170,8 +172,9 @@ export async function backfillUserScribe(
 /**
  * Trim feed_events down to the active queue: anything older than 30
  * days OR terminally decided is deleted, but ONLY if a scribe sibling
- * exists (so no data is lost). Default dry-run — pass apply=true to
- * actually delete.
+ * exists AND the Wiki's source store holds the item (so no data is
+ * lost). Default dry-run — pass apply=true to actually delete; a dry
+ * run writes nothing anywhere.
  */
 export async function pruneUserFeedEvents(
   clientNumber: string,
@@ -181,7 +184,7 @@ export async function pruneUserFeedEvents(
   const apply = !!opts.apply;
   const stats: PruneStats = {
     scanned: 0, eligibleByAge: 0, eligibleByDecision: 0,
-    blockedNoScribe: 0, deleted: 0,
+    blockedNoScribe: 0, blockedNoSource: 0, deleted: 0,
   };
 
   const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -201,7 +204,7 @@ export async function pruneUserFeedEvents(
   while (true) {
     const events = await prisma.feedEvent.findMany({
       where: { clientNumber, userId, sourceType: 'gmail' } as any,
-      select: { id: true, sourceId: true, rawPayload: true, createdAt: true },
+      select: { id: true, sourceId: true, rawPayload: true, createdAt: true, eventAt: true },
       orderBy: { createdAt: 'asc' },
       skip: offset,
       take: PAGE,
@@ -232,6 +235,19 @@ export async function pruneUserFeedEvents(
       ).catch(() => [] as Array<{ id: string }>);
       if (scribed.length === 0) {
         stats.blockedNoScribe += 1;
+        continue;
+      }
+
+      // Wiki first (docs/Wiki-Knowledge.md §0.1.2): the feed store lets go of a
+      // row only when the Wiki's source store holds the item and its text. On
+      // a real run a missed landing is repaired here; if it cannot be, the row stays.
+      const { holdsFeedItem } = await import('../wiki/wikiBackfill');
+      const held = await holdsFeedItem({
+        id: ev.id, clientNumber, userId, sourceType: 'gmail', sourceId: ev.sourceId,
+        payload: p as Record<string, any>, at: (ev as any).eventAt ?? ev.createdAt,
+      }, { repair: apply });
+      if (!held) {
+        stats.blockedNoSource += 1;
         continue;
       }
 

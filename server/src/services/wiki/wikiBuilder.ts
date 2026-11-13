@@ -628,7 +628,7 @@ export async function rebuildWikiForUser(
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
       if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length) {
         // The text is current, but a new source may still belong to its trail.
-        if (n.sourceIds?.length) await citeSources(have.id, n.sourceIds);
+        if (n.sourceIds?.length) await citeSources({ clientNumber, userId }, have.id, n.sourceIds);
         unchanged += 1;
         continue;
       }

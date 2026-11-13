@@ -3,6 +3,7 @@
  *
  *   npx tsx src/scripts/wikiRebuild.ts --client TMC-0001 --user 2 --dry-run --out /path/to/vault
  *   npx tsx src/scripts/wikiRebuild.ts --client TMC-0001 --user 2 --write
+ *   npx tsx src/scripts/wikiRebuild.ts --reconcile-sources            (every user)
  *
  * --dry-run writes nothing to the database. --out also saves the notes as
  * markdown files, one folder per note type, which opens as an Obsidian vault.
@@ -21,13 +22,19 @@ function arg(name: string): string | undefined {
 (async () => {
   const clientNumber = arg('client');
   const userId = Number(arg('user'));
-  // --backfill-sources: bring the stored feed items and old email text into the Wiki's source store.
-  if (process.argv.includes('--backfill-sources')) {
-    if (!clientNumber || !userId) { console.error('usage: wikiRebuild --client <number> --user <id> --backfill-sources'); process.exit(2); }
-    const { backfillSources } = await import('../services/wiki/wikiBackfill');
+  // --reconcile-sources: land every stored feed item and old email text the Wiki's source store
+  // does not hold. Without --client/--user, for every user who has stored items.
+  if (process.argv.includes('--reconcile-sources') || process.argv.includes('--backfill-sources')) {
+    const { reconcileSources, reconcileSourcesForAllUsers } = await import('../services/wiki/wikiBackfill');
     const { countSources } = await import('../services/wiki/wikiSources');
-    const r = await backfillSources(clientNumber, userId);
-    console.log(JSON.stringify({ ...r, sources_by_kind: await countSources(clientNumber, userId) }));
+    if (!clientNumber && !userId) {
+      for (const r of await reconcileSourcesForAllUsers()) console.log(JSON.stringify(r));
+    } else if (!clientNumber || !userId) {
+      console.error('usage: wikiRebuild [--client <number> --user <id>] --reconcile-sources'); process.exit(2);
+    } else {
+      const r = await reconcileSources(clientNumber, userId);
+      console.log(JSON.stringify({ ...r, sources_by_kind: await countSources(clientNumber, userId) }));
+    }
     await prisma.$disconnect();
     return;
   }

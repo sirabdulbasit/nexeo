@@ -123,10 +123,79 @@ export async function saveSource(input: SourceInput): Promise<{ id: string; crea
   return { id, created: rows[0]?.created === true };
 }
 
-/** A note cites these sources. Citing the same source twice is one citation. */
-export async function citeSources(noteId: string, sourceIds: string[]): Promise<void> {
+/** The two sides of a citation: who owns the row and who may read it. */
+export interface CiteParty {
+  clientNumber: string;
+  userId: number;
+  /** 'tenant' = the company's, readable by every user of the client; anything else = that user's alone. */
+  scope: string;
+}
+
+/**
+ * May this note cite this source? (docs/Wiki-Knowledge.md §0.1.6, §0.7 standard 3)
+ *  - never across clients;
+ *  - a company source may be cited by any note of that client;
+ *  - a user's own source may be cited only by that user's own private note,
+ *    so what one user's mail said never becomes part of a shared note.
+ */
+export function mayCite(note: CiteParty, source: CiteParty): boolean {
+  if (note.clientNumber !== source.clientNumber) return false;
+  if (source.scope === 'tenant') return true;
+  return note.scope !== 'tenant' && note.userId === source.userId;
+}
+
+/** A citation the Wiki refuses. Nothing is written when this is thrown. */
+export class CitationRefused extends Error {
+  constructor(public readonly refused: string[], note: CiteParty) {
+    super(`wikiSources: ${refused.length} citation(s) refused for a ${note.scope === 'tenant' ? 'shared' : 'private'} note of ${note.clientNumber}/${note.userId}: ${refused.slice(0, 5).join(', ')}`);
+    this.name = 'CitationRefused';
+  }
+}
+
+/**
+ * Check every source against the note that wants to cite it. Throws
+ * `CitationRefused` naming each source that is not in the note's client, does
+ * not exist, or that the note may not cite. The read is confined to the
+ * note's client, so a source of another client is never even loaded. Called
+ * before a note's text is written, and again when the citation rows are made.
+ */
+export async function assertCitable(note: CiteParty, sourceIds: string[]): Promise<void> {
   const ids = [...new Set(sourceIds.filter(Boolean))];
   if (ids.length === 0) return;
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; client_number: string; user_id: number; scope: string }>>(
+    `SELECT id, client_number, user_id, scope FROM wiki_sources WHERE client_number = $1 AND id = ANY($2::text[])`,
+    note.clientNumber, ids,
+  );
+  const found = new Map(rows.map((r) => [r.id, r]));
+  const refused = ids.filter((id) => {
+    const s = found.get(id);
+    return !s || !mayCite(note, { clientNumber: s.client_number, userId: Number(s.user_id), scope: s.scope });
+  });
+  if (refused.length) throw new CitationRefused(refused, note);
+}
+
+/** Who is writing: the client and the user the write is made for. Never taken from the row being written. */
+export interface Writer {
+  clientNumber: string;
+  userId: number;
+}
+
+/**
+ * A note cites these sources. Citing the same source twice is one citation.
+ * The writer must name its client and user: the note is looked up inside that
+ * client and must be the writer's own or a shared one, and every source is
+ * checked against the note (`assertCitable`). If one is refused, none is cited.
+ */
+export async function citeSources(writer: Writer, noteId: string, sourceIds: string[]): Promise<void> {
+  const ids = [...new Set(sourceIds.filter(Boolean))];
+  if (ids.length === 0) return;
+  const notes = await prisma.$queryRawUnsafe<Array<{ client_number: string; user_id: number; scope: string }>>(
+    `SELECT client_number, user_id, scope FROM wiki_pages
+      WHERE id = $1 AND client_number = $2 AND (scope = 'tenant' OR user_id = $3)`,
+    noteId, writer.clientNumber, writer.userId,
+  );
+  if (!notes[0]) throw new Error(`wikiSources.citeSources: no note ${noteId} that ${writer.clientNumber}/${writer.userId} may write`);
+  await assertCitable({ clientNumber: notes[0].client_number, userId: Number(notes[0].user_id), scope: notes[0].scope }, ids);
   await prisma.$executeRawUnsafe(
     `INSERT INTO wiki_note_sources (note_id, source_id)
      SELECT $1, s FROM unnest($2::text[]) AS s
@@ -140,6 +209,21 @@ export async function citeSources(noteId: string, sourceIds: string[]): Promise<
       WHERE id = $1`,
     noteId,
   );
+}
+
+/**
+ * Which of this user's sources the Wiki holds, and whether each one has text.
+ * For reconciling intake: a fetched item whose source is not here was missed.
+ */
+export async function sourcesHeld(clientNumber: string, userId: number, ids: string[]): Promise<Map<string, { hasText: boolean }>> {
+  const want = [...new Set(ids.filter(Boolean))];
+  if (want.length === 0) return new Map();
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; has_text: boolean }>>(
+    `SELECT id, (content_hash IS NOT NULL) AS has_text FROM wiki_sources
+      WHERE client_number = $1 AND user_id = $2 AND id = ANY($3::text[])`,
+    clientNumber, userId, want,
+  );
+  return new Map(rows.map((r) => [r.id, { hasText: r.has_text === true }]));
 }
 
 const VISIBLE = `s.client_number = $1 AND (s.scope = 'tenant' OR s.user_id = $2)`;

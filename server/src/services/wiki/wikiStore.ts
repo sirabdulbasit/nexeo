@@ -23,11 +23,14 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
-import { citeSources } from './wikiSources';
+import { citeSources, assertCitable } from './wikiSources';
 
 // The one door: sources are read and written through here too.
-export { saveSource, citeSources, sourcesOf, readSource, listSources, countSources } from './wikiSources';
-export type { Source, SourceRef, SourceInput, SourceKind } from './wikiSources';
+export {
+  saveSource, citeSources, assertCitable, mayCite, CitationRefused, sourcesHeld,
+  sourcesOf, readSource, listSources, countSources,
+} from './wikiSources';
+export type { Source, SourceRef, SourceInput, SourceKind, CiteParty, Writer } from './wikiSources';
 
 
 /** Marks a row of `wiki_pages` as a note of the new wiki (`metadata.wiki`); the old pages do not carry it. */
@@ -144,6 +147,12 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
 
   let existing = await prisma.wikiPage.findFirst({ where: identity });
 
+  // Who may read a note follows where its content came from: every source is
+  // checked against the note's visibility before a word of it is written.
+  if (input.sourceIds?.length) {
+    await assertCitable({ clientNumber, userId, scope: input.scope ?? existing?.scope ?? 'user' }, input.sourceIds);
+  }
+
   // Resolve the links in the text to notes the writer can see.
   const wanted = extractWikiLinks(body).filter((l) => l.key !== titleKey(title));
   const candidates = wanted.length
@@ -259,7 +268,7 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
     await prisma.wikiPage.update({ where: { id }, data: { sourceCount } });
   }
 
-  if (input.sourceIds?.length) await citeSources(id, input.sourceIds);
+  if (input.sourceIds?.length) await citeSources({ clientNumber, userId }, id, input.sourceIds);
 
   await recount(touched);
   return { id, created, linked: targets.size, unresolved };

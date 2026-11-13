@@ -529,6 +529,17 @@ const server = app.listen(env.port, async () => {
   // quiet hour costs one read per user. Hourly; first run 15 min after boot.
   setTimeout(() => {
     const build = () => protectedJob('wiki_builder', 'maintenance', async () => {
+      // First make sure nothing a feed fetched was missed: every stored item
+      // has its source (Wiki-Knowledge.md §0.1.2). Quiet when nothing was.
+      try {
+        const { reconcileSourcesForAllUsers } = await import('./services/wiki/wikiBackfill');
+        for (const r of await reconcileSourcesForAllUsers()) {
+          if (r.failed) console.warn(`[wikiReconcile] ${JSON.stringify(r)}`);
+          else if (r.missing || r.emailTexts) console.log(`[wikiReconcile] ${JSON.stringify(r)}`);
+        }
+      } catch (err: any) {
+        console.warn(`[wikiReconcile] failed: ${err?.message}`);
+      }
       const { rebuildWikiForAllUsers } = await import('./services/wiki/wikiBuilder');
       const results = await rebuildWikiForAllUsers();
       console.log(`[wikiBuilder] ${JSON.stringify(results)}`);
