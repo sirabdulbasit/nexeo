@@ -204,6 +204,39 @@ Read as: every rule `docs/Rules.md` describes is a **rule note** in the Wiki, li
 
 **Build, first slice (not built yet):** one `rule` note per row of every store above, facts only, no model: his words, what it applies to, what it does, who made it, its state; `[[links]]` to the person and company notes it names; the store and row id kept on the note as its outside identifier (§0.7 standard 2), so a rule typed as an instruction and applied as an email rule is one note. Built hourly with the other notes. The stores stay the working copy until each reader moves to the note (§6b); nothing Suzi receives changes without her agreement.
 
+### 0.11 Third outside review (13 Nov): every finding answered, and the proposal (waiting for the owner)
+
+The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 before). Its eight capability scores are carried forward and credit no change. It asked for a proposal first, nothing built. Each finding was checked against the code on 13 Nov; **nothing below is built**.
+
+| # | Finding | Checked against the code | Answer |
+|---|---|---|---|
+| P1 | Pause and remove are not reliable across every reader of a rule | **True.** `instructionService.updateInstructionStatus` saves the instruction, then switches its email rule in a separate write inside `try { } catch { }`. A failure leaves the email rule on after the instruction was paused. The other direction is missing: removing the email rule (`rule.remove`) does not touch the instruction it came from | Proposal 1 |
+| P1 | Confidentiality across the whole path | **Not proven either way.** Spot check: the Wiki list, text search, meaning search and Suzi's knowledge route all filter by client and by `scope = 'tenant' OR user_id = me`; the only use of the admin role on these routes is to manage client rules. No leak found, but no test runs two users and two clients through every path, and about 35 older writers were not read | Proposal 3 |
+| P2 | Rules are dropped or lost silently | **True.** `getActiveInstructions` ends in `.catch(() => [])`, so a database error reads as "no rules". Readers ask for different numbers: 30 (both composers), 50 (the matcher and the cognitive engine), 100 (Suzi's rules document). A failure while building Suzi's rules document would publish an empty list | Proposal 2 |
+| P2 | Reconcile does not prove a source holds the latest content | **True.** `reconcileSources` asks only whether the source exists and has text; email recovery compares length. A corrected text of the same length, or a newer shorter one, is not noticed when its live landing failed | Proposal 4 |
+| P2 | Stable identity, revisions, fact history before meaning notes | Agreed; it is §0.7 step 3 and standard 4 | Proposal 5 |
+| P2 | Rule notes without a second rules engine | Agreed. A rule note is the rule's record and links; the reader that acts stays one per kind, and moves to read the note | Proposal 6 |
+| P3 | Documents disagree | **True.** `Rules.md` §8 still says the email rules have no screen (DEF-457 added it); §0.9 here still says the interim is not built; §0.4 mixes 161 and 144 tables; `Rules.md` says an ACTIVE pattern "acts without asking" and that audit deletion "cannot be undone", against §0.9.4 and invariant 7; `AGENTS.md` names `Changes_Made.md`, not written since 18 Aug | Proposal 0 and two rulings asked of the owner |
+| — | "The paused-rule listing fix is uncommitted" | Committed since (`e5358959`, DEF-460). **Not deployed** when this was written: production is D-226 (`96afb99`) | — |
+
+**The proposal, smallest first within each priority:**
+
+| # | Change | Size | Proof it is done |
+|---|---|---|---|
+| 0 | **Documents say what is true** (P3): the five places above | Text only | A read finds no statement the code contradicts |
+| 1 | **One write for a rule and its email rule** (P1): both rows change in one database transaction, in both directions (pause, resume, archive from the instruction; remove from the email rule). Both tables are in the same database, so no queue or repair job is needed | One function, one reverse hook | Pause, resume, archive, remove through Nexeo and through Suzi; a forced failure of the second write changes neither row; the state survives a restart |
+| 2 | **One governed read of rules** (P2): every reader calls one function that returns the rules **or** "could not be read". No reader's own limit. "No rules" and "unavailable" are different answers; when unavailable, Brain is told so, nothing that needs a rule check runs by itself (invariant 6), and Suzi's rules document keeps its last version | One function, seven callers | 31 or more rules all reach every reader; personal and client rules mixed; paused left out; a database failure is reported, not read as empty |
+| 3 | **Isolation proven, not assumed** (P1): one acceptance run with two users in one client and one user in another, through notes, sources, citations, links, search, Suzi's knowledge route, rules and the Drive export. Anything that fails becomes a fix with its own row | Tests first; fixes only if found | Every path answers "not visible" for the other user and the other client; an admin sees no other user's private note |
+| 4 | **A source knows which version it holds** (P2): the source records when its text was fetched; a later text replaces an earlier one and never the reverse; reconcile compares the text's fingerprint, not its length | One column (migration), two functions | Same-length correction, newer shorter text, replay and out-of-order arrival each end with the latest text |
+| 5 | **Identity and all-or-nothing writes** (§0.7 step 3): a permanent id, aliases and outside identifiers; a link that could mean two notes stays unresolved; no merge on a name; text, properties, links and citations change in one transaction with a revision check | The largest item | The first chain below |
+| 6 | **Rule notes** (§0.10, A3 first slice), after 5: one note per rule, each marked instruction, learned suggestion, permission or system rule; My Rules stays the place he controls them | After 5 | The second chain below |
+
+**Two chains to demonstrate, with providers mocked:** (a) take in → correct → read back the current fact with its citations → private and client access enforced → rebuild the view; (b) instruction → the event or deadline it is about → a grounded proposal → his approval where required → confirmed outcome → pause or revoke, everywhere. Plus one learning case: a correction improves a later like decision without exposing private evidence or creating a permission.
+
+**Asked of the owner before 0 and 6:** (i) may an ACTIVE learned pattern act without asking, as the code does today, or does it only prepare (§0.9.4)? Production has no ACTIVE pattern today (1 SHADOW, 1 DRAFT). (ii) Is `Changes_Made.md` still the handoff record, or do the change log, the chart, this document and `Rules.md` replace it in `AGENTS.md`?
+
+**Who builds:** 1 and 2 are in the rule code (Nexeo-Builder session); 3 to 6 are the Wiki's. No capability point is claimed for any of this until the chains pass on production.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

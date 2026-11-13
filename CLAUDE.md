@@ -99,6 +99,14 @@ Nexeo and Suzi hold two charters, the same on both sides: `server/docs/Functiona
 document). **Any change to `client/src/pages/MyRulesPage.jsx`, to a rule store, or to how Brain
 reads rules updates Rules.md in the SAME commit**, plus a row in its §10 change log.
 
+## Wiki and rules docs follow every change (owner ruling, 2026-11-13)
+
+*"every change should be documented in wiki-knowledge and rules."* Any change to the Wiki (its
+store, sources, builder, linter, routes, what Nexeo or Suzi read from it) is written into
+`server/docs/Wiki-Knowledge.md`, and any change to a rule store or to how rules are read into
+`server/docs/Rules.md`, **in the SAME commit or the same turn**: what changed, what was verified,
+what was not. This includes data-only changes and proposals that are not built yet (marked as such).
+
 ## Regression discipline (survives the pipeline removal)
 
 Every Brain bug reported from a real conversation gets BOTH:
