@@ -53,6 +53,12 @@ export interface DayBriefData {
   /** DEF-459 (owner, 13 Nov): emails that need nothing from him but he should know (escalation, risk, his own thread,
    *  his team), each with the model's one-line reason. Absent or empty = the section is left out. */
   forYourKnowledge?: Array<{ from: string; subject: string; why: string; kind: string }>;
+  /** DEF-422: every open item of his, not the length of the capped list. */
+  openTotal?: number;
+  /** DEF-415: his local clock when the brief was made ("HH:MM"), so the greeting fits the time it is read. */
+  nowLocal?: string;
+  /** Attendee email -> the person's name, so the brief names people instead of addresses. */
+  attendeeNames?: Record<string, string>;
   /** His own addresses, so the brief never lists him as an attendee or a sender to answer. */
   ownEmails?: string[];
   /** Recent inbound emails (last 24h, capped 10). Quick "what came in"
@@ -157,6 +163,23 @@ export async function getDayBrief(args: {
   }
 
   const owner = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { name: true, email: true, integrationEmail: true } as any }).catch(() => null) as any;
+  // DEF-422: the true number of open items (the list above is capped for the lines it names).
+  const openTotal = await getOpenItems({ clientNumber, userId, opts: { limit: 1000 } }).then((x) => x.length).catch(() => undefined);
+  // DEF-415: the greeting follows the clock at the time of making, not "Good morning" by habit.
+  const nowLocal = formatTimeInZone(timezone, generatedAt);
+  // Attendee names: one lookup for every address on today's calendar.
+  const attendeeEmails = [...new Set(calendar.flatMap((e) => e.attendees ?? []).map((a) => String(a).toLowerCase()).filter(Boolean))];
+  const attendeeNames: Record<string, string> = {};
+  if (attendeeEmails.length) {
+    const nm = await prisma.$queryRawUnsafe<Array<{ email: string; name: string }>>(
+      `SELECT DISTINCT ON (lower(f.facet_value)) lower(f.facet_value) AS email, p.display_name AS name
+         FROM person_facets f JOIN persons p ON p.id = f.person_id
+        WHERE p.client_number = $1 AND p.user_id = $2 AND f.facet_type = 'email' AND lower(f.facet_value) = ANY($3::text[])
+        ORDER BY lower(f.facet_value), f.verified DESC`,
+      clientNumber, userId, attendeeEmails,
+    ).catch(() => [] as Array<{ email: string; name: string }>);
+    for (const n of nm) if (n.name) attendeeNames[n.email] = n.name;
+  }
   const ownEmails = [owner?.email, owner?.integrationEmail].filter(Boolean).map((e: string) => e.toLowerCase());
   const threads = openItems.length === 0 ? [] : await prisma.$queryRawUnsafe<Array<{ t: string | null }>>(
     `SELECT metadata->'derivedFrom'->>'threadId' AS t FROM open_items WHERE id = ANY($1::text[])`,
@@ -182,6 +205,9 @@ export async function getDayBrief(args: {
     attention,
     asks,
     ownEmails,
+    openTotal,
+    nowLocal,
+    attendeeNames,
     followUps,
     suziUpdates,
     forYourKnowledge,
@@ -364,12 +390,15 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   const parts: string[] = [];
   const own = new Set((data.ownEmails ?? []).map((e) => e.toLowerCase()));
   parts.push(`# Day Brief for ${data.localDate} (timezone ${data.localTimezone})`);
+  // DEF-415: the greeting must fit this time (morning before 12:00, afternoon to 17:00, evening after); or no greeting.
+  if (data.nowLocal) parts.push(`Local time now: ${data.nowLocal}. Any greeting must fit this time of day (never "Good morning" after 12:00).`);
   parts.push('STRICT RULE: name every line under "Today\'s calendar", "Do first" and "New asks" in the order shown, one line each. "For your knowledge" lines are things to KNOW, not to do: say each briefly as news, never as a task. For "Other open items" give its exact count only. Do NOT add, drop or re-rank items, and never mention an item twice. Empty sections are said in a few words, never hidden.');
 
   parts.push(`\n## Today's calendar (${data.calendar.length})`);
   if (data.calendar.length === 0) parts.push('- (no meetings scheduled today)');
   else for (const e of data.calendar) {
-    const people = e.attendees.filter((a) => !own.has(a.toLowerCase()));
+    // Names, not addresses, where we know the person.
+    const people = e.attendees.filter((a) => !own.has(a.toLowerCase())).map((a) => data.attendeeNames?.[a.toLowerCase()] ?? a);
     const att = people.length > 0
       ? ` — with ${people.slice(0, 4).join(', ')}${people.length > 4 ? ` +${people.length - 4}` : ''}`
       : '';
@@ -382,8 +411,10 @@ export function renderDayBriefBlock(data: DayBriefData): string {
   parts.push(`\n## Do first (${first.length})`);
   if (first.length === 0) parts.push('- (nothing late, due soon or high)');
   else for (const it of first) parts.push(`- ${it.title} · ${duePhrase(it.dueDate, data.localDate, data.localTimezone)}${it.delegateeName ? ` · with ${it.delegateeName}` : ''}`);
-  parts.push(`\n## Other open items (${rest.length})`);
-  parts.push(rest.length === 0 ? '- (none)' : `- ${rest.length} more in the Action Center`);
+  // DEF-422: the true remainder, not what is left of a list capped at 20.
+  const others = Math.max(rest.length, (data.openTotal ?? data.openItems.length) - first.length);
+  parts.push(`\n## Other open items (${others})`);
+  parts.push(others === 0 ? '- (none)' : `- ${others} more in the Action Center`);
 
   // DEF-435: new asks of him that are not already open items.
   const asks = data.asks ?? data.attention;

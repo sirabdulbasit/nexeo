@@ -20,7 +20,7 @@ vi.mock('../src/db/prisma', () => ({
     brainPromptQueue: { findFirst: (...a: any[]) => promptFindFirst(...a), findMany: vi.fn(async () => []),},
     openItem: { findMany: (...a: any[]) => openItemsFindMany(...a) },
     feedEvent: { findMany: (...a: any[]) => feedFindMany(...a) },
-    user: { findMany: (...a: any[]) => usersFindMany(...a), findFirst: vi.fn(async () => ({ email: 'basit.ahmed@tmcltd.ai', integrationEmail: 'basit.ahmed@tmcltd.com' })) },
+    user: { findMany: (...a: any[]) => usersFindMany(...a), findFirst: vi.fn(async () => ({ email: 'basit.ahmed@tmcltd.ai', integrationEmail: 'basit.ahmed@tmcltd.com' })), findUnique: vi.fn(async () => ({ email: 'basit.ahmed@tmcltd.ai', integrationEmail: 'basit.ahmed@tmcltd.com' })) },
   },
 }));
 vi.mock('../src/services/brainPrompts/brainPromptQueueService', () => ({
@@ -57,8 +57,11 @@ describe('preactive — meeting prep', () => {
     attendees: ['haseeb@tmcltd.com'], status: 'confirmed', isAllDay: false,
   };
 
+  // DEF-424: a prep is sent only when there is something open or recent with the attendees.
+  const withContext = () => openItemsFindMany.mockResolvedValue([{ title: 'Budget sign-off', status: 'NEW', dueDate: null, delegateeName: null, delegateeEmail: null, metadata: { senderEmail: 'haseeb@tmcltd.com' } }]);
   it('preps an upcoming meeting with attendees (LLM-narrated, deduped per event)', async () => {
     getEventsMock.mockResolvedValue({ events: [meeting] });
+    withContext();
     const r = await runPreactiveTick('TMC-0001', 2);
     expect(r.meetingPrepsSent).toBe(1);
     const call = enqueueMock.mock.calls[0]![0] as any;
@@ -86,8 +89,13 @@ describe('preactive — meeting prep', () => {
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 
+  it('DEF-424: nothing open or recent with them = no prep message; his own addresses are not attendees', async () => {
+    getEventsMock.mockResolvedValue({ events: [meeting, { ...meeting, id: 'evt_self', attendees: ['basit.ahmed@tmcltd.com'] }] });
+    expect((await runPreactiveTick('TMC-0001', 2)).meetingPrepsSent).toBe(0);
+  });
   it('LLM failure degrades to a bracketed digest (marker rule), still sends', async () => {
     getEventsMock.mockResolvedValue({ events: [meeting] });
+    withContext();
     callLlmMock.mockRejectedValue(new Error('llm down'));
     const r = await runPreactiveTick('TMC-0001', 2);
     expect(r.meetingPrepsSent).toBe(1);

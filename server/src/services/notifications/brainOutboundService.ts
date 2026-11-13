@@ -219,7 +219,11 @@ export const FOLDED_INTO_BRIEF = 'folded_into_brief';
 export function foldsIntoBrief(req: { kind: string; urgency?: Urgency; metadata?: Record<string, unknown> }): boolean {
   if (req.urgency === 'emergency') return false;
   if (FOLD_INTO_BRIEF_KINDS.has(req.kind)) return true;
-  return req.kind === 'brain_prompt' && FOLD_INTO_BRIEF_SOURCES.has(String((req.metadata as any)?.source ?? ''));
+  // DEF-420 (CIRCLING, protection-with-two-implementations): decide by what the message IS, not by which producer sent
+  // it. Every action-lifecycle ask (governor, reply interpreter, any later one) is a background ask about an open item
+  // and goes in the brief, like the listed sources.
+  const src = String((req.metadata as any)?.source ?? '');
+  return req.kind === 'brain_prompt' && (FOLD_INTO_BRIEF_SOURCES.has(src) || src.startsWith('action_lifecycle'));
 }
 
 /** DEF-412: email goes out at once only for something urgent, or the morning brief itself when WhatsApp failed. */

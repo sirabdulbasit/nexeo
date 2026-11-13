@@ -384,7 +384,8 @@ export async function recordActionLifecycleReply(input: {
   // A blocker requiring authority/approval is not deferred to tomorrow's
   // sweep. Surface it to the owner immediately through the sequential prompt
   // queue; the stable daily key prevents repeated alerts for the same state.
-  if (lifecycle.needsUserIntervention && !closed) {
+  // DEF-420: his own reply ("Go ahead") is his decision, never an intervention to report back to him.
+  if (lifecycle.needsUserIntervention && !closed && input.source !== 'user') {
     const { enqueueBrainPrompt } = await import('../brainPrompts/brainPromptQueueService');
     await enqueueBrainPrompt({
       userId: item.userId,

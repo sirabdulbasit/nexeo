@@ -82,8 +82,10 @@ async function meetingPrepPass(clientNumber: string, userId: number): Promise<nu
   const { enqueueBrainPrompt } = await import('../brainPrompts/brainPromptQueueService');
   let sent = 0;
   for (const ev of r.events) {
-    // Solo blocks ("Office") have nothing to prep; require ≥1 other human.
-    const others = (ev.attendees ?? []).filter((a) => !!a);
+    // Solo blocks ("Office") have nothing to prep; require ≥1 other human. DEF-424: his own addresses (login and
+    // integration) and calendar resources are not other humans.
+    const own = await ownAddresses(userId);
+    const others = (ev.attendees ?? []).filter((a) => !!a && !own.has(String(a).toLowerCase()) && !/resource\.calendar\.google\.com$/i.test(String(a)));
     if (others.length === 0) continue;
     if (ev.isAllDay) continue;
 
@@ -98,6 +100,8 @@ async function meetingPrepPass(clientNumber: string, userId: number): Promise<nu
     if (already) continue;
 
     const context = await gatherAttendeeContext(clientNumber, userId, others);
+    // DEF-424: nothing open and nothing recent with them = nothing to prepare; no message ("there are no open threads").
+    if (!context.trim()) continue;
     const question = await narrateMeetingPrep(clientNumber, userId, ev.title, ev.start, others, context);
     const res = await enqueueBrainPrompt({
       userId, clientNumber,
@@ -382,4 +386,10 @@ export function mayNudgeNow(
     reason: `${unanswered} unanswered — next in ${(gapDays - daysSince).toFixed(1)}d`,
     gapDays, unanswered,
   };
+}
+
+/** DEF-424: the user's own addresses (login and integration), lower-cased. */
+async function ownAddresses(userId: number): Promise<Set<string>> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, integrationEmail: true } as any }).catch(() => null) as any;
+  return new Set([u?.email, u?.integrationEmail].filter(Boolean).map((e: string) => e.toLowerCase()));
 }
