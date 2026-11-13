@@ -53,16 +53,16 @@ His other decisions the same day:
 
 ### 0.4 The ledger: every store, and where it goes
 
-Counted on production on 2026-11-13: **161 tables** (144 after the 19 leftover backup copies were removed the same day, on the owner's word, and the Wiki's two source tables were added). Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
+Counted on production on 2026-11-13 (13:45 PKT): **144 tables**. (The first count that morning was 161: the 19 leftover backup copies were then removed on the owner's word, and the Wiki's two source tables were added. The table below is the current count; rows outside the Wiki are as counted that morning.) Every one is named in `src/services/wiki/wikiLedger.ts`. `tests/wikiFirstLedger.test.ts` fails when a table exists that the ledger does not name, and when the number of stores outside the Wiki goes up; the hourly wiki job logs any table in the live database that the ledger does not name. So nothing can be added outside the Wiki unnoticed, and the count can only fall.
 
 | Kind | Tables | Rows | Rule |
 |---|---|---|---|
-| The Wiki | 3 | 54,897 | This is the Wiki |
+| The Wiki | 5 | 68,781 | This is the Wiki: notes, links, citations and the source store |
 | Knowledge outside the Wiki | 70 | 146,539 | Moves in as notes or sources |
 | Trail outside the Wiki | 34 | 156,647 | Moves in as record notes and citations |
 | Settings, identity and secrets outside the Wiki | 24 | 232 | Moves in; secrets encrypted, device signing keys stay on the device (S1) |
 | Working copies (may stay) | 10 | 17,756 | May stay; the Wiki holds the record and it can be rebuilt |
-| Leftover backup copies | 19 | 887 | Removed on the owner's yes |
+| Leftover backup copies | 0 | 0 | 19 tables (887 rows) removed 13 Nov on the owner's yes; a dump is kept |
 | Database bookkeeping | 1 | 84 | Stays |
 
 **Outside the Wiki today: 128 tables** (70 knowledge, 34 trail, 24 settings). The rule is met when that number is 0.
@@ -206,7 +206,9 @@ Read as: every rule `docs/Rules.md` describes is a **rule note** in the Wiki, li
 
 ### 0.11 Third outside review (13 Nov): every finding answered, and the proposal (waiting for the owner)
 
-The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 before). Its eight capability scores are carried forward and credit no change. It asked for a proposal first, nothing built. Each finding was checked against the code on 13 Nov; **nothing below is built**.
+The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 before). Its eight capability scores are carried forward and credit no change. It asked for a proposal first, nothing built. Each finding was checked against the code on 13 Nov.
+
+**APPROVED by the owner, 13 Nov 2026, 13:44 PKT ("approve and doc it").** The whole proposal below is approved to build, in its order. Status of each item is kept in the proposal table.
 
 | # | Finding | Checked against the code | Answer |
 |---|---|---|---|
@@ -223,7 +225,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 | # | Change | Size | Proof it is done |
 |---|---|---|---|
-| 0 | **Documents say what is true** (P3): the five places above. **Two are done** (Nexeo-Builder, `e1c38f46`): `Rules.md` §8 and §0.9 here. Left: the table counts in §0.4, the ACTIVE-pattern and deletion wording (owner's ruling), and `Changes_Made.md` in `AGENTS.md` (owner's ruling) | Text only | A read finds no statement the code contradicts |
+| 0 | **Documents say what is true** (P3): the five places above. **Done 13 Nov:** `Rules.md` §8 and §0.9 here (Nexeo-Builder, `e1c38f46`); the table counts in §0.4; `Rules.md` §4 and §6 now state both what the code does and what his ruling requires. **Open:** `Changes_Made.md` in `AGENTS.md` (his explicit word needed) | Text only | A read finds no statement the code contradicts |
 | 1 | **One write for a rule and its email rule** (P1): both rows change in one database transaction, in both directions (pause, resume, archive from the instruction; remove from the email rule). Both tables are in the same database, so no queue or repair job is needed | One function, one reverse hook | Pause, resume, archive, remove through Nexeo and through Suzi; a forced failure of the second write changes neither row; the state survives a restart |
 | 2 | **One governed read of rules** (P2): every reader calls one function that returns the rules **or** "could not be read". No reader's own limit. "No rules" and "unavailable" are different answers; when unavailable, Brain is told so, nothing that needs a rule check runs by itself (invariant 6), and Suzi's rules document keeps its last version | One function, seven callers | 31 or more rules all reach every reader; personal and client rules mixed; paused left out; a database failure is reported, not read as empty |
 | 3 | **Isolation proven, not assumed** (P1): one acceptance run with two users in one client and one user in another, through notes, sources, citations, links, search, Suzi's knowledge route, rules and the Drive export. Anything that fails becomes a fix with its own row | Tests first; fixes only if found | Every path answers "not visible" for the other user and the other client; an admin sees no other user's private note |
@@ -233,9 +235,9 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Two chains to demonstrate, with providers mocked:** (a) take in → correct → read back the current fact with its citations → private and client access enforced → rebuild the view; (b) instruction → the event or deadline it is about → a grounded proposal → his approval where required → confirmed outcome → pause or revoke, everywhere. Plus one learning case: a correction improves a later like decision without exposing private evidence or creating a permission.
 
-**Asked of the owner before 0 and 6:** (i) may an ACTIVE learned pattern act without asking, as the code does today, or does it only prepare (§0.9.4)? Production has no ACTIVE pattern today (1 SHADOW, 1 DRAFT). (ii) Is `Changes_Made.md` still the handoff record, or do the change log, the chart, this document and `Rules.md` replace it in `AGENTS.md`?
+**The two rulings asked with it, as taken from his approval:** (i) **A learned pattern he activated prepares; his yes acts**, as his rulings of the same morning already say (§0.9.3, §0.9.4). The code still lets an ACTIVE pattern act without asking; the change is approved and not built (Nexeo-Builder; production has no ACTIVE pattern today: 1 SHADOW, 1 DRAFT). *This reads his one-word approval through his own earlier rulings; he corrects it if he meant otherwise.* (ii) **`Changes_Made.md`:** not settled. `AGENTS.md` still names it as the handoff record and it has not been written since 18 Aug 2026; in practice the change log, the chat log, the evaluation chart, this document and `Rules.md` carry the record. `AGENTS.md` is **not amended**: that file is the working contract and is changed only on his explicit word.
 
-**Who builds:** 1 and 2 are in the rule code (Nexeo-Builder session); 3 to 6 are the Wiki's. No capability point is claimed for any of this until the chains pass on production.
+**Who builds:** 1 and 2, and the ACTIVE-pattern change, are in the rule code (Nexeo-Builder session, told 13 Nov 13:45 PKT); 0 and 3 to 6 are the Wiki's. No capability point is claimed for any of this until the chains pass on production.
 
 ## 1. Owner direction (2026-11-12)
 

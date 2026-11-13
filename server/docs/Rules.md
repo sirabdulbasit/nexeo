@@ -144,7 +144,7 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
   |---|---|---|
   | DRAFT | evidence ≥ 3 and agreement ≥ 70% | Watches only |
   | SHADOW | evidence ≥ 10 and agreement ≥ 95% | Ready; waits for you to press **Activate** |
-  | ACTIVE | You activated it | **Acts without asking.** The item skips My Attention and appears in the Day Brief |
+  | ACTIVE | You activated it | **Today's code: acts without asking.** The item skips My Attention and appears in the Day Brief. **Owner's ruling, 13 Nov 2026: a pattern you activated prepares, and your yes acts** (§11 row 4). The change is approved and not built; no pattern is ACTIVE on production today |
   | FROZEN | You froze it | Paused until you press **Unfreeze** |
 - Brain never activates a pattern on its own. You press **Activate**.
 - **Edit action** changes what the pattern does: Archive/Ignore · Draft reply · Delegate to… · Add to
@@ -184,6 +184,7 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
 - **Deleting a row also removes what Brain learned from it.** One deleted row is one less piece of evidence, so a pattern can
   drop back to DRAFT. **Delete all** removes every row that matches the filters, and only works after
   you type `DELETE ALL MY DECISIONS` / `DELETE ALL MY DELEGATIONS` exactly. It cannot be undone.
+- **Conflict recorded 13 Nov 2026:** this hard deletion is what the code does today. It is against product invariant 7 (cleanup is reversible) and against the Wiki keeping history (`Wiki-Knowledge.md` §0.7 standard 7). It stays as it is until decisions and delegations move into the Wiki as trail; it is not changed by the approved proposal.
 
 ---
 
@@ -231,6 +232,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | DEF-458: the hourly wiki linter no longer relabels a standing instruction as `orphan` or `stale` (it made every instruction unread within the hour). No instruction's status was changed by this commit; restoring the 12 affected ones waits for the owner | (this commit, Wiki session) |
 | 2026-11-13 | DEF-458, data only (owner's decision): 5 standing instructions of user 2 restored to active and 3 paused, through `updateInstructionStatus`. Brain reads 5 instructions again (was 0). Gap recorded in §2.4: paused instructions are not listed on the tab | (this commit, Wiki session) |
 | 2026-11-13 | Third outside review answered; proposal recorded in §11 (nothing built, no behaviour change) | (this commit, Wiki session) |
+| 2026-11-13 | Owner approved the proposal (§11) and ruled: an activated pattern prepares, his yes acts (§4 states both the code today and the ruling; no behaviour changed by this commit). §6 records the deletion conflict | (this commit, Wiki session) |
 | 2026-11-13 | DEF-454 (D-222): `rule.set` with the same kind and match folds into his existing rule; his 4 copies of the Demo VM ignore rule became 1 (3 turned off, not deleted) | 9fa8222 |
 | 2026-11-13 | DEF-457 (D-224): Suzi's email rules shown on the Standing Instructions tab with Remove; a typed email-rule instruction also makes the email rule, linked by `instruction_id` (§2.4, §8) | c991ee2 |
 | 2026-11-13 | DEF-460 (D-227): paused instructions listed with Resume (§2.4) | e535895 |
@@ -238,14 +240,14 @@ fields changes the shared contract, so both sides must agree first (see
 
 ---
 
-## 11. Proposed, not built (waiting for the owner, 13 Nov 2026)
+## 11. Approved, not built yet (owner approved 13 Nov 2026, 13:44 PKT)
 
-From the third outside review of the Wiki and rules. Each point was checked against the code; the full table with evidence is `Wiki-Knowledge.md` §0.11. **Nothing in this section is built.**
+From the third outside review of the Wiki and rules. Each point was checked against the code; the full table with evidence is `Wiki-Knowledge.md` §0.11. **The owner approved all of it ("approve and doc it"). Nothing in this section is built unless its row says done.** Rows 1, 2 and 4 are built by the Nexeo-Builder session; row 5 by the Wiki session.
 
 | # | What is wrong today | Proposed change |
 |---|---|---|
 | 1 | Pausing or archiving an instruction switches its email rule in a second, best-effort write (`updateInstructionStatus`); if that write fails the email rule stays on. Removing the email rule (`rule.remove`) leaves the instruction it came from active | Both rows change in one database transaction, in both directions |
 | 2 | `getActiveInstructions` turns a database error into an empty list, and readers ask for 30, 50 or 100 rules | One governed read: the rules, or "could not be read"; no reader's own limit; nothing that needs a rule check runs by itself while rules are unavailable; Suzi's rules document keeps its last version |
 | 3 | §8 above still said the email rules have no screen (DEF-457 added it, DEF-460 lists paused rules) | **Done 13 Nov** (§2.4, §8 corrected) |
-| 4 | §4 says an ACTIVE pattern "acts without asking"; the owner's ruling of 13 Nov says a rule prepares and his yes acts. §6 says deletion "cannot be undone"; the Wiki keeps history | **Owner's ruling needed** on ACTIVE patterns (none is ACTIVE on production today) |
+| 4 | §4 says an ACTIVE pattern "acts without asking"; the owner's ruling of 13 Nov says a rule prepares and his yes acts. §6 says deletion "cannot be undone"; the Wiki keeps history | **Ruled 13 Nov:** a pattern he activated prepares and his yes acts; code change approved, not built. Deletion: §6 now says what the code does and that it conflicts with the Wiki keeping history; it is resolved when decisions and delegations become Wiki trail |
 | 5 | Rules live in eleven stores | One rule note per rule in the Wiki (`Wiki-Knowledge.md` §0.10), marked instruction, learned suggestion, permission or system rule; this page stays the place rules are controlled |
