@@ -18,6 +18,7 @@ export interface CalendarEvent {
   isAllDay: boolean;
   organizer?: string;
   link?: string;        // Google Meet or event link
+  selfResponse?: string; // his own answer: accepted | declined | tentative | needsAction (meeting reminders skip declined)
 }
 
 // ─── Get today's events ───────────────────────────────────────
@@ -58,6 +59,7 @@ export async function getEvents(userId: number, timeMin: Date, timeMax: Date, ma
       isAllDay: !event.start?.dateTime,
       organizer: event.organizer?.email || undefined,
       link: event.hangoutLink || event.htmlLink || undefined,
+      selfResponse: (event.attendees || []).find(a => a.self)?.responseStatus || undefined,
     }));
 
     return { events };

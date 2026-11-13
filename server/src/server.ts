@@ -478,6 +478,10 @@ const server = app.listen(env.port, async () => {
   import('./jobs/meetPollJob').then(({ scheduleMeetPoll }) => {
     scheduleMeetPoll();
   }).catch((e) => console.warn('[boot] meet poll not scheduled:', e?.message));
+  // Charter row 7: a meeting reminder 10 minutes before, by WhatsApp, only while no Suzi device of his is alive (DEF-453).
+  import('./jobs/meetingReminderJob').then(({ scheduleMeetingReminders }) => {
+    scheduleMeetingReminders();
+  }).catch((e) => console.warn('[boot] meeting reminders not scheduled:', e?.message));
   import('./jobs/staleConnectorPing').then(({ scheduleStaleConnectorPing }) => {
     scheduleStaleConnectorPing();
   }).catch((e) => console.warn('[staleConnectorPing] start failed:', e.message));

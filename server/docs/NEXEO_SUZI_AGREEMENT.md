@@ -599,3 +599,13 @@ CW-2 (feedback about Suzi herself goes to Suzi Master) was not decided by the fo
 - (b) S1 narrows the founder's "everything, secrets encrypted" for device signing keys only. It needs his word.
 
 **Waits on the founder's "agree W-1" with S1.** Then Suzi Master drafts the charter text (R8, F-4.6, F-4.10, R9, W-1.1 to W-1.4, S1 to S3; learning.note in SuziUpgrade), both sides mirror it, and both build.
+
+## Row 7, Nexeo side: meeting reminders while the computer is off (AGREED by Suzi Master and Nexeo, 13 Nov 2026)
+
+Already in the charter (row 7: Nexeo "reminders while the computer is off"; Suzi "meeting alerts and prep"), never built (DEF-453: the founder missed a meeting on 13 Nov and neither side reminded him). The details, as agreed:
+
+- 10 minutes before each timed meeting on his calendar (not all-day, not cancelled, not declined by him), Nexeo sends a reminder **only when no Suzi device of his is alive** (the charter's presence rule). While one is alive, Suzi's own alert covers it (Suzi 1.2.35/1.2.36: 10 minutes before and at the start, using the real call signs), so the two never double.
+- **Suzi Master's condition:** when his latest presence frame said nudges off, Nexeo sends nothing either (kept and given when asked).
+- WhatsApp to his registered number first, email if that can't deliver. It carries the title, the time, who it's with and the join link. One message for meetings starting together, once per event and start. Quiet hours apply.
+- A user with no Suzi device always gets it.
+- Nothing new on Suzi's side. Suzi Master drafts the row 7 text into the Functional Charter with the W-1 text.
