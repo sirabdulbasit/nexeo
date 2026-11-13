@@ -671,7 +671,10 @@ export async function rebuildWikiForUser(
     const kept = new Set<string>();
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
-      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length && sameIds(have.metadata?.ids, n.ids)) {
+      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length && sameIds(have.metadata?.ids, n.ids)
+        // A note written before notes had a revision is written once more, so its links are re-read
+        // by the present rules (only live notes, nothing ambiguous) and it carries a revision.
+        && typeof have.metadata?.rev === 'number') {
         // The text is current, but a new source may still belong to its trail.
         if (n.sourceIds?.length) await citeSources({ clientNumber, userId }, have.id, n.sourceIds);
         unchanged += 1;
