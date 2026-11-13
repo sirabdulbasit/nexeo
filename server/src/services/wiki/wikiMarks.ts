@@ -101,6 +101,12 @@ async function change(
       sourceId, writer.clientNumber, writer.userId,
     );
     if (!src[0]) throw new MarkRefused(`no source ${sourceId} that ${writer.clientNumber}/${writer.userId} may mark`);
+    // One writer at a time per mark: two writers (triage and the mailbox check, say) wait for each
+    // other here instead of both inserting and one losing its write to the unique index.
+    await tx.$executeRawUnsafe(
+      `SELECT pg_advisory_xact_lock(hashtext($1), hashtext($2))`,
+      `${sourceId}|${writer.userId}`, `${kind}|${key}`,
+    );
     const cur = await tx.$queryRawUnsafe(
       `SELECT id, value FROM wiki_source_marks WHERE ${CURRENT} FOR UPDATE`,
       sourceId, writer.clientNumber, writer.userId, kind, key,
@@ -120,8 +126,9 @@ async function change(
   try {
     return await run();
   } catch (err: any) {
-    // Two writers set the same mark at once: the other one won; look again.
-    if (err instanceof MarkRefused || !/23505|unique/i.test(String(err?.code ?? '') + String(err?.message ?? ''))) throw err;
+    // The lock above makes this rare; a writer that still lost (an older server without the lock) looks again.
+    const text = `${err?.code ?? ''} ${err?.meta?.code ?? ''} ${err?.message ?? ''}`;
+    if (err instanceof MarkRefused || !/23505|unique/i.test(text)) throw err;
     return run();
   }
 }

@@ -35,6 +35,7 @@ vi.mock('../src/db/prisma', () => {
       throw new Error(`unexpected query: ${sql}`);
     },
     $executeRawUnsafe: async (sql: string, ...a: any[]) => {
+      if (/pg_advisory_xact_lock/.test(sql)) return 1;
       if (/UPDATE wiki_source_marks SET superseded_at/.test(sql)) {
         t.marks.find((m) => m.id === a[0]).superseded_at = new Date(++t.clock);
         return 1;

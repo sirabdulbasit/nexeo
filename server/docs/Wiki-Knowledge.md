@@ -355,7 +355,7 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 3. **WhatsApp is not a feed.** *"whatsapp will not be part of feed."* It is the line between the user and Nexeo, not a place knowledge is fetched from (his rulings of 4 and 5 Nov say the same of other people's messages). So:
    - A WhatsApp feed row is not landed as a source (`wikiIntake`, live as D-234, 13 Nov 14:47 PKT) and the reconcile does not count it as missing. No WhatsApp row has entered the feed since 7 Aug 2026.
    - A rebuild does not read WhatsApp.
-   - **Left as they are, for him to rule on:** 876 WhatsApp sources landed by the first backfill (510 of user 2, 366 of user 3). No note cites them. Nothing is deleted without his word.
+   - **Removed on his word, 13 Nov 16:55 PKT** (§0.13.5): the 876 WhatsApp sources and the 876 WhatsApp feed rows; a copy is kept.
    - **Open:** what he tells Nexeo over WhatsApp (an instruction, a correction) is a conversation with Brain, not a feed item. Whether those conversations are kept in the Wiki, as conversations, is his decision and is not built.
 
 #### 0.13.4 His answers on the rebuild (owner, 13 Nov 2026, given in the Nexeo-Builder session and relayed)
@@ -364,6 +364,19 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 2. **The 90-day line for the model is still not ruled on** (§0.13.1 item 2). He was asked and answered about how the rebuild is run, not about that line. To be asked again, directly, before meaning notes are built.
 3. **W-1, "Wiki first", is agreed by all three** (*"agreed from my side"*, 16:25 PKT): the founder, Nexeo and Suzi Master, with safeguard S1 (a device's signing keys stay on the device). The rule of §0 now binds Suzi's side too. Recorded in `NEXEO_SUZI_AGREEMENT.md`.
 4. **Older open items are closed as superseded by the rebuild.** *"leave it we will build new wiki from new feed from connector and rules."* That covers: TMC Context into the Wiki, the 2,000-page limit, KPI notes as a separate item, Suzi's send switch, "fix the brief", and the email-to-item gate. None of them is worked on as its own item; what each needs comes from the new Wiki, built from the connectors' feed and his rules.
+
+#### 0.13.5 His decisions of 13 Nov, late afternoon (owner, directly to the Wiki session)
+
+1. **How far the model reads on a rebuild is chosen in the Connectors screen, at scribe time.** *"this will be available in connector for scribe."* Scribe offers the window for the model (for example the last 90 days); everything is landed whatever is chosen. Building that choice into Scribe is Nexeo-Builder's; the Wiki marks what lies outside the window `attention = { class: 'history' }`.
+2. **Everything that came from WhatsApp as a feed is removed.** *"remove all feed comes from whatsapp."* Done 13 Nov 16:55 PKT: 876 WhatsApp rows of the feed store and their 876 Wiki sources deleted in one transaction. Nothing referred to them (no key, no citation, no mark). A copy is kept at `/root/nexeo-backups/whatsapp_feed_2026-11-13.sql.gz` (1,752 rows), so the removal can be undone.
+3. **WhatsApp is only for talking with Suzi; instructions given there act.** *"whatsapp will only be used to conversate with Suzi; however through whatsapp instructions can be given like sending/replying email, creating/updating actionable items."* So a WhatsApp message is never knowledge fetched into the Wiki. What an instruction given there does (an email sent, an action item made or changed) reaches the Wiki the same way as when it is done anywhere else.
+
+**Also added the same hour, at Nexeo-Builder's request:**
+
+- `wikiStore.removeSource(writer, id)`: removes a user's own source completely, its text, its marks and every citation of it, in one transaction (identity.delete, safeguard S2 of W-1). A company source is not one user's to remove.
+- Two writers marking the same source at once now wait for each other (`markSource` takes a transaction lock per source, user, kind and key), so neither write is lost.
+
+Checked on the production database with throwaway rows, 6 of 6: five markers at once leave one current mark and five history rows with no error; another user and a company source cannot be removed; removal takes 6 marks and 1 citation with it and leaves nothing behind.
 
 #### 0.13.2 Parts 6 and 7 are LIVE: permanent identity, and all-or-nothing writes (Wiki session, 13 Nov 2026; D-236, D-237, D-238)
 

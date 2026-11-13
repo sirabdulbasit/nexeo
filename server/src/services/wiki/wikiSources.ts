@@ -299,6 +299,40 @@ export async function sourcesHeld(clientNumber: string, userId: number, ids: str
   }]));
 }
 
+/**
+ * Remove a source from the Wiki completely: its text, its marks, and every
+ * note's citation of it (identity.delete, agreement safeguard S2: "removed
+ * everywhere"). Only the user's own source; a company source is not one
+ * user's to remove. The notes that cited it stay, with their trail one shorter.
+ * Returns what was removed; nothing when the source is not the writer's.
+ */
+export async function removeSource(
+  writer: Writer,
+  id: string,
+): Promise<{ removed: boolean; marks: number; citations: number }> {
+  return prisma.$transaction(async (tx: any) => {
+    const own: any[] = await tx.$queryRawUnsafe(
+      `SELECT id FROM wiki_sources WHERE id = $1 AND client_number = $2 AND user_id = $3 AND scope <> 'tenant' FOR UPDATE`,
+      id, writer.clientNumber, writer.userId,
+    );
+    if (!own[0]) return { removed: false, marks: 0, citations: 0 };
+    const notes: any[] = await tx.$queryRawUnsafe(`SELECT note_id FROM wiki_note_sources WHERE source_id = $1`, id);
+    const marks = Number(await tx.$executeRawUnsafe(`DELETE FROM wiki_source_marks WHERE source_id = $1`, id));
+    const citations = Number(await tx.$executeRawUnsafe(`DELETE FROM wiki_note_sources WHERE source_id = $1`, id));
+    await tx.$executeRawUnsafe(`DELETE FROM wiki_sources WHERE id = $1`, id);
+    for (const n of notes) {
+      await tx.$executeRawUnsafe(
+        `UPDATE wiki_pages SET source_count =
+            (SELECT COUNT(*) FROM wiki_page_sources WHERE wiki_page_id = $1)
+          + (SELECT COUNT(*) FROM wiki_note_sources WHERE note_id = $1)
+          WHERE id = $1`,
+        n.note_id,
+      );
+    }
+    return { removed: true, marks, citations };
+  });
+}
+
 const VISIBLE = `s.client_number = $1 AND (s.scope = 'tenant' OR s.user_id = $2)`;
 
 /** The trail of a note: the sources it cites that the reader may see, oldest first. */
