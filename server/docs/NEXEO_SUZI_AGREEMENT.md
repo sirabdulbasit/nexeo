@@ -650,7 +650,7 @@ Agreed by both sides on 11 Nov; Nexeo's side waited for the founder. **Founder, 
 - A key made on the portal by an SA user is a lead key, and the device takes its flag.
 - Every call forwarded to the master is signed `METHOD\npath?query\nts\nsha256(body)\nlead` and carries `X-Nexeo-Lead`. Portal installer calls send 0.
 
-**Not deployed yet:** applying its database migration to Suzi's server needs the founder's permission in this session. The portal's `lead` field ships after Suzi's server. Suzi Master refuses the old signature from 18 Nov 11:30 PKT.
+**13 Nov, 16:0x PKT:** with the founder's permission, the migration (005, additive) was applied to the jarvis DB, and the gateway build passed 277/277 on a clean clone. Then the founder ruled: *"don't do yourself always ask suzi to do"*. **The gateway install is handed to Suzi Master** (patch and cautions sent). Nexeo's portal half follows on Suzi Master's word. The portal's `lead` field ships after Suzi's server. Suzi Master refuses the old signature from 18 Nov 11:30 PKT.
 
 ## SU-10: Suzi's log reaches Suzi Master when it's needed (proposed by Suzi Master, 13 Nov 2026)
 
