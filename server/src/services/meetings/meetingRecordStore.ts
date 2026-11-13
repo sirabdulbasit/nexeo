@@ -60,23 +60,24 @@ export async function overlappingRecord(clientNumber: string, userId: number, st
 /** A status with no transcript yet (transcribing, not_covered, failed): makes the record if needed. */
 export async function setStatus(
   clientNumber: string, userId: number, key: string, status: MeetingStatus,
-  base: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null; way?: MeetingWay; reason?: string },
+  base: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null; way?: MeetingWay; reason?: string; conferenceRecord?: string | null },
 ): Promise<MeetingRecord> {
   const existing = await byKey(clientNumber, userId, key);
   if (existing) {
     // A finished record is never pushed back to an earlier state by a late status.
     if (existing.status === 'record_ready' || existing.status === 'transcript_ready') return existing;
     await prisma.$executeRawUnsafe(
-      `UPDATE meeting_records SET status = $2, status_reason = $3, updated_at = now() WHERE id = $1`, existing.id, status, base.reason ?? null,
+      `UPDATE meeting_records SET status = $2, status_reason = $3, conference_record = COALESCE(conference_record, $4), updated_at = now() WHERE id = $1`,
+      existing.id, status, base.reason ?? null, base.conferenceRecord ?? null,
     );
     return (await getRecord(clientNumber, userId, existing.id))!;
   }
   const id = `mtg_${crypto.randomBytes(8).toString('hex')}`;
   await prisma.$executeRawUnsafe(
-    `INSERT INTO meeting_records (id, client_number, user_id, meeting_key, event_id, title, start_at, end_at, way, status, status_reason)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (client_number, user_id, meeting_key) DO NOTHING`,
+    `INSERT INTO meeting_records (id, client_number, user_id, meeting_key, event_id, title, start_at, end_at, way, status, status_reason, conference_record)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) ON CONFLICT (client_number, user_id, meeting_key) DO NOTHING`,
     id, clientNumber, userId, key, base.eventId ?? null, base.title ?? null, base.start ?? null, base.end ?? null,
-    base.way ?? 'google_transcript', status, base.reason ?? null,
+    base.way ?? 'google_transcript', status, base.reason ?? null, base.conferenceRecord ?? null,
   );
   return (await byKey(clientNumber, userId, key))!;
 }

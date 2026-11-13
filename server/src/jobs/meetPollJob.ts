@@ -54,7 +54,7 @@ export async function pollConferences(u: { clientNumber: string; userId: number 
 
 export async function runMeetPoll(now = new Date()): Promise<{ users: number; processed: number; rereads: number; trimmed: number }> {
   const { processEndedEvent, ingestConference } = await import('../services/meetings/meetingProcessor');
-  const { meetFor } = await import('../services/meetings/meetTranscripts');
+  const { meetFor, meetingCodeOf } = await import('../services/meetings/meetTranscripts');
   const { trimOldTranscripts, scheduleReread } = await import('../services/meetings/meetingRecordStore');
   const { getEvents } = await import('../services/calendarService');
   const users = await enabledUsers();
@@ -72,7 +72,9 @@ export async function runMeetPoll(now = new Date()): Promise<{ users: number; pr
       const finished = new Set(done.map((d) => d.event_id));
       for (const ev of events as any[]) {
         const end = Date.parse(ev.end);
-        if (!ev.link || ev.isAllDay || !Number.isFinite(end) || finished.has(ev.id)) continue;
+        // A calendar link that is not a Meet (the event's own page, Zoom, Teams) is never ours to read: skipped, not
+        // processed again every 5 minutes (Suzi Master, 13 Nov).
+        if (!meetingCodeOf(ev.link) || ev.isAllDay || !Number.isFinite(end) || finished.has(ev.id)) continue;
         if (now.getTime() - end < ENDED_AFTER_MS || now.getTime() - end > LOOKBACK_MS) continue;
         const r = await processEndedEvent(u.clientNumber, u.userId, u.emails, ev).catch((e: any) => `error:${String(e?.message ?? e).slice(0, 80)}`);
         processed += 1;

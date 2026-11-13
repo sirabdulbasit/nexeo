@@ -132,6 +132,21 @@ export async function ingestConference(
   return getRecord(clientNumber, userId, record.id);
 }
 
+/**
+ * Google makes a transcript within about an hour of the end, or not at all (transcription was off). Two hours after
+ * the end, a meeting with none is settled as not_covered, so the 5-minute poll stops asking for it; a transcript that
+ * still arrives later (or the computer's notes) replaces it, because a better transcript always wins.
+ */
+export const SETTLE_AFTER_MS = 2 * 60 * 60_000;
+async function settleIfLong(
+  clientNumber: string, userId: number, key: string, result: string,
+  base: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null; conferenceRecord?: string | null },
+): Promise<string> {
+  if (!base.end || Date.now() - base.end.getTime() < SETTLE_AFTER_MS) return result;
+  await setStatus(clientNumber, userId, key, 'not_covered', { ...base, reason: result });
+  return 'not_covered';
+}
+
 /** A calendar event that has ended: hosted → read Google's transcript; not hosted → not_covered, no attempt. */
 export async function processEndedEvent(clientNumber: string, userId: number, ownEmails: string[], ev: HostedEvent): Promise<string> {
   const code = meetingCodeOf(ev.link);
@@ -151,12 +166,13 @@ export async function processEndedEvent(clientNumber: string, userId: number, ow
     if (/insufficient|scope|403/i.test(msg)) return 'needs_reconnect';
     throw e;
   }
-  if (confs.length === 0) return 'no_conference';
+  if (confs.length === 0) return settleIfLong(clientNumber, userId, key, 'no_conference', { title: ev.title, eventId: ev.id, start, end });
   let out = 'no_transcript';
   for (const c of confs) {
     const rec = await ingestConference(clientNumber, userId, meet, c.name, key, { title: ev.title, eventId: ev.id, start, end });
     if (rec) out = rec.status;
   }
+  if (out === 'no_transcript') return settleIfLong(clientNumber, userId, key, out, { title: ev.title, eventId: ev.id, start, end, conferenceRecord: confs[0]?.name ?? null });
   return out;
 }
 
@@ -180,5 +196,7 @@ export async function processConferenceForUser(clientNumber: string, userId: num
   const rec = await ingestConference(clientNumber, userId, meet, confName, key, {
     title: ev?.title ?? await fallbackTitle(userId, start), eventId: ev?.id ?? null, start: ev ? new Date(ev.start) : start, end: ev ? new Date(ev.end) : (conf.endTime ? new Date(conf.endTime) : null),
   });
-  return rec?.status ?? 'no_transcript';
+  if (rec) return rec.status;
+  const endAt = ev ? new Date(ev.end) : (conf.endTime ? new Date(conf.endTime) : null);
+  return settleIfLong(clientNumber, userId, key, 'no_transcript', { title: ev?.title ?? null, eventId: ev?.id ?? null, start, end: endAt, conferenceRecord: confName });
 }
