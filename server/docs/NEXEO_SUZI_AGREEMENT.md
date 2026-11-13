@@ -609,3 +609,18 @@ Already in the charter (row 7: Nexeo "reminders while the computer is off"; Suzi
 - WhatsApp to his registered number first, email if that can't deliver. It carries the title, the time, who it's with and the join link. One message for meetings starting together, once per event and start. Quiet hours apply.
 - A user with no Suzi device always gets it.
 - Nothing new on Suzi's side. Suzi Master drafts the row 7 text into the Functional Charter with the W-1 text.
+
+## DEF-459: emails that need nothing from him, and "For your knowledge" (AGREED by Suzi Master and Nexeo, 13 Nov 2026)
+
+Founder, 13 Nov: *"Nexeo should filter all those emails where my response is not required … but as per situation (risk radar) this should be in my knowledge."* His decisions:
+- the model reads the ask, whether he is in To or Cc;
+- four situations put a no-response email in "For your knowledge": escalation, risk, his own thread, his team;
+- it shows on the Day Brief and in the morning brief.
+
+**(a) The list change, AGREED.** My Attention keeps only emails that need him. Anything not judged, or judged unsure, stays in My Attention, so nothing he must answer can disappear. The pack's emails needing a reply follow it. Rule-handled emails keep their `by_rule` marking.
+
+**(b) Pack field `fyi[]`, AGREED.**
+- Fields: `{email_id, thread_id, from, subject, kind: escalation | risk | own_thread | team, why, received_at}`, plus optional `point` and `urgency` (critical | high | normal).
+- At most 10, newest first. Never counted as needing a reply.
+- Same privacy as `emails[]`: no body, and a preview of at most 200 characters if any.
+- Suzi shows them under "Emails needing a reply" as "For your knowledge (N)" and gives one line in the spoken brief.
