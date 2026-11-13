@@ -372,6 +372,8 @@ The review read checkout `dadd154c` and scored the Wiki plan 85 of 100 (80 befor
 
 **Checked:** `tests/wikiIdentity.test.ts` (13 tests) with 8 of 8 mutants killed; the builder's cases in `tests/wikiBuilder.test.ts`; the store's earlier tests unchanged and passing against a stand-in that really rolls back. A dry run on production gives the same 361 notes as before (252 people, 95 meetings, 12 companies, 2 groups): no person on production depended on the name-alone merge.
 
+**Found while proving it on the real database, and fixed first (DEF-464):** in this project a raw statement inside a transaction ran **outside** it. The logging wrapper on the database client was bound to the main connection and re-installed on every transaction, so a raw write survived a rollback and a raw read did not see its own transaction's rows. The unit tests could not see this (their stand-in rolls back correctly); the production probe did. So "one transaction" above was not true until the client was fixed, and neither was any other transaction in the server that uses raw statements (twelve files, among them the rule and email-rule change of DEF-461, the integration run engine and the job leader lock). Fixed in `src/db/` and deployed before this part (D-236). After it, on production with throwaway rows: the identity checks pass 18 of 18 and the marks checks 16 of 16, including three writers at once ending as one note.
+
 **Not in this part:** meeting notes have no outside identifier yet (a rescheduled or retitled event could otherwise pull two notes into one); a screen for "these two are one person"; typed links (`[[person:Ali]]`) for the ambiguous case.
 
 ## 1. Owner direction (2026-11-12)

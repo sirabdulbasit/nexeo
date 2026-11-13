@@ -267,6 +267,9 @@ function pickTarget(candidates: any[], userId: number): any | null {
   })[0];
 }
 
+/** How often a write that lost a race looks again before giving up. */
+const WRITE_RETRIES = 4;
+
 /**
  * Write a note: create it or update it, with its links and citations, in one
  * transaction. Either all of it is written or none of it.
@@ -279,9 +282,10 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
       return await prisma.$transaction((tx: any) => writeNoteIn(tx, input), { timeout: 30_000 });
     } catch (err: any) {
       // Another writer got there first (a changed revision, or the same new note created twice): look
-      // again, once. A caller that named the revision it read is told instead, and decides.
+      // again, a few times, since each retry can lose to yet another writer. A caller that named the
+      // revision it read is told instead, and decides.
       const raced = err instanceof WriteConflict || err?.code === 'P2002';
-      if (!raced || attempt > 0 || input.ifRevision !== undefined) throw err;
+      if (!raced || attempt >= WRITE_RETRIES || input.ifRevision !== undefined) throw err;
     }
   }
 }
