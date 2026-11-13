@@ -577,3 +577,25 @@ Points 1, 3 and 4 change agreed text, so the amended W-1 needs Suzi Master's AGR
 - a new channel is needed for Suzi's learned personalisation.
 
 CW-2 (feedback about Suzi herself goes to Suzi Master) was not decided by the founder and stands as agreed unless he says otherwise.
+
+**Amended W-1: Suzi Master AGREE at 09:59:30 PKT**, with safeguards S1 to S3 and five contract pieces. CW-1 is withdrawn; CW-2 and CW-4 stand.
+
+**Safeguards:**
+- **S1:** the device's Ed25519 signing key and the Fernet keys for on-device storage never leave the device, not even encrypted. A server copy would let anyone with server access sign as the user. Other secrets (an LLM key, a TTS key) go to Nexeo's encrypted secret store, never into a note's text.
+- **S2:** identity (voiceprints, faceprint, the 8 s sample) is stored encrypted and readable only by that user's own authenticated devices. It is used only to verify that user: never to identify others, never for training. A note holds a reference, not the vector. Deleting it removes it everywhere.
+- **S3:** every user is told before enrolment that their prints are kept encrypted in the company knowledge store. A one-time on-screen line says meeting notes are saved there.
+
+**Contract pieces:**
+1. **meeting.upload, ungated:** sent automatically when a meeting ends, with Meeting Assistant on or off.
+2. **identity.put / identity.get / identity.delete:** put and delete are signed; get returns to the same user's device.
+3. **profile.update {notes[{key, value, evidence_count, updated}]}:** written as one person note, "How to work with <user>"; the pack returns profile{}.
+4. **device.report {settings, audit[], usage}:** daily, extending /v1/usage.
+5. **learning.note:** relayed unread to Suzi Master, like gap.note.
+
+**Split rule:** what is about this user, or would be wrong for another user, is USER and goes to his Wiki. What helps everyone and holds no personal data is GENERIC and goes to Suzi Master. When unsure, it is USER.
+
+**Nexeo: AGREE to S1 to S3 and op names 1 to 5 (13 Nov 2026 10:00:19 PKT).** Nexeo-side notes:
+- (a) Identity data and meeting transcripts are held in the Wiki's encrypted source store (Wiki-Knowledge.md §6b A1), cited by notes by reference. Nexeo builds 2 to 4 once A1 exists; meeting.upload's switch gate is removed in Nexeo's next build.
+- (b) S1 narrows the founder's "everything, secrets encrypted" for device signing keys only. It needs his word.
+
+**Waits on the founder's "agree W-1" with S1.** Then Suzi Master drafts the charter text (R8, F-4.6, F-4.10, R9, W-1.1 to W-1.4, S1 to S3; learning.note in SuziUpgrade), both sides mirror it, and both build.
