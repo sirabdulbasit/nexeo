@@ -139,7 +139,7 @@ export function renderRecordBody(integrationName: string, recordTitle: string, f
     `# ${integrationName} · ${recordTitle}`,
     '',
     `**Source:** Integration "${integrationName}"`,
-    // Brain Wiki (docs/BRAIN_WIKI.md): the record names what it is about as a
+    // Brain Wiki (docs/Wiki-Knowledge.md): the record names what it is about as a
     // wiki link, so it connects to the note with that title (a person, a
     // company) as soon as one exists.
     ...(aboutLink(recordTitle) ? [`**About:** ${aboutLink(recordTitle)}`] : []),

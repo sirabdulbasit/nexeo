@@ -1,4 +1,4 @@
-# Brain Wiki
+# Wiki-Knowledge
 
 Written 2026-11-12 by the Brain Wiki session. This is the one document of the Wiki: the rule every part of Nexeo and Suzi follows (§0), the owner's direction (§1) and the design and state of the Wiki (§2 onwards). It is a release blocker (AGENTS.md §2, invariant 9). Owner direction is in §1, his decisions in §5, the build order in §6, pruning in §7 and the state in §8.
 

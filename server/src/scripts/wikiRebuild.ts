@@ -1,5 +1,5 @@
 /**
- * Rebuild the wiki for one user from what the feeds stored (docs/BRAIN_WIKI.md §6).
+ * Rebuild the wiki for one user from what the feeds stored (docs/Wiki-Knowledge.md §6).
  *
  *   npx tsx src/scripts/wikiRebuild.ts --client TMC-0001 --user 2 --dry-run --out /path/to/vault
  *   npx tsx src/scripts/wikiRebuild.ts --client TMC-0001 --user 2 --write

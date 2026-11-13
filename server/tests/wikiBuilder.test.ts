@@ -1,5 +1,5 @@
 /**
- * Wiki builder — stored feed items in, linked notes out (docs/BRAIN_WIKI.md §6 step 2).
+ * Wiki builder — stored feed items in, linked notes out (docs/Wiki-Knowledge.md §6 step 2).
  * `buildNotes` is pure, so these run on plain data.
  */
 import { describe, it, expect, vi } from 'vitest';

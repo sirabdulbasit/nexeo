@@ -1154,7 +1154,7 @@ router.get('/wiki', async (req: Request, res: Response) => {
     visibilitySql = `(wiki_pages.scope = 'tenant' OR (wiki_pages.scope = 'user' AND wiki_pages.user_id = $2))`;
   }
 
-  // Which wiki (docs/BRAIN_WIKI.md): `set=new` lists only the notes of the new
+  // Which wiki (docs/Wiki-Knowledge.md): `set=new` lists only the notes of the new
   // wiki (metadata.wiki = 2), `set=old` only the older pages. No `set` lists both,
   // as before, so other callers are unchanged.
   const set = req.query.set ? String(req.query.set).toLowerCase() : '';

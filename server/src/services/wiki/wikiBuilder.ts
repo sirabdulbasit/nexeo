@@ -1,6 +1,6 @@
 /**
  * Wiki builder — turns what the feeds have already stored into notes
- * (docs/BRAIN_WIKI.md, step 2).
+ * (docs/Wiki-Knowledge.md, step 2).
  *
  * It reads `feed_events` (email, calendar, chat) for one user and writes
  * person, company, meeting and group notes through `wikiStore.writeNote`,
@@ -10,7 +10,7 @@
  * No model is used here. Every line in a built note is a fact read straight
  * from a stored item, so a rebuild gives the same notes every time.
  *
- * Junk is kept out at the door (BRAIN_WIKI.md §7):
+ * Junk is kept out at the door (Wiki-Knowledge.md §7):
  *   - no note per email;
  *   - a person gets a note only when the user dealt with them: an email
  *     thread the user wrote in, a meeting they shared, a direct chat, or two

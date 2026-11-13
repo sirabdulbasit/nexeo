@@ -53,7 +53,7 @@ const TYPE_ORDER = [
   'answer', 'gap',
 ];
 
-// The new wiki (server/docs/BRAIN_WIKI.md): a note per person, company, meeting
+// The new wiki (server/docs/Wiki-Knowledge.md): a note per person, company, meeting
 // and group, linked to each other. The older pages stay reachable behind a
 // switch until they are retired.
 const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment', 'org_doc'];

@@ -1,5 +1,5 @@
 /**
- * Wiki store — the one door into and out of the wiki (docs/BRAIN_WIKI.md).
+ * Wiki store — the one door into and out of the wiki (docs/Wiki-Knowledge.md).
  *
  * Under test, against an in-memory stand-in for the three wiki tables:
  *  - links are read from the note text and become link rows;

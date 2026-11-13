@@ -1,5 +1,5 @@
 /**
- * Wiki store — the one door into and out of the wiki (docs/BRAIN_WIKI.md).
+ * Wiki store — the one door into and out of the wiki (docs/Wiki-Knowledge.md).
  *
  * Brain has three aspects: Feed brings information in, the Wiki stores and
  * connects it, Think reacts from it. This module is the boundary on both

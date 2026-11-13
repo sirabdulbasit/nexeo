@@ -210,7 +210,7 @@ a blank source cell shows as blank; "a blank never overwrites" applies to per-re
 **Not in 1b:** KPI rows copy numbers the source already holds; a KPI that COUNTS or SUMS records
 (e.g. headcount per department) needs an aggregate transform — named next increment.
 
-**Brain Wiki (2026-11-12, `BRAIN_WIKI.md` decision 9)** — every record page is also a note of the wiki. After each page write and each stale mark the writer calls `wikiStore.adoptAsNote(pageId)` (dynamic import, never fails the run): the page is marked `metadata.wiki = 2` and its `[[links]]` become link rows. A per-record body carries `**About:** [[record title]]`, so the record connects to the note with that title. Identity, hashing, stale handling and the change ledger are unchanged.
+**Brain Wiki (2026-11-12, `Wiki-Knowledge.md` decision 9)** — every record page is also a note of the wiki. After each page write and each stale mark the writer calls `wikiStore.adoptAsNote(pageId)` (dynamic import, never fails the run): the page is marked `metadata.wiki = 2` and its `[[links]]` become link rows. A per-record body carries `**About:** [[record title]]`, so the record connects to the note with that title. Identity, hashing, stale handling and the change ledger are unchanged.
 
 **REST fetch guard** (`sources/integrationFetch.ts`): https only; the host is resolved once and
 **private, loopback, link-local and metadata addresses are refused**, and the connection is pinned

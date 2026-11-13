@@ -273,7 +273,7 @@ async function runScribeInBackground(userId: number, clientNumber: string, ucId:
     const { backfillSenderWiki } = await import('../services/knowledge/senderWikiBackfill');
     const wiki = await backfillSenderWiki(clientNumber, userId, { wipeFirst: true });
 
-    // Brain Wiki (docs/BRAIN_WIKI.md): build the linked notes from what was just
+    // Brain Wiki (docs/Wiki-Knowledge.md): build the linked notes from what was just
     // pulled. A failure here must not fail the scribe.
     let notes: { written: number; created: number; unchanged: number } | { error: string };
     try {
