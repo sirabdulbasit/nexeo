@@ -504,6 +504,17 @@ The owner's latest ruling stands and the review says to keep it: **learned patte
 - **DEF-474 / DEF-475:** the email list that Suzi's pack and the spoken brief read from the Wiki marks, and the web's My Attention, now pass through one step (`triage/cardTruth.ts`). An email with an open task made from it shows the task's priority and line. A calendar invitation he has answered (read from his calendar) leaves the list; an unanswered one says "You haven't replied to this invitation yet." Nothing is written to the Wiki by this step (it is a read-time correction); marking answered invitations in the Wiki is a later step, not built.
 - Verified: unit tests (`def474`, `def475`, `def476`) and the full suite. Not verified: the live cards after the deploy.
 
+### 0.17 Where a task came from, read from the Wiki (14 Nov, F-2.5a, Nexeo-Builder)
+
+- Suzi's pack `actions[].source` (charter F-2.5a, agreed 13 Nov) is `{kind, from?, subject?, at?, thread_id?, meeting_id?}`, and Suzi shows it on the task card as "From". Built in `suzi/actionSource.ts`.
+- **Read order, Wiki first:**
+  1. the Wiki's email source (`wiki_sources` kind 'email') for the exact message, found by its feed row id or by the task's message id. This gives from (display name, else the address), subject (120 characters at most, with byte-order marks removed), at (with his offset), and the thread;
+  2. else the feed row, which retention removes after a while;
+  3. else a Wiki email of the same thread: subject and thread only, with no from and no at, because which message asked is not known.
+- Meeting tasks give the meeting id and when it was held. Suzi and manual tasks give the kind and when the task was made. Body text is never included. An unknown origin, or a read that fails, leaves `source` out and the action unchanged.
+- When actions move to commitment notes, the source becomes the note's first citation. That move is not built yet.
+- Verified: `f25aActionSource.test.ts` (8 tests) and the full suite. A read-only run on his real list gave 13 of 13 tasks a source, all from the exact message in the Wiki; the 3 oldest have no feed row any more. Not verified: Suzi's card showing "From".
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

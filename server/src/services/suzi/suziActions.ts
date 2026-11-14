@@ -23,14 +23,15 @@ import { localDate, safeTimezone } from './dayBriefFacts';
 import { toZonedIso } from './zonedTime';
 import { personById } from './suziPeople';
 import { changedAt, statusRowsFor, HISTORY_SELECT, type StatusRow } from './taskHistory';
+import { actionSources, type ActionSource } from './actionSource';
 
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /** `updated_at` moves on every write, Nexeo's bookkeeping included; `changed_at` only on a real change (T25, DEF-406). */
-export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null }
+export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource }
 
-const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, ...HISTORY_SELECT } as const;
+const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, sourceFeed: true, sourceRef: true, sourceFeedEventId: true, ...HISTORY_SELECT } as const;
 
 /** An open item as Suzi sees it. `owner` is the delegate when delegated, else 'me'. */
 function toSuziAction(r: any, tz: string, today: string, userId: number, status: StatusRow[] = []): SuziAction {
@@ -54,7 +55,9 @@ export async function listPendingActions(clientNumber: string, userId: number, o
   }).then(async (all: any[]) => { const { isWatchOnly } = await import('../openItems/brainOwnership'); return all.filter((r) => !isWatchOnly(r)); }); // CL-092 (Suzi Master: no objection, 13 Nov 18:39)
   // A status history that can't be read leaves changed_at to the other records, never to updated_at.
   const status = await statusRowsFor(clientNumber, userId, rows.map((r) => r.id)).catch(() => new Map<string, StatusRow[]>());
-  const actions = rows.map((r) => toSuziAction(r, tz, today, userId, status.get(r.id))).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
+  // F-2.5a: where each came from. A read that fails leaves `source` out, never the action.
+  const sources = await actionSources(clientNumber, userId, rows as any[], tz).catch(() => new Map<string, ActionSource>());
+  const actions = rows.map((r) => { const a = toSuziAction(r, tz, today, userId, status.get(r.id)); const src = sources.get(r.id); if (src) a.source = src; return a; }).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
   const limit = Math.min(Math.max(opts.limit ?? 20, 1), 500);
   return { total: actions.length, overdue: actions.filter((a) => a.overdue).length, actions: actions.slice(0, limit) };
 }
@@ -136,5 +139,7 @@ export async function applyFollowUp(
   const after = await prisma.openItem.findFirst({ where: { id: item.id, clientNumber, userId }, select: ITEM_SELECT });
   const afterStatus = await statusRowsFor(clientNumber, userId, [item.id]).catch(() => new Map<string, StatusRow[]>());
   const tz = safeTimezone(p.timezone);
-  return { ok: true, update, action: toSuziAction(after ?? { id: item.id }, tz, localDate(new Date(), tz), userId, afterStatus.get(item.id)) };
+  const action = toSuziAction(after ?? { id: item.id }, tz, localDate(new Date(), tz), userId, afterStatus.get(item.id));
+  if (after) { const src = (await actionSources(clientNumber, userId, [after as any], tz).catch(() => null))?.get(item.id); if (src) action.source = src; }
+  return { ok: true, update, action };
 }
