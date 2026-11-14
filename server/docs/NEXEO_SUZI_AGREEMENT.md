@@ -810,3 +810,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Gateway relay:** patch `0002-F49-meeting-status-relay.patch` (sha256 52ce717c…) is built and tested (280/0, and the build matched the running dist 41/41).
   - **Install blocked:** Nexeo-Builder's session refused it. **It waits on the founder:** either he allows Nexeo-Builder to install it, or he gives Suzi Master the one-time OK, as for R6.
   - **When it goes on:** the switch flips about 15 minutes after the install.
+- **meeting.status switch-on condition (suzi-b5, Nexeo AGREE 14 Nov ~11:15):** status_push goes on only after suzi-b5 confirms that the Suzi release with its two fixes is published:
+  - a look on every reconnect, so notes that became ready while asleep are not missed;
+  - silence on not_covered.
+
+  The relay install itself may go ahead on the founder's word. Questions asked of Nexeo-Builder: is there a frame on delete, and does updated:true fire on saves that change nothing?
