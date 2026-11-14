@@ -821,3 +821,7 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Caveat:** (a) is proven against a fake unique key, not the planned real-Postgres parallel run; that run was asked of Nexeo-Builder before the switch decision.
   - Known limit: a crash between the claim and the draft fails closed, never doubled.
 - **meeting.status answers:** no frame is sent on delete. Before switch-on, updated:true is limited to real changes, in the same deploy that turns it on.
+- **F-2.4 before switch-on (Suzi Master, 14 Nov):**
+  - **How Suzi 1.2.65+ reads by_rule:** sending = "being sent to X", delivered = "delegated to X", cancelled = "not sent to X, because the rule or its person changed". Suzi 1.2.69 reads **`state:"failed"`**: "couldn't be delivered to X. It's still with you". Nexeo adds failed to the pack (gap 1).
+  - **Still owed by Nexeo-Builder:** gap 2 (a crash between claim and draft must be surfaced or retried); gap 3 (leftover drafts from a re-queue must be removed); the real-Postgres race run for (a).
+  - **The switch stays the founder's call,** after those.
