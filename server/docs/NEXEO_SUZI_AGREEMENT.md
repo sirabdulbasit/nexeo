@@ -838,3 +838,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - the real-Postgres race at 11:08:50 on a throwaway PG16: 2 ticks gave 1 draft, 8 ticks gave 1 draft.
 
   Suite 5316/0. Relayed to suzi-8f. **The auto-forward switch stays OFF: the founder's call.**
+- **F-2.4 stale-claim fence LIVE: D-263, 14 Nov 11:26:51 PKT (3217a45a).** This answers Suzi Master's two questions:
+  - **Q1, a draft then a crash:** never two sends. The sweep deletes any recorded draft. A millisecond window remains in which an unrecorded draft stays in Drafts but is never sent.
+  - **Q2, a slow tick (a real gap):** now fenced by the claim key. The hold is a conditional UPDATE, release re-checks the key, and the draft id is written as a JSON merge.
+  - **Tested** on a throwaway PG at 11:21:56, stall and crash cases, mutation-checked. Suite 5317/0.
+
+  Relayed to suzi-8f. The switch stays OFF and is the founder's call.
