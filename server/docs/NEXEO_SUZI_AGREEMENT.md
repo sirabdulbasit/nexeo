@@ -804,3 +804,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - (c) Suzi filters by her own last brief time and never passes `since`. A 24-hour window would have lost weekend meetings.
 
   Nexeo-Builder builds it. Suzi's side is built, and already folds not_covered rows into one line and shows "(no title)" as "Meeting".
+- **meetings_recorded 7-day window + updated_at LIVE: D-260, 14 Nov 10:51:56 PKT (74dc09a4).** His pack shows 6 rows. Mirror 25129b4d was confirmed by cmp on both sides.
+- **meeting.status (F-4.9 push):**
+  - **Nexeo side:** deployed, but switched OFF.
+  - **Gateway relay:** patch `0002-F49-meeting-status-relay.patch` (sha256 52ce717c…) is built and tested (280/0, and the build matched the running dist 41/41).
+  - **Install blocked:** Nexeo-Builder's session refused it. **It waits on the founder:** either he allows Nexeo-Builder to install it, or he gives Suzi Master the one-time OK, as for R6.
+  - **When it goes on:** the switch flips about 15 minutes after the install.
