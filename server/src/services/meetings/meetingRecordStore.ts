@@ -31,6 +31,23 @@ export interface MeetingRecord {
   status_reason: string | null; updated_flag: boolean; reread_due_at: Date | null; created_at: Date; updated_at: Date;
 }
 
+/**
+ * F-4.9: tell his live Suzi sessions when a record's status really changes (meeting.status). Fire-and-forget: a
+ * push that fails changes nothing here, and Suzi's meeting.list read stays correct.
+ */
+// OFF until Suzi's server has POST /admin/meeting-status (patch 0002, built and tested 14 Nov; its install on the
+// gateway waits on the founder). While off, nothing is pushed and the pack's status_push stays absent: Suzi polls.
+export const PUSH_STATUS = { on: false };
+function pushStatus(r: MeetingRecord | null | undefined): void {
+  if (!r || !PUSH_STATUS.on) return;
+  const proposed = (Array.isArray(r.action_items) ? r.action_items : []).filter((a) => a.state === 'proposed').length;
+  void import('../suzi/gatewayAdminClient').then(({ pushMeetingStatus }) => pushMeetingStatus(
+    { userId: r.user_id, clientNumber: r.client_number },
+    { meeting_id: r.id, event_id: r.event_id, title: r.title, status: r.status, reason: r.status_reason,
+      ...(r.status === 'record_ready' ? { updated: !!r.updated_flag, action_items_proposed: proposed } : {}) },
+  )).catch(() => undefined);
+}
+
 export const keyForEvent = (eventId: string) => `event:${eventId}`;
 export const keyForConference = (space: string, start: Date) => `conf:${space}@${start.toISOString()}`;
 
@@ -70,7 +87,9 @@ export async function setStatus(
       `UPDATE meeting_records SET status = $2, status_reason = $3, conference_record = COALESCE(conference_record, $4), updated_at = now() WHERE id = $1`,
       existing.id, status, base.reason ?? null, base.conferenceRecord ?? null,
     );
-    return (await getRecord(clientNumber, userId, existing.id))!;
+    const after = (await getRecord(clientNumber, userId, existing.id))!;
+    if (existing.status !== status || (existing.status_reason ?? null) !== (base.reason ?? null)) pushStatus(after);
+    return after;
   }
   const id = `mtg_${crypto.randomBytes(8).toString('hex')}`;
   await prisma.$executeRawUnsafe(
@@ -79,7 +98,9 @@ export async function setStatus(
     id, clientNumber, userId, key, base.eventId ?? null, base.title ?? null, base.start ?? null, base.end ?? null,
     base.way ?? 'google_transcript', status, base.reason ?? null, base.conferenceRecord ?? null,
   );
-  return (await byKey(clientNumber, userId, key))!;
+  const made = (await byKey(clientNumber, userId, key))!;
+  if (made?.id === id) pushStatus(made); // a lost race was pushed by the winner
+  return made;
 }
 
 /**
@@ -110,7 +131,7 @@ export async function putTranscript(
       JSON.stringify(t.participants), JSON.stringify(t.transcript),
     );
     const made = await byKey(clientNumber, userId, key);
-    if (made && made.id === id) return { record: made, derive: t.transcript.length > 0 };
+    if (made && made.id === id) { pushStatus(made); return { record: made, derive: t.transcript.length > 0 }; }
     return putTranscript(clientNumber, userId, key, t); // lost a race: attach to the winner
   }
   const sources = Array.isArray(existing.sources) ? existing.sources : [];
@@ -134,7 +155,9 @@ export async function putTranscript(
     t.space ?? null, t.title ?? null, t.start ?? null, t.end ?? null, better, t.way,
     JSON.stringify(t.participants), JSON.stringify(t.transcript),
   );
-  return { record: (await getRecord(clientNumber, userId, existing.id))!, derive: better && t.transcript.length > 0 };
+  const after = (await getRecord(clientNumber, userId, existing.id))!;
+  if (after && after.status !== existing.status) pushStatus(after);
+  return { record: after, derive: better && t.transcript.length > 0 };
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -173,6 +196,9 @@ export async function saveDerived(id: string, m: ReturnType<typeof mergeDerived>
         status = 'record_ready', status_reason = NULL, updated_flag = $6, updated_at = now() WHERE id = $1`,
     id, m.minutes, m.minutes_offered, JSON.stringify(m.decisions), JSON.stringify(m.action_items), m.updated,
   );
+  // record_ready on every save: the first one, and each re-read that improved the notes (updated: true).
+  const rows = await prisma.$queryRawUnsafe<MeetingRecord[]>(`SELECT * FROM meeting_records WHERE id = $1`, id).catch(() => [] as MeetingRecord[]);
+  pushStatus(rows[0]);
 }
 
 export async function setTitle(id: string, title: string): Promise<void> {

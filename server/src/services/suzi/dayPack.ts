@@ -215,8 +215,8 @@ export interface DayPack {
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
   rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
   /** F-4.7 Q1 (Nexeo AGREE 13 Nov): his own Meeting Assistant switch. Absent = could not be read. */
-  meeting_assistant?: { on: boolean };
-  /** F-4.8 slice 2 (agreed 13 Nov): his meeting records of the last 24 hours. Absent = could not be read. */
+  meeting_assistant?: { on: boolean; status_push?: true };
+  /** F-4.8 slice 2 (agreed 13 Nov; 7 days and updated_at, 14 Nov): his meeting records. Absent = could not be read. */
   meetings_recorded?: RecordedMeeting[];
   /** W-1: "How to work with <user>", his own facts learned by Suzi (key -> value). Absent = none yet. */
   profile?: Record<string, unknown>;
@@ -323,7 +323,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
     ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
-    ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then((on) => ({ meeting_assistant: { on } })).catch(() => ({}))),
+    ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
     ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
   };

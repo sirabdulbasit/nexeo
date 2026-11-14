@@ -265,3 +265,30 @@ export async function disconnectDevice(owner: SuziOwner, deviceId: string): Prom
   await call('POST', '/admin/revoke', { device_id: deviceId, user_id: String(owner.userId), tenant_id: owner.clientNumber });
   log.info('suzi device disconnected', { userId: owner.userId, clientNumber: owner.clientNumber, deviceId });
 }
+
+/**
+ * F-4.9 (charter, agreed 13 Nov 2026): a meeting's status, pushed to every live Suzi session of its owner as a
+ * `meeting.status` frame (Suzi's server `POST /admin/meeting-status`). Sent on a real status change only. Nobody
+ * online = nothing happens: meeting.list stays correct, so Suzi's polling is the fallback. Never throws.
+ */
+export async function pushMeetingStatus(
+  owner: { userId: number; clientNumber: string },
+  m: { meeting_id: string; event_id?: string | null; title?: string | null; status: string; reason?: string | null; updated?: boolean; action_items_proposed?: number; at?: string },
+): Promise<{ delivered: number; reason?: string }> {
+  try {
+    const data = await call('POST', '/admin/meeting-status', {
+      user_id: String(owner.userId), tenant_id: owner.clientNumber, meeting_id: m.meeting_id,
+      ...(m.event_id ? { event_id: String(m.event_id).slice(0, 1024) } : {}), title: String(m.title ?? '').slice(0, 500),
+      status: m.status, ...(m.reason ? { reason: String(m.reason).slice(0, 500) } : {}),
+      ...(m.updated !== undefined ? { updated: m.updated } : {}),
+      ...(m.action_items_proposed !== undefined ? { action_items_proposed: m.action_items_proposed } : {}),
+      at: m.at ?? new Date().toISOString(), ref: `meeting:${m.meeting_id}`.slice(0, 200),
+    });
+    return { delivered: Number(data?.delivered ?? 0) };
+  } catch (err) {
+    const why = err instanceof SuziNotConfiguredError ? 'Suzi is not set up on this server'
+      : err instanceof SuziGatewayError ? err.message : 'unexpected error';
+    log.warn('meeting status not pushed', { meetingId: m.meeting_id, status: m.status, reason: why });
+    return { delivered: 0, reason: why };
+  }
+}

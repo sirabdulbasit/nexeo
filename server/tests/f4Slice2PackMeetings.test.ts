@@ -37,19 +37,19 @@ describe('slice 2: attendees and organizer_self', () => {
 });
 
 describe('slice 2: meetings_recorded', () => {
-  it('outcome, proposed count, summary only on record_ready, times in his zone, the 24-hour window', async () => {
+  it('outcome, proposed count, summary only on record_ready, times in his zone, the 7-day window', async () => {
     const now = new Date('2026-11-14T10:00:00Z');
     s.rows = [
-      { id: 'm1', title: 'PMS demo', start_at: new Date('2026-11-14T06:00:00Z'), end_at: new Date('2026-11-14T07:00:00Z'), status: 'record_ready',
+      { id: 'm1', title: 'PMS demo', start_at: new Date('2026-11-14T06:00:00Z'), end_at: new Date('2026-11-14T07:00:00Z'), status: 'record_ready', updated_at: new Date('2026-11-14T07:05:00Z'),
         minutes: '## Summary\n- The team agreed to launch the PMS pilot on 1 Dec. Sofia owns training.\n', action_items: [{ state: 'proposed' }, { state: 'accepted' }, { state: 'proposed' }] },
-      { id: 'm2', title: 'Colleague call', start_at: new Date('2026-11-13T12:00:00Z'), end_at: null, status: 'not_covered', minutes: 'Should not show.', action_items: [] },
+      { id: 'm2', title: 'Colleague call', start_at: new Date('2026-11-13T12:00:00Z'), end_at: null, status: 'not_covered', minutes: 'Should not show.', action_items: [], updated_at: new Date('2026-11-13T13:00:00Z') },
     ];
     const r = await meetingsRecorded('TMC-0001', 2, now, KHI);
     expect(r).toEqual([
-      { meeting_id: 'm1', title: 'PMS demo', start: '2026-11-14T11:00:00+05:00', end: '2026-11-14T12:00:00+05:00', outcome: 'record_ready', action_items_proposed: 2, summary: 'The team agreed to launch the PMS pilot on 1 Dec.' },
-      { meeting_id: 'm2', title: 'Colleague call', start: '2026-11-13T17:00:00+05:00', end: null, outcome: 'not_covered', action_items_proposed: 0 },
+      { meeting_id: 'm1', title: 'PMS demo', start: '2026-11-14T11:00:00+05:00', end: '2026-11-14T12:00:00+05:00', outcome: 'record_ready', action_items_proposed: 2, summary: 'The team agreed to launch the PMS pilot on 1 Dec.', updated_at: '2026-11-14T12:05:00+05:00' },
+      { meeting_id: 'm2', title: 'Colleague call', start: '2026-11-13T17:00:00+05:00', end: null, outcome: 'not_covered', action_items_proposed: 0, updated_at: '2026-11-13T18:00:00+05:00' },
     ]);
-    expect(s.args[2]).toEqual(new Date('2026-11-13T10:00:00Z'));
+    expect(s.args[2]).toEqual(new Date('2026-11-07T10:00:00Z')); // 7 days
   });
   it('summary is at most 160 characters', () => {
     const long = `${'word '.repeat(60)}end.`;

@@ -4,9 +4,9 @@
  *   calendar events   attendees [{name, email, self?: true}] (name from his contacts, else readable from the
  *                     address) and organizer_self per event: see dayPack.packCalendar.
  *   meetings_recorded [{meeting_id, title, start, end, outcome: record_ready | not_covered | failed,
- *                     action_items_proposed, summary?}] since the last brief. There is no record of when a brief
- *                     was delivered, so "since the last brief" is the last 24 hours: records that ended, or whose
- *                     record changed, in that window. `summary` is the first sentence of the minutes, at most 160
+ *                     action_items_proposed, summary?, updated_at}]: his records that ended, or changed, in the
+ *                     last 7 days, at most 50, newest first (suzi-b5, 14 Nov). Suzi filters by its own last brief
+ *                     time using `updated_at` (when the record last changed, ISO with his offset). `summary` is the first sentence of the minutes, at most 160
  *                     characters, on record_ready rows only. A meeting still transcribing is not listed.
  *
  * Only his own records. A read that fails leaves the field out of the pack, never a wrong value.
@@ -15,7 +15,7 @@ import prisma from '../../db/prisma';
 import { toZonedIso } from './zonedTime';
 import type { PackPeople } from './dayPack';
 
-export const RECORDED_WINDOW_MS = 24 * 3600_000;
+export const RECORDED_WINDOW_MS = 7 * 24 * 3600_000; // suzi-b5, 14 Nov: 7 days, so Friday's meetings reach Monday's brief
 export const SUMMARY_MAX = 160;
 
 /** `salman.sohail@x.com` → `Salman Sohail`, the last resort when no name is known. */
@@ -56,15 +56,15 @@ export function firstSentence(minutes: string | null | undefined): string | null
 
 export interface RecordedMeeting {
   meeting_id: string; title: string; start: string | null; end: string | null;
-  outcome: 'record_ready' | 'not_covered' | 'failed'; action_items_proposed: number; summary?: string;
+  outcome: 'record_ready' | 'not_covered' | 'failed'; action_items_proposed: number; summary?: string; updated_at: string;
 }
 
 const OUTCOMES = new Set(['record_ready', 'not_covered', 'failed']);
 
 export async function meetingsRecorded(clientNumber: string, userId: number, now: Date, tz: string): Promise<RecordedMeeting[]> {
   const since = new Date(now.getTime() - RECORDED_WINDOW_MS);
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string | null; start_at: Date | null; end_at: Date | null; status: string; minutes: string | null; action_items: any }>>(
-    `SELECT id, title, start_at, end_at, status, minutes, action_items FROM meeting_records
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string | null; start_at: Date | null; end_at: Date | null; status: string; minutes: string | null; action_items: any; updated_at: Date }>>(
+    `SELECT id, title, start_at, end_at, status, minutes, action_items, updated_at FROM meeting_records
       WHERE client_number = $1 AND user_id = $2 AND status IN ('record_ready', 'not_covered', 'failed')
         AND (end_at >= $3 OR updated_at >= $3) AND COALESCE(start_at, created_at) <= $4
       ORDER BY COALESCE(end_at, start_at, created_at) DESC LIMIT 50`,
@@ -78,6 +78,7 @@ export async function meetingsRecorded(clientNumber: string, userId: number, now
       outcome: r.status as RecordedMeeting['outcome'],
       action_items_proposed: (Array.isArray(r.action_items) ? r.action_items : []).filter((a: any) => a?.state === 'proposed').length,
       ...(summary ? { summary } : {}),
+      updated_at: toZonedIso(new Date(r.updated_at), tz),
     };
   });
 }
