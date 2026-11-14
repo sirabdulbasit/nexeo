@@ -141,7 +141,8 @@ export async function emailDelegate(clientNumber: string, userId: number, a: Arg
     if (gate.byRule && delegate.message_id) {
       const key = ruleForwardKey(clientNumber, userId, delegate.message_id, person.email);
       const claimed = await prisma.$executeRawUnsafe(
-        `UPDATE agent_actions SET idempotency_key = $2 WHERE id = $1 AND idempotency_key IS NULL`, row.id, key,
+        `UPDATE agent_actions SET idempotency_key = $2 WHERE id = $1 AND idempotency_key IS NULL
+           AND NOT EXISTS (SELECT 1 FROM agent_actions WHERE idempotency_key = $2)`, row.id, key, // the unique key still decides a photo finish
       ).then((n) => n === 1).catch(() => false);
       if (!claimed) {
         await prisma.$executeRawUnsafe(

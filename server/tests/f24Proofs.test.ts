@@ -12,7 +12,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 type Row = { id: number; client_number: string; user_id: number; action_type: string; idempotency_key: string | null; input: any; output: any; updated_at: Date };
 const db = vi.hoisted(() => ({ rows: new Map<number, Row>(), next: 100, rule: { active: true, person_id: 'p1' } as any, persons: new Map<string, any>(),
-  gmailSends: 0, receipts: [] as string[], after: [] as number[], drafts: [] as string[] }));
+  gmailSends: 0, receipts: [] as string[], after: [] as number[], drafts: [] as string[], deleted: [] as string[] }));
 
 const merge = (r: Row, patch: any) => { r.output = { ...(r.output ?? {}), send: { ...(r.output?.send ?? {}), ...patch } }; r.updated_at = new Date(); };
 
@@ -54,6 +54,7 @@ vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: strin
 vi.mock('../src/services/gmailService', () => ({
   sendGmailDraft: async () => { db.gmailSends++; return { success: true, messageId: `gm${db.gmailSends}` }; },
   sentReceipt: async () => (db.receipts.shift() ?? 'unknown'),
+  deleteGmailDraft: async (_u: number, d: string) => { db.deleted.push(d); return { success: true }; },
 }));
 vi.mock('../src/services/suzi/suziEmail', () => ({
   latestMail: async () => ({ subject: 'Quote', senderEmail: 'v@vendor.com' }),
@@ -76,7 +77,7 @@ const args = (x: any = {}) => ({ email_id: 't1', rule_id: 'r1', person_id: 'p1',
 const user = { id: 2, clientNumber: 'T' };
 
 beforeEach(() => {
-  db.rows.clear(); db.next = 100; db.rule = { active: true, person_id: 'p1' }; db.gmailSends = 0; db.receipts = []; db.after = []; db.drafts = []; timers.length = 0;
+  db.rows.clear(); db.next = 100; db.rule = { active: true, person_id: 'p1' }; db.gmailSends = 0; db.receipts = []; db.after = []; db.drafts = []; db.deleted = []; timers.length = 0;
   db.persons = new Map([['p1', { id: 'p1', name: 'Ali', email: 'ali@tmc.com' }], ['p2', { id: 'p2', name: 'Sara', email: 'sara@tmc.com' }]]);
 });
 void user;
@@ -114,7 +115,8 @@ describe('(b) the person changes during the hold', () => {
     db.rule.person_id = 'p2';
     expect(await releaseHeldSend(id)).toBe('skipped');
     expect(db.gmailSends).toBe(0);
-    expect(db.rows.get(id)!.output.send).toMatchObject({ state: 'cancelled', requeue: true });
+    expect(db.rows.get(id)!.output.send).toMatchObject({ state: 'cancelled', requeue: true, draft_deleted: true });
+    expect(db.deleted).toEqual([`d${id}`]); // Suzi Master 14 Nov: the cancelled forward's draft leaves his Drafts
     const again: any = await emailDelegate('T', 2, args({ person_id: 'p2' }), true, gate);
     expect(again.ok).toBe(true); expect(db.drafts).toHaveLength(2);
   });
@@ -160,5 +162,21 @@ describe('(c) delivered only after the receipt', () => {
     const src = readFileSync('src/services/suzi/suziSend.ts', 'utf8');
     expect(src).toMatch(/resumeHeldSends[\s\S]*receipt_pending'\) = 'true'[\s\S]*confirmReceipt\(p\.id\)/);
     expect(typeof resumeHeldSends).toBe('function');
+  });
+});
+
+describe('Suzi Master 14 Nov: no silent outcome', () => {
+  it('rule removed during the hold: cancelled and its draft deleted', async () => {
+    await emailDelegate('T', 2, args(), true, gate); const id = [...db.rows.keys()][0];
+    db.rule.active = false;
+    await releaseHeldSend(id);
+    expect(db.gmailSends).toBe(0); expect(db.rows.get(id)!.output.send).toMatchObject({ state: 'cancelled', draft_deleted: true });
+  });
+  it('a claim that never reached Gmail is given up after 10 minutes and queued again; failed reaches the pack', () => {
+    const job = readFileSync('src/jobs/ruleForwardJob.ts', 'utf8');
+    expect(job).toMatch(/idempotency_key \|\| ':void:'[\s\S]{0,600}output->'send'->>'state' IS NULL AND created_at < now\(\) - interval '10 minutes'/);
+    const rules = readFileSync('src/services/suzi/suziEmailRules.ts', 'utf8');
+    expect(rules).toMatch(/IN \('held', 'sending', 'cancelled', 'failed'\)/);
+    expect(rules).toMatch(/r\.st === 'failed' \? 'failed'/);
   });
 });

@@ -78,7 +78,7 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
       if (!tz) { skip('timezone_unreadable'); continue; }
       const sentToday = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
         `SELECT count(*)::int AS n FROM agent_actions WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply'
-            AND input->'delegate'->>'by_rule' = 'true' AND idempotency_key LIKE 'rule_fwd:%'
+            AND input->'delegate'->>'by_rule' = 'true' AND idempotency_key LIKE 'rule_fwd:%' AND idempotency_key NOT LIKE '%:void:%'
             AND created_at >= (date_trunc('day', now() AT TIME ZONE $3) AT TIME ZONE $3)`, u.clientNumber, u.id, tz,
       ).catch(() => null);
       if (!sentToday) { skip('count_unreadable'); continue; }
@@ -89,6 +89,17 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
       ).catch(() => null);
       if (!born) { skip('rules_unreadable'); continue; }
       const ruleBorn = new Map(born.map((b) => [b.id, new Date(b.created_at).getTime()]));
+      // Suzi Master, 14 Nov (the known limit of proof a): a claim that never reached Gmail (a crash between the claim
+      // and the draft: no send state after 10 minutes) gives its key up and is queued again, so the message is
+      // forwarded once rather than never. Nothing was sent from it: no Gmail draft was saved under it.
+      await Promise.resolve().then(() => prisma.$executeRawUnsafe(
+        `UPDATE agent_actions SET idempotency_key = idempotency_key || ':void:' || id::text,
+                output = jsonb_set(COALESCE(output, '{}'::jsonb), '{send}', COALESCE(output->'send', '{}'::jsonb) || '{"state":"cancelled","requeue":true,"error":"the forward did not reach Gmail; queued again"}'::jsonb),
+                updated_at = now()
+          WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply' AND idempotency_key LIKE 'rule_fwd:%'
+            AND idempotency_key NOT LIKE '%:void:%' AND output->'send'->>'state' IS NULL AND created_at < now() - interval '10 minutes'`,
+        u.clientNumber, u.id,
+      )).catch(() => undefined); // a sweep that fails never stops this tick
       const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id: string; p: any; created_at: Date }>>(
         `SELECT f.id, f.source_id, f.raw_payload AS p, f.created_at FROM feed_events f
           WHERE f.client_number = $1 AND f.user_id = $2 AND f.source_type = 'gmail' AND f.created_at >= $3

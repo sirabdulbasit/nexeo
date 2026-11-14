@@ -170,7 +170,7 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
 
 /** F-2.5: an email a rule of his has handled or prepared. Suzi lists these apart from the emails needing a reply. */
 /** state on 'delegated' (F-2.4, agreed 13 Nov): sending until Gmail's receipt, then delivered; cancelled if it did not go. */
-export interface PackByRule { action: 'ready' | 'ignored' | 'delegated'; rule_id: string; person_name?: string; task_id?: string | null; at: string; state?: 'sending' | 'delivered' | 'cancelled' }
+export interface PackByRule { action: 'ready' | 'ignored' | 'delegated'; rule_id: string; person_name?: string; task_id?: string | null; at: string; state?: 'sending' | 'delivered' | 'cancelled' | 'failed' }
 export interface PackEmail { summary?: string; point?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */

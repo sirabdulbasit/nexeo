@@ -84,7 +84,7 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
     ).catch(() => [{ ok: false }]);
     const mayStill = await maySendForReal(r.client_number, r.user_id).catch(() => false);
     if (!still[0]?.ok || !mayStill) {
-      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), error: !still[0]?.ok ? 'the rule was removed or paused before it went' : 'sending is switched off for him' });
+      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), error: !still[0]?.ok ? 'the rule was removed or paused before it went' : 'sending is switched off for him', ...(await dropRuleDraft(r.user_id, r.gmail_draft_id)) });
       return 'skipped';
     }
     // F-2.4 proof (b): the rule's person, or that person's email, changed during the hold. This forward is cancelled
@@ -92,7 +92,7 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
     // rule names now, under a new claim key. Anything unreadable counts as changed (fail closed: nothing goes now).
     const now_ = await currentRulePerson(r.client_number, r.user_id, r.rule_id).catch(() => null);
     if (!now_ || now_.person_id !== r.person_id || now_.email !== r.person_email) {
-      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), requeue: true, error: 'the rule\'s person changed before it went; queued again for the person the rule names now' });
+      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), requeue: true, error: 'the rule\'s person changed before it went; queued again for the person the rule names now', ...(await dropRuleDraft(r.user_id, r.gmail_draft_id)) });
       return 'skipped';
     }
   }
@@ -120,6 +120,17 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
   }
   await finish(id, r.client_number, r.user_id, 'failed', { failed_at: new Date().toISOString(), error: String(s.error ?? 'Gmail did not send it').slice(0, 200) });
   return 'failed';
+}
+
+/**
+ * Suzi Master, 14 Nov: a rule forward that is cancelled must not leave its draft in his Drafts (he never wrote it).
+ * Only for rule forwards; a send he undid keeps its draft, as before. A delete that fails is recorded, not retried.
+ */
+async function dropRuleDraft(userId: number, gmailDraftId: string | null): Promise<Record<string, unknown>> {
+  if (!gmailDraftId) return {};
+  const { deleteGmailDraft } = await import('../gmailService');
+  const d = await deleteGmailDraft(userId, gmailDraftId).catch((e: any) => ({ success: false, error: String(e?.message ?? e) }));
+  return d.success ? { draft_deleted: true } : { draft_deleted: false, draft_delete_error: String((d as any).error ?? '').slice(0, 200) };
 }
 
 /** The person a rule names now, with that person's email as on record now (lower-cased). */
