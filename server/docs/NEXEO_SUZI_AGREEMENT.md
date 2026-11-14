@@ -825,3 +825,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **How Suzi 1.2.65+ reads by_rule:** sending = "being sent to X", delivered = "delegated to X", cancelled = "not sent to X, because the rule or its person changed". Suzi 1.2.69 reads **`state:"failed"`**: "couldn't be delivered to X. It's still with you". Nexeo adds failed to the pack (gap 1).
   - **Still owed by Nexeo-Builder:** gap 2 (a crash between claim and draft must be surfaced or retried); gap 3 (leftover drafts from a re-queue must be removed); the real-Postgres race run for (a).
   - **The switch stays the founder's call,** after those.
+- **meeting.status order (suzi-b5, Nexeo AGREE 14 Nov):** Suzi 1.2.68 (and 1.2.69) are published lead first, with the reconnect look and silence on not_covered. The order:
+  1. The founder's go-ahead → the gateway relay is installed.
+  2. His Mac is healthy on 1.2.68+ → suzi-b5 sends "go" with the time.
+  3. Nexeo's switch-on deploy, with the real-change filter.
+
+  Steps 1 and 2 are independent of each other.
