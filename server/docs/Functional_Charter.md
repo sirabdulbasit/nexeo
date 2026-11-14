@@ -221,7 +221,9 @@ the action items up. To every participant she is only "Suzi". Nothing goes out b
   route across his own records only, and the pack's `meetings_recorded[]` since the last brief: {meeting_id, title,
   start, end, outcome: record_ready | not_covered | failed, action_items_proposed, summary?}. `outcome` is the status;
   `summary` is the first sentence of the minutes, at most 160 characters, on record_ready rows only (agreed 13 Nov 2026,
-  Nexeo 1de016db).
+  Nexeo 1de016db). "Since the last brief" is Suzi's to decide: the pack's `meetings_recorded[]` covers the last 7 days
+  (at most 50 rows, same order), each row carries `updated_at` (when its record last changed), and Suzi keeps the rows
+  that ended or changed after her own last brief; she never passes a `since` on the pack call (agreed 14 Nov 2026).
 - **F-4.9 Acts and status.** `meeting.attend` {event_id | join_url, way}, `meeting.leave` {event_id} or {meeting_id}
   (exactly one; both and disagreeing → `bad_args`),
   `meeting.delete` {meeting_id} (signed, irreversible). Nexeo pushes `meeting.status`: Way A `transcribing`,
