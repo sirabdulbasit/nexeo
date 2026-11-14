@@ -798,3 +798,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Proposed reading, needs Suzi's OK:** "since the last brief" means the last 24 hours, because Nexeo doesn't record when a brief was delivered.
   - **Live on his pack:** 4 not_covered. The attendee objects are unit-tested only, since there are no events on Saturday.
   - status_push stays absent until 17:30.
+- **meetings_recorded window (suzi-b5 counter, Nexeo AGREE 14 Nov):**
+  - (a) the window is 7 days, with the same 50-row cap and order;
+  - (b) each row carries `updated_at`;
+  - (c) Suzi filters by her own last brief time and never passes `since`. A 24-hour window would have lost weekend meetings.
+
+  Nexeo-Builder builds it. Suzi's side is built, and already folds not_covered rows into one line and shows "(no title)" as "Meeting".
