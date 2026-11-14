@@ -162,14 +162,30 @@ export function ruleFor(rules: SuziEmailRule[], email: { from?: string | null; s
   return null;
 }
 
-/** Emails delegated by a rule in the last day, for the pack's "delegated by your rule". */
-export async function delegatedByRule(clientNumber: string, userId: number, since: Date): Promise<Array<{ thread_id: string; subject: string; person_name: string; rule_id: string; task_id: string | null; at: string }>> {
-  const rows = await prisma.$queryRawUnsafe<Array<{ d: any; task_id: string | null; sent_at: string | null }>>(
-    `SELECT input->'delegate' AS d, output->'send'->>'task_id' AS task_id, output->'send'->>'sent_at' AS sent_at FROM agent_actions
-      WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply' AND output->'send'->>'state' = 'sent'
+/**
+ * Emails delegated by a rule in the last day, for the pack's "delegated by your rule". A delegate the founder
+ * confirmed (no by_rule): shown once sent. A rule forward (F-2.4): shown from the hold on, with `state`: sending
+ * (held, or Gmail took it but the receipt is not yet read), delivered (read back as sent), cancelled (stopped at
+ * release, e.g. the rule removed). A forward that lost its claim to a twin, or was cancelled to be queued again for a
+ * new person, is not shown (the twin, or the re-queued forward, is the row).
+ */
+export async function delegatedByRule(clientNumber: string, userId: number, since: Date): Promise<Array<{ thread_id: string; subject: string; person_name: string; rule_id: string; task_id: string | null; at: string; state?: 'sending' | 'delivered' | 'cancelled' }>> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ d: any; task_id: string | null; sent_at: string | null; st: string | null; by_rule: boolean; at: string | null }>>(
+    `SELECT input->'delegate' AS d, output->'send'->>'task_id' AS task_id, output->'send'->>'sent_at' AS sent_at,
+            output->'send'->>'state' AS st, (input->'delegate'->>'by_rule') = 'true' AS by_rule,
+            COALESCE(output->'send'->>'sent_at', output->'send'->>'cancelled_at', updated_at::text) AS at
+       FROM agent_actions
+      WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply'
         AND input->'delegate'->>'rule_id' IS NOT NULL AND updated_at >= $3
+        AND (output->'send'->>'state' = 'sent'
+             OR ((input->'delegate'->>'by_rule') = 'true' AND output->'send'->>'state' IN ('held', 'sending', 'cancelled')
+                 AND COALESCE(output->'send'->>'error', '') <> 'already_forwarded' AND COALESCE(output->'send'->>'requeue', '') <> 'true'))
       ORDER BY updated_at DESC LIMIT 50`,
     clientNumber, userId, since,
   ).catch(() => []);
-  return rows.map((r) => ({ thread_id: String(r.d.thread_id), subject: String(r.d.subject ?? ''), person_name: String(r.d.person_name ?? ''), rule_id: String(r.d.rule_id), task_id: r.task_id, at: r.sent_at ?? '' }));
+  return rows.map((r) => ({
+    thread_id: String(r.d.thread_id), subject: String(r.d.subject ?? ''), person_name: String(r.d.person_name ?? ''), rule_id: String(r.d.rule_id), task_id: r.task_id,
+    at: r.st === 'sent' ? (r.sent_at ?? '') : (r.at ?? ''),
+    ...(r.by_rule ? { state: r.st === 'sent' ? 'delivered' as const : r.st === 'cancelled' ? 'cancelled' as const : 'sending' as const } : {}),
+  }));
 }

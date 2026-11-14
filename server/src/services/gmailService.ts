@@ -446,6 +446,22 @@ export async function sendGmailDraft(userId: number, draftId: string): Promise<{
   }
 }
 
+/**
+ * F-2.4 proof (c): the receipt. Reads a just-sent message back from his mailbox; it counts as delivered only when
+ * Gmail lists it with the SENT label. `unknown` = it could not be read (try again), never "delivered".
+ */
+export async function sentReceipt(userId: number, messageId: string): Promise<'sent' | 'not_sent' | 'unknown'> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client) return 'unknown';
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const r = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'minimal' });
+    return (r.data.labelIds ?? []).includes('SENT') ? 'sent' : 'not_sent';
+  } catch (err: any) {
+    return Number(err?.code ?? err?.status) === 404 ? 'not_sent' : 'unknown';
+  }
+}
+
 // ─── Recent Sent items summary (for user "did it go?" queries) ─
 /** Return a compact list of the most recent SENT messages so Brain
  *  can answer "did my email to X actually go?" honestly. Unlike

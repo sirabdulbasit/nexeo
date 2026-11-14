@@ -182,9 +182,10 @@ describe('release', () => {
     expect(JSON.parse(exec.mock.calls[0][2]).state).toBe('failed');
   });
   it('at boot every waiting hold gets its timer back', async () => {
-    query.mockResolvedValue([{ id: 7, send_at: new Date(now.getTime() + 4000) }, { id: 8, send_at: new Date(now.getTime() - 3000) }]);
+    query.mockImplementation(async (sql: string) => /receipt_pending/.test(sql) ? [{ id: 9 }] : [{ id: 7, send_at: new Date(now.getTime() + 4000) }, { id: 8, send_at: new Date(now.getTime() - 3000) }]);
     expect(await resumeHeldSends(now)).toBe(2);
-    expect(timers.map((t) => t.ms)).toEqual([4250, 250]);
+    // F-2.4 proof (c): a rule forward Gmail took but not yet read back is read back again at boot (timer 0).
+    expect(timers.map((t) => t.ms)).toEqual([4250, 250, 0]);
   });
 });
 

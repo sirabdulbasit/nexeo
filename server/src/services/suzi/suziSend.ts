@@ -69,7 +69,8 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
       WHERE id = $1 AND action_type = '${DRAFT_TYPE}' AND output->'send'->>'state' = 'held'
         AND (output->'send'->>'send_at')::timestamptz <= $2
       RETURNING client_number, user_id, output->>'gmailDraftId' AS gmail_draft_id, (output->'send'->>'send_at')::timestamptz AS send_at,
-                input->'delegate'->>'rule_id' AS rule_id, (input->'delegate'->>'by_rule') = 'true' AS by_rule`,
+                input->'delegate'->>'rule_id' AS rule_id, (input->'delegate'->>'by_rule') = 'true' AS by_rule,
+                input->'delegate'->>'person_id' AS person_id, lower(input->'delegate'->>'person_email') AS person_email`,
     id, now,
   );
   const r = rows[0] as any;
@@ -86,6 +87,14 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
       await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), error: !still[0]?.ok ? 'the rule was removed or paused before it went' : 'sending is switched off for him' });
       return 'skipped';
     }
+    // F-2.4 proof (b): the rule's person, or that person's email, changed during the hold. This forward is cancelled
+    // (its draft stays in Drafts) and marked to be queued again: the next tick forwards the message to the person the
+    // rule names now, under a new claim key. Anything unreadable counts as changed (fail closed: nothing goes now).
+    const now_ = await currentRulePerson(r.client_number, r.user_id, r.rule_id).catch(() => null);
+    if (!now_ || now_.person_id !== r.person_id || now_.email !== r.person_email) {
+      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), requeue: true, error: 'the rule\'s person changed before it went; queued again for the person the rule names now' });
+      return 'skipped';
+    }
   }
   if (now.getTime() - new Date(r.send_at).getTime() > LATE_LIMIT_MS) {
     await finish(id, r.client_number, r.user_id, 'failed', { failed_at: now.toISOString(), error: 'not sent: the server was down when it was due' });
@@ -97,6 +106,11 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
   }
   const { sendGmailDraft } = await import('../gmailService');
   const s = await sendGmailDraft(r.user_id, r.gmail_draft_id);
+  if (s.success && r.by_rule) {
+    // F-2.4 proof (c): a rule forward stays "sending" until Gmail returns its id AND the message reads back as sent.
+    await finish(id, r.client_number, r.user_id, 'sending', { gmail_message_id: s.messageId ?? null, receipt_pending: true });
+    return confirmReceipt(id);
+  }
   if (s.success) {
     await finish(id, r.client_number, r.user_id, 'sent', { sent_at: new Date().toISOString(), gmail_message_id: s.messageId ?? null });
     // F-2: a note to a person marks the task told; a delegated email gets its task only now.
@@ -108,6 +122,54 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
   return 'failed';
 }
 
+/** The person a rule names now, with that person's email as on record now (lower-cased). */
+async function currentRulePerson(clientNumber: string, userId: number, ruleId: string): Promise<{ person_id: string; email: string } | null> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ pid: string | null }>>(
+    `SELECT action_payload->'suzi'->>'person_id' AS pid FROM user_action_rules WHERE id = $1 AND client_number = $2 AND user_id = $3 AND is_active = TRUE`,
+    ruleId, clientNumber, userId,
+  );
+  const pid = rows[0]?.pid;
+  if (!pid) return null;
+  const { personById } = await import('./suziPeople');
+  const p = await personById(clientNumber, userId, pid);
+  return p?.email ? { person_id: p.id, email: p.email.toLowerCase() } : null;
+}
+
+export const RECEIPT_RETRY_MS = [15_000, 60_000, 5 * 60_000];
+
+/**
+ * F-2.4 proof (c): read a rule forward back from Gmail. SENT label = delivered: the state becomes 'sent' (the pack's
+ * "delivered") and only then is the person's task made. Not in Gmail = failed. Unreadable = still 'sending', read
+ * again later (RECEIPT_RETRY_MS); after the last try it stays 'sending' and is never called delivered.
+ */
+export async function confirmReceipt(id: number, attempt = 0): Promise<'sent' | 'failed' | 'skipped'> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ client_number: string; user_id: number; mid: string | null }>>(
+    `SELECT client_number, user_id, output->'send'->>'gmail_message_id' AS mid FROM agent_actions
+      WHERE id = $1 AND output->'send'->>'state' = 'sending' AND (output->'send'->>'receipt_pending') = 'true'`,
+    id,
+  );
+  const r = rows[0];
+  if (!r) return 'skipped';
+  if (!r.mid) {
+    await finish(id, r.client_number, r.user_id, 'failed', { failed_at: new Date().toISOString(), receipt_pending: false, error: 'Gmail returned no message id' });
+    return 'failed';
+  }
+  const { sentReceipt } = await import('../gmailService');
+  const got = await sentReceipt(r.user_id, r.mid).catch(() => 'unknown' as const);
+  if (got === 'sent') {
+    await finish(id, r.client_number, r.user_id, 'sent', { sent_at: new Date().toISOString(), delivered_at: new Date().toISOString(), receipt_pending: false });
+    const { afterSuziSent } = await import('./suziDelegate');
+    await afterSuziSent(id, r.mid).catch((e) => console.warn(`[suzi-send] after-send of ${id} failed: ${e?.message ?? e}`));
+    return 'sent';
+  }
+  if (got === 'not_sent') {
+    await finish(id, r.client_number, r.user_id, 'failed', { failed_at: new Date().toISOString(), receipt_pending: false, error: 'Gmail does not list it as sent' });
+    return 'failed';
+  }
+  if (attempt < RECEIPT_RETRY_MS.length) schedule(() => { confirmReceipt(id, attempt + 1).catch(() => undefined); }, RECEIPT_RETRY_MS[attempt]);
+  return 'skipped';
+}
+
 /** At boot: every hold still waiting gets its timer back (a due one at once). */
 export async function resumeHeldSends(now = new Date()): Promise<number> {
   const rows = await prisma.$queryRawUnsafe<Array<{ id: number; send_at: Date }>>(
@@ -115,5 +177,10 @@ export async function resumeHeldSends(now = new Date()): Promise<number> {
       WHERE action_type = '${DRAFT_TYPE}' AND output->'send'->>'state' = 'held'`,
   );
   for (const r of rows) scheduleRelease(r.id, new Date(r.send_at).getTime() - now.getTime());
+  // F-2.4 proof (c) across a restart: a rule forward Gmail took but not yet read back is read back again.
+  const pending = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+    `SELECT id FROM agent_actions WHERE action_type = '${DRAFT_TYPE}' AND output->'send'->>'state' = 'sending' AND (output->'send'->>'receipt_pending') = 'true'`,
+  ).catch(() => [] as Array<{ id: number }>);
+  for (const p of pending) schedule(() => { confirmReceipt(p.id).catch(() => undefined); }, 0);
   return rows.length;
 }

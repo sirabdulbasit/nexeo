@@ -263,6 +263,7 @@ fields changes the shared contract, so both sides must agree first (see
 
 | 2026-11-14 | F-4.2: `rule.set` kind meeting_attend (one rule per match, readable line, Wiki rule note refreshed on set and remove) and its matcher; §8 note. Not on My Rules yet | (this commit, Nexeo-Builder) |
 | 2026-11-14 | `kind` added to each `rules.action_rules` row in Suzi's rules document (§9); the version goes up once because the content changed | (this commit, Nexeo-Builder) |
+| 2026-11-14 | F-2.4 proofs (a)–(c) built, auto-forward still OFF: (a) one claim per message and person in the database (`agent_actions.idempotency_key`, unique), so racing ticks or a restart forward once; (b) at release, a change of the rule's person or that person's email cancels the forward (nothing goes) and queues it again for the person the rule names now; (c) a rule forward stays `sending` until Gmail's SENT label is read back, then `delivered` (the pack's `by_rule.state`), and only then is the task made. `tests/f24Proofs.test.ts` (11 tests, each safeguard mutation-checked). Known limit: a claim made just before a crash, before the draft reached Gmail, leaves that message unforwarded (fail closed) | (this commit, Nexeo-Builder) |
 ---
 
 ## 11. Approved, not built yet (owner approved 13 Nov 2026, 13:44 PKT)

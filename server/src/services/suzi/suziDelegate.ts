@@ -15,6 +15,7 @@
 import prisma from '../../db/prisma';
 import { personById } from './suziPeople';
 import { applyFollowUp } from './suziActions';
+import { createHash } from 'crypto';
 import { forwardEmail, latestMail, saveNewDraft, saveToGmailDrafts, writeWithModel, type SendGate } from './suziEmail';
 
 type Args = Record<string, unknown>;
@@ -101,6 +102,12 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
   return withItem(r.ok ? { ok: true, item: r.action } : { ok: true, item: { id: item.id, title } });
 }
 
+/** F-2.4 proof (a): the claim key for one rule forward of one message to one person. */
+export function ruleForwardKey(clientNumber: string, userId: number, messageId: string, personEmail: string): string {
+  const h = createHash('sha256').update(`${clientNumber}|${userId}|${messageId}|${String(personEmail).toLowerCase()}`).digest('hex');
+  return `rule_fwd:${h.slice(0, 64)}`;
+}
+
 /** F-2.3: the forward goes through the send gate; the task comes only after it has gone. */
 export async function emailDelegate(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<Result> {
   if (!confirmed) return fail('needs_confirmation');
@@ -127,6 +134,25 @@ export async function emailDelegate(clientNumber: string, userId: number, a: Arg
   if (row) {
     const delegate = { thread_id: threadId, person_id: person.id, person_name: person.name, person_email: person.email, note: text(a.note), subject: mail.subject, rule_id: ruleId || null, ...(text(a.message_id) ? { message_id: text(a.message_id), by_rule: true } : {}) };
     await prisma.agentAction.update({ where: { id: row.id }, data: { input: { ...(row.input as any), delegate } as any } as any });
+    // F-2.4 proof (a): one forward per message per person, claimed in the database before anything reaches Gmail.
+    // agent_actions.idempotency_key is unique, so of two ticks (or a tick after a restart) racing on the same
+    // message only one claims it; the other cancels its own draft row and stops. A change of the person makes a
+    // new key, which is how a forward cancelled for a person change is queued again (proof b).
+    if (gate.byRule && delegate.message_id) {
+      const key = ruleForwardKey(clientNumber, userId, delegate.message_id, person.email);
+      const claimed = await prisma.$executeRawUnsafe(
+        `UPDATE agent_actions SET idempotency_key = $2 WHERE id = $1 AND idempotency_key IS NULL`, row.id, key,
+      ).then((n) => n === 1).catch(() => false);
+      if (!claimed) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE agent_actions SET output = jsonb_set(COALESCE(output, '{}'::jsonb), '{send}', COALESCE(output->'send', '{}'::jsonb) || $2::jsonb), updated_at = now() WHERE id = $1`,
+          row.id, JSON.stringify({ state: 'cancelled', error: 'already_forwarded' }),
+        ).catch(() => undefined);
+        return fail('already_forwarded', 'this message is already being forwarded to this person');
+      }
+    }
+  } else if (gate.byRule) {
+    return fail('not_found', 'the forward could not be recorded'); // no row = no claim = nothing sent (fail closed)
   }
   const sent = await saveToGmailDrafts(clientNumber, userId, { draft_id: draftId }, true, gate);
   if (!sent.ok) return sent;

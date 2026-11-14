@@ -78,7 +78,8 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
       if (!tz) { skip('timezone_unreadable'); continue; }
       const sentToday = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
         `SELECT count(*)::int AS n FROM agent_actions WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply'
-            AND input->'delegate'->>'by_rule' = 'true' AND created_at >= (date_trunc('day', now() AT TIME ZONE $3) AT TIME ZONE $3)`, u.clientNumber, u.id, tz,
+            AND input->'delegate'->>'by_rule' = 'true' AND idempotency_key LIKE 'rule_fwd:%'
+            AND created_at >= (date_trunc('day', now() AT TIME ZONE $3) AT TIME ZONE $3)`, u.clientNumber, u.id, tz,
       ).catch(() => null);
       if (!sentToday) { skip('count_unreadable'); continue; }
       let budget = RULE_FORWARD_DAY_CAP - Number(sentToday[0]?.n ?? 0);                           // C3.5
@@ -92,7 +93,9 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
         `SELECT f.id, f.source_id, f.raw_payload AS p, f.created_at FROM feed_events f
           WHERE f.client_number = $1 AND f.user_id = $2 AND f.source_type = 'gmail' AND f.created_at >= $3
             AND NOT EXISTS (SELECT 1 FROM agent_actions a WHERE a.client_number = $1 AND a.user_id = $2
-                             AND a.input->'delegate'->>'message_id' = f.source_id)
+                             AND a.input->'delegate'->>'message_id' = f.source_id
+                             -- proof (b): a forward cancelled because the rule's person changed is queued again
+                             AND COALESCE(a.output->'send'->>'requeue', '') <> 'true')
           ORDER BY f.created_at ASC LIMIT 200`,
         u.clientNumber, u.id, new Date(now.getTime() - LOOKBACK_MS),
       );
