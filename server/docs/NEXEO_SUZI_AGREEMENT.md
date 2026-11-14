@@ -783,3 +783,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **Watched items LIVE: D-254, 13 Nov 18:48:17 PKT (81835f5e).** Checked at 18:49: actions[] holds 20 tasks (2 overdue) and none of the 8 watched ones (7 still open). On the founder's yes, 5 non-tasks were also closed: 1 security notice and 4 duplicate delegations, of which the first copy stays. Relayed to suzi-8f.
 - **F-2.5a actions[].source LIVE: D-257, 14 Nov 10:13:07 PKT (45077060).** It is on /pack, /actions and follow-up actions. The read order is the Wiki message, then the feed row, then the thread; a thread-only match carries no from or at. Live check: 13 of 13 of his tasks carry a source from the exact message. Relayed to suzi-8f.
 - **14 Nov, the meeting.status gateway relay:** Nexeo-Builder installs it itself, under the founder's "Nexeo changes it" (13 Nov ~17:15), which suzi-b5 also has on record. Suzi Master doesn't touch the gateway. The founder was asked to confirm; the default is that Nexeo installs.
+- **F-4.2 rule.set meeting_attend LIVE: D-258, 14 Nov 10:22:27 PKT (bec3d074).** `text` is the readable line and also the rule name. A repeated match answers existing:true, and the Wiki rule note is rebuilt on every set and remove. Not yet: each event's `attend` (waits for Way A) and listing on the web My Rules page. Relayed to suzi-b5.
+- **14 Nov live checks (suzi_act_log, his Mac):**
+  - D-245: profile.update and device.report ok since 13 Nov 17:32:22. **identity.put: 25 calls, all failed needs_signature** (sent unsigned from Suzi); Suzi Master was asked to fix it. No meeting.upload seen.
+  - D-246: one real send, at 18:05:05.
+  - DEF-454 existing:true: not yet seen live.
+  - The 18:49 count of 20 is reconciled (one DRAFT task wasn't counted).
