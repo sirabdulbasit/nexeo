@@ -789,3 +789,6 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - D-246: one real send, at 18:05:05.
   - DEF-454 existing:true: not yet seen live.
   - The 18:49 count of 20 is reconciled (one DRAFT task wasn't counted).
+- **14 Nov, suzi-b5 checked D-258:** Suzi 1.2.63+ matches it. Two follow-ups:
+  - **`kind` on each rules.action_rules row** (additive, proposed by suzi-b5): **Nexeo AGREE.** Nexeo-Builder builds it. Until then the ": always take notes" / ": never take notes" wording stays stable.
+  - **Queried with Nexeo-Builder:** notes rules arrive with mode "DRAFT", and their text equals their name.
