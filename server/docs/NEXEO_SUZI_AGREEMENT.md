@@ -831,3 +831,10 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   3. Nexeo's switch-on deploy, with the real-change filter.
 
   Steps 1 and 2 are independent of each other.
+- **F-2.4 pre-switch items CLOSED: D-262, 14 Nov 11:16:13 PKT (344237a3).**
+  - by_rule state "failed";
+  - a stale claim (10 minutes, no send state) is released and re-queued;
+  - a cancelled forward's draft is deleted;
+  - the real-Postgres race at 11:08:50 on a throwaway PG16: 2 ticks gave 1 draft, 8 ticks gave 1 draft.
+
+  Suite 5316/0. Relayed to suzi-8f. **The auto-forward switch stays OFF: the founder's call.**
