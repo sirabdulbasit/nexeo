@@ -70,7 +70,8 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
         AND (output->'send'->>'send_at')::timestamptz <= $2
       RETURNING client_number, user_id, output->>'gmailDraftId' AS gmail_draft_id, (output->'send'->>'send_at')::timestamptz AS send_at,
                 input->'delegate'->>'rule_id' AS rule_id, (input->'delegate'->>'by_rule') = 'true' AS by_rule,
-                input->'delegate'->>'person_id' AS person_id, lower(input->'delegate'->>'person_email') AS person_email`,
+                input->'delegate'->>'person_id' AS person_id, lower(input->'delegate'->>'person_email') AS person_email,
+                idempotency_key AS claim_key`,
     id, now,
   );
   const r = rows[0] as any;
@@ -78,6 +79,12 @@ export async function releaseHeldSend(id: number, now = new Date()): Promise<'se
   // F-2.4 review P1: a forward made by a RULE is re-checked at the moment it goes: the rule must still be active and
   // he must still be allowed to send (not on the send-off list). Anything unreadable or changed = not sent (fail closed).
   if (r.by_rule) {
+    // F-2.4 fence, second line: a rule forward goes only under a live claim. The hold write is already fenced, so this
+    // is defence in depth: a given-up key is cancelled here, its draft deleted, and the message queued again.
+    if (!String(r.claim_key ?? '').startsWith('rule_fwd:') || String(r.claim_key).includes(':void:')) {
+      await finish(id, r.client_number, r.user_id, 'cancelled', { cancelled_at: now.toISOString(), requeue: true, error: 'its claim was given up; queued again', ...(await dropRuleDraft(r.user_id, r.gmail_draft_id)) });
+      return 'skipped';
+    }
     const still = await prisma.$queryRawUnsafe<Array<{ ok: boolean }>>(
       `SELECT EXISTS (SELECT 1 FROM user_action_rules WHERE id = $1 AND client_number = $2 AND user_id = $3 AND is_active = TRUE) AS ok`,
       r.rule_id, r.client_number, r.user_id,

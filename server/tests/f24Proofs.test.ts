@@ -37,7 +37,7 @@ vi.mock('../src/db/prisma', () => ({ default: {
       if (!r || r.output?.send?.state !== 'held') return [];
       merge(r, { state: 'sending' });
       return [{ client_number: r.client_number, user_id: r.user_id, gmail_draft_id: r.output.gmailDraftId, send_at: new Date(r.output.send.send_at),
-        rule_id: r.input.delegate?.rule_id, by_rule: r.input.delegate?.by_rule === true, person_id: r.input.delegate?.person_id, person_email: String(r.input.delegate?.person_email ?? '').toLowerCase() }];
+        rule_id: r.input.delegate?.rule_id, by_rule: r.input.delegate?.by_rule === true, person_id: r.input.delegate?.person_id, person_email: String(r.input.delegate?.person_email ?? '').toLowerCase(), claim_key: r.idempotency_key }];
     }
     if (/SELECT EXISTS/.test(sql)) return [{ ok: db.rule.active }];
     if (/action_payload->'suzi'->>'person_id' AS pid/.test(sql)) return db.rule.active ? [{ pid: db.rule.person_id }] : [];
@@ -174,9 +174,17 @@ describe('Suzi Master 14 Nov: no silent outcome', () => {
   });
   it('a claim that never reached Gmail is given up after 10 minutes and queued again; failed reaches the pack', () => {
     const job = readFileSync('src/jobs/ruleForwardJob.ts', 'utf8');
-    expect(job).toMatch(/idempotency_key \|\| ':void:'[\s\S]{0,600}output->'send'->>'state' IS NULL AND created_at < now\(\) - interval '10 minutes'/);
+    expect(job).toMatch(/idempotency_key \|\| ':void:'[\s\S]{0,600}output->'send'->>'state' IS NULL AND created_at < now\(\) - \(\$3::int/);
+    expect(job).toMatch(/await voidStaleClaims\(u\.clientNumber, u\.id\)/);
     const rules = readFileSync('src/services/suzi/suziEmailRules.ts', 'utf8');
     expect(rules).toMatch(/IN \('held', 'sending', 'cancelled', 'failed'\)/);
     expect(rules).toMatch(/r\.st === 'failed' \? 'failed'/);
+  });
+  it('fence: a hold whose claim was given up never sends; its draft is deleted and the message queued again', async () => {
+    await emailDelegate('T', 2, args(), true, gate); const id = [...db.rows.keys()][0];
+    db.rows.get(id)!.idempotency_key += `:void:${id}`; // the 10-minute sweep gave the key up
+    expect(await releaseHeldSend(id)).toBe('skipped');
+    expect(db.gmailSends).toBe(0);
+    expect(db.rows.get(id)!.output.send).toMatchObject({ state: 'cancelled', requeue: true, draft_deleted: true });
   });
 });

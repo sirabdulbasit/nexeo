@@ -214,7 +214,27 @@ export async function saveToGmailDrafts(clientNumber: string, userId: number, a:
   }
   const at = new Date(Date.now() + SEND_HOLD_MS).toISOString();
   const output = { ...o, gmailDraftId, send: { state: 'held', send_at: at, undo_until: at, voice_score: gate.voiceScore } };
-  await prisma.agentAction.update({ where: { id: draft.id }, data: { output: output as any } as any });
+  if (gate.byRule) {
+    // F-2.4 fence (Suzi Master, 14 Nov): a rule forward is held only while its claim is still its own. A tick that
+    // stalled past the 10-minute re-queue finds its key given up: it holds nothing, deletes the draft it just made,
+    // and the re-queued forward is the only one that can go. One conditional write, so the sweep and this can't both win.
+    const held = await prisma.$executeRawUnsafe(
+      `UPDATE agent_actions SET output = $2::jsonb, updated_at = now()
+        WHERE id = $1 AND idempotency_key LIKE 'rule_fwd:%' AND idempotency_key NOT LIKE '%:void:%' AND output->'send'->>'state' IS NULL`,
+      draft.id, JSON.stringify(output),
+    ).catch(() => 0);
+    if (held !== 1) {
+      const { deleteGmailDraft } = await import('../gmailService');
+      await deleteGmailDraft(userId, gmailDraftId).catch(() => undefined);
+      await prisma.$executeRawUnsafe(
+        `UPDATE agent_actions SET output = jsonb_set(COALESCE(output, '{}'::jsonb), '{send}', COALESCE(output->'send', '{}'::jsonb) || '{"state":"cancelled","requeue":true,"error":"claim given up before it was held; queued again"}'::jsonb), updated_at = now() WHERE id = $1`,
+        draft.id,
+      ).catch(() => undefined);
+      return fail('claim_lost', 'this forward was queued again; the newer one goes');
+    }
+  } else {
+    await prisma.agentAction.update({ where: { id: draft.id }, data: { output: output as any } as any });
+  }
   scheduleRelease(draft.id as unknown as number);
   return heldAnswer(draft.id, output);
 }
@@ -232,7 +252,12 @@ async function saveDraftInGmail(clientNumber: string, userId: number, draft: { i
   } : {};
   const saved = await createGmailDraft(userId, o.to, o.subject, o.body, o.cc ?? undefined, reply);
   if (!saved.success || !saved.draftId) return fail('rejected', saved.error ?? 'Gmail did not save the draft');
-  await prisma.agentAction.update({ where: { id: draft.id }, data: { output: { ...o, gmailDraftId: saved.draftId } as any } as any });
+  if (inp.delegate?.by_rule === true) {
+    // F-2.4: a merge, never a whole-row write, so a re-queue recorded meanwhile is not overwritten.
+    await prisma.$executeRawUnsafe(`UPDATE agent_actions SET output = COALESCE(output, '{}'::jsonb) || jsonb_build_object('gmailDraftId', $2::text) WHERE id = $1`, draft.id, saved.draftId);
+  } else {
+    await prisma.agentAction.update({ where: { id: draft.id }, data: { output: { ...o, gmailDraftId: saved.draftId } as any } as any });
+  }
   return saved.draftId;
 }
 
