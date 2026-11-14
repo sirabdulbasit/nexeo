@@ -815,3 +815,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - silence on not_covered.
 
   The relay install itself may go ahead on the founder's word. Questions asked of Nexeo-Builder: is there a frame on delete, and does updated:true fire on saves that change nothing?
+- **F-2.4 proofs (a)–(c) LIVE: D-261, 14 Nov 11:04:00 PKT (1a3566a5).**
+  - The switch stays OFF and is the founder's call. suzi-8f was told before any switch-on.
+  - Evidence: 11 mutation-checked tests, full suite 5314/0.
+  - **Caveat:** (a) is proven against a fake unique key, not the planned real-Postgres parallel run; that run was asked of Nexeo-Builder before the switch decision.
+  - Known limit: a crash between the claim and the draft fails closed, never doubled.
+- **meeting.status answers:** no frame is sent on delete. Before switch-on, updated:true is limited to real changes, in the same deploy that turns it on.
