@@ -513,6 +513,7 @@ The owner's latest ruling stands and the review says to keep it: **learned patte
   3. else a Wiki email of the same thread: subject and thread only, with no from and no at, because which message asked is not known.
 - Meeting tasks give the meeting id and when it was held. Suzi and manual tasks give the kind and when the task was made. Body text is never included. An unknown origin, or a read that fails, leaves `source` out and the action unchanged.
 - When actions move to commitment notes, the source becomes the note's first citation. That move is not built yet.
+- **Meeting rules (F-4.2, 14 Nov):** a `meeting_attend` rule set through Suzi becomes a rule note at once: `rebuildRuleNotesForUser` runs after rule.set and after rule.remove (email rules included), not only at the hourly build. The note says what the rule applies to (the organizer's or attendee's email, the title words, or every meeting with a join link) and what it does (take notes, or never). See `Rules.md` §8.
 - Verified: `f25aActionSource.test.ts` (8 tests) and the full suite. A read-only run on his real list gave 13 of 13 tasks a source, all from the exact message in the Wiki; the 3 oldest have no feed row any more. Not verified: Suzi's card showing "From".
 
 ## 1. Owner direction (2026-11-12)

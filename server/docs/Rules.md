@@ -209,6 +209,17 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
 > has an "Email rules" section (`GET /brain/instructions` → `emailRules`, from `listEmailRules`) with **Remove**,
 > which is `rule.remove` (`DELETE /brain/email-rules/:id`), so the rule is gone on Suzi too. A rule read from one
 > of his instructions shows once, as the instruction. Other `user_action_rules` still have no screen.
+>
+> **Meeting-attendance rules (F-4.2, 14 Nov 2026, Nexeo-Builder).** `rule.set` {kind: "meeting_attend", match: {by:
+> organizer | attendee | title | all, value?}, attend: always | never, note?} is kept in `user_action_rules` as
+> action_type `suzi_meeting_attend`, trigger 'manual', mode DRAFT, so the store's executor never fires it
+> (`suzi/suziMeetingRules.ts`). Its name is one readable line, for example "Meetings organised by x@y.com: always
+> take notes". The same match set again folds into the existing rule (`existing: true`). It is listed in Suzi's
+> `rules.action_rules`, and it is a rule note in the Wiki, rebuilt right after rule.set and rule.remove.
+> Matching (`meetingAttendFor`): title contains, case-insensitive; organizer and attendee by exact lowercase email;
+> all = every event with a join link. never beats always; his single-meeting choice beats both; the oldest of two
+> equal rules is reported. **Not yet on the My Rules page** (it lists email rules only): owed. Nothing reads the
+> decision yet: the pack's per-event `attend` is sent only once Way A can switch transcription on.
 
 ---
 
@@ -247,6 +258,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | Text corrected after the third review (§2.4, §8, §11 row 3); no behaviour change | (this commit, Nexeo-Builder) |
 | 2026-11-13 | F-2.4 automatic forward by a delegate rule, review P1-1 to P1-6 built (charter safeguards, mirror sha a0868536): only email received after the rule was set and within 7 days; recipient on his company's own domain (the client's users' domains, never a shared provider such as gmail.com); To parsed into exact mailboxes; the daily cap counted on his time-zone day; nothing goes when the count, the rules or his time zone cannot be read; a held send is re-checked at release (rule still active, he may still send). Proof: `tests/f24P1Fixes.test.ts` (13 tests; two reverted fixes each turned a test red). **Still switched OFF** (`RULE_FORWARD_ENABLED=false`); the P1-6 release check is live (D-248), P1-1 to P1-5 are not deployed. Not proven yet: concurrent ticks and a restart, a recipient change during the hold, the receipt before a 'delivered' claim | (this commit, Nexeo-Builder) |
 
+| 2026-11-14 | F-4.2: `rule.set` kind meeting_attend (one rule per match, readable line, Wiki rule note refreshed on set and remove) and its matcher; §8 note. Not on My Rules yet | (this commit, Nexeo-Builder) |
 ---
 
 ## 11. Approved, not built yet (owner approved 13 Nov 2026, 13:44 PKT)

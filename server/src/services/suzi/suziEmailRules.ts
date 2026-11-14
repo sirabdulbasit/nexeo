@@ -39,8 +39,10 @@ async function rulesVersion(clientNumber: string, userId: number): Promise<numbe
 
 export async function ruleSet(clientNumber: string, userId: number, a: Args, confirmed: boolean): Promise<Result> {
   if (!confirmed) return fail('needs_confirmation');
+  // F-4.2 (agreed 13 Nov 2026): meeting-attendance rules share rule.set and rule.remove.
+  if (text(a.kind) === 'meeting_attend') return (await import('./suziMeetingRules')).meetingAttendSet(clientNumber, userId, a, confirmed);
   const kind = text(a.kind) as SuziEmailRule['kind'];
-  if (!KINDS.includes(kind)) return fail('bad_rule', 'kind is email_delegate or email_ignore');
+  if (!KINDS.includes(kind)) return fail('bad_rule', 'kind is email_delegate, email_ignore or meeting_attend');
   const m: any = a.match && typeof a.match === 'object' ? a.match : {};
   const by = text(m.by) as SuziEmailRule['by'];
   let value = text(m.value).toLowerCase().slice(0, 200);
@@ -122,6 +124,7 @@ export async function ruleRemove(clientNumber: string, userId: number, a: Args, 
     return { instructionId: ins };
   });
   if (!removed) return fail('not_found');
+  void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
   // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
   void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
   if (removed.instructionId) {

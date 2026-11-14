@@ -167,8 +167,12 @@ export async function loadRuleRows(clientNumber: string, userId: number): Promis
     const delegate = s.kind === 'email_delegate';
     rows.push({
       kind: delegate ? 'delegation' : 'rule', ids, title: r.name, words: r.nl_original ?? s.note ?? null,
-      appliesTo: s.by === 'sender' ? { email: String(s.value ?? '') } : s.by === 'domain' ? { domain: String(s.value ?? '') } : { text: s.value ? `${s.by ?? 'match'}: ${s.value}` : null },
-      does: delegate ? `Forward to ${s.person_name ?? s.person_email ?? 'the delegate'}${s.person_email ? ` (${s.person_email})` : ''}.` : s.kind === 'email_ignore' ? 'Mark ignored by this rule; send nothing.' : `${r.action_type}`,
+      appliesTo: s.kind === 'meeting_attend'
+        ? (s.by === 'organizer' || s.by === 'attendee' ? { email: String(s.value ?? '') } : { text: s.by === 'title' ? `meeting title contains: ${s.value}` : 'every meeting with a join link' })
+        : s.by === 'sender' ? { email: String(s.value ?? '') } : s.by === 'domain' ? { domain: String(s.value ?? '') } : { text: s.value ? `${s.by ?? 'match'}: ${s.value}` : null },
+      does: delegate ? `Forward to ${s.person_name ?? s.person_email ?? 'the delegate'}${s.person_email ? ` (${s.person_email})` : ''}.` : s.kind === 'email_ignore' ? 'Mark ignored by this rule; send nothing.'
+        : s.kind === 'meeting_attend' ? (s.attend === 'never' ? 'Never take notes at these meetings (F-4.2); never beats always.' : 'Take notes at these meetings (F-4.2), unless a never rule or his choice for that meeting says otherwise.')
+        : `${r.action_type}`,
       status: 'on', setBy: s.by ? 'him (Suzi)' : 'him', setOn: r.created_at, shared: r.scope === 'tenant',
       store: 'user_action_rules', storeId: r.id, extra: { mode: r.mode },
     });
