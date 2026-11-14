@@ -844,3 +844,7 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Tested** on a throwaway PG at 11:21:56, stall and crash cases, mutation-checked. Suite 5317/0.
 
   Relayed to suzi-8f. The switch stays OFF and is the founder's call.
+
+- **14 Nov 16:57:29 PKT, meeting.status target restated (suzi-b5's ask).** The 17:30 PKT target is replaced by a condition: **the founder's go-ahead + his restart**.
+  - That means: his word on who installs the gateway relay ("Nexeo installs it" or "Suzi installs it"); his Mac on 1.2.68 or later (it is on 1.2.65 now, with 1.2.69 offered); then suzi-b5's "go"; then Nexeo-Builder's switch-on deploy.
+  - The relay question was last put to the founder at 12:22:37 PKT and is still open. Nothing has been installed.
