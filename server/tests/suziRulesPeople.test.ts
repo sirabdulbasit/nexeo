@@ -45,14 +45,14 @@ describe('the rules document', () => {
     db({
       bc: { quietStart: '23:00', quietEnd: '07:00', replyLanguage: 'urdu' },
       delegations: [{ area: 'Finance', owner_name: 'A', owner_email: 'a@x', escalate_to_name: 'B' }],
-      actionRules: [{ id: 'r1', name: 'Name', nl_original: null, mode: 'suggest', scope: 'user' }],
+      actionRules: [{ id: 'r1', name: 'Name', nl_original: null, mode: 'suggest', scope: 'user', kind: 'meeting_attend' }],
     });
     instructions.mockResolvedValue([{ id: 'z', title: 'Z title', originalText: null }, { id: 'a', title: 'A title', originalText: 'A words' }]);
     const r = await rulesContent('T', 2);
     expect(r.quiet_hours).toEqual({ start: '23:00', end: '07:00' });
     expect(r.language).toBe('ur');
     expect(r.delegations).toEqual([{ area: 'Finance', owner: 'A', owner_email: 'a@x', escalate_to: 'B' }]);
-    expect(r.action_rules).toEqual([{ id: 'r1', name: 'Name', text: 'Name', mode: 'suggest', scope: 'user' }]);
+    expect(r.action_rules).toEqual([{ id: 'r1', name: 'Name', text: 'Name', mode: 'suggest', scope: 'user', kind: 'meeting_attend' }]); // kind: suzi-b5, 14 Nov
     expect(r.standing).toEqual([{ id: 'a', text: 'A words' }, { id: 'z', text: 'Z title' }]);
     const md = rulesMarkdown(r);
     for (const t of ['23:00 to 07:00', 'Finance: A, escalates to B', 'Name (suggest)', 'A words']) expect(md).toContain(t);

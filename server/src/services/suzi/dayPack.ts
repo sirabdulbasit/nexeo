@@ -22,6 +22,7 @@ import prisma from '../../db/prisma';
 import { buildDayBriefFacts, loadAttentionEmails, localDate, safeTimezone, type BriefBlock, type DayBriefFacts } from './dayBriefFacts';
 import { listPendingActions, type SuziAction } from './suziActions';
 import { toZonedIso } from './zonedTime';
+import { packPeople, readableName as nameFromEmail, meetingsRecorded, type RecordedMeeting } from './packMeetings';
 
 export const DAY_PACK_VERSION = 1;
 export const EMAIL_PREVIEW_MAX = 200;
@@ -29,11 +30,33 @@ export const MAX_BRIEF_BLOCKS = 8;
 
 export interface RawPackEvent {
   eventId?: string; id?: string; title?: string; start?: string; end?: string; isAllDay?: boolean;
-  attendees?: unknown[]; location?: string | null; link?: string | null; hangoutLink?: string | null; status?: string;
+  attendees?: unknown[]; organizer?: unknown; location?: string | null; link?: string | null; hangoutLink?: string | null; status?: string;
 }
+/** Slice 2 (agreed 13 Nov, suzi-b5): name from his contacts, else readable from the address; self on his own. */
+export interface PackAttendee { name: string; email: string; self?: true }
 export interface PackEvent {
   id: string; start: string; end: string | null; all_day: boolean; title: string;
-  attendees: string[]; location: string | null; link: string | null; prep_notes: string | null;
+  attendees: PackAttendee[]; organizer_self: boolean; location: string | null; link: string | null; prep_notes: string | null;
+}
+/** His own addresses (lower-cased) and the names his contacts give addresses, for attendees. */
+export interface PackPeople { own: Set<string>; names: Map<string, string> }
+
+const addrOf = (a: unknown): string => String((a as any)?.email ?? a ?? '').trim().toLowerCase();
+
+function packAttendees(raw: unknown[] | undefined, people: PackPeople): PackAttendee[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: PackAttendee[] = [];
+  for (const a of raw) {
+    const email = addrOf(a);
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    const given = String((a as any)?.displayName ?? (a as any)?.name ?? '').trim();
+    const name = people.names.get(email) || given || nameFromEmail(email) || email;
+    out.push({ name: name.slice(0, 120), email, ...(people.own.has(email) || (a as any)?.self === true ? { self: true as const } : {}) });
+    if (out.length >= 50) break;
+  }
+  return out;
 }
 export interface PackCalendar { today: PackEvent[]; tomorrow: PackEvent[]; rest_of_week: Array<{ id: string; date: string; title: string }> }
 
@@ -53,7 +76,7 @@ export function endOfWeek(day: string): string {
  * Sort synced events into the pack's calendar. `events` must be newest-synced first: the poller
  * can store an event more than once, and the latest copy is the true one.
  */
-export function packCalendar(events: RawPackEvent[], today: string, tz: string, prep: Map<string, string> = new Map()): PackCalendar {
+export function packCalendar(events: RawPackEvent[], today: string, tz: string, prep: Map<string, string> = new Map(), people: PackPeople = { own: new Set(), names: new Map() }): PackCalendar {
   const tomorrow = addDays(today, 1);
   const weekEnd = endOfWeek(today);
   const seen = new Set<string>();
@@ -79,7 +102,8 @@ export function packCalendar(events: RawPackEvent[], today: string, tz: string, 
         end,
         all_day: allDay,
         title: String(e.title || '(no title)').slice(0, 200),
-        attendees: Array.isArray(e.attendees) ? e.attendees.map((a: any) => String(a?.email ?? a)).slice(0, 50) : [],
+        attendees: packAttendees(e.attendees, people),
+        organizer_self: !!addrOf(e.organizer) && people.own.has(addrOf(e.organizer)),
         location: e.location ?? null,
         link: e.hangoutLink ?? e.link ?? null,
         prep_notes: prep.get(id) ?? null,
@@ -192,6 +216,8 @@ export interface DayPack {
   rules_version?: number; rules?: SuziRules; rules_md?: string; people?: SuziPerson[];
   /** F-4.7 Q1 (Nexeo AGREE 13 Nov): his own Meeting Assistant switch. Absent = could not be read. */
   meeting_assistant?: { on: boolean };
+  /** F-4.8 slice 2 (agreed 13 Nov): his meeting records of the last 24 hours. Absent = could not be read. */
+  meetings_recorded?: RecordedMeeting[];
   /** W-1: "How to work with <user>", his own facts learned by Suzi (key -> value). Absent = none yet. */
   profile?: Record<string, unknown>;
 }
@@ -269,6 +295,9 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     events = rows.map((r) => r.p);
   }
   const prep = events.length ? await prepNotes(clientNumber, userId) : new Map<string, string>();
+  // Slice 2: attendee names from his contacts and his own addresses. A read that fails gives readable names only.
+  const addrs = events.flatMap((e) => (Array.isArray(e.attendees) ? e.attendees : []).map((a: any) => String(a?.email ?? a ?? '')));
+  const people = await packPeople(clientNumber, userId, addrs).catch(() => ({ own: new Set<string>(), names: new Map<string, string>() }));
 
   const { actions } = await listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now });
   // The brief already waited up to the cap on this same list; a second wait would double it.
@@ -284,7 +313,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     cursor: now.toISOString(),
     tz,
     date: today,
-    calendar: packCalendar(events, today, tz, prep),
+    calendar: packCalendar(events, today, tz, prep, people),
     actions,
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
     emails: await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
@@ -295,6 +324,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     missing: facts.missing,
     ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
     ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then((on) => ({ meeting_assistant: { on } })).catch(() => ({}))),
+    ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
   };
 }

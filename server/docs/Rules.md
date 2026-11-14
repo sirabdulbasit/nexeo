@@ -228,6 +228,9 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
 `suziRules.ts` builds one versioned rules document for Suzi (Functional Charter row 4), with
 no model involved:
 `{quiet_hours, language, delegations, action_rules, standing}` plus the same content as Markdown.
+Each `action_rules` row carries `kind` (14 Nov, suzi-b5, additive): the Suzi rule kind (`meeting_attend`,
+`email_delegate`, `email_ignore`), else the store's action type. `mode` is the store's executor mode: Suzi's rules are
+kept at DRAFT so the generic executor never fires them, while the rule itself is on (`is_active`).
 `rules_version` goes up only when the content changes. Nexeo decides from its own copy
 when it writes, so an outdated version number on `act` never causes a refusal. Changing these
 fields changes the shared contract, so both sides must agree first (see
@@ -259,6 +262,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-13 | F-2.4 automatic forward by a delegate rule, review P1-1 to P1-6 built (charter safeguards, mirror sha a0868536): only email received after the rule was set and within 7 days; recipient on his company's own domain (the client's users' domains, never a shared provider such as gmail.com); To parsed into exact mailboxes; the daily cap counted on his time-zone day; nothing goes when the count, the rules or his time zone cannot be read; a held send is re-checked at release (rule still active, he may still send). Proof: `tests/f24P1Fixes.test.ts` (13 tests; two reverted fixes each turned a test red). **Still switched OFF** (`RULE_FORWARD_ENABLED=false`); the P1-6 release check is live (D-248), P1-1 to P1-5 are not deployed. Not proven yet: concurrent ticks and a restart, a recipient change during the hold, the receipt before a 'delivered' claim | (this commit, Nexeo-Builder) |
 
 | 2026-11-14 | F-4.2: `rule.set` kind meeting_attend (one rule per match, readable line, Wiki rule note refreshed on set and remove) and its matcher; §8 note. Not on My Rules yet | (this commit, Nexeo-Builder) |
+| 2026-11-14 | `kind` added to each `rules.action_rules` row in Suzi's rules document (§9); the version goes up once because the content changed | (this commit, Nexeo-Builder) |
 ---
 
 ## 11. Approved, not built yet (owner approved 13 Nov 2026, 13:44 PKT)

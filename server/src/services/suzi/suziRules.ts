@@ -17,7 +17,8 @@ export interface SuziRules {
   quiet_hours: { start: string; end: string };
   language: string;
   delegations: Array<{ area: string; owner: string; owner_email: string | null; escalate_to: string | null }>;
-  action_rules: Array<{ id: string; name: string; text: string; mode: string; scope: string }>;
+  /** kind (suzi-b5, 14 Nov, additive): the Suzi rule kind (meeting_attend, email_delegate, email_ignore), else the store's action type. */
+  action_rules: Array<{ id: string; name: string; text: string; mode: string; scope: string; kind: string }>;
   standing: Array<{ id: string; text: string }>;
 }
 export interface RulesDocument { rules_version: number; rules: SuziRules; rules_md: string }
@@ -35,8 +36,8 @@ export async function rulesContent(clientNumber: string, userId: number): Promis
         WHERE client_number = $1 AND is_active = TRUE ORDER BY area`,
       clientNumber,
     ),
-    prisma.$queryRawUnsafe<Array<{ id: unknown; name: string; nl_original: string | null; mode: string; scope: string }>>(
-      `SELECT id, name, nl_original, mode, scope FROM user_action_rules
+    prisma.$queryRawUnsafe<Array<{ id: unknown; name: string; nl_original: string | null; mode: string; scope: string; kind: string | null }>>(
+      `SELECT id, name, nl_original, mode, scope, COALESCE(action_payload->'suzi'->>'kind', action_type) AS kind FROM user_action_rules
         WHERE client_number = $1 AND user_id = $2 AND is_active = TRUE ORDER BY id`,
       clientNumber, userId,
     ),
@@ -48,7 +49,7 @@ export async function rulesContent(clientNumber: string, userId: number): Promis
     quiet_hours: { start: bc.quietStart || '22:00', end: bc.quietEnd || '08:00' },
     language: LANGUAGE_CODES[String(bc.replyLanguage ?? '').toLowerCase()] ?? 'en',
     delegations: delegations.map((d) => ({ area: d.area, owner: d.owner_name, owner_email: d.owner_email, escalate_to: d.escalate_to_name })),
-    action_rules: actionRules.map((r) => ({ id: String(r.id), name: r.name, text: r.nl_original || r.name, mode: r.mode, scope: r.scope })),
+    action_rules: actionRules.map((r) => ({ id: String(r.id), name: r.name, text: r.nl_original || r.name, mode: r.mode, scope: r.scope, kind: String(r.kind ?? '') })),
     // Sorted so the same instructions always give the same version, whatever order they were read in.
     standing: instructions
       .map((i) => ({ id: i.id, text: i.originalText || i.title }))

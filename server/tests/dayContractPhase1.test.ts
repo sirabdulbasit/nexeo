@@ -75,7 +75,7 @@ describe('calendar', () => {
       { eventId: 'old', title: 'Yesterday', start: '2026-11-03T09:30:00+05:00' },
     ], today, KHI, new Map([['uat', 'Prep: bring the sign-off']]));
     expect(c.today.map((e) => e.id)).toEqual(['off', 'uat']);
-    expect(c.today[1]).toEqual({ id: 'uat', start: '2026-11-04T15:00:00+05:00', end: '2026-11-04T16:00:00+05:00', all_day: false, title: 'UAT session', attendees: ['a@x.com', 'b@x.com'], location: null, link: 'https://l', prep_notes: 'Prep: bring the sign-off' });
+    expect(c.today[1]).toEqual({ id: 'uat', start: '2026-11-04T15:00:00+05:00', end: '2026-11-04T16:00:00+05:00', all_day: false, title: 'UAT session', attendees: [{ name: 'A', email: 'a@x.com' }, { name: 'B', email: 'b@x.com' }], organizer_self: false, location: null, link: 'https://l', prep_notes: 'Prep: bring the sign-off' });
     expect(c.today[0]).toMatchObject({ all_day: true, start: '2026-11-04' });
     expect(c.tomorrow[0]).toMatchObject({ id: 'tom', start: '2026-11-05T09:00:00+05:00', location: 'Room 1' });
     expect(c.rest_of_week).toEqual([{ id: 'fri', date: '2026-11-06', title: 'Leadership' }]); // titles only, this week only
