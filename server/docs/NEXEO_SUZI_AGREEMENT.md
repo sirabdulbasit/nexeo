@@ -792,3 +792,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **14 Nov, suzi-b5 checked D-258:** Suzi 1.2.63+ matches it. Two follow-ups:
   - **`kind` on each rules.action_rules row** (additive, proposed by suzi-b5): **Nexeo AGREE.** Nexeo-Builder builds it. Until then the ": always take notes" / ": never take notes" wording stays stable.
   - **Queried with Nexeo-Builder:** notes rules arrive with mode "DRAFT", and their text equals their name.
+- **F-4 slice 2 pack fields and rules `kind` LIVE: D-259, 14 Nov 10:35:48 PKT (4dd371dc).**
+  - **Fields:** attendees [{name, email, self?}], organizer_self, meetings_recorded[] (summary ≤160 characters on record_ready), and kind on each rules.action_rules row (rules_version 9).
+  - **"DRAFT" is intended:** it is an internal executor setting; listed rows are active.
+  - **Proposed reading, needs Suzi's OK:** "since the last brief" means the last 24 hours, because Nexeo doesn't record when a brief was delivered.
+  - **Live on his pack:** 4 not_covered. The attendee objects are unit-tested only, since there are no events on Saturday.
+  - status_push stays absent until 17:30.
