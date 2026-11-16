@@ -948,3 +948,11 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Suzi 1.2.76 (15:01:05 PKT) shows the year when a due isn't in the current year, and adds Done / Change deadline / Assign / Cancel buttons (existing ops).
   - suzi-8f's session has ended; Suzi Master items now go to "Suzi-Master".
   - **Fixed in Suzi 1.2.77 (Suzi Master):** the cause was a placeholder due a year ahead that Suzi stored for due: null. Such tasks now say "no deadline" everywhere, and Change deadline opens empty. Nothing for Nexeo to change.
+
+- **16 Nov, "TMC System Catalogues" cancel (Suzi Master's question).**
+  - calendar.cancel at 10:20:27 UTC: ok (cancelled, attendees_told; Google events.delete with sendUpdates all).
+  - A second call at 10:30:24: not_found, because the event was already cancelled.
+  - He is the organizer; otherwise the answer would be 409 not_organizer.
+  - The repeat alerts were Suzi's, fixed in 1.2.79.
+  - **Gap on Nexeo's side:** a calendar.* op doesn't flag /v1/changes "calendar" (it flags only on calendar feed_events, of which there are 0 today, or on meeting_records changes).
+  - **PROPOSED to Suzi Master, awaiting AGREE:** flag "calendar" after a successful calendar.cancel, update or create.
