@@ -58,7 +58,28 @@ export async function cardTruth<T extends Card & { itemType?: string; subject: s
 ): Promise<T[]> {
   const { markInviteResponses } = await import('./inviteResponses');
   await markInviteResponses(items.map((i) => { if (!i.itemType) (i as any).itemType = 'email'; return i as any; }), userId).catch(() => undefined);
-  const keep = items.filter((i) => !(i.inviteResponse && i.inviteResponse !== 'needsAction'));
+  const now = new Date();
+  const keep = items.filter((i) => !(i.inviteResponse && i.inviteResponse !== 'needsAction') && !pastCalendarNotice(i.subject, now));
   await applyOpenItems(keep, clientNumber, userId).catch(() => undefined);
   return keep;
+}
+
+/**
+ * DEF-485 (CL-094, 16 Nov 2026): Google's calendar notice for a meeting that is already over needs nothing from him.
+ * "Proposed new time: TMC System Catalogues @ Fri Nov 13, 2026 3:30pm…" still sat in his emails needing a reply three
+ * days later. A notice (Invitation, Updated invitation, Proposed new time, Accepted, Declined, Tentatively accepted,
+ * Canceled event) whose own date in the subject is before today is left out. A subject without a readable date stays.
+ */
+const NOTICE = /^\s*(updated\s+invitation|invitation|proposed\s+new\s+time|accepted|declined|tentatively\s+accepted|cancell?ed\s+event|new\s+event)(\s+with\s+note)?\s*:/i;
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+export function pastCalendarNotice(subject: string | null | undefined, now: Date): boolean {
+  const s = String(subject ?? '');
+  if (!NOTICE.test(s)) return false;
+  const m = s.match(/@\s+(?:[A-Za-z]{3},?\s+)?([A-Za-z]{3})[a-z]*\.?\s+(\d{1,2}),?\s+(\d{4})/);
+  if (!m) return false;
+  const month = MONTHS.indexOf(m[1].toLowerCase());
+  if (month < 0) return false;
+  const day = Date.UTC(Number(m[3]), month, Number(m[2]));
+  // His day ends at most 14 hours after UTC's; the notice is past only once its whole day is over everywhere.
+  return day + 24 * 3600_000 + 14 * 3600_000 < now.getTime();
 }
