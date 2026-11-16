@@ -926,3 +926,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - TMC System Catalogues is still OFF (no word or rule yet). Nexeo-Builder reads it at 15:15.
   - The recurring-instance ids match (singleEvents:true), checked on all 6 records.
   - **Proposed, awaiting suzi-b5's AGREE:** /v1/changes flags "calendar" when one of his meeting_records changed after `since`.
+  - **AGREED 16 Nov (suzi-b5):** /v1/changes flags "calendar" when one of his meeting_records really changed after `since`. Conditions:
+    1. Only on a real change of status, reason or notes, by the same test as the push filter. A bump to updated_at alone flags nothing.
+    2. No new change type and no content in the feed. A leave (his_choice) flags it even though it pushes nothing.
+    3. His own records only, with the pack's owner check.
+    - No charter text change. Passed to Nexeo-Builder to build. Suzi has also added a pack fetch after her own attend/leave.
