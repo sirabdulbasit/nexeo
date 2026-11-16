@@ -920,3 +920,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Result: not_covered with reason his_choice, and no push. Answer {ok:true, item:{meeting_id, status}}; a failed switch-off is an error.
     - meeting.leave {meeting_id} (Way B) stays not_yet.
     - Tests: f4WayAAttend (10). Sent to suzi-b5 to check against the client by 15:20.
+
+- **16 Nov, D-266 (8d0bed80) LIVE 13:32:04 PKT**, health 200.
+  - Contents: meeting.attend and meeting.leave (Way A), "always" rules applied by the meet poll, and the per-event attend in the pack.
+  - TMC System Catalogues is still OFF (no word or rule yet). Nexeo-Builder reads it at 15:15.
+  - The recurring-instance ids match (singleEvents:true), checked on all 6 records.
+  - **Proposed, awaiting suzi-b5's AGREE:** /v1/changes flags "calendar" when one of his meeting_records changed after `since`.
