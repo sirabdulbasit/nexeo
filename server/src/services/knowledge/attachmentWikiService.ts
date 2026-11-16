@@ -193,6 +193,19 @@ async function upsertAttachmentPage(p: UpsertParams): Promise<string | null> {
       });
       pageId = created.id;
     }
+    // The Wiki holds the attachment as a source (Wiki-Knowledge §0.13 part 11). A failure here is
+    // caught up by the hourly reconcile, which lands every attachment page the Wiki does not hold.
+    try {
+      const { landAttachment } = await import('../wiki/wikiDocuments');
+      await landAttachment({
+        clientNumber: p.clientNumber, userId: p.userId, gmailMessageId: p.gmailMessageId, feedEventId: p.feedEventId,
+        filename: p.filename, mimeType: p.mimeType, size: p.size, pageCount: p.extracted.pageCount ?? null,
+        truncated: p.extracted.truncated, senderEmail: p.senderEmail, subject: p.subject ?? null,
+        receivedAt: p.receivedAt, text: p.extracted.text,
+      });
+    } catch (err: any) {
+      log.warn('attachment source landing failed (reconcile will retry)', { title, error: err?.message });
+    }
     // Embed this attachment so Brain can find it by semantic match
     // (a transcript about "CBL demo" will match a question about "demo
     // system" without any keyword decomposition).

@@ -368,6 +368,10 @@ These are not integrations, but they write to his Google Calendar and to stores 
   - Company-wide scope is admin-only. Remove archives the instruction; it never deletes it.
 - Every answer carries the new `rules_version`.
 
+## 2g. What the Wiki reads from integrations (Wiki session, 16 Nov 2026)
+
+The Wiki reads integration output; it changes nothing in the integration engine. Every hour (`wikiSystems.ts`, run after the notes): a shared `system` note per row of `integration_syncs` (name, purpose, state, last run, its KPIs); a shared `kpi` note per `kpi_definitions` row (unit, grain, direction, latest figure, last 12 periods, a table by business unit); a shared `business_unit` note per business unit named in `kpi_readings.dimension_key` (`businessUnit=…`). Each KPI's readings are landed as one company `record` source (`kpi:<key>`) that those notes cite. Context pages written by `contextWriter` stay that writer's own. Detail: Wiki-Knowledge.md §0.13.8.
+
 ## 3. Rules carried from vm §8/§9 (each pinned by a test that fails when weakened)
 
 Blank never overwrites · identity/account fields unwritable · proposable ≠ writable (approval is

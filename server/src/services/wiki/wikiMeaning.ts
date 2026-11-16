@@ -22,6 +22,7 @@ import { listSources, type Source } from './wikiSources';
 import { marksOf, markSource } from './wikiMarks';
 import { writeNote, retireNote, WIKI_GENERATION } from './wikiStore';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
+import { prunedAndUnchanged } from './wikiSync';
 
 export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
@@ -350,8 +351,24 @@ export function buildMeaningNotes(
     if (dropped.has(a)) continue;
     for (let j = i + 1; j < commitments.length; j += 1) {
       const b = commitments[j];
-      if (dropped.has(b) || (a.properties as any).owner !== (b.properties as any).owner) continue;
-      if (sameTask(String((a.properties as any).what ?? a.title), String((b.properties as any).what ?? b.title)) < 0.6) continue;
+      if (dropped.has(b)) continue;
+      const likeness = sameTask(String((a.properties as any).what ?? a.title), String((b.properties as any).what ?? b.title));
+      if ((a.properties as any).owner !== (b.properties as any).owner) {
+        // A later conversation that says the task was done (without naming who did it) closes it, unless
+        // he keeps it open in his Action Center (his word wins).
+        const [older, newer] = String((a.properties as any).lastActivity ?? '') <= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
+        const po = older.properties as any; const pn = newer.properties as any;
+        const closes = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75;
+        if (!closes) continue;
+        older.properties = { ...po, state: pn.state, openNow: false, closedIn: pn.conversation ?? null, lastActivity: pn.lastActivity ?? po.lastActivity };
+        older.body = older.body.replace(/\*\*State:\*\* .*/, `**State:** ${pn.state} (said in a later conversation, ${pn.lastActivity ?? ''})`);
+        older.sourceIds = [...new Set([...(older.sourceIds ?? []), ...(newer.sourceIds ?? [])])];
+        dropped.add(newer);
+        rename.set(titleKey(newer.title), older.title);
+        if (newer === a) break;
+        continue;
+      }
+      if (likeness < 0.6) continue;
       const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
       keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
       // His word on either copy holds for the one note.
@@ -457,7 +474,8 @@ export async function rebuildMeaningForUser(
   for (const c of convs) {
     const anchor = c.sources[c.sources.length - 1].id;
     const fp = fingerprint(c);
-    const mark = (held.get(anchor) ?? []).find((m) => m.kind === 'meaning');
+    // The conversation's own reading (no key); a company's name is a keyed meaning mark of its own.
+    const mark = (held.get(anchor) ?? []).find((m) => m.kind === 'meaning' && !m.key);
     if (mark && (mark.value as any).fingerprint === fp) {
       items.push({ conv: c, ex: (mark.value as any).extracted as Extracted });
       cached += 1;
@@ -478,6 +496,12 @@ export async function rebuildMeaningForUser(
       }
     }));
   }
+  // Recorded meetings: their decisions and action items, as the Meeting Assistant derived them (part 11).
+  try {
+    const { transcriptSources, meetingExtractions } = await import('./wikiTranscripts');
+    const me = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
+    for (const m of meetingExtractions(await transcriptSources(clientNumber, userId), { ownEmails, userName: me?.name ?? null })) items.push(m as any);
+  } catch { failed += 1; /* the email meaning stands without them; nothing is retired this run */ }
   items.sort((a, b) => b.conv.last.getTime() - a.conv.last.getTime());
 
   const people = await prisma.wikiPage.findMany({
@@ -500,7 +524,8 @@ export async function rebuildMeaningForUser(
     for (const n of notes) {
       const have: any = byKey.get(`${n.type}|${cleanTitle(n.title)}`);
       // Unchanged, and every link already reaches its note: nothing to write.
-      if (have && have.status === 'active' && have.bodyMarkdown === n.body && !(have.metadata?.unresolvedLinks ?? []).length && !(have.metadata?.ambiguousLinks ?? []).length) { kept.add(have.id); continue; }
+      if ((have && have.status === 'active' && have.bodyMarkdown === n.body && !(have.metadata?.unresolvedLinks ?? []).length && !(have.metadata?.ambiguousLinks ?? []).length)
+        || prunedAndUnchanged(have, n.body)) { kept.add(have.id); continue; }
       const r = await writeNote({ ...n, clientNumber, userId, actor: MEANING_ACTOR, exact: true });
       kept.add(r.id);
       written += 1;

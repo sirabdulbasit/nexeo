@@ -24,6 +24,8 @@ import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { writeNote, retireNote, mergeNotes, citeSources, listSources, normalizeIds, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
+import { prunedAndUnchanged } from './wikiSync';
+
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
 const BIG_MEETING = 25;
@@ -46,6 +48,8 @@ export interface BuildContext {
   now?: Date;
   /** Groups of addresses the user has said are one person (`email:a@x.com`); the only merge that needs no other evidence. */
   confirmedSame?: string[][];
+  /** A company's real name by its address domain, where it is known (wikiCompanyNames). */
+  companyNames?: Map<string, string>;
 }
 
 export type BuiltNote = Omit<NoteInput, 'clientNumber' | 'userId' | 'actor'>;
@@ -260,6 +264,8 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     link: string | null; description: string | null; big: boolean; sources: Array<{ id: string; at: Date }>;
     /** The calendar series behind it (Google's event id without the instance suffix): its permanent identity. */
     series: Set<string>;
+    /** What the Meeting Assistant recorded of its occurrences (minutes, decisions, action items). */
+    transcripts: Array<{ at: Date; minutes: string | null; decisions: string[]; actionItems: Array<{ title: string; ownerName?: string | null; state?: string }> }>;
   }
   const meetings = new Map<string, MeetingDraft>();
   const seenOccurrences = new Set<string>();
@@ -276,7 +282,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const occurrence = `${key}|${it.payload.eventId ?? ''}|${when.toISOString()}`;
     const repeat = seenOccurrences.has(occurrence);
     seenOccurrences.add(occurrence);
-    const m = meetings.get(key) ?? { title, dates: [], attendees: new Set<string>(), organizers: new Set<string>(), link: null, description: null, big: false, sources: [], series: new Set<string>() };
+    const m = meetings.get(key) ?? { title, dates: [], attendees: new Set<string>(), organizers: new Set<string>(), link: null, description: null, big: false, sources: [], series: new Set<string>(), transcripts: [] };
     if (!repeat) m.dates.push(when);
     m.sources.push({ id: it.id, at: when });
     // A recurring event's instances are `<series>_<start>`: the series is the meeting's identity.
@@ -315,10 +321,32 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       into.link = into.link ?? m.link;
       into.description = into.description ?? m.description;
       for (const x of m.series) into.series.add(x);
+      into.transcripts.push(...m.transcripts);
       meetings.set(key, into);
     }
     const owner = into ?? m;
     for (const x of owner.series) bySeries.set(x, owner);
+  }
+  // Transcripts (the Meeting Assistant's records) belong to their meeting: by its calendar series, else
+  // by its title. A recorded meeting with no calendar entry is a meeting note of its own.
+  for (const it of items) {
+    if (it.sourceType !== 'meet_transcript') continue;
+    const series = it.payload.series ? String(it.payload.series) : null;
+    const title = noteTitle(String(it.payload.title ?? '')) || `Meeting on ${day(it.at)}`;
+    let m = (series ? bySeries.get(series) : undefined) ?? meetings.get(titleKey(title));
+    if (!m) {
+      m = { title, dates: [it.at], attendees: new Set<string>(), organizers: new Set<string>(), link: null, description: null, big: false, sources: [], series: new Set<string>(series ? [series] : []), transcripts: [] };
+      for (const p of Array.isArray(it.payload.people) ? it.payload.people : []) if (p?.email && isOther(String(p.email))) m.attendees.add(String(p.email).toLowerCase());
+      meetings.set(titleKey(title), m);
+      if (series) bySeries.set(series, m);
+    }
+    m.sources.push({ id: it.id, at: it.at });
+    m.transcripts.push({
+      at: it.at,
+      minutes: it.payload.minutes ? String(it.payload.minutes) : null,
+      decisions: Array.isArray(it.payload.decisions) ? it.payload.decisions.map(String) : [],
+      actionItems: Array.isArray(it.payload.actionItems) ? it.payload.actionItems : [],
+    });
   }
   interface GroupDraft { title: string; space: string; members: Map<string, number>; messages: number; last: Date; sources: Array<{ id: string; at: Date }> }
   const groups = new Map<string, GroupDraft>();
@@ -482,6 +510,12 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const work = [...p.emails.entries()].filter(([e]) => !GENERIC_DOMAINS.has(domainOf(e))).sort((a, b) => b[1] - a[1])[0];
     return work ? top(orgDomains.get(orgLabel(domainOf(work[0])))!)! : null;
   };
+  // A company is titled by its real name when it is known, else by its domain (which stays an alias).
+  const companyTitle = (domain: string): string => {
+    const all = [...(orgDomains.get(orgLabel(domain))?.keys() ?? [domain])].sort();
+    const named = [domain, ...all].map((d) => ctx.companyNames?.get(d)).find(Boolean);
+    return named ? noteTitle(named) || domain : domain;
+  };
   const companies = new Map<string, Set<string>>();
   // A company's trail is its people's: every email, meeting and chat the user had with them.
   const companySources = new Map<string, Array<{ id: string; at: Date }>>();
@@ -497,9 +531,10 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const domains = [...orgDomains.get(orgLabel(domain))!.keys()].sort();
     notes.push({
       type: 'company',
-      title: domain,
+      title: companyTitle(domain),
+      ...(companyTitle(domain) !== domain ? { aliases: [domain] } : {}),
       body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`)].join('\n'),
-      properties: { domains, people: names.length },
+      properties: { domains, people: names.length, ...(companyTitle(domain) !== domain ? { name: companyTitle(domain) } : {}) },
       ids: domains.map((d) => `domain:${d}`),
       sourceIds: citedSources(companySources.get(domain) ?? []),
     });
@@ -510,7 +545,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const phone = emails.map((e) => ctx.knownPhones?.get(e)).find(Boolean) ?? null;
     const company = companyOf(p);
     const lines: string[] = [];
-    if (company) lines.push(`**Company:** ${wikiLink(company)}`);
+    if (company) lines.push(`**Company:** ${wikiLink(companyTitle(company))}`);
     if (emails.length) lines.push(`**Email:** ${emails.join(', ')}`);
     if (phone) lines.push(`**Phone:** ${phone}`);
     lines.push(`**Last contact:** ${day(p.last)}`);
@@ -587,6 +622,17 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     if (m.big) lines.push(`A large meeting (more than ${BIG_MEETING} invited); attendees are not listed.`);
     if (attendees.length) lines.push('', '## Attendees', ...attendees.map((t) => `- ${wikiLink(t)}`));
     if (m.description) lines.push('', '## Description', m.description);
+    const recorded = [...m.transcripts].sort((a, b) => b.at.getTime() - a.at.getTime() || 0);
+    if (recorded.length) {
+      lines.push('', '## Meeting notes');
+      for (const t of recorded.slice(0, LIST_LIMIT)) {
+        lines.push('', `### ${day(t.at)}`);
+        if (t.minutes) lines.push(t.minutes.replace(/\[\[|\]\]/g, '').slice(0, 1500));
+        if (t.decisions.length) lines.push('', '**Decided:**', ...t.decisions.map((d) => `- ${d.replace(/\[\[|\]\]/g, '')}`));
+        if (t.actionItems.length) lines.push('', '**Action items:**', ...t.actionItems.map((a) => `- ${String(a.title).replace(/\[\[|\]\]/g, '')}${a.ownerName ? ` (${a.ownerName})` : ''}${a.state && a.state !== 'proposed' ? ` — ${a.state}` : ' — proposed'}`));
+      }
+      lines.push(...more(recorded.length));
+    }
     notes.push({
       type: 'meeting',
       title: m.title,
@@ -594,6 +640,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       properties: {
         occurrences: dates.length, firstOn: day(dates[0]), lastOn: day(dates[dates.length - 1]),
         nextOn: next ? day(next) : null, link: m.link, attendees: attendees.length,
+        ...(recorded.length ? { recorded: recorded.length } : {}),
       },
       ...(m.series.size ? { ids: [...m.series].sort().map((e) => `event:${e}`) } : {}),
       sourceIds: citedSources(m.sources),
@@ -606,14 +653,14 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
 }
 
 /** The kind of a source, as the feed type the builder reads. */
-const FEED_TYPE: Record<string, string> = { email: 'gmail', calendar: 'gcal', chat: 'gchat' };
+const FEED_TYPE: Record<string, string> = { email: 'gmail', calendar: 'gcal', chat: 'gchat', transcript: 'meet_transcript' };
 
 /**
  * Load what the Wiki holds for one user: its sources, which outlast the feed
  * queue (a fetched item is pruned after 30 days; its source stays).
  */
 export async function loadStoredItems(clientNumber: string, userId: number): Promise<StoredItem[]> {
-  const sources = await listSources(clientNumber, userId, ['email', 'calendar', 'chat']);
+  const sources = await listSources(clientNumber, userId, ['email', 'calendar', 'chat', 'transcript']);
   return sources.map((s) => ({
     id: s.id,
     sourceType: FEED_TYPE[s.kind],
@@ -621,6 +668,7 @@ export async function loadStoredItems(clientNumber: string, userId: number): Pro
     payload: {
       ...s.details,
       ...(s.kind === 'email' ? { threadId: s.threadKey ?? s.details.threadId, subject: s.title ?? s.details.subject } : {}),
+      ...(s.kind === 'transcript' ? { title: s.title ?? s.details.title } : {}),
     },
   }));
 }
@@ -648,7 +696,9 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
     const groups = (p.metadata as any)?.confirmedSame;
     if (Array.isArray(groups)) for (const g of groups) if (Array.isArray(g) && g.length > 1) confirmedSame.push(g.map(String));
   }
-  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame };
+  const { loadCompanyNames } = await import('./wikiCompanyNames');
+  const companyNames = await loadCompanyNames(clientNumber, userId).catch(() => new Map<string, string>());
+  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames };
 }
 
 export interface RebuildResult {
@@ -669,6 +719,15 @@ export interface RebuildResult {
   rules?: { rules: number; written: number; unchanged: number; retired: number } | { error: string } | null;
   /** The meaning notes built with them (null on a dry run). */
   meaning?: { read: number; cached: number; failed: number; written: number; retired: number } | { error: string } | null;
+  /** Part 11 and 13, each reported on its own (null on a dry run). */
+  companies?: { read: number; named: number; failed: number } | { error: string } | null;
+  documents?: { notes: number; written: number; retired: number } | { error: string } | null;
+  upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
+}
+
+/** A step of the build that must not undo the steps before it: its failure is reported, not thrown. */
+async function step<T>(run: () => Promise<T>): Promise<T | { error: string }> {
+  try { return await run(); } catch (err: any) { return { error: String(err?.message ?? err).slice(0, 200) }; }
 }
 
 function sameProperties(stored: unknown, built: Record<string, unknown> | undefined): boolean {
@@ -687,6 +746,15 @@ export async function rebuildWikiForUser(
   userId: number,
   opts: { dryRun?: boolean } = {},
 ): Promise<RebuildResult> {
+  // A company's real name is read before the build that titles it (at most a few new companies per run).
+  let companies: RebuildResult['companies'] = null;
+  if (!opts.dryRun) {
+    companies = await step(async () => {
+      const { nameCompanies } = await import('./wikiCompanyNames');
+      const c = await nameCompanies(clientNumber, userId, { limit: COMPANY_NAMES_PER_RUN });
+      return { read: c.read, named: c.named, failed: c.failed };
+    });
+  }
   const [items, ctx] = await Promise.all([loadStoredItems(clientNumber, userId), loadContext(clientNumber, userId)]);
   const notes = buildNotes(items, ctx);
   const byType: Record<string, number> = {};
@@ -709,6 +777,8 @@ export async function rebuildWikiForUser(
     const kept = new Set<string>();
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
+      // Archived by the daily upkeep and nothing new about it: it stays archived (part 13).
+      if (prunedAndUnchanged(have, n.body)) { unchanged += 1; kept.add(have.id); continue; }
       if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length && sameIds(have.metadata?.ids, n.ids)
         // A note written before notes had a revision is written once more, so its links are re-read
         // by the present rules (only live notes, nothing ambiguous) and it carries a revision.
@@ -773,17 +843,50 @@ export async function rebuildWikiForUser(
       meaning = { error: String(err?.message ?? err).slice(0, 200) };
     }
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning };
+  // Documents (attachments) after the meaning notes, so a document links to the projects it came in.
+  let documents: RebuildResult['documents'] = null;
+  let upkeep: RebuildResult['upkeep'] = null;
+  if (!opts.dryRun) {
+    documents = await step(async () => {
+      const { rebuildDocumentsForUser } = await import('./wikiDocuments');
+      const d = await rebuildDocumentsForUser(clientNumber, userId);
+      return { notes: d.notes, written: d.written, retired: d.retired };
+    });
+    // The upkeep runs once a day, after the day's first build.
+    upkeep = await step(async () => {
+      const { runUpkeepForUser, upkeepDoneToday } = await import('./wikiUpkeep');
+      if (await upkeepDoneToday(clientNumber, userId)) return { skipped: 'done today' as const };
+      const u = await runUpkeepForUser(clientNumber, userId);
+      return { archived: u.archived, staled: u.staled, freshened: u.freshened, restored: u.restored };
+    });
+  }
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep };
 }
+
+/** Company names read by the model per user per build, at most. */
+const COMPANY_NAMES_PER_RUN = 10;
 
 /** Conversations the model reads per user per build, at most (about $0.001 each on Gemini Flash). */
 const MEANING_PER_RUN = 60;
 
 /** Build the notes for every active user, one after another. */
-export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; meaning: RebuildResult['meaning']; error?: string }>> {
+export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; meaning: RebuildResult['meaning']; companies?: RebuildResult['companies']; documents?: RebuildResult['documents']; upkeep?: RebuildResult['upkeep']; systems?: unknown; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
-  const results = await forEachActiveUser((clientNumber, userId) => rebuildWikiForUser(clientNumber, userId));
+  const clients = new Set<string>();
+  const results = await forEachActiveUser((clientNumber, userId) => { clients.add(clientNumber); return rebuildWikiForUser(clientNumber, userId); });
+  // The company's own notes (systems, KPIs, business units), once per client.
+  const systems = new Map<string, unknown>();
+  for (const c of clients) {
+    systems.set(c, await step(async () => {
+      const { rebuildSystemsForClient } = await import('./wikiSystems');
+      return rebuildSystemsForClient(c);
+    }));
+  }
   return results.map((r) => ({
+    companies: r.result?.companies ?? null,
+    documents: r.result?.documents ?? null,
+    upkeep: r.result?.upkeep ?? null,
+    systems: systems.get((r as any).clientNumber) ?? null,
     userId: r.userId,
     written: r.result?.written ?? 0,
     created: r.result?.created ?? 0,

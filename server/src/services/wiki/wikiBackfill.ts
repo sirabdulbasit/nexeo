@@ -30,6 +30,11 @@ export interface ReconcileResult {
   landed: number;
   /** Emails whose full text the Wiki did not hold, landed now. */
   emailTexts: number;
+  /** Meeting transcripts landed now, and transcript sources removed because their record was deleted. */
+  transcripts?: number;
+  transcriptsRemoved?: number;
+  /** Attachments (documents) landed now. */
+  attachments?: number;
   failed: number;
   /** The first few failures, in words. */
   errors: string[];
@@ -163,6 +168,17 @@ export async function reconcileSources(clientNumber: string, userId: number): Pr
   try {
     out.emailTexts = await landMissingEmailTexts(clientNumber, userId, null, fail);
   } catch (err) { fail('email texts', err); }
+  // Part 11: meeting transcripts and attachments, from the stores that read them.
+  try {
+    const { landTranscripts } = await import('./wikiTranscripts');
+    const t = await landTranscripts(clientNumber, userId);
+    out.transcripts = t.landed;
+    out.transcriptsRemoved = t.removed;
+  } catch (err) { fail('transcripts', err); }
+  try {
+    const { landAttachmentsFromPages } = await import('./wikiDocuments');
+    out.attachments = (await landAttachmentsFromPages(clientNumber, userId)).landed;
+  } catch (err) { fail('attachments', err); }
   return out;
 }
 

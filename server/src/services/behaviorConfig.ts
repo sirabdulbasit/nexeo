@@ -285,6 +285,17 @@ export const BEHAVIOR_SPECS: Record<string, BehaviorSpec> = {
     key: 'integrations.max_rows', unit: 'count', def: 50000, min: 100, max: 500000, scope: 'tenant',
     description: 'DEF-354. Most data rows one read keeps. Rows past the cap are not read and the result is marked truncated, so a run never silently plans on part of a sheet.',
   },
+  // ── Wiki upkeep (Wiki-Knowledge §0.13 part 13, §7) ─────────────────
+  // First guesses, to be set from the rebuilt Wiki: how long a note with no links and one source may sit
+  // untouched before it is archived, and how long without a new source before it is marked stale.
+  'wiki.orphan_days': {
+    key: 'wiki.orphan_days', unit: 'days', def: 30, min: 7, max: 365, scope: 'tenant',
+    description: 'Wiki upkeep. A note with no links in or out and at most one source, whose newest source is older than this, is archived (restorable; its source and citation are kept).',
+  },
+  'wiki.stale_days': {
+    key: 'wiki.stale_days', unit: 'days', def: 90, min: 14, max: 730, scope: 'tenant',
+    description: 'Wiki upkeep. A note with no new source for this long and nothing open against it is marked stale: left out of what Think is given by default, nothing removed.',
+  },
   'integrations.max_concurrent_runs': {
     key: 'integrations.max_concurrent_runs', unit: 'count', def: 2, min: 1, max: 10, scope: 'tenant',
     description: 'DEF-354. How many scheduled integration runs the dispatcher starts at once. Slots beyond it wait for the next tick; the per-integration mutex is separate and always one.',
