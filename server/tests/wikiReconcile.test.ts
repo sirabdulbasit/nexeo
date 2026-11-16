@@ -61,6 +61,7 @@ vi.mock('../src/db/prisma', () => {
 // Part 11 landers (transcripts, attachments) read stores this fake does not hold; they have their own tests.
 vi.mock('../src/services/wiki/wikiTranscripts', () => ({ landTranscripts: async () => ({ records: 0, landed: 0, removed: 0 }) }));
 vi.mock('../src/services/wiki/wikiDocuments', () => ({ landAttachmentsFromPages: async () => ({ pages: 0, landed: 0 }) }));
+vi.mock('../src/services/wiki/wikiConversations', () => ({ landConversations: async () => ({ days: 0, landed: 0 }) }));
 
 vi.mock('../src/services/wiki/wikiSources', async (orig) => {
   const real: any = await orig();

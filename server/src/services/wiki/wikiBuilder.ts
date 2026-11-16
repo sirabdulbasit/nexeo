@@ -735,6 +735,7 @@ export interface RebuildResult {
   companies?: { read: number; named: number; failed: number } | { error: string } | null;
   documents?: { notes: number; written: number; retired: number; judged?: { asked: number; same: number; failed: number; left: number } } | { error: string } | null;
   learned?: { rows: number; written: number; retired: number } | { error: string } | null;
+  conversations?: { notes: number; written: number; retired: number } | { error: string } | null;
   upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
 }
 
@@ -847,12 +848,18 @@ export async function rebuildWikiForUser(
   let documents: RebuildResult['documents'] = null;
   let upkeep: RebuildResult['upkeep'] = null;
   let learned: RebuildResult['learned'] = null;
+  let conversations: RebuildResult['conversations'] = null;
   if (!opts.dryRun) {
     // What Nexeo and Suzi learned from him (owner, 16 Nov: all information is in the Wiki).
     learned = await step(async () => {
       const { rebuildLearnedForUser } = await import('./wikiLearned');
       const l = await rebuildLearnedForUser(clientNumber, userId);
       return { rows: l.rows, written: l.written, retired: l.retired };
+    });
+    conversations = await step(async () => {
+      const { rebuildConversationsForUser } = await import('./wikiConversations');
+      const c = await rebuildConversationsForUser(clientNumber, userId);
+      return { notes: c.notes, written: c.written, retired: c.retired };
     });
     documents = await step(async () => {
       const { rebuildDocumentsForUser } = await import('./wikiDocuments');
@@ -867,7 +874,7 @@ export async function rebuildWikiForUser(
       return { archived: u.archived, staled: u.staled, freshened: u.freshened, restored: u.restored };
     });
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep, learned };
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep, learned, conversations };
 }
 
 /** Company names read by the model per user per build, at most. */

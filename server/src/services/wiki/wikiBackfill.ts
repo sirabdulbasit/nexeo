@@ -35,6 +35,8 @@ export interface ReconcileResult {
   transcriptsRemoved?: number;
   /** Attachments (documents) landed now. */
   attachments?: number;
+  /** Days of his conversation with Nexeo landed now. */
+  conversations?: number;
   failed: number;
   /** The first few failures, in words. */
   errors: string[];
@@ -179,6 +181,11 @@ export async function reconcileSources(clientNumber: string, userId: number): Pr
     const { landAttachmentsFromPages } = await import('./wikiDocuments');
     out.attachments = (await landAttachmentsFromPages(clientNumber, userId)).landed;
   } catch (err) { fail('attachments', err); }
+  // His conversations with Nexeo, a source per day (owner, 16 Nov: all information is in the Wiki).
+  try {
+    const { landConversations } = await import('./wikiConversations');
+    out.conversations = (await landConversations(clientNumber, userId)).landed;
+  } catch (err) { fail('conversations', err); }
   return out;
 }
 

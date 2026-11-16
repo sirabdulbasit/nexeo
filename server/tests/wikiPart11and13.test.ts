@@ -831,3 +831,32 @@ describe('learned notes settle on a repeat run', () => {
     expect(n.body).toContain('**Confidence:** 85%');
   });
 });
+
+describe('his conversations with Nexeo are in the Wiki (owner, 16 Nov)', () => {
+  it('one private source per day of his own time, in order, with what Nexeo sent unprompted; a note per month citing its days', async () => {
+    const { conversationDays, buildConversationNotes, dayOf } = await import('../src/services/wiki/wikiConversations');
+    const at = (s: string) => new Date(s);
+    const days = conversationDays('T-1', 2, [
+      { at: at('2026-11-10T13:54:00Z'), who: 'nexeo', text: 'I can listen to your voice notes.' },
+      { at: at('2026-11-10T13:53:00Z'), who: 'him', text: 'Can u listen r send voice note?' },
+      { at: at('2026-11-10T04:00:00Z'), who: 'nexeo', text: 'Day Brief: 3 things need you.', unprompted: 'day_brief' },
+      { at: at('2026-11-10T20:30:00Z'), who: 'him', text: 'remind me tomorrow' }, // 01:30 on the 11th, his time
+      { at: at('2026-11-10T13:55:00Z'), who: 'him', text: '   ' },
+    ]);
+    expect(days.map((d) => d.externalId)).toEqual(['nexeo:2:2026-11-10', 'nexeo:2:2026-11-11']);
+    expect(dayOf(at('2026-11-10T20:30:00Z'))).toBe('2026-11-11');
+    expect(days[0].kind).toBe('conversation');
+    expect(days[0].scope).toBeUndefined();
+    expect(String(days[0].body).split('\n')).toEqual([
+      '09:00 Nexeo (day brief): Day Brief: 3 things need you.',
+      '18:53 He: Can u listen r send voice note?',
+      '18:54 Nexeo: I can listen to your voice notes.',
+    ]);
+    expect(days[0].details).toMatchObject({ turns: 3, his: 1, nexeo: 2, unprompted: 1 });
+    const notes = buildConversationNotes([{ id: 's1', day: '2026-11-10', his: 1, nexeo: 2, unprompted: 1 }, { id: 's2', day: '2026-11-11', his: 1, nexeo: 0, unprompted: 0 }, { id: 's0', day: '2026-10-30', his: 4, nexeo: 4, unprompted: 0 }]);
+    expect(notes.map((n) => n.title)).toEqual(['Conversations with Nexeo, 2026-10', 'Conversations with Nexeo, 2026-11']);
+    expect(notes[1].sourceIds).toEqual(['s1', 's2']);
+    expect(notes[1].properties).toMatchObject({ days: 2, his: 2, nexeo: 2, unprompted: 1 });
+    expect(notes[1].body).not.toContain('voice note');
+  });
+});
