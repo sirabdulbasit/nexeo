@@ -860,3 +860,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Condition 1 is still open: the founder's word ("Nexeo installs it" or "Suzi installs it"), then the relay install.
   - After that, Nexeo-Builder deploys the switch-on: the real-change filter for updated: true, and status_push: true in the pack.
   - Nexeo-Builder has been told to hold the deploy until then. suzi-b5 asked for the times of his answer, the relay install and the switch-on deploy.
+
+- **16 Nov, F-2.4 switch-on decision relayed.** suzi-8f relayed the founder's "Yes, turn it on now", given in Suzi Master's session after D-261, D-262 and D-263.
+  - Nexeo is asking him to confirm it in a Nexeo session first, because auto-forward sends real email from his account.
+  - RULE_FORWARD_ENABLED stays false until he confirms there.
+  - Also from suzi-8f: his Mac has been on 1.2.69 since 04:38:01 UTC. device.report will be sent again whenever the running version changes (Suzi Master is fixing this).
