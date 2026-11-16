@@ -602,7 +602,7 @@ Its verdict: small progress, no score change; identity errors remain; Wiki-first
 | HIGH 7 Wiki-first behaviour partial | Unchanged: the readers have not moved; the end-to-end test waits for the founder's test email | Open |
 
 **Withdrawn:** the statement in §0.19 and the D-276 chart row that the identity class was "closed by rule". Whether it is closed now is for the next review to say.
-### 0.20 Suzi's Wiki search reads the text, not only titles (16 Nov, founder, Nexeo-Builder)
+### 0.22 Suzi's Wiki search reads the text, not only titles (16 Nov, founder, Nexeo-Builder)
 
 Founder: *"when i ask suzi to see anything it always read the subject, where subject is one step to search and other
 to search through content (wiki should help this)"*. `/v1/knowledge` (`suzi/suziKnowledge.ts`) matched his words only in
