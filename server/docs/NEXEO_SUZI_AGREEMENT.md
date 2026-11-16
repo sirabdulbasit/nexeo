@@ -914,3 +914,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Answer {ok:true, status:"not_covered"}; the last single choice wins.
     - Asked: a date (ideally the 15:00 deploy), and no attend "always" until leave works.
     - Suzi meanwhile builds voice "take notes of / no notes of X" (branch f4-notes-by-voice).
+  - **Suzi 1.2.73** published at 13:23:59 PKT. It carries the transcript fix, voice/typed "take notes of / no notes of <meeting>" (meeting.attend / meeting.leave), and the new "transcribing" line. The 15:30 test also works without the restart.
