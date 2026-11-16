@@ -171,11 +171,13 @@ export async function autoAttend(clientNumber: string, userId: number, events: A
   return n;
 }
 
-/** His single-meeting choices: a record made by meeting.attend or a transcript (always), or his meeting.leave (never). */
+/** His single-meeting choices for meetings still ahead: a record waiting with transcription on (always: meeting.attend
+ *  or an applied always rule), or his meeting.leave (never). A finished record is a past meeting, not a choice: a
+ *  moved event keeps its id (16 Nov, ECP Payroll held, then moved to the next day, showed attend always). */
 export async function chosenEvents(clientNumber: string, userId: number): Promise<Map<string, 'always' | 'never'>> {
   const rows = await prisma.$queryRawUnsafe<Array<{ event_id: string; status: string; status_reason: string | null }>>(
     `SELECT event_id, status, status_reason FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND event_id IS NOT NULL
-        AND (status <> 'not_covered' OR status_reason = $3)`,
+        AND (status = 'transcribing' OR (status = 'not_covered' AND status_reason = $3))`,
     clientNumber, userId, HIS_CHOICE,
   ).catch(() => [] as Array<{ event_id: string; status: string; status_reason: string | null }>);
   return new Map(rows.map((r) => [r.event_id, r.status === 'not_covered' ? 'never' as const : 'always' as const]));

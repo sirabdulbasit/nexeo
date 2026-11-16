@@ -27,7 +27,7 @@ vi.mock('../src/services/suzi/suziMeetingRules', async (orig) => {
 });
 (s as any).rules = [];
 
-import { attendEvent, leaveEvent, transcriptionOn, autoAttend, TRANSCRIPTION_MASK } from '../src/services/meetings/meetAttend';
+import { attendEvent, leaveEvent, transcriptionOn, autoAttend, chosenEvents, TRANSCRIPTION_MASK } from '../src/services/meetings/meetAttend';
 import { attendOf } from '../src/services/suzi/dayPack';
 
 function fakeMeet(state: 'ON' | 'OFF', opts: { patchFails?: string } = {}) {
@@ -128,5 +128,13 @@ describe('always rules and the pack attend', () => {
     expect(f({ title: 'TMC System Catalogues' }, 'e7', true, link)).toEqual({ decision: 'never' }); // his leave beats an always rule
     expect(f({ title: 'TMC System Catalogues' }, 'e1', false, link)).toBeUndefined();
     expect(f({ title: 'TMC System Catalogues' }, 'e1', true, 'https://zoom.us/j/1')).toBeUndefined();
+  });
+});
+
+describe('chosenEvents: only choices for meetings still ahead', () => {
+  it('a finished record is not a choice (a moved event keeps its id); waiting = always, his leave = never', async () => {
+    s.recs = [{ event_id: 'w', status: 'transcribing', status_reason: null }, { event_id: 'n', status: 'not_covered', status_reason: 'his_choice' }];
+    const m = await chosenEvents('TMC-0001', 2);
+    expect([...m.entries()]).toEqual([['w', 'always'], ['n', 'never']]);
   });
 });
