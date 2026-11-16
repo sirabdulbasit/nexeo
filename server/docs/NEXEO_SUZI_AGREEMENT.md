@@ -876,3 +876,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Gateway relay:** installed 12:42:51 PKT (patch 0002, backup kept). His Mac reconnected at 12:42:54 on Suzi 1.2.71. Probes: no secret → 401; a bad status → 400, nothing delivered.
   - **Switch-on:** D-264, 98b0209f, live 12:49:38 PKT. The pack carries meeting_assistant.status_push: true. The real-change filter is in.
   - **First real push:** not yet. suzi-b5 checks the first push and that Suzi's own polling stops.
+
+- **16 Nov, founder: Suzi's meeting transcript is "not showing complete".**
+  - Meeting: "PMS System Demo - Vision Metrics", 11:00–12:00 PKT.
+  - Suzi shows about 15 lines (06:23:06Z to 06:26:10Z), then "… (the rest is in the record)". Nexeo holds and returns all 232 lines (06:01:47Z to 06:58:01Z).
+  - Asked of Suzi: show the whole transcript or let him scroll it; start at the first line; show times in PKT. Sent to suzi-b5; waiting for the answer and release time.
