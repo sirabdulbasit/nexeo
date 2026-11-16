@@ -54,7 +54,8 @@ export function buildLearnedNotes(rows: LearnedRow[], sourceOf: (r: LearnedRow) 
         ...(day(r.at) ? [`**Learned on:** ${day(r.at)}`] : []),
         '', plain(r.text).slice(0, 6000),
       ].join('\n'),
-      properties: { kind: r.kind, state: r.state, store: r.store, sensitive: !!r.sensitive, confidence: r.confidence ?? null, times: r.times ?? null, learnedOn: day(r.at) },
+      // Plain numbers: the database gives decimals as objects, which never compare equal to what was stored.
+      properties: { kind: r.kind, state: r.state, store: r.store, sensitive: !!r.sensitive, confidence: r.confidence != null ? Number(r.confidence) : null, times: r.times != null ? Number(r.times) : null, learnedOn: day(r.at) },
       ids: [`learned:${r.store}:${r.id}`],
       sourceIds: src ? [src] : [],
     });

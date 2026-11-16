@@ -820,3 +820,14 @@ describe('what Nexeo and Suzi learned from him is in the Wiki (owner, 16 Nov)', 
     expect((notes.find((n) => n.ids![0] === 'learned:governed_brain_memories:2')!.properties as any)).toMatchObject({ state: 'waiting for his approval', sensitive: true });
   });
 });
+
+describe('learned notes settle on a repeat run', () => {
+  it('a decimal from the database is stored as a plain number', async () => {
+    const { buildLearnedNotes } = await import('../src/services/wiki/wikiLearned');
+    const dec = { toString: () => '0.85', valueOf: () => 0.85, d: [85] };
+    const [n] = buildLearnedNotes([{ store: 's', id: '1', kind: 'preference', title: 't', text: 'x', state: 'in use', howLearned: 'he said it', confidence: dec as any, times: '3' as any, at: null }], () => null);
+    expect((n.properties as any).confidence).toBe(0.85);
+    expect((n.properties as any).times).toBe(3);
+    expect(n.body).toContain('**Confidence:** 85%');
+  });
+});
