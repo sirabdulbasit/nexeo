@@ -960,3 +960,6 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Suzi 1.2.80: every {ok:false} is a refusal (the second "Done" was a not_found read as success). A not_found on cancel is now said as "That meeting is already cancelled."
   - **D-275 (fe67c6fc) LIVE 16:01:19 PKT:** the calendar-op changes flag, via the users.notification_preferences.suzi.calendar_touched_at stamp. Mutation-checked. The first real flag is not seen yet (his next calendar op).
   - **Still unverified on a real meeting:** meeting.attend switching transcription on. The 15:30 test meeting was cancelled.
+
+- **16 Nov ~20:55 PKT, founder ruling (relayed by Nexeo Wiki):** "wiki should contain all information… if nexeo/suzi learn anything from me should also be part of wiki". Nexeo's side is done (D-285/286: learned notes in the Wiki).
+  - Asked of Suzi Master: does Suzi keep anything learned about the user only on her side? If yes, list it; how it reaches the Wiki is a charter change to agree first.
