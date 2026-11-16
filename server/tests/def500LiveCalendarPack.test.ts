@@ -1,12 +1,12 @@
 /**
- * DEF-482 (founder 16 Nov 2026, Suzi screenshot): "TMC System Catalogues" was cancelled at 10:20:29 UTC (ok), but the
+ * DEF-500 (founder 16 Nov 2026, Suzi screenshot): "TMC System Catalogues" was cancelled at 10:20:29 UTC (ok), but the
  * pack kept it (the synced feed copy never learns of a cancel), so Suzi tried to cancel it again, got not_found and
  * told him "it's still on your calendar". The pack now reads his live Google Calendar; the feed is the fallback only.
  */
 import { describe, it, expect } from 'vitest';
 import { livePackEvents } from '../src/services/suzi/dayPack';
 
-describe('DEF-482 the pack reads the live calendar', () => {
+describe('DEF-500 the pack reads the live calendar', () => {
   it('live events in, cancelled ones out; the window spans yesterday to past the week end', async () => {
     let win: [Date, Date] | null = null;
     const out = await livePackEvents(2, '2026-11-16', async (_u, a, b) => { win = [a, b]; return { events: [

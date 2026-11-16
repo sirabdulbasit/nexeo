@@ -292,7 +292,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const facts = await buildDayBriefFacts(clientNumber, userId, { timezone: tz, now });
 
   let events: RawPackEvent[] = [];
-  // DEF-482 (16 Nov): his live Google Calendar first. The synced copy (feed_events) never learns of a cancel, so a
+  // DEF-500 (16 Nov): his live Google Calendar first. The synced copy (feed_events) never learns of a cancel, so a
   // meeting he cancelled stayed in the pack and Suzi tried to cancel it again ("not_found"). Feed copy = fallback only.
   const live = facts.sources.calendar ? await livePackEvents(userId, today) : null;
   if (live) events = live;

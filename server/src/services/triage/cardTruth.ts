@@ -65,7 +65,7 @@ export async function cardTruth<T extends Card & { itemType?: string; subject: s
 }
 
 /**
- * DEF-485 (CL-094, 16 Nov 2026): Google's calendar notice for a meeting that is already over needs nothing from him.
+ * DEF-503 (CL-094, 16 Nov 2026): Google's calendar notice for a meeting that is already over needs nothing from him.
  * "Proposed new time: TMC System Catalogues @ Fri Nov 13, 2026 3:30pm…" still sat in his emails needing a reply three
  * days later. A notice (Invitation, Updated invitation, Proposed new time, Accepted, Declined, Tentatively accepted,
  * Canceled event) whose own date in the subject is before today is left out. A subject without a readable date stays.
