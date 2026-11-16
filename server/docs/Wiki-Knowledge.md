@@ -635,6 +635,30 @@ Score 91 (+1) for moving identity from computed rules to a judgement. Its three 
 
 **Still open from this review, not the Wiki session's code:** HIGH 4, the forwarding and learning defects DEF-487 to DEF-491 (the reviewer recommends the active builder take them; the founder has not yet said who does; Nexeo-Builder was told again at 20:25 PKT, along with a clash of defect numbers: its CL-093/094 rows reuse DEF-482 to 486). HIGH 5, the readers and the live acceptance: the end-to-end test waits for the founder's own test email (it is his to send); a no-attachment email can show forwarding and revocation only, so attachments and correct learning are separate acceptance cases, owed after DEF-488 and DEF-489.
 
+### 0.23 All information is in the Wiki; what Nexeo and Suzi learn from him too (owner, 16 Nov 2026, 20:50 PKT)
+
+*"wiki should contain all informatoin. wiki is central knowledge of brain."* And, the same minute: *"if nexeo/suzi learn anything from me should also be part of wiki."*
+
+**What this decides.** It restates §0.1 and §0.3 (nothing is kept outside the Wiki) after he was shown, plainly, what is still outside (the ledger of §0.4: 128 tables on 13 Nov). It also answers the question left open in §0.13.1: his conversations with Nexeo and Suzi belong in the Wiki, as sources. Unchanged: other people's WhatsApp messages are not read; secrets stay encrypted; the builders' own documents stay out (§0.14); what came from his connectors or his own conversations is his alone, what an integration brings is the company's.
+
+**Built the same hour: what was learned from him (`wiki/wikiLearned.ts`, D-285 20:46, D-286 20:52 PKT).** Every learned thing is one `learned` note, private to the user it was learned from, citing a `record` source that holds the stored row (a sensitive one encrypted):
+
+| Store | Becomes | State shown |
+|---|---|---|
+| `governed_brain_memories` | preference | in use (he approved or said it); waiting for his approval; rejected |
+| `user_memories` | preference | in use (he said it) or observed (Brain inferred it) |
+| `user_learning` | habit (when he is active, what he reads, how he writes) | observed, with how many times |
+| `pattern_insights` | pattern | a suggestion only |
+| `thought_entries` | weekly review | draft or in use |
+
+Each note says how it was learned and **"Acts by itself: no"**: a learned thing suggests or shapes an answer; only rules, delegations and standing instructions act (§0.9.4, his ruling of 13 Nov). The stores stay where they are until their readers move; the notes are rebuilt from them every hour, with the other notes.
+
+**On production:** 110 learned notes for the founder (55 preferences: 6 in use, 44 waiting for his approval, 5 observed; 11 habits; 14 pattern suggestions; 30 weekly reviews), 19 and 15 for the two other users. A repeat run writes 0. Private, checked live: read by the owner; refused to a colleague and to another client. Tests in `tests/wikiPart11and13.test.ts`.
+
+**Not yet:** learned patterns in `shadow_rules` were already rule notes (§0.13.6); what Suzi learns on her own side reaches Nexeo only through these stores (anything she keeps only on the Mac is not here: to be asked of Suzi). Nexeo and Suzi do not yet READ these notes: they still read the stores.
+
+**Order for the rest of what is outside (largest gain first):** (1) his conversations with Nexeo and Suzi, as `conversation` sources; (2) the decisions and delegation history, as the trail of commitment notes; (3) Brain's own documents and risk flags; (4) what Brain found about itself; (5) how Brain is told to behave; (6) settings and the account. Each is landed as sources first, notes second, and checked for privacy and for a repeat run that writes nothing.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
