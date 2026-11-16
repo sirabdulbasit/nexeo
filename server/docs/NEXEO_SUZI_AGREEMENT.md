@@ -886,3 +886,7 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - This Meet (mtg_2c6aa83534e97ef4) is agreed as the F-4 test Meet.
     - Its record_ready (row updated 07:49:03 UTC) came before the switch-on at 07:49:38 UTC, so no push went for it.
     - Asked of Nexeo-Builder: the times of each status, and what the Meet API answered about switching transcription on by itself.
+  - **Test Meet timeline (Nexeo-Builder), UTC:** never transcribing (first poll at 07:14, after the 07:00 end).
+    - Created as transcript_ready with 232 lines at 07:14:04.6; record_ready at 07:14:07.870.
+    - The re-read at 07:49:03 came before D-264, so there was no push.
+    - Nexeo has no auto-transcription (artifactConfig) code. Transcription was switched on in Meet itself. Slice-2 auto-transcription is not built.
