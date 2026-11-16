@@ -585,8 +585,8 @@ Its verdict: small progress, no score change; identity errors remain; Wiki-first
 **The rule now (`wiki/wikiSame.ts`, live D-278/D-279):**
 
 - Words, numbers, sender, project and conversation only **find** two readings that might be one thing.
-- Whether they are one is **the model's answer**: Gemini Flash is shown both readings in full and must say *same* and *sure*. The answer is kept as a `meaning` mark for the pair (`same:` for tasks, `samedoc:` for documents), so a pair is asked once and a rebuild gives the same Wiki.
-- **No answer, an unsure answer or a failed call means separate.** The failure mode is two notes, never a false merge.
+- Whether they are one is **the model's answer**: it is shown both readings and must say *same* and *sure* *(as built in D-278 this cut long fields and asked once; corrected in §0.21: whole or not asked, and two agreeing readings)*. The answer is kept as a `meaning` mark for the pair (`same:` for tasks, `samedoc:` for documents), so a pair is asked once and a rebuild gives the same Wiki.
+- **No answer, an unsure answer or a failed call means separate.** *("Never a false merge", written here on 16 Nov, was too strong and is withdrawn: the model itself can be wrong; see §0.21 for the measurement.)*
 - Asked for: one task across conversations; a later conversation closing a task; applying an Action Center entry to a reading; whether two attachments are one document.
 - The exact rules left in code: an outside id; the same file (same text and size, from the same sender or in the same conversation); and hard facts that rule a pair **out** (two named owners, two due dates, two recipients, clashing periods or numbers). Two readings the model gave from one conversation are never merged.
 
@@ -620,6 +620,20 @@ columns business owner technical owner", words from the catalogue email itself, 
   it red.
 - **Not done:** no full-text index. The pass is `ILIKE` over about 18,800 notes; the index is owed if the Wiki grows.
 
+
+### 0.21 Eighth outside review (16 Nov, at `0d7a1db3`): what an identity answer rests on, and how good the judge is
+
+Score 91 (+1) for moving identity from computed rules to a judgement. Its three findings on that judgement were all right, and are fixed in D-283 (20:22 PKT):
+
+| Finding | What was wrong | What it is now | Evidence |
+|---|---|---|---|
+| HIGH 1 A kept answer can outlive its evidence | The answer was keyed on ids and task wording; the model had also been shown owner, dates, state, evidence | The key is a fingerprint of the whole payload shown for both sides, the prompt and the model; an answer no build asks about is retired (history kept) (DEF-497) | Tests: changed evidence or due date under one title asks again; identical inputs ask nothing |
+| HIGH 2 "Both in full" was not what the code sent | Fields cut at 1,600 characters; documents shown by their first 1,200 | Nothing cut silently. Documents: facts, opening, and **every line one has and the other has not**; if that cannot be shown whole, or the reader cut the text, the pair is never judged and stays two documents. Each answer records the ids and a fingerprint of the text read (DEF-498) | Tests: a decisive later clause is shown; an unshowable pair never merges even on a yes |
+| HIGH 3 "Never a wrong merge" is too strong | Only the gate was tested, not the judge | **Withdrawn.** The judge was measured (`tests/eval/wikiSameEval.ts`): one reading gave false merges (1 of 20 task pairs, 1 of 8 document pairs) and unstable answers. Now a merge needs a second, challenging reading to agree (documents: the stronger model, twice); his own word on a pair overrides the model; merges are recomputed from kept answers, so undoing one loses nothing (DEF-499) | After, over 5 runs: 0 false merges in 100 answers on different task pairs, 0 in 40 on different document pairs; missed matches (duplicates) 2 of 11 and 2 of 4 in at least one run; 1 unclear document pair merged once |
+
+**What is and is not claimed.** Measured on 47 labelled pairs written by the builder: not a proof, and not his real data. A false merge is still possible; it is now less likely, visible (the answer and what it was given on are kept), and reversible (his word on the pair, `setSameOverride`; no screen calls it yet). The set grows with every case a review or the founder finds.
+
+**Still open from this review, not the Wiki session's code:** HIGH 4, the forwarding and learning defects DEF-487 to DEF-491 (the reviewer recommends the active builder take them; the founder has not yet said who does; Nexeo-Builder was told again at 20:25 PKT, along with a clash of defect numbers: its CL-093/094 rows reuse DEF-482 to 486). HIGH 5, the readers and the live acceptance: the end-to-end test waits for the founder's own test email (it is his to send); a no-attachment email can show forwarding and revocation only, so attachments and correct learning are separate acceptance cases, owed after DEF-488 and DEF-489.
 
 ## 1. Owner direction (2026-11-12)
 
