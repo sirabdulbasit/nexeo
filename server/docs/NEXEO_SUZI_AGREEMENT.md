@@ -958,3 +958,5 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **PROPOSED to Suzi Master, awaiting AGREE:** flag "calendar" after a successful calendar.cancel, update or create.
   - **AGREED 16 Nov (Suzi Master):** /v1/changes flags "calendar" after a successful calendar.cancel, update or create. No new type, no content, nothing on a failed op, and no client change. Passed to Nexeo-Builder to build.
   - Suzi 1.2.80: every {ok:false} is a refusal (the second "Done" was a not_found read as success). A not_found on cancel is now said as "That meeting is already cancelled."
+  - **D-275 (fe67c6fc) LIVE 16:01:19 PKT:** the calendar-op changes flag, via the users.notification_preferences.suzi.calendar_touched_at stamp. Mutation-checked. The first real flag is not seen yet (his next calendar op).
+  - **Still unverified on a real meeting:** meeting.attend switching transcription on. The 15:30 test meeting was cancelled.
