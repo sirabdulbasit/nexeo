@@ -756,7 +756,7 @@ describe('documents: the model sees everything in which two documents differ, or
   });
 });
 
-describe('a merge needs more than one confident answer (review 8, finding 3; measured in scripts/wikiSameEval.ts)', () => {
+describe('a merge needs more than one confident answer (review 8, finding 3; measured in tests/eval/wikiSameEval.ts)', () => {
   const pair = { key: 'same:k1', ids: ['a', 'b'] as [string, string], a: { what: 'Share the draft with the client' }, b: { what: 'Hold the draft' }, anchor: 's1' };
   const run = async (answers: string[], extra: any = {}) => {
     const { judgePairs } = await import('../src/services/wiki/wikiSame');

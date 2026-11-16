@@ -3,15 +3,15 @@
  * production prompts and model. The unit tests prove the gate (no answer = separate); they cannot prove
  * the model judges meaning correctly. This does not prove it either: it MEASURES it on these cases.
  *
- *   npx tsx src/scripts/wikiSameEval.ts [runs]
+ *   npx tsx tests/eval/wikiSameEval.ts [runs]
  *
  * Reports false merges (labelled different, answered same and sure) and missed matches (labelled same,
  * not merged). A missed match costs a duplicate note; a false merge loses a distinction, so it is the
  * number that matters. Add every case a review or a user finds to this set.
  */
-import { SAME_TASK_SYSTEM } from '../services/wiki/wikiMeaning';
-import { SAME_DOC_SYSTEM, SAME_DOC_CHALLENGE, SAME_DOC_SECOND } from '../services/wiki/wikiDocuments';
-import { parseVerdict, show, SAME_MODEL } from '../services/wiki/wikiSame';
+import { SAME_TASK_SYSTEM } from '../../src/services/wiki/wikiMeaning';
+import { SAME_DOC_SYSTEM, SAME_DOC_CHALLENGE, SAME_DOC_SECOND } from '../../src/services/wiki/wikiDocuments';
+import { parseVerdict, show, SAME_MODEL } from '../../src/services/wiki/wikiSame';
 
 type Label = 'same' | 'different' | 'ambiguous';
 interface Case { kind: string; label: Label; a: Record<string, unknown>; b: Record<string, unknown> }
@@ -110,9 +110,9 @@ export const DOC_CASES: Case[] = [
 
 async function main() {
   const runs = Math.max(1, Number(process.argv[2] ?? 1));
-  const { callLLM } = await import('../services/llmRouter');
+  const { callLLM } = await import('../../src/services/llmRouter');
   // The production path: judgePairs itself, with its two readings, writing nothing.
-  const { judgePairs } = await import('../services/wiki/wikiSame');
+  const { judgePairs } = await import('../../src/services/wiki/wikiSame');
   const call = async (sys: string, msg: string) => (await callLLM(sys, msg, { providers: [SAME_MODEL as any], maxTokens: 200, timeoutMs: 45_000, purpose: 'wiki_same_eval' } as any)).text;
   let n = 0;
   const ask = async (sys: string, c: Case) => {

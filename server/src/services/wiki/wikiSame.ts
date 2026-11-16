@@ -23,7 +23,7 @@
  *  - The model can be wrong. A merge is therefore reversible (it is recomputed
  *    from the kept answers on every build; nothing of either reading is lost),
  *    every answer is kept with what it was about, and its accuracy is measured
- *    on a labelled set (scripts/wikiSameEval.ts), not assumed.
+ *    on a labelled set (tests/eval/wikiSameEval.ts), not assumed.
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
