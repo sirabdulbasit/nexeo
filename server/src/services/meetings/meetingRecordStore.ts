@@ -9,6 +9,7 @@
  *          items stay, only new ones are proposed; minutes he edited are kept and the improved version is offered.
  *   F-4.10 for him alone; he can delete it; after 12 months only the minutes and action items are kept. No sound.
  */
+import { stableJson } from '../../utils/stableJson';
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
 
@@ -197,12 +198,6 @@ export function mergeDerived(
 
 /** True when the notes a save would write differ from what the record already holds: minutes, offered minutes,
  *  decisions or action items. A re-read that produced the same notes is not a change. */
-function stableJson(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
-  if (v && typeof v === 'object') return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stableJson((v as any)[k])}`).join(',')}}`;
-  return JSON.stringify(v);
-}
-
 export function notesChanged(
   prev: Pick<MeetingRecord, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'> | null | undefined,
   m: Pick<ReturnType<typeof mergeDerived>, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'>,
