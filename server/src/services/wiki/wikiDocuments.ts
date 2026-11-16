@@ -12,7 +12,7 @@
  *  - Private: an attachment of his mail makes his notes only.
  */
 import prisma from '../../db/prisma';
-import { listSources, saveSource, sourceId, sourcesHeld, textHash, type Source } from './wikiSources';
+import { listSources, removeSource, saveSource, sourceId, sourcesHeld, textHash, type Source } from './wikiSources';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { WIKI_GENERATION } from './wikiStore';
 import { syncNotes, withSisterAddresses, type BuiltNote, type SyncResult } from './wikiSync';
@@ -39,7 +39,7 @@ export function isDocument(a: { filename: string; mimeType: string; text: string
 export function attachmentSource(a: AttachmentIn) {
   return {
     clientNumber: a.clientNumber, userId: a.userId, kind: ATTACHMENT_KIND,
-    externalId: `${a.gmailMessageId}:${a.filename}`,
+    externalId: attachmentExternalId(a),
     feedEventId: a.feedEventId ?? null, threadKey: a.threadId ?? null,
     title: a.filename, occurredAt: a.receivedAt,
     participants: a.senderEmail ? [a.senderEmail] : [],
@@ -49,6 +49,14 @@ export function attachmentSource(a: AttachmentIn) {
       truncated: !!a.truncated, from: a.senderEmail ?? null, subject: a.subject ?? null, gmailMessageId: a.gmailMessageId,
     },
   };
+}
+
+/**
+ * An attachment's own identity: its email, its file name and its content. Two attachments of one name in
+ * one email are two sources; the same file read twice is one.
+ */
+export function attachmentExternalId(a: { gmailMessageId: string; filename: string; text: string }): string {
+  return `${a.gmailMessageId}:${a.filename}:${textHash((a.text ?? '').trim()).slice(0, 12)}`;
 }
 
 /** Land one attachment (called where its text is read). Not a document: nothing is landed. */
@@ -68,7 +76,7 @@ export function attachmentPageText(body: string | null): string {
  * Land every attachment the attachment reader has read for this user that the Wiki does not hold yet
  * (its pages are the reader's output; the reconcile makes sure each became a source).
  */
-export async function landAttachmentsFromPages(clientNumber: string, userId: number): Promise<{ pages: number; landed: number }> {
+export async function landAttachmentsFromPages(clientNumber: string, userId: number): Promise<{ pages: number; landed: number; removed: number }> {
   const rows = await prisma.$queryRawUnsafe<Array<{ body_markdown: string | null; metadata: any; last_updated_at: Date; thread_key: string | null; message_id: string | null; occurred_at: Date | null }>>(
     `SELECT p.body_markdown, p.metadata, p.last_updated_at, e.thread_key, e.external_id AS message_id, e.occurred_at
        FROM wiki_pages p
@@ -89,7 +97,7 @@ export async function landAttachmentsFromPages(clientNumber: string, userId: num
       receivedAt: r.occurred_at ?? receivedOf(r.body_markdown) ?? r.last_updated_at, text: attachmentPageText(r.body_markdown), asOf: r.last_updated_at,
     };
     if (!isDocument(a)) continue;
-    wanted.set(sourceId(clientNumber, userId, ATTACHMENT_KIND, `${a.gmailMessageId}:${a.filename}`), a);
+    wanted.set(sourceId(clientNumber, userId, ATTACHMENT_KIND, attachmentExternalId(a)), a);
   }
   const held = await sourcesHeld(clientNumber, userId, [...wanted.keys()]);
   let landed = 0;
@@ -98,7 +106,14 @@ export async function landAttachmentsFromPages(clientNumber: string, userId: num
     await saveSource(attachmentSource(a));
     landed += 1;
   }
-  return { pages: rows.length, landed };
+  // Attachment sources the reader's pages no longer give (an earlier identity form, `<email>:<file>`) are
+  // removed with their citations; every attachment the pages hold is landed above under its own identity.
+  let removed = 0;
+  for (const s of await listSources(clientNumber, userId, [ATTACHMENT_KIND])) {
+    if (wanted.has(s.id) || s.externalId.split(':').length >= 3) continue;
+    if ((await removeSource({ clientNumber, userId }, s.id)).removed) removed += 1;
+  }
+  return { pages: rows.length, landed, removed };
 }
 
 function subjectOf(body: string | null): string | null {
@@ -109,6 +124,19 @@ function receivedOf(body: string | null): Date | null {
   const m = body?.match(/\*\*Received:\*\* (\d{4}-\d{2}-\d{2} \d{2}:\d{2})/);
   const d = m ? new Date(`${m[1].replace(' ', 'T')}:00Z`) : null;
   return d && !Number.isNaN(d.getTime()) ? d : null;
+}
+
+/**
+ * The reference numbers a document carries near its top (invoice, purchase order, contract, quotation,
+ * reference), as written: what tells one invoice from another of the same name.
+ */
+export function references(text: string): string[] {
+  const head = String(text ?? '').slice(0, 3000);
+  const out = new Set<string>();
+  const labelled = /\b(?:invoice|inv|bill|po|purchase\s+order|order|contract|agreement|quotation|quote|ref(?:erence)?)\s*(?:no\.?|number|num|#|id)?\s*[:#.]?\s*([A-Z0-9][A-Z0-9\-\/]*\d[A-Z0-9\-\/]*)/gi;
+  for (const m of head.matchAll(labelled)) out.add(m[1].toLowerCase());
+  for (const m of head.matchAll(/\b[A-Z]{2,6}-\d{2,}(?:-\d+)?\b/g)) out.add(m[0].toLowerCase());
+  return [...out].sort();
 }
 
 const KIND_NAMES: Array<[RegExp, string]> = [
@@ -150,19 +178,27 @@ export function buildDocumentNotes(
     const sorted = [...all].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : 1));
     const parent = new Map<string, string>(sorted.map((s) => [s.id, s.id]));
     const find = (x: string): string => (parent.get(x) === x ? x : find(parent.get(x)!));
-    const firstBy = new Map<string, string>();
-    for (const s of sorted) {
-      for (const key of [`from:${senderKey((s.details as any)?.from)}`, `thread:${s.threadKey ?? ''}`]) {
-        if (/:$/.test(key)) continue;
-        const prior = firstBy.get(key);
-        if (prior) parent.set(find(s.id), find(prior)); else firstBy.set(key, s.id);
-      }
+    // Versions of one document only on evidence (review 16 Nov, second P1). Same name, sender or
+    // conversation make two attachments candidates; they are one document when
+    //  - their content is identical (the same file sent again), or
+    //  - they carry the same reference numbers (the same invoice or contract), or
+    //  - one sender revised it in one conversation and no reference number conflicts.
+    // Anything else, two invoices of one vendor among them, stays two documents.
+    for (let x = 0; x < sorted.length; x += 1) for (let y = 0; y < x; y += 1) {
+      const a = sorted[x]; const b = sorted[y];
+      const ra = references(a.body); const rb = references(b.body);
+      const conflict = ra.length > 0 && rb.length > 0 && ra.join('|') !== rb.join('|');
+      const same = textHash((a.body ?? '').trim()) === textHash((b.body ?? '').trim())
+        || (ra.length > 0 && !conflict && ra.join('|') === rb.join('|'))
+        || (!conflict && !!a.threadKey && a.threadKey === b.threadKey && !!senderKey((a.details as any)?.from) && senderKey((a.details as any)?.from) === senderKey((b.details as any)?.from));
+      if (same) parent.set(find(a.id), find(b.id));
     }
     const sets = new Map<string, Source[]>();
     for (const s of sorted) sets.set(find(s.id), [...(sets.get(find(s.id)) ?? []), s]);
     for (const list of sets.values()) {
       const first = list[0];
-      groups.push({ k, anchor: senderKey((first.details as any)?.from) || first.threadKey || first.id, list });
+      // Its identity: the name and its first attachment (stable: a later version joins, never renames it).
+      groups.push({ k, anchor: first.externalId, list });
     }
   }
   const titleCount = new Map<string, number>();
@@ -200,6 +236,9 @@ export function buildDocumentNotes(
     // Two documents of one name from one sender in two conversations: told apart by when it first came.
     if (usedTitles.has(titleKey(title))) title = cleanTitle(`${title.replace(/\)$/, '')}, ${day(list[0].occurredAt)})`);
     if (!title.endsWith(')') && usedTitles.has(titleKey(title))) title = cleanTitle(`${name} (${day(list[0].occurredAt)})`);
+    const refs = references(list[0].body);
+    if (usedTitles.has(titleKey(title)) && refs.length) title = cleanTitle(`${title.replace(/\)$/, '')}, ${refs[0].toUpperCase()})`);
+    for (let n = 2; usedTitles.has(titleKey(title)); n += 1) title = cleanTitle(`${title.replace(/ #\d+$/, '')} #${n}`);
     usedTitles.add(titleKey(title));
     notes.push({
       type: 'document',

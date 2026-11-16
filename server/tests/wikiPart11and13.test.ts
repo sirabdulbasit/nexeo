@@ -115,7 +115,10 @@ describe('part 11: documents', () => {
 
   it('one attachment read twice is one source; the id is the email and the file', () => {
     const a = attachmentSource({ clientNumber: 'T-1', userId: 2, gmailMessageId: 'g1', filename: 'Design.pdf', mimeType: 'application/pdf', receivedAt: new Date(), text: 'x' });
-    expect(a.externalId).toBe('g1:Design.pdf');
+    expect(a.externalId).toMatch(/^g1:Design\.pdf:[0-9a-f]{12}$/);
+    // Two attachments of one name in one email, with different content, are two sources.
+    const b = attachmentSource({ clientNumber: 'T-1', userId: 2, gmailMessageId: 'g1', filename: 'Design.pdf', mimeType: 'application/pdf', receivedAt: new Date(), text: 'y' });
+    expect(b.externalId).not.toBe(a.externalId);
     expect(a.kind).toBe('attachment');
   });
 
@@ -128,7 +131,7 @@ describe('part 11: documents', () => {
     const d = notes[0];
     expect(d.type).toBe('document');
     expect(d.title).toBe('Design.pdf');
-    expect(d.ids).toEqual(['document:design.pdf:fida@acme.com']);
+    expect(d.ids).toEqual(['document:design.pdf:a1:Design.pdf']);
     expect(d.body).toContain('**Latest from:** you on 2026-11-10');
     expect(links(d.body).sort()).toEqual(['Fida Khan', 'PMS Pilot']);
     expect(d.sourceIds!.sort()).toEqual(['a1', 'a2', 'e1', 'e2']);
@@ -137,9 +140,9 @@ describe('part 11: documents', () => {
 });
 
 describe('documents: a file name is a label, not an identity (review 16 Nov, P1)', () => {
-  const inv = (id: string, from: string, thread: string, day: string) => ({
+  const inv = (id: string, from: string, thread: string, day: string, ref = `INV-${id}00`) => ({
     id, kind: 'attachment', title: 'Invoice.pdf', occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user',
-    externalId: `${id}:Invoice.pdf`, feedEventId: null, participants: [from], body: 'Invoice for services rendered in the month. '.repeat(4),
+    externalId: `${id}:Invoice.pdf`, feedEventId: null, participants: [from], body: `Invoice No: ${ref}\nInvoice for services rendered in the month. `.repeat(3),
     details: { filename: 'Invoice.pdf', mimeType: 'application/pdf', from, gmailMessageId: `g${id}` },
   }) as any;
   const ctx = { personByEmail: new Map([['ali@a.com', 'Ali Khan'], ['sara@b.com', 'Sara Malik']]), emailIdByMessage: new Map(), projectsByThread: new Map(), ownEmails: new Set(['basit@acme.com']) };
@@ -152,11 +155,21 @@ describe('documents: a file name is a label, not an identity (review 16 Nov, P1)
     expect(new Set(notes.map((n) => n.ids![0])).size).toBe(2);
   });
 
-  it('a revised invoice from the same sender keeps one identity and its version trail', () => {
-    const notes = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01'), inv('c', 'ali@a.com', 't9', '2026-11-20')], ctx);
-    expect(notes).toHaveLength(1);
-    expect((notes[0].properties as any).versions).toBe(2);
-    expect(notes[0].ids).toEqual(['document:invoice.pdf:ali@a.com']);
+  it('two invoices from one vendor in two purchases stay two documents (review 16 Nov, second P1)', () => {
+    const notes = buildDocumentNotes([inv('a', 'ali@a.com', 'purchase-1', '2026-11-01', 'INV-001'), inv('c', 'ali@a.com', 'purchase-2', '2026-11-20', 'INV-002')], ctx);
+    expect(notes).toHaveLength(2);
+    expect(new Set(notes.map((n) => n.title)).size).toBe(2);
+    // Even in one conversation: two reference numbers are two invoices.
+    expect(buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), inv('c', 'ali@a.com', 't1', '2026-11-20', 'INV-002')], ctx)).toHaveLength(2);
+  });
+
+  it('a genuine revision stays one document with its trail: the same invoice number again, or a revision in one conversation', () => {
+    const again = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), { ...inv('c', 'ali@a.com', 't9', '2026-11-20', 'INV-001'), body: 'Invoice No: INV-001\nRevised: corrected amount for the services rendered in October, replacing the earlier copy.' }], ctx);
+    expect(again).toHaveLength(1);
+    expect((again[0].properties as any).versions).toBe(2);
+    expect(again[0].ids).toEqual(['document:invoice.pdf:a:Invoice.pdf']);
+    const design = (id: string, body: string) => ({ ...inv(id, 'ali@a.com', 't1', '2026-11-01'), body, details: { filename: 'Invoice.pdf', mimeType: 'application/pdf', from: 'ali@a.com', gmailMessageId: `g${id}` } });
+    expect(buildDocumentNotes([design('a', 'Draft terms of the engagement. '.repeat(4)), design('b', 'Final terms of the engagement, signed. '.repeat(4))], ctx)).toHaveLength(1);
   });
 });
 
@@ -436,8 +449,54 @@ describe('documents he sent from either of his addresses', () => {
     const ctx = { personByEmail: new Map(), emailIdByMessage: new Map(), projectsByThread: new Map(), ownEmails: new Set(['basit@tmc.com', 'basit@tmc.ai']) };
     const one = buildDocumentNotes([f('a', 'basit@tmc.com', 't1', '2026-11-01'), f('b', 'basit@tmc.ai', 't2', '2026-11-05')], ctx);
     expect(one).toHaveLength(1);
-    expect(one[0].ids).toEqual(['document:list.xlsx:you']);
-    const titles = buildDocumentNotes([f('a', 'x@a.com', 't1', '2026-11-01'), f('b', 'y@b.com', 't2', '2026-11-05'), f('c', 'y@b.com', 't2', '2026-11-06')], ctx).map((n) => n.title);
+    expect(one[0].ids).toEqual(['document:list.xlsx:a:list.xlsx']);
+    const g = (id: string, from: string, thread: string, day: string) => ({ ...f(id, from, thread, day), body: `Employee list ${id}, with departments and grades. `.repeat(4) });
+    const titles = buildDocumentNotes([g('a', 'x@a.com', 't1', '2026-11-01'), g('b', 'y@b.com', 't2', '2026-11-05'), g('c', 'y@b.com', 't3', '2026-11-06')], ctx).map((n) => n.title);
     expect(new Set(titles).size).toBe(titles.length);
+  });
+});
+
+describe('distinct obligations of one kind stay distinct (review 16 Nov, second P1)', () => {
+  const s = (id: string, thread: string, day: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: ['fida@acme.com'], body: '', details: {} }) as any;
+  const conv = (key: string, day: string) => ({ key, subject: key, sources: [s(`${key}1`, key, day)], last: new Date(`${day}T09:00:00Z`) });
+  const ex = (cs: any[]) => ({ projects: [{ name: 'Payroll', summary: '' }], topics: [], decisions: [], commitments: cs });
+  const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-12-21T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+  const tasks = (notes: any[]) => notes.filter((n) => n.type === 'commitment');
+
+  it('November and December reports, one owner, one project: two obligations; December done never removes November', async () => {
+    const notes = tasks(buildMeaningNotes([
+      { conv: conv('nov', '2026-11-15'), ex: ex([{ what: 'Submit November payroll report', owner: 'fida@acme.com', due: '2026-11-20', state: 'open' }]) },
+      { conv: conv('dec', '2026-12-18'), ex: ex([{ what: 'Submit December payroll report', owner: 'fida@acme.com', due: '2026-12-20', state: 'done' }]) },
+    ] as any, ctx));
+    expect(notes).toHaveLength(2);
+    expect(notes.find((n) => (n.properties as any).conversation === 'nov')!.properties).toMatchObject({ state: 'open' });
+  });
+
+  it('a "done" with no owner for December does not close November', () => {
+    const notes = tasks(buildMeaningNotes([
+      { conv: conv('nov', '2026-11-15'), ex: ex([{ what: 'Submit November payroll report', owner: 'fida@acme.com', state: 'open' }]) },
+      { conv: conv('dec', '2026-12-18'), ex: ex([{ what: 'December payroll report submitted', owner: null, state: 'done' }]) },
+    ] as any, ctx));
+    expect(notes.find((n) => (n.properties as any).conversation === 'nov')!.properties).toMatchObject({ state: 'open' });
+    expect((notes.find((n) => (n.properties as any).conversation === 'nov')!.properties as any).closedIn).toBeUndefined();
+  });
+
+  it('different due dates or recipients are different obligations', () => {
+    const two = (a: any, b: any) => tasks(buildMeaningNotes([{ conv: conv('t1', '2026-11-15'), ex: ex([a]) }, { conv: conv('t2', '2026-11-18'), ex: ex([b]) }] as any, ctx)).length;
+    expect(two({ what: 'Send the payroll sheet', owner: 'fida@acme.com', due: '2026-11-20', state: 'open' }, { what: 'Send the payroll sheet', owner: 'fida@acme.com', due: '2026-12-20', state: 'open' })).toBe(2);
+    expect(two({ what: 'Send the payroll sheet', owner: 'fida@acme.com', to: 'a@x.com', state: 'open' }, { what: 'Send the payroll sheet', owner: 'fida@acme.com', to: 'b@x.com', state: 'open' })).toBe(2);
+    // Only the month differs, no due dates: still two.
+    expect(two({ what: 'Submit the payroll report for November', owner: 'fida@acme.com', state: 'open' }, { what: 'Submit the payroll report for December', owner: 'fida@acme.com', state: 'open' })).toBe(2);
+    expect(two({ what: 'Pay invoice 1041', owner: 'fida@acme.com', state: 'open' }, { what: 'Pay invoice 1042', owner: 'fida@acme.com', state: 'open' })).toBe(2);
+    // The same obligation, grounded and worded the same: still one.
+    expect(two({ what: 'Send the payroll sheet for October', owner: 'fida@acme.com', state: 'open' }, { what: 'Send the October payroll sheet', owner: 'fida@acme.com', state: 'open' })).toBe(1);
+  });
+
+  it('his word on November\'s task is not applied to December\'s', () => {
+    const notes = tasks(buildMeaningNotes([{ conv: conv('dec', '2026-12-18'), ex: ex([{ what: 'Submit December payroll report', owner: 'fida@acme.com', state: 'open' }]) }] as any,
+      { ...ctx, rulings: [{ itemId: 'o1', thread: null, title: 'Submit November payroll report', kind: 'closed' }] }));
+    const dec = notes.find((n) => (n.properties as any).conversation === 'dec')!;
+    expect((dec.properties as any).state).toBe('open');
+    expect((dec.properties as any).ruledBy).toBeUndefined();
   });
 });

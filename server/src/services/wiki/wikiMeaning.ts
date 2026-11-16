@@ -199,6 +199,43 @@ export function sameTask(a: string, b: string): number {
   return n / Math.max(1, Math.min(A.size, B.size));
 }
 
+const MONTHS: Record<string, string> = { jan: '01', january: '01', feb: '02', february: '02', mar: '03', march: '03', apr: '04', april: '04', may: '05', jun: '06', june: '06', jul: '07', july: '07', aug: '08', august: '08', sep: '09', sept: '09', september: '09', oct: '10', october: '10', nov: '11', november: '11', dec: '12', december: '12' };
+
+/**
+ * What tells one obligation from another of the same kind: its period and its numbers (a month, a year,
+ * a quarter or week, an invoice or batch number, a date). "Submit the November payroll report" and
+ * "Submit the December payroll report" share every other word and are still two obligations.
+ */
+export function distinguishers(text: string): string[] {
+  const t = String(text ?? '').toLowerCase();
+  const out = new Set<string>();
+  for (const w of t.split(/[^a-z0-9]+/)) {
+    if (MONTHS[w]) out.add(`m${MONTHS[w]}`);
+    else if (/^q[1-4]$/.test(w)) out.add(w);
+    else if (/\d/.test(w)) out.add(w.replace(/^0+(\d)/, '$1'));
+  }
+  return [...out].sort();
+}
+
+/**
+ * Two commitment readings are one obligation only on evidence (review 16 Nov, second P1): the same owner,
+ * no conflicting recipient or due date, the same period and numbers, and wording that says the same thing
+ * both ways. Shared words or a shared project only make them candidates; anything unclear stays two.
+ */
+export function sameObligation(a: { what: string; owner?: string | null; to?: string | null; due?: string | null }, b: { what: string; owner?: string | null; to?: string | null; due?: string | null }): boolean {
+  if ((a.owner ?? null) !== (b.owner ?? null)) return false;
+  if (a.to && b.to && a.to !== b.to) return false;
+  if (a.due && b.due && a.due !== b.due) return false;
+  if (distinguishers(a.what).join('|') !== distinguishers(b.what).join('|')) return false;
+  return bothWays(a.what, b.what) >= 0.6;
+}
+function bothWays(a: string, b: string): number {
+  const A = rwords(a); const B = rwords(b);
+  let n = 0;
+  for (const w of A) if (B.has(w)) n += 1;
+  return n / Math.max(1, Math.max(A.size, B.size));
+}
+
 /** Extractions in, notes out. Pure. */
 export function buildMeaningNotes(
   items: Array<{ conv: Conversation; ex: Extracted }>,
@@ -274,7 +311,10 @@ export function buildMeaningNotes(
       // His word on the same task in the same conversation wins over the model's reading.
       // A ruling from the same conversation matches on fewer shared words than one whose conversation is not known.
       const ruling = (ctx.rulings ?? []).filter((r) => r.thread === conv.key || !r.thread)
-        .map((r) => ({ r, s: sameTask(r.title, c0.what) })).filter((x) => x.s >= (x.r.thread ? 0.34 : 0.5)).sort((x, y) => y.s - x.s)[0]?.r;
+        .map((r) => ({ r, s: sameTask(r.title, c0.what) }))
+        // His word on November's report is not his word on December's: periods and numbers must not conflict.
+        .filter((x) => { const dr = distinguishers(x.r.title); const dc = distinguishers(c0.what); return !(dr.length && dc.length && dr.join('|') !== dc.join('|')); })
+        .filter((x) => x.s >= (x.r.thread ? 0.34 : 0.5)).sort((x, y) => y.s - x.s || (x.r.itemId < y.r.itemId ? -1 : 1))[0]?.r;
       if (ruling) usedRulings.add(ruling.itemId);
       const ownFirst = [...own][0] ?? null;
       const c = ruling?.kind === 'watch' ? { ...c0, owner: ruling.ownerEmail ?? c0.owner, evidence: `not his: ${ruling.why ?? 'he watches it'}` }
@@ -385,7 +425,9 @@ export function buildMeaningNotes(
         // he keeps it open in his Action Center (his word wins).
         const [older, newer] = String((a.properties as any).lastActivity ?? '') <= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
         const po = older.properties as any; const pn = newer.properties as any;
-        const candidate = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75;
+        const candidate = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75
+          // The same obligation, but for the owner the later reading did not name: same period, numbers and due date.
+          && sameObligation({ what: po.what ?? '', owner: null, to: po.to, due: po.due }, { what: pn.what ?? '', owner: null, to: pn.to, due: pn.due });
         if (!candidate) continue;
         // Shared words only find a candidate. It closes the task only when the later conversation is about
         // the same work (a shared project) and the person who owed it is in it; otherwise it is flagged for him.
@@ -403,7 +445,10 @@ export function buildMeaningNotes(
         if (newer === a) break;
         continue;
       }
+      // Candidates by context; one obligation only on evidence (owner, recipient, due date, period, wording).
       if (likeness < 0.6 || !sameContext(a, b)) continue;
+      const pa = a.properties as any; const pb = b.properties as any;
+      if (!sameObligation({ what: pa.what ?? a.title, owner: pa.owner, to: pa.to, due: pa.due }, { what: pb.what ?? b.title, owner: pb.owner, to: pb.to, due: pb.due })) continue;
       const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
       keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
       // His word on either copy holds for the one note.
