@@ -17,8 +17,9 @@ import prisma from '../db/prisma';
 import createLogger from '../utils/logger';
 
 const log = createLogger('rule-forward');
-/** OFF until the outside review's P1 findings are fixed and proven (Wiki session, 13 Nov). One switch for job, auto:true and the pack. */
-export const RULE_FORWARD_ENABLED = false;
+/** ON since 16 Nov 2026: the founder's "go ahead" in Nexeo-Builder, after the review's P1 fixes and proofs (D-261..D-263).
+ *  One switch for job, auto:true and the pack. At switch-on he had no email_delegate rule, so nothing forwards until he sets one. */
+export const RULE_FORWARD_ENABLED = true;
 export const RULE_FORWARD_EVERY_MS = 5 * 60_000;
 export const RULE_FORWARD_DAY_CAP = 20;
 // Review P1: a held or capped email must not age out: a 7-day window, and only email newer than the rule itself.

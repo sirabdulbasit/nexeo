@@ -49,7 +49,8 @@ export async function deriveMinutes(title: string, lines: TranscriptLine[], owne
     'title: a short name for the meeting, at most 8 words, from what was discussed.',
     'minutes: 3 to 8 short sentences: what was discussed and where it landed.',
     'decisions: each decision that was clearly made, one short sentence each (empty if none).',
-    'action_items: each concrete thing someone agreed or was asked to do: an imperative title (at most 12 words), owner_name as said in the meeting if clear, due as YYYY-MM-DD only if a date was said. Empty if none.',
+    'action_items: each concrete thing someone agreed or was asked to do: an imperative title (at most 12 words), owner_name as said in the meeting if clear, due as YYYY-MM-DD only if a date was said.',
+    `Then add the follow-ups ${ownerName || 'the host'} should take as their assistant would suggest them, grounded in what was said even if nobody said "I will": a next session that was mentioned (schedule it), questions or concerns the others raised that are still open (answer them), material that was promised or would be expected (send it), a decision still waiting (get it). Each is an action item with owner_name "${ownerName || 'the host'}", at most 3 of them, none that repeats another item. Never invent a topic that was not discussed. Empty only if the meeting truly leaves nothing to do.`,
     'Answer strict JSON only: {"title": string, "minutes": string, "decisions": [string], "action_items": [{"title": string, "owner_name"?: string, "due"?: string}]}',
   ].join('\n');
   try {
