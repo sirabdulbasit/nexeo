@@ -616,11 +616,15 @@ describe('identity is a judgement of meaning, never of words (review 16 Nov, thi
     expect(parseVerdict('{"same": true, "sure": true, "why": "paraphrase"}')).toMatchObject({ same: true, sure: true });
     expect(parseVerdict('{"same": true, "sure": false}')).toMatchObject({ same: true, sure: false });
     expect(parseVerdict('maybe')).toBeNull();
-    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).toBe(pairKey('same:', 'b', 'y', 'a', 'x', 'v1'));
-    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).not.toBe(pairKey('same:', 'a', 'x changed', 'b', 'y', 'v1'));
-    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).not.toBe(pairKey('same:', 'a', 'x', 'b', 'y', 'v2'));
+    const x = { what: 'x', evidence: 'said so' }; const y = { what: 'y' };
+    expect(pairKey('same:', 'a', x, 'b', y, 'v1')).toBe(pairKey('same:', 'b', y, 'a', x, 'v1'));
+    expect(pairKey('same:', 'a', x, 'b', y, 'v1')).not.toBe(pairKey('same:', 'a', { ...x, what: 'x changed' }, 'b', y, 'v1'));
+    // Not only the title: any field the model is shown is part of the key (review 8, finding 1).
+    expect(pairKey('same:', 'a', x, 'b', y, 'v1')).not.toBe(pairKey('same:', 'a', { ...x, evidence: 'corrected' }, 'b', y, 'v1'));
+    expect(pairKey('same:', 'a', x, 'b', y, 'v1')).toBe(pairKey('same:', 'a', { evidence: 'said so', what: 'x' }, 'b', y, 'v1'));
+    expect(pairKey('same:', 'a', x, 'b', y, 'v1')).not.toBe(pairKey('same:', 'a', x, 'b', y, 'v2'));
     const j = { verdict: () => undefined, pending: [] as any[] };
-    const p = { key: 'k', a: {}, b: {}, anchor: 's' };
+    const p = { key: 'same:k', ids: ['a', 'b'] as [string, string], a: {}, b: {}, anchor: 's' };
     expect(isSame(j, p)).toBe(false);
     expect(isSame(j, p)).toBe(false);
     expect(j.pending).toHaveLength(1);
@@ -660,5 +664,135 @@ describe('his Action Center word is always in the Wiki (found 16 Nov against his
     expect(periodsClash('Approve 40 missing August hours', 'Approve missing timesheet for August')).toBe(false);
     expect(periodsClash('Close Q3 books', 'Close Q4 books')).toBe(true);
     expect(periodsClash('Send the plan', 'Send the plan for 2026')).toBe(false);
+  });
+});
+
+describe('an answer belongs to exactly what the model was shown (review 8)', () => {
+  const s = (id: string, thread: string, day: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: ['fida@acme.com'], body: '', details: {} }) as any;
+  const conv = (key: string, day: string) => ({ key, subject: key, sources: [s(`${key}1`, key, day)], last: new Date(`${day}T09:00:00Z`) });
+  const ex = (c: any) => ({ projects: [{ name: 'Payroll', summary: '' }], topics: [], decisions: [], commitments: [c] });
+  const base = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-21T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+  const tasks = (notes: any[]) => notes.filter((n) => n.type === 'commitment');
+  const items = (evidence: string, due: string | null = null) => [
+    { conv: conv('t1', '2026-11-10'), ex: ex({ what: 'Send the October payroll sheet to finance', owner: 'fida@acme.com', state: 'open' }) },
+    { conv: conv('t2', '2026-11-12'), ex: ex({ what: 'Send finance the payroll sheet for October', owner: 'fida@acme.com', state: 'open', evidence, due }) },
+  ] as any;
+
+  it('finding 1: changed evidence or a changed date under the same title asks again; the same inputs ask nothing', async () => {
+    const { judgeFrom } = await import('../src/services/wiki/wikiSame');
+    const answers = new Map<string, boolean>();
+    const first = judgeFrom('same:', answers);
+    buildMeaningNotes(items('will send it Monday'), { ...base, same: first });
+    expect(first.pending).toHaveLength(1);
+    answers.set(first.pending[0].key, true);
+    const replay = judgeFrom('same:', answers);
+    expect(tasks(buildMeaningNotes(items('will send it Monday'), { ...base, same: replay }))).toHaveLength(1);
+    expect(replay.pending).toHaveLength(0);
+    // The evidence is corrected; the title is not.
+    const changed = judgeFrom('same:', answers);
+    expect(tasks(buildMeaningNotes(items('this is the September sheet, not October'), { ...base, same: changed }))).toHaveLength(2);
+    expect(changed.pending).toHaveLength(1);
+    expect(changed.pending[0].key).not.toBe(first.pending[0].key);
+    const dated = judgeFrom('same:', answers);
+    buildMeaningNotes(items('will send it Monday', '2026-11-30'), { ...base, same: dated });
+    expect(dated.pending).toHaveLength(1);
+    // The answer no longer asked about can be retired: the build says which keys it still uses.
+    expect(changed.seen!.has(first.pending[0].key)).toBe(false);
+  });
+
+  it('finding 3: his own word on a pair wins over the model, either way, and does not expire with the evidence', async () => {
+    const { judgeFrom, fixKey } = await import('../src/services/wiki/wikiSame');
+    const probe = judgeFrom('same:', new Map());
+    buildMeaningNotes(items('x'), { ...base, same: probe });
+    const [a, b] = probe.pending[0].ids;
+    const modelYes = new Map<string, boolean>([[probe.pending[0].key, true], [fixKey('same:', a, b), false]]);
+    expect(tasks(buildMeaningNotes(items('x'), { ...base, same: judgeFrom('same:', modelYes) }))).toHaveLength(2);
+    const hisYes = new Map<string, boolean>([[fixKey('same:', b, a), true]]);
+    const j = judgeFrom('same:', hisYes);
+    expect(tasks(buildMeaningNotes(items('evidence changed since'), { ...base, same: j }))).toHaveLength(1);
+    expect(j.pending).toHaveLength(0);
+  });
+
+  it('finding 2: nothing is cut silently; what cannot be shown whole is not asked', async () => {
+    const { show, showable, isSame, FIELD_LIMIT } = await import('../src/services/wiki/wikiSame');
+    const long = 'x'.repeat(5000);
+    expect(show({ what: long })).toContain(long);
+    const pair = (o: any) => ({ key: 'same:k', ids: ['a', 'b'] as [string, string], a: { what: 'a' }, b: { what: 'b' }, anchor: 's', ...o });
+    expect(showable(pair({}))).toBe(true);
+    expect(showable(pair({ a: { what: 'y'.repeat(FIELD_LIMIT + 1) } }))).toBe(false);
+    expect(showable(pair({ complete: false }))).toBe(false);
+    const j = { verdict: () => undefined, pending: [] as any[] };
+    expect(isSame(j, pair({ complete: false }))).toBe(false);
+    expect(j.pending).toHaveLength(0);
+  });
+});
+
+describe('documents: the model sees everything in which two documents differ, or is not asked (review 8, finding 2)', () => {
+  const opening = 'Master services agreement between the parties. '.repeat(40); // far longer than the opening shown
+  const doc = (id: string, tail: string, extra: any = {}) => ({
+    id, kind: 'attachment', title: 'Agreement.pdf', occurredAt: new Date(`2026-11-0${id === 'a' ? 1 : 5}T09:00:00Z`), threadKey: 't1', clientNumber: 'T-1', userId: 2, scope: 'user',
+    externalId: `g${id}:Agreement.pdf:${id}`, feedEventId: null, participants: ['ali@a.com'], body: `${opening}\n${tail}`,
+    details: { filename: 'Agreement.pdf', mimeType: 'application/pdf', from: 'ali@a.com', gmailMessageId: `g${id}`, ...extra },
+  }) as any;
+  const ctx = { personByEmail: new Map(), emailIdByMessage: new Map(), projectsByThread: new Map(), ownEmails: new Set(['basit@acme.com']) };
+
+  it('matching openings, a decisive later clause: the clause is in what the model is shown', () => {
+    const asking = { verdict: () => undefined, pending: [] as any[] };
+    buildDocumentNotes([doc('a', 'Clause 14: the customer is Alpha Textiles.'), doc('b', 'Clause 14: the customer is Beta Mills.')], { ...ctx, same: asking });
+    expect(asking.pending).toHaveLength(1);
+    expect(asking.pending[0].a.lines_only_in_this_one).toBe('Clause 14: the customer is Alpha Textiles.');
+    expect(asking.pending[0].b.lines_only_in_this_one).toBe('Clause 14: the customer is Beta Mills.');
+    expect(asking.pending[0].ids).toEqual(['ga:Agreement.pdf:a', 'gb:Agreement.pdf:b']);
+  });
+
+  it('a difference too long to show whole, or a text the reader cut: never asked, two documents even if the model would say yes', () => {
+    const yes = { verdict: () => true, pending: [] as any[] };
+    const big = (n: string) => Array.from({ length: 400 }, (_, i) => `Schedule ${n} line ${i}: a distinct obligation of the parties.`).join('\n');
+    expect(buildDocumentNotes([doc('a', big('A')), doc('b', big('B'))], { ...ctx, same: yes })).toHaveLength(2);
+    expect(yes.pending).toHaveLength(0);
+    expect(buildDocumentNotes([doc('a', 'Clause 14: Alpha.', { truncated: true }), doc('b', 'Clause 14: Alpha, revised.')], { ...ctx, same: yes })).toHaveLength(2);
+    // Shown whole, and the model says yes: one document.
+    expect(buildDocumentNotes([doc('a', 'Clause 14: Alpha.'), doc('b', 'Clause 14: Alpha, revised.')], { ...ctx, same: yes })).toHaveLength(1);
+  });
+});
+
+describe('a merge needs more than one confident answer (review 8, finding 3; measured in scripts/wikiSameEval.ts)', () => {
+  const pair = { key: 'same:k1', ids: ['a', 'b'] as [string, string], a: { what: 'Share the draft with the client' }, b: { what: 'Hold the draft' }, anchor: 's1' };
+  const run = async (answers: string[], extra: any = {}) => {
+    const { judgePairs } = await import('../src/services/wiki/wikiSame');
+    const calls: string[] = [];
+    const verdicts = new Map<string, boolean>();
+    const call = async (sys: string) => { calls.push(sys); return answers[calls.length - 1] ?? 'garbage'; };
+    const r = await judgePairs('T-1', 2, [pair], verdicts, { system: 'SYS', promptVersion: 'v', purpose: 'test', limit: 5, call, keep: false, ...extra });
+    return { r, calls, same: verdicts.get(pair.key) };
+  };
+  const YES = '{"same": true, "sure": true, "why": "paraphrase"}';
+  const NO = '{"same": false, "sure": true, "why": "a hold is not a send"}';
+
+  it('a first "same" is challenged by a second reading; only two agreeing answers merge', async () => {
+    const agreed = await run([YES, YES]);
+    expect(agreed.same).toBe(true);
+    expect(agreed.calls).toHaveLength(2);
+    expect(agreed.calls[1]).toContain('A first reader called these two the same');
+    const refuted = await run([YES, NO]);
+    expect(refuted.same).toBe(false);
+    expect(refuted.r.same).toBe(0);
+  });
+
+  it('a "different" stands at once; an unsure "same" is not a merge and is not challenged', async () => {
+    const no = await run([NO]);
+    expect(no.same).toBe(false);
+    expect(no.calls).toHaveLength(1);
+    const unsure = await run(['{"same": true, "sure": false}']);
+    expect(unsure.same).toBe(false);
+    expect(unsure.calls).toHaveLength(1);
+  });
+
+  it('documents ask the second reader twice; one disagreement keeps them two; a failed reading keeps nothing', async () => {
+    expect((await run([YES, YES, YES], { secondReadings: 2 })).same).toBe(true);
+    expect((await run([YES, YES, NO], { secondReadings: 2 })).same).toBe(false);
+    const failed = await run([YES, 'garbage']);
+    expect(failed.same).toBeUndefined();
+    expect(failed.r.failed).toBe(1);
   });
 });

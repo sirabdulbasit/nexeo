@@ -23,7 +23,7 @@ import { marksOf, markSource } from './wikiMarks';
 import { writeNote, retireNote, WIKI_GENERATION } from './wikiStore';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { prunedAndUnchanged, unchangedNote, citationsOf, withSisterAddresses } from './wikiSync';
-import { isSame, pairKey, loadVerdicts, judgePairs, type SameJudge } from './wikiSame';
+import { isSame, answered, pairOf, loadVerdicts, judgeFrom, judgePairs, retireUnseen, type SameJudge } from './wikiSame';
 
 export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
@@ -245,7 +245,7 @@ export function mayBeSame(a: { what: string; owner?: string | null; to?: string 
   return !periodsClash(a.what, b.what);
 }
 
-export const SAME_TASK_PROMPT = 'same-task-v1';
+export const SAME_TASK_PROMPT = 'same-task-v2';
 export const SAME_TASK_SYSTEM = `You are given two action-item readings (A and B) from a business executive's email, meetings or task list.
 Decide whether they are ONE obligation: the same piece of work, owed once. Similar is not the same.
 Different: another period (November vs December), another deliverable, another recipient or customer, another invoice or document, or opposite actions (approve vs reject, send vs cancel, hire vs dismiss).
@@ -260,8 +260,10 @@ export function buildMeaningNotes(
 ): Built[] {
   // The one question of identity (wikiSame): words and context find the pair, the model's kept answer
   // decides it, and with no answer the two stay separate.
+  const taskPair = (idA: string, a: Record<string, unknown>, idB: string, b: Record<string, unknown>, anchor: string | null) =>
+    pairOf('same:', idA, a, idB, b, SAME_TASK_PROMPT, anchor);
   const sameTaskPair = (idA: string, a: Record<string, unknown>, idB: string, b: Record<string, unknown>, anchor: string | null) =>
-    isSame(ctx.same, { key: pairKey('same:', idA, String(a.what ?? ''), idB, String(b.what ?? ''), SAME_TASK_PROMPT), a, b, anchor });
+    isSame(ctx.same, taskPair(idA, a, idB, b, anchor));
   const own = ctx.ownEmails ?? new Set<string>();
   const person = (e?: string | null) => (e && own.has(e) ? 'you' : e && ctx.personByEmail.get(e) ? wikiLink(ctx.personByEmail.get(e)!) : e ?? null);
   const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -477,9 +479,9 @@ export function buildMeaningNotes(
         if (!candidate) continue;
         // A candidate only. The later reading closes the task when the model, shown both, says it is that
         // task's completion; until it has answered, the task stays open and is flagged for him.
-        const closeKey = pairKey('same:', readingId(older), String(po.what ?? ''), readingId(newer), String(pn.what ?? ''), SAME_TASK_PROMPT);
-        if (!sameTaskPair(readingId(older), readingOf(older), readingId(newer), readingOf(newer), anchorOf(older, newer))) {
-          if (ctx.same?.verdict(closeKey) === undefined) older.properties = { ...po, possiblyDoneIn: pn.conversation ?? null };
+        const closing = taskPair(readingId(older), readingOf(older), readingId(newer), readingOf(newer), anchorOf(older, newer));
+        if (!isSame(ctx.same, closing)) {
+          if (!answered(ctx.same, closing)) older.properties = { ...po, possiblyDoneIn: pn.conversation ?? null };
           continue;
         }
         older.properties = { ...po, state: pn.state, openNow: false, closedIn: pn.conversation ?? null, lastActivity: pn.lastActivity ?? po.lastActivity };
@@ -496,6 +498,9 @@ export function buildMeaningNotes(
       if (!mayBeSame({ what: pa.what ?? a.title, owner: pa.owner, to: pa.to, due: pa.due }, { what: pb.what ?? b.title, owner: pb.owner, to: pb.to, due: pb.due })) continue;
       // Two readings the model gave from ONE conversation are two things: it read them together.
       if (fromOneReading(a, b)) continue;
+      // His list's entry against a conversation's reading was already put to the model where his word is
+      // applied (above); it is not asked a second time in another shape here.
+      if (readingId(a).startsWith('commitment:item:') !== readingId(b).startsWith('commitment:item:')) continue;
       if (!sameTaskPair(readingId(a), readingOf(a), readingId(b), readingOf(b), anchorOf(a, b))) continue;
       const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
       keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
@@ -665,7 +670,7 @@ export async function rebuildMeaningForUser(
   // the model answers them (each once, kept), and the build runs again with the answers. A pair still
   // unanswered (over the run's limit, or a failed call) stays two notes until a later run.
   const verdicts = await loadVerdicts(clientNumber, userId, 'same:');
-  const judgeNow = (): SameJudge => ({ verdict: (k) => verdicts.get(k), pending: [] });
+  const judgeNow = (): SameJudge => judgeFrom('same:', verdicts);
   let same = judgeNow();
   let built = buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings, same });
   let judgeLeft = opts.judgeLimit ?? SAME_PER_RUN;
@@ -679,6 +684,9 @@ export async function rebuildMeaningForUser(
     built = buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings, same });
   }
   judged.left = same.pending.length;
+  // Answers about pairs no longer asked (a side changed, or they are no candidates any more) leave the
+  // current set; they stay in the history. Only after a build that saw everything and judged everything.
+  if (!opts.dryRun && failed === 0 && judged.failed === 0 && judged.left === 0 && same.seen) await retireUnseen(clientNumber, userId, 'same:', same.seen).catch(() => 0);
   const notes = renameClashes(built,
     await prisma.wikiPage.findMany({
       where: { clientNumber, OR: [{ scope: 'tenant' }, { userId }], status: 'active', metadata: { path: ['wiki'], equals: WIKI_GENERATION }, NOT: { lastUpdatedBy: MEANING_ACTOR } },

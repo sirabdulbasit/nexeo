@@ -16,7 +16,7 @@ import { listSources, removeSource, saveSource, sourceId, sourcesHeld, textHash,
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { WIKI_GENERATION } from './wikiStore';
 import { syncNotes, withSisterAddresses, type BuiltNote, type SyncResult } from './wikiSync';
-import { isSame, pairKey, loadVerdicts, judgePairs, type SameJudge } from './wikiSame';
+import { isSame, pairOf, loadVerdicts, judgeFrom, judgePairs, retireUnseen, type SameJudge } from './wikiSame';
 
 export const DOCUMENT_ACTOR = 'wiki_documents';
 export const ATTACHMENT_KIND = 'attachment' as const;
@@ -154,8 +154,23 @@ export function alike(a: string, b: string): number {
 const CANDIDATES_PER_ATTACHMENT = 4;
 /** Pairs of attachments the model is asked about per user per run, at most. */
 const SAME_DOC_PER_RUN = 80;
-export const SAME_DOC_PROMPT = 'same-doc-v1';
+/** How much of each document's opening, and of the lines only one of the two has, the model is shown. */
+const OPENING_SHOWN = 1500;
+const DIFF_LIMIT = 8000;
+/** A document's text as lines, spaces evened out, empty lines dropped. */
+export function textLines(t: string | null | undefined): string[] {
+  return plain(String(t ?? '')).split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+export const SAME_DOC_PROMPT = 'same-doc-v6';
+/** Documents are long and their differences subtle: the second reading is by the stronger model (measured, wikiSameEval). */
+export const SAME_DOC_SECOND = 'gemini';
+/** The second reading for documents: a revision differs by nature, so it asks which kind of difference this is. */
+export const SAME_DOC_CHALLENGE = `A first reader called B the same document as A (a re-send or a revision). Check that claim against the lines each has that the other does not.
+A revision changes the SAME document: a corrected figure or wording, an added or removed section, a new draft number, a note that it replaces the earlier copy, while the issuer, the parties, the subject and its own number stay.
+It is ANOTHER document when the lines differ in who issued it, who it is for or about (another party, customer, employee), which period, purchase, order or place it covers, or its own number.
+If the differing lines show another document, or you cannot tell which it is, answer same=false. Answer same=true, sure=true only for a re-send or a revision.`;
 export const SAME_DOC_SYSTEM = `You are given two email attachments (A, then the later B) that have the same file name.
+For each you see its facts, its opening, and under "lines_only_in_this_one" every line it has that the other does not: together that is everything in which the two differ.
 Decide whether B is the SAME document as A: a re-send of it, or a revised version of that one document.
 Different documents: another invoice, order or receipt (another number, amount, period or purchase), another month's or person's report, an agreement with another party, a document issued by another organisation even if it carries the same number.
 Answer with JSON only: {"same": true|false, "sure": true|false, "why": ""}
@@ -223,13 +238,21 @@ export function buildDocumentNotes(
         const candidate = sameThread || (sameSender && (ra.some((r) => rb.includes(r)) || alike(a.body, b.body) >= 0.5));
         if (!candidate) continue;
         asked += 1;
-        const shown = (v: Source, refs: string[]) => ({
+        // What the model reads of each: its facts, its opening, and EVERY line that is in it and not in the
+        // other. If that difference cannot be shown whole, or the reader cut either text, the pair is not
+        // judged on a part of it: it stays two documents.
+        const la = textLines(a.body); const lb = textLines(b.body);
+        const inA = new Set(la); const inB = new Set(lb);
+        const onlyA = la.filter((l) => !inB.has(l)).join('\n'); const onlyB = lb.filter((l) => !inA.has(l)).join('\n');
+        const complete = !(a.details as any)?.truncated && !(b.details as any)?.truncated && onlyA.length <= DIFF_LIMIT && onlyB.length <= DIFF_LIMIT;
+        const shown = (v: Source, refs: string[], only: string) => ({
           file: (v.details as any)?.filename ?? v.title, from: (v.details as any)?.from ?? null, date: day(v.occurredAt),
           came_with: (v.details as any)?.subject ?? null, conversation: v.threadKey ?? null, reference_numbers: refs.join(', ') || null,
-          opening: plain(v.body ?? '').slice(0, 1200),
+          opening: plain(v.body ?? '').slice(0, OPENING_SHOWN),
+          lines_only_in_this_one: only.slice(0, DIFF_LIMIT) || '(none: every line of this one is also in the other)',
         });
-        const key = pairKey('samedoc:', a.externalId, textHash((a.body ?? '').trim()), b.externalId, textHash((b.body ?? '').trim()), SAME_DOC_PROMPT);
-        if (isSame(ctx.same, { key, a: shown(b, rb), b: shown(a, ra), anchor: a.id })) parent.set(find(a.id), find(b.id));
+        // b is the earlier one: shown first, as A.
+        if (isSame(ctx.same, pairOf('samedoc:', b.externalId, shown(b, rb, onlyB), a.externalId, shown(a, ra, onlyA), SAME_DOC_PROMPT, a.id, complete))) parent.set(find(a.id), find(b.id));
       }
     }
     const sets = new Map<string, Source[]>();
@@ -327,17 +350,18 @@ export async function rebuildDocumentsForUser(
   // Which attachments are one document is judged first (wikiSame): the build lists its candidate pairs, the
   // model answers each once, and the build runs again with the answers. Unanswered pairs stay two documents.
   const verdicts = await loadVerdicts(clientNumber, userId, 'samedoc:');
-  const build = () => { const same: SameJudge = { verdict: (k) => verdicts.get(k), pending: [] }; return { same, notes: buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails: own, same }) }; };
+  const build = () => { const same: SameJudge = judgeFrom('samedoc:', verdicts); return { same, notes: buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails: own, same }) }; };
   let b = build();
   let left = opts.judgeLimit ?? SAME_DOC_PER_RUN;
   const judged = { asked: 0, same: 0, failed: 0, left: 0 };
   for (let pass = 0; pass < 3 && b.same.pending.length > 0 && left > 0; pass += 1) {
-    const r = await judgePairs(clientNumber, userId, b.same.pending, verdicts, { system: SAME_DOC_SYSTEM, promptVersion: SAME_DOC_PROMPT, purpose: 'wiki_same_doc', limit: left, call: opts.judge });
+    const r = await judgePairs(clientNumber, userId, b.same.pending, verdicts, { system: SAME_DOC_SYSTEM, promptVersion: SAME_DOC_PROMPT, purpose: 'wiki_same_doc', limit: left, call: opts.judge, challenge: SAME_DOC_CHALLENGE, secondProvider: SAME_DOC_SECOND, secondReadings: 2 });
     judged.asked += r.asked; judged.same += r.same; judged.failed += r.failed;
     left -= r.asked;
     if (r.asked === 0) break;
     b = build();
   }
   judged.left = b.same.pending.length;
+  if (judged.failed === 0 && judged.left === 0 && b.same.seen) await retireUnseen(clientNumber, userId, 'samedoc:', b.same.seen).catch(() => 0);
   return { ...(await syncNotes({ clientNumber, userId }, DOCUMENT_ACTOR, b.notes)), judged };
 }
