@@ -890,3 +890,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Created as transcript_ready with 232 lines at 07:14:04.6; record_ready at 07:14:07.870.
     - The re-read at 07:49:03 came before D-264, so there was no push.
     - Nexeo has no auto-transcription (artifactConfig) code. Transcription was switched on in Meet itself. Slice-2 auto-transcription is not built.
+  - **Transcript fix released:** Suzi 1.2.72 at 13:09:16 PKT (Suzi-Master). It is waiting for the founder's restart; a watcher is waiting for his Mac's 1.2.72 device.report.
