@@ -292,7 +292,11 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const facts = await buildDayBriefFacts(clientNumber, userId, { timezone: tz, now });
 
   let events: RawPackEvent[] = [];
-  if (facts.sources.calendar) {
+  // DEF-482 (16 Nov): his live Google Calendar first. The synced copy (feed_events) never learns of a cancel, so a
+  // meeting he cancelled stayed in the pack and Suzi tried to cancel it again ("not_found"). Feed copy = fallback only.
+  const live = facts.sources.calendar ? await livePackEvents(userId, today) : null;
+  if (live) events = live;
+  else if (facts.sources.calendar) {
     const rows = await prisma.$queryRawUnsafe<Array<{ p: RawPackEvent }>>(
       `SELECT raw_payload AS p FROM feed_events
         WHERE client_number = $1 AND user_id = $2
@@ -365,4 +369,22 @@ export function attendOf(rules: MeetingAttendRule[], chosen: Map<string, 'always
     if (d.decision === 'never') return { decision: 'never', ...(d.rule_id ? { rule_id: d.rule_id } : {}) };
     return { decision: 'ask' };
   };
+}
+
+/** His live Google Calendar for the pack's window (yesterday to two days past the week's end), or null when it cannot
+ *  be read (not Google, not connected, an API error): the caller then uses the synced copy. */
+export async function livePackEvents(
+  userId: number, today: string,
+  read: (u: number, a: Date, b: Date, n: number) => Promise<{ events: any[]; error?: string }> = async (u, a, b, n) => (await import('../calendarService')).getEvents(u, a, b, n),
+): Promise<RawPackEvent[] | null> {
+  const DAY = 24 * 3600_000;
+  const from = new Date(Date.parse(`${addDays(today, -1)}T00:00:00Z`) - 14 * 3600_000);
+  const to = new Date(Date.parse(`${addDays(endOfWeek(today), 2)}T00:00:00Z`) + 14 * 3600_000);
+  if (!(to.getTime() - from.getTime() < 21 * DAY)) return null;
+  const r = await read(userId, from, to, 250).catch(() => ({ events: [], error: 'read failed' }));
+  if (r.error) return null;
+  return r.events.filter((e) => e.status !== 'cancelled').map((e) => ({
+    eventId: e.id, title: e.title, start: e.start, end: e.end, isAllDay: e.isAllDay, attendees: e.attendees,
+    organizer: e.organizer, link: e.link ?? null, location: e.location ?? null, status: e.status,
+  }));
 }
