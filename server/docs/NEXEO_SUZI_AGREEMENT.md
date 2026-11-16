@@ -978,3 +978,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - **Charter mirrored 16 Nov:** Functional_Charter.md from suzi-client 582690e, sha256 bcf36a9a… (cmp identical). It adds the W-1 keys (memory, speech, extra settings) and the F-2.4 sent/bounced states (D-287, DEF-491, AGREEd directly with Suzi Master in bc078893).
     - memory.* is not on production yet: his Mac runs 1.2.85, and it starts after a restart into 1.2.89+ (speech and settings need 1.2.91+).
     - suzi-nexeo-link/charter has been stale since 6 Nov; Suzi Master keeps the charter in suzi-client.
+  - **D-288 LIVE 21:09 PKT (Nexeo Wiki):** an empty profile.update value means forget (the line and its source are removed). Each key is kept as a private source profile:<key>, cited by the note. Proven on a throwaway user. A real update from his Mac is not verified yet. Sent to Suzi Master.
