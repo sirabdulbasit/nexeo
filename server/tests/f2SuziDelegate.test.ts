@@ -33,6 +33,7 @@ const gateSend = vi.fn();
 const fwd = vi.fn();
 const latest = vi.fn();
 const emailOp = vi.fn();
+const markThread = vi.fn(async (..._a: any[]) => ({ ok: true }));
 vi.mock('../src/services/suzi/suziEmail', () => ({
   writeWithModel: (...a: any[]) => write(...a),
   saveNewDraft: (...a: any[]) => saveNew(...a),
@@ -40,6 +41,7 @@ vi.mock('../src/services/suzi/suziEmail', () => ({
   forwardEmail: (...a: any[]) => fwd(...a),
   latestMail: (...a: any[]) => latest(...a),
   runEmailOp: (...a: any[]) => emailOp(...a),
+  markThread: (...a: any[]) => markThread(...a),
 }));
 const emailRules = vi.fn(async () => [] as any[]);
 vi.mock('../src/services/suzi/suziEmailRules', async () => {
@@ -167,12 +169,21 @@ describe('after the send has really gone', () => {
   it('a delegated email: task made, assigned, marked told, its id kept, the thread handled', async () => {
     findAction.mockResolvedValue({ id: 52, clientNumber: 'T', userId: 2, input: { delegate: { thread_id: 'th9', person_id: 'p1', person_name: 'Ali Raza', person_email: 'ali@x.com', note: 'please handle', subject: 'Quote for racks' } } });
     await afterSuziSent(52, 'gm77');
-    expect(create.mock.calls[0][2]).toMatchObject({ title: 'Quote for racks', metadata: { suziSource: { email_id: 'th9' } } });
+    expect(create.mock.calls[0][2]).toMatchObject({ title: 'Quote for racks', sourceRef: 'th9', metadata: { suziSource: { email_id: 'th9' }, watch: { person: 'Ali Raza', email: 'ali@x.com', why: 'delegated through Suzi' } } });
     expect(status.mock.calls[0].slice(0, 3)).toEqual(['i1', 'T', 'TRIAGED']);
     expect(delegate.mock.calls[0].slice(0, 5)).toEqual(['i1', 'T', null, 'Ali Raza', 'ali@x.com']);
     expect(updateItem.mock.calls[0][0].data).toMatchObject({ delegationEmailMessageId: 'gm77' });
-    expect(JSON.parse(exec.mock.calls[0][2])).toEqual({ task_id: 'i1' });
-    expect(emailOp.mock.calls[0].slice(0, 4)).toEqual(['T', 2, 'email.mark', { thread_id: 'th9', state: 'handled' }]);
+    // DEF-490: an existing task for the same email gets the watch too
+    expect(exec.mock.calls.find((c: any[]) => /jsonb_build_object\('watch'/.test(c[0]))?.[1]).toBe('i1');
+    expect(JSON.parse(exec.mock.calls.find((c: any[]) => /'\{send\}'/.test(c[0]))![2])).toEqual({ task_id: 'i1' });
+    // DEF-489: learned as a delegation, never as a reply
+    expect(markThread.mock.calls[0]).toEqual(['T', 2, 'th9', 'delegated']);
+    expect(emailOp).not.toHaveBeenCalledWith('T', 2, 'email.mark', expect.anything(), true);
+  });
+  it('DEF-490: a rule forward is watched as forwarded by his rule, linked to the exact message', async () => {
+    findAction.mockResolvedValue({ id: 53, clientNumber: 'T', userId: 2, input: { delegate: { thread_id: 'th8', message_id: 'm8', by_rule: true, rule_id: 'r1', person_id: 'p1', person_name: 'Ali Raza', person_email: 'ali@x.com', subject: 'Invoice' } } });
+    await afterSuziSent(53, 'gm80');
+    expect(create.mock.calls[0][2]).toMatchObject({ sourceRef: 'm8', metadata: { suziRule: 'r1', suziSource: { email_id: 'th8', message_id: 'm8' }, watch: { person: 'Ali Raza', why: 'forwarded by your rule' } } });
   });
   it('a note to a person: only that task is marked told, scoped to his tenant and user', async () => {
     findAction.mockResolvedValue({ id: 41, clientNumber: 'T', userId: 2, input: { tellOpenItemId: 'i1' } });

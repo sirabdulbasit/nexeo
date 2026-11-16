@@ -185,9 +185,19 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
   const item = await createItem(row.userId as any, row.clientNumber, {
     title: `${d.subject || 'Email'}`.slice(0, 200), type: 'task', priority: 'medium', sourceFeed: 'suzi',
     ...(d.note ? { description: String(d.note).slice(0, 2000) } : {}),
-    metadata: { manualCreate: true, createdBy: 'suzi', suziSource: { email_id: d.thread_id }, ...(d.rule_id ? { suziRule: d.rule_id } : {}) },
+    // DEF-490: the source email is linked (sourceRef: the Wiki and actions[].source find the message), and
+    // the task is his to WATCH, not his to do (metadata.watch: the Wiki reads it as the person's commitment).
+    sourceRef: String(d.message_id || d.thread_id),
+    metadata: { manualCreate: true, createdBy: 'suzi', suziSource: { email_id: d.thread_id, ...(d.message_id ? { message_id: d.message_id } : {}) }, ...(d.rule_id ? { suziRule: d.rule_id } : {}), watch: watchOf(d) },
   } as any);
   if (!item?.id) return;
+  // An existing task for the same email is the one handed over: it is watched from now on, and keeps its own history.
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE open_items SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('watch', $2::jsonb) WHERE id = $1`,
+      item.id, JSON.stringify(watchOf(d)),
+    );
+  } catch { /* the task stands without the watch; the next delegate of this email sets it */ }
   const actor = `user:${row.userId}`;
   if (String(item.status ?? '').toUpperCase() === 'NEW') await changeStatus(item.id, row.clientNumber, 'TRIAGED' as any, `Delegating to ${d.person_name}`, actor);
   await delegateItem(item.id, row.clientNumber, null, d.person_name, d.person_email, d.note || 'Delegated through Suzi', actor);
@@ -196,7 +206,16 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
     `UPDATE agent_actions SET output = jsonb_set(output, '{send}', (output->'send') || $2::jsonb), updated_at = now() WHERE id = $1`,
     draftId, JSON.stringify({ task_id: item.id }),
   );
-  // It is his no longer: the thread leaves the emails needing a reply.
-  const { runEmailOp } = await import('./suziEmail');
-  await runEmailOp(row.clientNumber, row.userId as any, 'email.mark', { thread_id: d.thread_id, state: 'handled' }, true).catch(() => undefined);
+  // It is his no longer: the thread leaves the emails needing a reply. DEF-489: learned as DELEGATED to the person, not
+  // as a reply (the "handled" mark wrote decision approved, which the miner and the suggester count as draft_reply).
+  const { markThread } = await import('./suziEmail');
+  await markThread(row.clientNumber, row.userId as any, d.thread_id, 'delegated').catch(() => undefined);
+}
+
+/** DEF-490: who has it now, for the watch (brainOwnership.isWatchOnly: a person is enough). */
+export function watchOf(d: { person_name?: string; person_email?: string; rule_id?: string | null; by_rule?: boolean }): Record<string, string> {
+  return {
+    person: String(d.person_name || d.person_email || 'colleague'), ...(d.person_email ? { email: String(d.person_email) } : {}),
+    why: d.by_rule ? 'forwarded by your rule' : 'delegated through Suzi', since: new Date().toISOString(),
+  };
 }

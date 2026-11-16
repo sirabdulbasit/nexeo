@@ -289,8 +289,17 @@ const MARKS: Record<string, string> = { handled: 'approved', no_reply_needed: 'd
 
 /** Every email of the thread, because the attention list collapses a thread into one card. */
 async function mark(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
-  const threadId = text(a.thread_id);
-  const decision = MARKS[text(a.state)];
+  if (!MARKS[text(a.state)]) return fail('bad_state');
+  return markThread(clientNumber, userId, text(a.thread_id), text(a.state) as 'handled' | 'no_reply_needed');
+}
+
+/**
+ * The thread's emails, decided. `delegated` is Nexeo's own (DEF-489, not an op Suzi sends): a forward to a person is
+ * learned as a delegation, and in the Wiki the email is handled.
+ */
+export async function markThread(clientNumber: string, userId: number, threadId: string, state: 'handled' | 'no_reply_needed' | 'delegated'): Promise<EmailOpResult> {
+  const a: Args = { thread_id: threadId, state };
+  const decision = state === 'delegated' ? 'delegated' : MARKS[state];
   if (!decision) return fail('bad_state');
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string; source_id?: string | null; subject: string | null; snippet: string | null; sender_email: string | null }>>(
     `SELECT id, source_id, raw_payload->>'subject' AS subject, raw_payload->>'snippet' AS snippet, sender_email FROM feed_events
@@ -322,7 +331,7 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
         const { sourceId } = await import('../wiki/wikiSources');
         const { markSource } = await import('../wiki/wikiStore');
         await markSource({ clientNumber, userId }, sourceId(clientNumber, userId, 'email', r.source_id),
-          { kind: 'handled', value: { how: text(a.state) === 'handled' ? 'handled' : 'ignored_once' }, by: 'suzi' });
+          { kind: 'handled', value: { how: text(a.state) === 'no_reply_needed' ? 'ignored_once' : 'handled' }, by: 'suzi' });
       } catch { /* the answer stays as today (Suzi Master n2); a mark that cannot land is retried on the next mark */ }
     }
   }
