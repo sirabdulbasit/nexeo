@@ -89,8 +89,8 @@ export interface NoteInput {
   /** Write only if the note is still at this revision (a person editing what they read). */
   ifRevision?: number;
   /**
-   * This write states the whole note (a builder that derives it from sources): its identifiers
-   * and its citations become exactly the ones given, instead of being added to what is there.
+   * This write states the whole note (a builder that derives it from sources): its properties,
+   * identifiers and citations become exactly the ones given, instead of being added to what is there.
    */
   exact?: boolean;
   /** Who is writing: 'feed:gmail', 'user:12', 'upkeep'. */
@@ -351,7 +351,9 @@ async function writeNoteIn(tx: any, input: NoteInput): Promise<WriteResult> {
   const metadata = {
     ...meta,
     wiki: WIKI_GENERATION,
-    properties: mergeProperties(meta.properties, input.properties),
+    // A builder states the whole note: its properties are exactly the ones given, so a fact the build no
+    // longer derives (an old ruling, a dropped name) does not linger (review 16 Nov, P1 provenance).
+    properties: input.exact ? mergeProperties({}, input.properties) : mergeProperties(meta.properties, input.properties),
     unresolvedLinks: links.unresolved,
     ambiguousLinks: links.ambiguous,
     ids: input.exact ? ids : normalizeIds([...strings(meta.ids), ...ids]),

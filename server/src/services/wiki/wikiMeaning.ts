@@ -22,7 +22,7 @@ import { listSources, type Source } from './wikiSources';
 import { marksOf, markSource } from './wikiMarks';
 import { writeNote, retireNote, WIKI_GENERATION } from './wikiStore';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { prunedAndUnchanged, unchangedNote, citationsOf } from './wikiSync';
+import { prunedAndUnchanged, unchangedNote, citationsOf, withSisterAddresses } from './wikiSync';
 
 export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
@@ -511,6 +511,7 @@ export async function rebuildMeaningForUser(
     const labels = Array.isArray((s.details as any)?.labels) ? (s.details as any).labels : [];
     if (labels.includes('SENT')) { const e = emailOrNull((s.details as any)?.from); if (e) ownEmails.add(e); }
   }
+  for (const e of withSisterAddresses(ownEmails, sources.map((x) => emailOrNull((x.details as any)?.from)).filter((x): x is string => !!x))) ownEmails.add(e);
   const rulings = await loadRulings(clientNumber, userId);
   // A conversation he did not write in still counts when one of his tasks came from it, or when it was judged to need him.
   const attention = await marksOf(clientNumber, userId, sources.map((x) => x.id));

@@ -105,3 +105,23 @@ export async function syncNotes(
   }
   return { notes: notes.length, written, unchanged, retired };
 }
+
+/** The organisation part of a domain, as the builder reads it (`tmcltd.com` and `tmcltd.ai` → `tmcltd`). */
+function orgOf(domain: string): string {
+  const parts = domain.toLowerCase().split('.');
+  parts.pop();
+  if (parts.length > 1 && ['com', 'co', 'net', 'org', 'edu', 'gov', 'ac'].includes(parts[parts.length - 1])) parts.pop();
+  return parts[parts.length - 1] ?? domain;
+}
+
+/**
+ * His own addresses, with the same mailbox at a sister domain of his organisation (`x@tmcltd.com` is his,
+ * so `x@tmcltd.ai` is too): the rule the person notes already follow. `seen` is every address to consider.
+ */
+export function withSisterAddresses(own: Set<string>, seen: Iterable<string>): Set<string> {
+  const key = (e: string) => { const [l, d] = e.toLowerCase().split('@'); return d ? `${l}@${orgOf(d)}` : e; };
+  const mine = new Set([...own].map(key));
+  const out = new Set(own);
+  for (const e of seen) if (e.includes('@') && mine.has(key(e))) out.add(e.toLowerCase());
+  return out;
+}

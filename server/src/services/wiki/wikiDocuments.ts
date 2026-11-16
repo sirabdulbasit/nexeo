@@ -15,7 +15,7 @@ import prisma from '../../db/prisma';
 import { listSources, saveSource, sourceId, sourcesHeld, textHash, type Source } from './wikiSources';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { WIKI_GENERATION } from './wikiStore';
-import { syncNotes, type BuiltNote, type SyncResult } from './wikiSync';
+import { syncNotes, withSisterAddresses, type BuiltNote, type SyncResult } from './wikiSync';
 
 export const DOCUMENT_ACTOR = 'wiki_documents';
 export const ATTACHMENT_KIND = 'attachment' as const;
@@ -219,6 +219,7 @@ export async function rebuildDocumentsForUser(clientNumber: string, userId: numb
   );
   const ownEmails = new Set<string>([String(user?.email ?? '').toLowerCase()].filter(Boolean));
   for (const e of emails) if (Array.isArray(e.labels) && e.labels.includes('SENT')) { const x = emailIn(e.from_addr); if (x) ownEmails.add(x); }
+  const own = withSisterAddresses(ownEmails, [...emails.map((e) => emailIn(e.from_addr)), ...attachments.map((a) => emailIn((a.details as any)?.from))].filter((x): x is string => !!x));
   const people = await prisma.wikiPage.findMany({
     where: { clientNumber, userId, pageType: 'person', status: 'active', metadata: { path: ['wiki'], equals: WIKI_GENERATION } },
     select: { title: true, metadata: true },
@@ -236,6 +237,6 @@ export async function rebuildDocumentsForUser(clientNumber: string, userId: numb
   const projectsByThread = new Map<string, string[]>();
   for (const r of proj) projectsByThread.set(r.thread_key, [...(projectsByThread.get(r.thread_key) ?? []), r.title]);
   const emailIdByMessage = new Map(emails.map((e) => [e.external_id, e.id]));
-  const notes = buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails });
+  const notes = buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails: own });
   return syncNotes({ clientNumber, userId }, DOCUMENT_ACTOR, notes);
 }

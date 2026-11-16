@@ -235,6 +235,15 @@ describe('wiki identity', () => {
     expect(t.cites.filter((c) => c.note_id === w.id).map((c) => c.source_id).sort()).toEqual(['s1', 's2', 's3']);
   });
 
+  it('a builder\'s write sets the properties exactly: a fact it no longer derives does not linger', async () => {
+    const w = await writeNote({ ...base, type: 'commitment', title: 'Approve the timesheet (you)', body: 'x', properties: { state: 'done', ruling: 'closed', ruledBy: 'him' }, exact: true });
+    await writeNote({ ...base, type: 'commitment', title: 'Approve the timesheet (you)', body: 'x', properties: { state: 'open' }, exact: true });
+    expect(page(w.id).metadata.properties).toEqual({ state: 'open' });
+    // A writer that does not state the whole note merges, as before.
+    await writeNote({ ...base, type: 'commitment', title: 'Approve the timesheet (you)', body: 'x', properties: { due: '2026-11-20' } });
+    expect(page(w.id).metadata.properties).toEqual({ state: 'open', due: '2026-11-20' });
+  });
+
   it('identifiers are stored one way', () => {
     expect(normalizeIds([' Email:A@X.com ', 'email:a@x.com', 'no-kind', '', 'domain:x.com'])).toEqual(['domain:x.com', 'email:a@x.com']);
     expect(normalizeIds(undefined)).toEqual([]);

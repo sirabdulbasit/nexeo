@@ -417,3 +417,11 @@ describe('unchanged means the whole note, not only its text (review 16 Nov, P1)'
     expect(unchangedNote({ ...stored, metadata: { ...stored.metadata, unresolvedLinks: ['y'] } }, built, new Set(['s1']))).toBe(false);
   });
 });
+
+describe('his own addresses', () => {
+  it('the same mailbox at a sister domain of his organisation is his; another mailbox is not', async () => {
+    const { withSisterAddresses } = await import('../src/services/wiki/wikiSync');
+    const own = withSisterAddresses(new Set(['basit.ahmed@tmcltd.com']), ['basit.ahmed@tmcltd.ai', 'fida@tmcltd.ai', 'basit.ahmed@other.com']);
+    expect([...own].sort()).toEqual(['basit.ahmed@tmcltd.ai', 'basit.ahmed@tmcltd.com']);
+  });
+});
