@@ -545,7 +545,8 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       title: companyTitle(domain),
       ...(companyTitle(domain) !== domain ? { aliases: [domain] } : {}),
       body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`)].join('\n'),
-      properties: { domains, people: names.length, ...(companyTitle(domain) !== domain ? { name: companyTitle(domain) } : {}) },
+      // `name: null` removes a name the note held before (a name no longer read, or given to another company).
+      properties: { domains, people: names.length, name: companyTitle(domain) !== domain ? companyTitle(domain) : null },
       ids: domains.map((d) => `domain:${d}`),
       sourceIds: citedSources(companySources.get(domain) ?? []),
     });

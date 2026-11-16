@@ -305,3 +305,15 @@ describe('company names read from the writer\'s own words', () => {
     expect(ownPart('No quote here')).toBe('No quote here');
   });
 });
+
+describe('the same conversation reads the same every run', () => {
+  it('two emails of one moment keep one order, whatever order they come in', async () => {
+    const { conversationsOf, fingerprint } = await import('../src/services/wiki/wikiMeaning');
+    const e = (id: string) => ({ id, kind: 'email', title: 's', occurredAt: new Date('2026-11-01T09:00:00Z'), threadKey: 't', clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: [], body: id, details: { from: 'basit@acme.com', to: 'x@y.com', labels: ['SENT'] } }) as any;
+    const own = new Set(['basit@acme.com']);
+    const [a] = conversationsOf([e('a'), e('b')], own);
+    const [b] = conversationsOf([e('b'), e('a')], own);
+    expect(fingerprint(a)).toBe(fingerprint(b));
+    expect(a.sources.map((s) => s.id)).toEqual(['a', 'b']);
+  });
+});

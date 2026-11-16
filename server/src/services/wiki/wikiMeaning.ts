@@ -87,10 +87,12 @@ export function conversationsOf(sources: Source[], ownEmails: Set<string>, alsoK
     const list = all.filter((s) => !toSelfOnly(s));
     if (list.length === 0) continue;
     if (!list.some(wrote) && !alsoKeys?.has(key)) continue;
-    const sorted = [...list].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0));
+    // Two emails of one moment by id: the same conversation must give the same fingerprint every run
+    // (the database returns ties in any order, and a changed fingerprint is a paid re-read).
+    const sorted = [...list].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
     out.push({ key, subject: sorted[sorted.length - 1].title ?? sorted[0].title ?? '(no subject)', sources: sorted, last: sorted[sorted.length - 1].occurredAt ?? new Date(0) });
   }
-  return out.sort((a, b) => b.last.getTime() - a.last.getTime());
+  return out.sort((a, b) => b.last.getTime() - a.last.getTime() || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 }
 
 /** A fingerprint of what the model would read: it changes when an email is added or its text changes. */
@@ -502,7 +504,7 @@ export async function rebuildMeaningForUser(
     const me = await prisma.user.findUnique({ where: { id: userId }, select: { name: true } });
     for (const m of meetingExtractions(await transcriptSources(clientNumber, userId), { ownEmails, userName: me?.name ?? null })) items.push(m as any);
   } catch { failed += 1; /* the email meaning stands without them; nothing is retired this run */ }
-  items.sort((a, b) => b.conv.last.getTime() - a.conv.last.getTime());
+  items.sort((a, b) => b.conv.last.getTime() - a.conv.last.getTime() || (a.conv.key < b.conv.key ? -1 : a.conv.key > b.conv.key ? 1 : 0));
 
   const people = await prisma.wikiPage.findMany({
     where: { clientNumber, userId, pageType: 'person', status: 'active', metadata: { path: ['wiki'], equals: WIKI_GENERATION } },
