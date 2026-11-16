@@ -31,7 +31,7 @@ export async function changesSince(clientNumber: string, userId: number, since: 
         -- only on a real change, so a write that moves updated_at alone flags nothing). His leave (his_choice) flags too.
         OR EXISTS (SELECT 1 FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND changed_at > $3)
         -- Suzi Master AGREE 16 Nov: his successful calendar.cancel / update / create through Suzi.
-        OR EXISTS (SELECT 1 FROM suzi_calendar_touch WHERE client_number = $1 AND user_id = $2 AND touched_at > $3)) AS calendar,
+        OR EXISTS (SELECT 1 FROM users WHERE client_number = $1 AND id = $2 AND (notification_preferences->'suzi'->>'calendar_touched_at')::timestamptz > $3)) AS calendar,
        (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${EMAIL_SOURCES} AND created_at > $3)
         OR EXISTS (SELECT 1 FROM decision_logs WHERE client_number = $1 AND user_id = $2 AND created_at > $3)) AS emails,
        EXISTS (SELECT 1 FROM suzi_rules_version WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS rules,

@@ -1,5 +1,5 @@
 /**
- * Suzi Master AGREE (16 Nov 2026): a successful calendar.cancel / update / create stamps suzi_calendar_touch, which
+ * Suzi Master AGREE (16 Nov 2026): a successful calendar.cancel / update / create stamps users.notification_preferences.suzi.calendar_touched_at, which
  * /v1/changes reads as "calendar"; a failed op ({ok:false}) stamps nothing. Found by the founder's cancel of
  * "TMC System Catalogues" (10:20:27 UTC), which flagged nothing.
  */
@@ -19,7 +19,7 @@ describe('calendar ops touch the changes feed', () => {
   for (const op of ['calendar.cancel', 'calendar.update', 'calendar.create']) {
     it(`${op} ok → stamped; failed → not`, async () => {
       expect((await runCalendarOp('T', 2, op, {}, true, G, { update: ok, cancel: ok, create: ok } as any)).ok).toBe(true);
-      expect(s.sql.filter((q) => /INSERT INTO suzi_calendar_touch/.test(q))).toHaveLength(1);
+      expect(s.sql.filter((q) => /calendar_touched_at/.test(q))).toHaveLength(1);
       s.sql = [];
       expect((await runCalendarOp('T', 2, op, {}, true, G, { update: no, cancel: no, create: no } as any)).ok).toBe(false);
       expect(s.sql).toHaveLength(0);

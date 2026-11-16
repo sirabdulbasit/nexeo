@@ -210,8 +210,11 @@ export async function runCalendarOp(
 /** Suzi Master AGREE 16 Nov: a successful calendar op flags "calendar" on /v1/changes (suziChanges.ts). A failed op
  *  flags nothing. A stamp that cannot be written never fails the op that already succeeded. */
 export async function touchCalendar(clientNumber: string, userId: number): Promise<void> {
+  // Kept in his own preferences (users.notification_preferences.suzi.calendar_touched_at), not a new table: the
+  // Wiki-first ledger allows no new store outside the Wiki (wikiFirstLedger.test.ts).
   await prisma.$executeRawUnsafe(
-    `INSERT INTO suzi_calendar_touch (client_number, user_id, touched_at) VALUES ($1, $2, now())
-     ON CONFLICT (client_number, user_id) DO UPDATE SET touched_at = now()`, clientNumber, userId,
+    `UPDATE users SET notification_preferences = jsonb_set(COALESCE(notification_preferences, '{}'::jsonb), '{suzi}',
+        COALESCE(notification_preferences->'suzi', '{}'::jsonb) || jsonb_build_object('calendar_touched_at', now()::text))
+      WHERE id = $2 AND client_number = $1`, clientNumber, userId,
   ).catch(() => undefined);
 }
