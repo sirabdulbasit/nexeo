@@ -175,7 +175,10 @@ export async function confirmReceipt(id: number, attempt = 0): Promise<'sent' | 
   const { sentReceipt } = await import('../gmailService');
   const got = await sentReceipt(r.user_id, r.mid).catch(() => 'unknown' as const);
   if (got === 'sent') {
-    await finish(id, r.client_number, r.user_id, 'sent', { sent_at: new Date().toISOString(), delivered_at: new Date().toISOString(), receipt_pending: false });
+    // DEF-491: sent_at is the fact (in his Sent folder). delivered_at carries the same value until 23 Nov 2026 only
+    // (Suzi Master AGREE (c)); then it is dropped.
+    const at = new Date().toISOString();
+    await finish(id, r.client_number, r.user_id, 'sent', { sent_at: at, delivered_at: at, receipt_pending: false });
     const { afterSuziSent } = await import('./suziDelegate');
     await afterSuziSent(id, r.mid).catch((e) => console.warn(`[suzi-send] after-send of ${id} failed: ${e?.message ?? e}`));
     return 'sent';

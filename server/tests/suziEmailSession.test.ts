@@ -31,6 +31,7 @@ vi.mock('../src/services/gmailService', () => ({
   createGmailDraft: (...a: any[]) => saveDraft(...a),
   deleteGmailDraft: (...a: any[]) => dropDraft(...a),
   getEmailHeadersForReply: async () => ({ threadId: 'th1', rfcMessageId: '<m1>', references: null }),
+  attachmentsOf: async () => ({ files: [{ filename: 'Budget.xlsx', mimeType: 'application/vnd.ms-excel', data: 'QUJD' }], left_out: 0 }),
 }));
 const llm = vi.fn();
 vi.mock('../src/services/llmRouter', () => ({ callLLM: (...a: any[]) => llm(...a) }));
@@ -132,11 +133,16 @@ describe('a new draft, a new email, a forward', () => {
     expect(await runEmailOp('T', 2, 'email.new', { to: 'a@x.com', subject: '', text: 'B' }, false)).toMatchObject({ error: 'bad_draft' });
     expect(create).toHaveBeenCalledTimes(1);
   });
-  it('a forward quotes the email and says what it leaves out', async () => {
+  it('a forward quotes the email and, DEF-488, takes its attachments along', async () => {
     const r: any = await runEmailOp('T', 2, 'email.forward', { thread_id: 'th1', to: 'b@y.org', text: 'FYI' }, false);
     expect(r.item.subject).toBe('Fwd: Budget');
     expect(r.item.body.startsWith('FYI\n\n---------- Forwarded message')).toBe(true);
-    expect(r.item.attachments_left_out).toBe(1);
+    expect(r.item.attachments_left_out).toBe(0);
+  });
+  it('DEF-488: the Gmail draft of a forward carries the original attachments', async () => {
+    find.mockResolvedValue({ id: 8, output: { to: 'b@y.org', subject: 'Fwd: Budget', body: 'FYI', mode: 'forward', forward_of: 'm1', attachments: 1 }, input: {} });
+    await runEmailOp('T', 2, 'email.send', { draft_id: '8' }, true);
+    expect(saveDraft.mock.calls[0][5].attachments.map((f: any) => f.filename)).toEqual(['Budget.xlsx']);
   });
   it('someone else\'s thread can\'t be forwarded', async () => {
     query.mockResolvedValue([]);

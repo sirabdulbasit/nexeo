@@ -90,6 +90,7 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
   let forwarded = 0;
   for (const u of users) {
     try {
+      await bounceSweep(u.clientNumber, u.id).catch((e: any) => log.warn('bounce check failed', { userId: u.id, error: String(e?.message ?? e).slice(0, 160) }));
       const rules = (await suziEmailRules(u.clientNumber, u.id)).filter((r) => r.kind === 'email_delegate');
       if (!rules.length) continue;
       if (!(await maySendForReal(u.clientNumber, u.id))) { skip('cannot_send'); continue; }      // C3.1
@@ -144,6 +145,42 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
     }
   }
   return { users: users.length, forwarded, skipped };
+}
+
+/**
+ * DEF-491 (Suzi Master AGREE 16 Nov, (b)): a rule forward that bounces. For 30 minutes after it was sent, each tick
+ * looks for a bounce notice carrying its Message-ID; one found → state "bounced" (the pack and Suzi say so) and the
+ * person's task is cancelled, since they never got it. Gmail unreadable → asked again next tick.
+ */
+export const BOUNCE_WINDOW_MS = 30 * 60_000;
+export async function bounceSweep(clientNumber: string, userId: number, now = new Date(),
+  deps: { bounceFor?: (u: number, m: string, s: Date) => Promise<'bounced' | 'none' | 'unknown'> } = {}): Promise<number> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: number; mid: string | null; sent_at: string | null; task_id: string | null }>>(
+    `SELECT id, output->'send'->>'gmail_message_id' AS mid, output->'send'->>'sent_at' AS sent_at, output->'send'->>'task_id' AS task_id
+       FROM agent_actions WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply'
+        AND input->'delegate'->>'by_rule' = 'true' AND output->'send'->>'state' = 'sent'
+        AND (output->'send'->>'sent_at')::timestamptz > $3`,
+    clientNumber, userId, new Date(now.getTime() - BOUNCE_WINDOW_MS),
+  );
+  const check = deps.bounceFor ?? (async (u: number, m: string, s: Date) => (await import('../services/gmailService')).bounceFor(u, m, s));
+  let n = 0;
+  for (const r of rows) {
+    if (!r.mid || !r.sent_at) continue;
+    if ((await check(userId, r.mid, new Date(r.sent_at))) !== 'bounced') continue;
+    const won = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+      `UPDATE agent_actions SET output = jsonb_set(output, '{send}', (output->'send') || $2::jsonb), updated_at = now()
+        WHERE id = $1 AND output->'send'->>'state' = 'sent' RETURNING id`,
+      r.id, JSON.stringify({ state: 'bounced', bounced_at: now.toISOString() }),
+    );
+    if (!won.length) continue;
+    n += 1;
+    log.info('rule forward bounced', { userId, action: r.id });
+    if (r.task_id) {
+      const { changeStatus } = await import('../services/openItemsService');
+      await changeStatus(r.task_id, clientNumber, 'CANCELLED' as any, 'The forward bounced back: they never got it', `user:${userId}`).catch(() => undefined);
+    }
+  }
+  return n;
 }
 
 export function scheduleRuleForward(): void {

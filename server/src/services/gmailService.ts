@@ -395,22 +395,36 @@ export async function createGmailDraft(
   subject: string,
   body: string,
   cc?: string,
-  opts?: { threadId?: string; inReplyTo?: string; references?: string },
+  opts?: { threadId?: string; inReplyTo?: string; references?: string; attachments?: DraftAttachment[] },
 ): Promise<{ success: boolean; draftId?: string; error?: string }> {
   const { client, error } = await getAuthenticatedClient(userId);
   if (!client) return { success: false, error };
   try {
     const gmail = google.gmail({ version: 'v1', auth: client });
+    const files = opts?.attachments ?? [];
+    const boundary = `nexeo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
     const headers = [
       `To: ${to}`,
       cc ? `Cc: ${cc}` : '',
       `Subject: ${encodeHeaderValue(subject)}`,
       opts?.inReplyTo ? `In-Reply-To: ${opts.inReplyTo}` : '',
       opts?.references ? `References: ${opts.references}` : '',
-      'Content-Type: text/plain; charset=utf-8',
+      files.length ? `Content-Type: multipart/mixed; boundary="${boundary}"` : 'Content-Type: text/plain; charset=utf-8',
       'MIME-Version: 1.0',
     ].filter(Boolean).join('\r\n');
-    const raw = Buffer.from(`${headers}\r\n\r\n${body}`).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    // DEF-488: a forward carries the original attachments (charter F-2.4), as a normal Gmail forward does.
+    const mime = !files.length ? `${headers}\r\n\r\n${body}` : [
+      headers, '', `--${boundary}`, 'Content-Type: text/plain; charset=utf-8', '', body,
+      ...files.flatMap((f) => [
+        `--${boundary}`,
+        `Content-Type: ${f.mimeType || 'application/octet-stream'}; name="${encodeHeaderValue(f.filename)}"`,
+        `Content-Disposition: attachment; filename="${encodeHeaderValue(f.filename)}"`,
+        'Content-Transfer-Encoding: base64', '',
+        (f.data.match(/.{1,76}/g) ?? []).join('\r\n'),
+      ]),
+      `--${boundary}--`, '',
+    ].join('\r\n');
+    const raw = Buffer.from(mime).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     const r = await gmail.users.drafts.create({
       userId: 'me',
       requestBody: { message: { raw, ...(opts?.threadId ? { threadId: opts.threadId } : {}) } },
@@ -419,6 +433,36 @@ export async function createGmailDraft(
   } catch (err: any) {
     return { success: false, error: err?.message ?? 'draft failed' };
   }
+}
+
+export interface DraftAttachment { filename: string; mimeType: string; data: string /* standard base64 */ }
+/** Gmail allows 25 MB a message; the text and encoding need room. */
+export const FORWARD_ATTACHMENTS_MAX_BYTES = 18 * 1024 * 1024;
+
+/** DEF-488: a message's attachments, for a forward. Over the size limit or unreadable → `left_out` says how many. */
+export async function attachmentsOf(userId: number, messageId: string): Promise<{ files: DraftAttachment[]; left_out: number }> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client) return { files: [], left_out: 0 };
+  const gmail = google.gmail({ version: 'v1', auth: client });
+  const msg = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'full' });
+  const parts = allParts(msg.data.payload).filter((p) => p.filename && p.filename.length > 0);
+  const files: DraftAttachment[] = [];
+  let total = 0; let leftOut = 0;
+  for (const p of parts) {
+    try {
+      const body = p.body as { data?: string | null; attachmentId?: string | null } | undefined;
+      let b64url = body?.data ?? '';
+      if (!b64url && body?.attachmentId) {
+        const a = await gmail.users.messages.attachments.get({ userId: 'me', messageId, id: body.attachmentId });
+        b64url = a.data.data ?? '';
+      }
+      const buf = Buffer.from(b64url, 'base64url');
+      if (!buf.length || total + buf.length > FORWARD_ATTACHMENTS_MAX_BYTES) { leftOut += 1; continue; }
+      total += buf.length;
+      files.push({ filename: p.filename!, mimeType: p.mimeType || 'application/octet-stream', data: buf.toString('base64') });
+    } catch { leftOut += 1; }
+  }
+  return { files, left_out: leftOut };
 }
 
 export async function deleteGmailDraft(userId: number, draftId: string): Promise<{ success: boolean; error?: string }> {
@@ -459,6 +503,32 @@ export async function sentReceipt(userId: number, messageId: string): Promise<'s
     return (r.data.labelIds ?? []).includes('SENT') ? 'sent' : 'not_sent';
   } catch (err: any) {
     return Number(err?.code ?? err?.status) === 404 ? 'not_sent' : 'unknown';
+  }
+}
+
+/**
+ * DEF-491 (Suzi Master AGREE 16 Nov): did a sent message bounce? A bounce notice (mailer-daemon / postmaster) in his
+ * mailbox since `since` that carries the sent message's own Message-ID. 'unknown' when Gmail cannot be read.
+ */
+export async function bounceFor(userId: number, gmailMessageId: string, since: Date): Promise<'bounced' | 'none' | 'unknown'> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client) return 'unknown';
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const sent = await gmail.users.messages.get({ userId: 'me', id: gmailMessageId, format: 'metadata', metadataHeaders: ['Message-ID'] });
+    const mid = (sent.data.payload?.headers ?? []).find((h) => String(h.name).toLowerCase() === 'message-id')?.value?.trim();
+    if (!mid) return 'unknown';
+    const after = Math.floor(since.getTime() / 1000) - 60;
+    const list = await gmail.users.messages.list({ userId: 'me', q: `from:(mailer-daemon OR postmaster) after:${after}`, maxResults: 20 });
+    for (const m of list.data.messages ?? []) {
+      if (!m.id) continue;
+      const raw = await gmail.users.messages.get({ userId: 'me', id: m.id, format: 'raw' });
+      const text = Buffer.from(String(raw.data.raw ?? ''), 'base64url').toString('utf8');
+      if (text.includes(mid)) return 'bounced';
+    }
+    return 'none';
+  } catch {
+    return 'unknown';
   }
 }
 

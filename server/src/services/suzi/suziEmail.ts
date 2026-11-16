@@ -141,9 +141,10 @@ export async function forwardEmail(clientNumber: string, userId: number, a: Args
   const e = r.email;
   const quoted = `---------- Forwarded message ---------\nFrom: ${e.from}\nDate: ${e.date}\nSubject: ${e.subject}\nTo: ${e.to}\n\n${e.body ?? ''}`;
   const body = [text(a.text), quoted].filter(Boolean).join('\n\n');
-  const out = await saveNewDraft(clientNumber, userId, { to, subject: /^fwd:/i.test(e.subject) ? e.subject : `Fwd: ${e.subject}`, body, mode: 'forward' });
+  // DEF-488: the attachments go with it; they are fetched when the Gmail draft is made (forward_of), not stored here.
+  const out = await saveNewDraft(clientNumber, userId, { to, subject: /^fwd:/i.test(e.subject) ? e.subject : `Fwd: ${e.subject}`, body, mode: 'forward', forward_of: e.id, attachments: (e.attachments ?? []).length });
   if (!out.ok) return out;
-  return { ok: true, item: { ...(out.item as object), attachments_left_out: (e.attachments ?? []).length } };
+  return { ok: true, item: { ...(out.item as object), attachments_left_out: 0 } };
 }
 
 async function createDraft(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
@@ -250,7 +251,17 @@ async function saveDraftInGmail(clientNumber: string, userId: number, draft: { i
     inReplyTo: headers.rfcMessageId ?? undefined,
     references: headers.references ? `${headers.references} ${headers.rfcMessageId ?? ''}`.trim() : headers.rfcMessageId ?? undefined,
   } : {};
-  const saved = await createGmailDraft(userId, o.to, o.subject, o.body, o.cc ?? undefined, reply);
+  // DEF-488: a forward carries the original email's attachments. If they cannot be read the draft is not made: a forward
+  // without them would say less than it should (the charter promises them); the send then fails visibly and is retried.
+  let attachments: import('../gmailService').DraftAttachment[] = [];
+  if (o.forward_of && Number(o.attachments ?? 0) > 0) {
+    const { attachmentsOf } = await import('../gmailService');
+    const got = await attachmentsOf(userId, String(o.forward_of)).catch(() => null);
+    if (!got) return fail('rejected', 'the attachments could not be read');
+    attachments = got.files;
+    if (got.left_out) await prisma.$executeRawUnsafe(`UPDATE agent_actions SET output = COALESCE(output, '{}'::jsonb) || jsonb_build_object('attachments_left_out', $2::int) WHERE id = $1`, draft.id, got.left_out).catch(() => undefined);
+  }
+  const saved = await createGmailDraft(userId, o.to, o.subject, o.body, o.cc ?? undefined, { ...reply, ...(attachments.length ? { attachments } : {}) });
   if (!saved.success || !saved.draftId) return fail('rejected', saved.error ?? 'Gmail did not save the draft');
   if (inp.delegate?.by_rule === true) {
     // F-2.4: a merge, never a whole-row write, so a re-queue recorded meanwhile is not overwritten.

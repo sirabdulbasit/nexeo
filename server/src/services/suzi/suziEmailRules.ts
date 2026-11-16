@@ -188,7 +188,7 @@ export function ruleFor(rules: SuziEmailRule[], email: { from?: string | null; s
  * release, e.g. the rule removed), failed (Gmail refused it, or it does not read back as sent; Suzi Master 14 Nov). A forward that lost its claim to a twin, or was cancelled to be queued again for a
  * new person, is not shown (the twin, or the re-queued forward, is the row).
  */
-export async function delegatedByRule(clientNumber: string, userId: number, since: Date): Promise<Array<{ thread_id: string; subject: string; person_name: string; rule_id: string; task_id: string | null; at: string; state?: 'sending' | 'delivered' | 'cancelled' | 'failed' }>> {
+export async function delegatedByRule(clientNumber: string, userId: number, since: Date): Promise<Array<{ thread_id: string; subject: string; person_name: string; rule_id: string; task_id: string | null; at: string; state?: 'sending' | 'sent' | 'bounced' | 'cancelled' | 'failed' }>> {
   const rows = await prisma.$queryRawUnsafe<Array<{ d: any; task_id: string | null; sent_at: string | null; st: string | null; by_rule: boolean; at: string | null }>>(
     `SELECT input->'delegate' AS d, output->'send'->>'task_id' AS task_id, output->'send'->>'sent_at' AS sent_at,
             output->'send'->>'state' AS st, (input->'delegate'->>'by_rule') = 'true' AS by_rule,
@@ -196,7 +196,7 @@ export async function delegatedByRule(clientNumber: string, userId: number, sinc
        FROM agent_actions
       WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply'
         AND input->'delegate'->>'rule_id' IS NOT NULL AND updated_at >= $3
-        AND (output->'send'->>'state' = 'sent'
+        AND (output->'send'->>'state' IN ('sent', 'bounced')
              OR ((input->'delegate'->>'by_rule') = 'true' AND output->'send'->>'state' IN ('held', 'sending', 'cancelled', 'failed')
                  AND COALESCE(output->'send'->>'error', '') <> 'already_forwarded' AND COALESCE(output->'send'->>'requeue', '') <> 'true'))
       ORDER BY updated_at DESC LIMIT 50`,
@@ -205,6 +205,8 @@ export async function delegatedByRule(clientNumber: string, userId: number, sinc
   return rows.map((r) => ({
     thread_id: String(r.d.thread_id), subject: String(r.d.subject ?? ''), person_name: String(r.d.person_name ?? ''), rule_id: String(r.d.rule_id), task_id: r.task_id,
     at: r.st === 'sent' ? (r.sent_at ?? '') : (r.at ?? ''),
-    ...(r.by_rule ? { state: r.st === 'sent' ? 'delivered' as const : r.st === 'cancelled' ? 'cancelled' as const : r.st === 'failed' ? 'failed' as const : 'sending' as const } : {}),
+    // DEF-491 (Suzi Master AGREE 16 Nov): "sent" = accepted by Gmail and in his Sent folder (was called delivered);
+    // "bounced" = a bounce notice for it reached his inbox.
+    ...(r.by_rule ? { state: r.st === 'sent' ? 'sent' as const : r.st === 'bounced' ? 'bounced' as const : r.st === 'cancelled' ? 'cancelled' as const : r.st === 'failed' ? 'failed' as const : 'sending' as const } : {}),
   }));
 }
