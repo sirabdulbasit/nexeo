@@ -865,3 +865,7 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Nexeo is asking him to confirm it in a Nexeo session first, because auto-forward sends real email from his account.
   - RULE_FORWARD_ENABLED stays false until he confirms there.
   - Also from suzi-8f: his Mac has been on 1.2.69 since 04:38:01 UTC. device.report will be sent again whenever the running version changes (Suzi Master is fixing this).
+  - **Nexeo-Builder, 16 Nov:** the real-change filter is committed as ad3ac556 and pushed. Not deployed, and the push stays off.
+    - A record_ready push goes out only when the record first becomes ready or its notes change. updated:true is sent only on a real change. Mutation-checked; suite 5318/0.
+    - After the founder's word: relay install (patch 0002), then one deploy of ad3ac556 with status_push on.
+    - If he chooses "Nexeo installs it", the install needs his permission approved in the Nexeo-Builder session (refused there on 14 Nov).
