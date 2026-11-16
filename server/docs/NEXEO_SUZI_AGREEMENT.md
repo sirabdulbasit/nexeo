@@ -871,3 +871,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - If he chooses "Nexeo installs it", the install needs his permission approved in the Nexeo-Builder session (refused there on 14 Nov).
 
 - **16 Nov 12:01:59 PKT: the 1.2.70 device.report fix is confirmed.** The founder's Mac sent app_version "1.2.70" at 07:01:06 UTC, status ok. Sent to suzi-8f.
+
+- **16 Nov, meeting.status push LIVE.** The founder said "ok do it" in the Nexeo-Builder session, so Nexeo installed the relay.
+  - **Gateway relay:** installed 12:42:51 PKT (patch 0002, backup kept). His Mac reconnected at 12:42:54 on Suzi 1.2.71. Probes: no secret → 401; a bad status → 400, nothing delivered.
+  - **Switch-on:** D-264, 98b0209f, live 12:49:38 PKT. The pack carries meeting_assistant.status_push: true. The real-change filter is in.
+  - **First real push:** not yet. suzi-b5 checks the first push and that Suzi's own polling stops.
