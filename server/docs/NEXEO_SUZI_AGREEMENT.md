@@ -891,3 +891,13 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - The re-read at 07:49:03 came before D-264, so there was no push.
     - Nexeo has no auto-transcription (artifactConfig) code. Transcription was switched on in Meet itself. Slice-2 auto-transcription is not built.
   - **Transcript fix released:** Suzi 1.2.72 at 13:09:16 PKT (Suzi-Master). It is waiting for the founder's restart; a watcher is waiting for his Mac's 1.2.72 device.report.
+
+- **16 Nov, first real meeting.status push:** 13:14:13 PKT, mtg_2c6aa83534e97ef4, record_ready, updated:true, delivered:1.
+  - Cause of the change: D-265 (058b38fd, live 13:13:25 PKT) adds up to 3 follow-up proposals, so the PMS demo's notes changed.
+- **16 Nov, F-2.4 auto-forward ON** on the founder's "go ahead" in the Nexeo-Builder session, with D-265 at 13:13:25 PKT (exact second to be confirmed).
+  - He has no email_delegate rule yet, so nothing forwards. Sent to suzi-8f.
+- **16 Nov, F-4 slice 2 (Nexeo-Builder):**
+  - The Meet API can switch auto-transcription on for his account.
+  - Both pieces are due by 15:00 PKT today: meeting.attend for a Meet he hosts turns the space's autoTranscriptionGeneration ON (not_host otherwise), and the pack carries the per-event attend {decision, rule_id?}.
+  - The test: before 15:30 he says "take notes" for "TMC System Catalogues" (its space is OFF now). No reconnect is needed.
+  - The 14-minute delay is the poll: every 5 minutes, on meetings that ended at least 15 minutes ago. The Workspace Events path delivers nothing (one event, on 12 Nov); a date follows after the build.
