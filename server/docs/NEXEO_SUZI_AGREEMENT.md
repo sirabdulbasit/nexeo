@@ -968,3 +968,10 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Only on Suzi's side: (1) Urdu speech style; (2) settings device.report doesn't carry (names, wake/sleep phrases, voice, accent); (3) the 8-second voice sample (founder decides); (4) his builder requests and verdicts (gaps.json); (5) small on-device states.
     - PROPOSED: (1) as weekly profile.update speech.* keys; (2) as extra device.report.settings keys; (3) left to the founder; (4) request.G-n keys if he wants it.
     - Sent to Nexeo Wiki for AGREE or changes. Likely needs a charter W-1 key-list text.
+  - **AGREED 16 Nov ~21:05 PKT (Nexeo Wiki for Nexeo; proposed by Suzi Master):**
+    - (1) speech.english_share and speech.urdu_words as profile.update keys: each within 2,000 characters of JSON (top words with counts), at most 100 keys per call, user scope only.
+    - (2) device.report.settings gains user_name, assistant_name, sleep_phrases, wake_phrases, voice, accent, speed and chat/board style: no secrets, private to him.
+    - No Nexeo code change for either.
+    - Charter: both go into the W-1 key list. Suzi Master writes the text; Nexeo mirrors it.
+    - Founder decides: (3) the 8-second voice sample (also needs the gateway's 16 KB cap changed) and (4) request.G-n copies. (5) stays on the device.
+    - Nexeo follow-ups (no contract change): keep each profile.update as a source; readers for speech.* and the new settings. No memory.* key seen on production yet.
