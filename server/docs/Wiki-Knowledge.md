@@ -657,6 +657,14 @@ Each note says how it was learned and **"Acts by itself: no"**: a learned thing 
 
 **Not yet:** learned patterns in `shadow_rules` were already rule notes (§0.13.6); what Suzi learns on her own side reaches Nexeo only through these stores (anything she keeps only on the Mac is not here: to be asked of Suzi). Nexeo and Suzi do not yet READ these notes: they still read the stores.
 
+**What Suzi learns on her own side (asked through Nexeo-Suzi, answered by Suzi Master, 16 Nov ~21:00 PKT).**
+
+- *Already in the Wiki* (checked in `suziW1.ts` and on production): `profile.update` keys (his conversational memory `memory.<slug>` since Suzi 1.2.89, his brief habits `brief.<part>`) are lines of his private note "How to work with <name>"; `device.report` is a private record source per device per day; voiceprint and faceprint are private encrypted record sources. On production the note holds `brief.*` keys; no `memory.*` key seen yet.
+- *Only on Suzi's side today, and agreed to carry (Wiki session AGREE, to be written into the charter's W-1 key list and the agreement file by Nexeo-Suzi before Suzi builds):* (1) how he speaks Urdu, as weekly `profile.update` keys `speech.english_share` and `speech.urdu_words` (top words, within 2,000 characters a key); (2) her settings the device report did not carry (his name as she uses it, her name, sleep and wake phrases, voice, accent, speed, chat and board style) as extra `device.report.settings` keys. Neither needs Nexeo code.
+- *The founder's decision, not agreed:* the 8-second voice sample (the gateway's 16 KB cap refuses it today); copies of his requests to the builder (`request.G-n`).
+- *Stays on the device as working state:* alert snoozes, permissions he answered "later".
+- *Owed on Nexeo's side:* each `profile.update` kept as a source too, so the profile note cites where each line came from (it has no trail today); no reader uses `speech.*` or the new settings yet.
+
 **Order for the rest of what is outside (largest gain first):** (1) his conversations with Nexeo and Suzi, as `conversation` sources; (2) the decisions and delegation history, as the trail of commitment notes; (3) Brain's own documents and risk flags; (4) what Brain found about itself; (5) how Brain is told to behave; (6) settings and the account. Each is landed as sources first, notes second, and checked for privacy and for a repeat run that writes nothing.
 
 ## 1. Owner direction (2026-11-12)
