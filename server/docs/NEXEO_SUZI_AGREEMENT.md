@@ -979,3 +979,11 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - memory.* is not on production yet: his Mac runs 1.2.85, and it starts after a restart into 1.2.89+ (speech and settings need 1.2.91+).
     - suzi-nexeo-link/charter has been stale since 6 Nov; Suzi Master keeps the charter in suzi-client.
   - **D-288 LIVE 21:09 PKT (Nexeo Wiki):** an empty profile.update value means forget (the line and its source are removed). Each key is kept as a private source profile:<key>, cited by the note. Proven on a throwaway user. A real update from his Mac is not verified yet. Sent to Suzi Master.
+
+- **16 Nov ~21:25 PKT, his conversations with Suzi (Nexeo Wiki's question, answered by Suzi Master).**
+  - Kept nowhere lasting: in memory only while the conversation runs; logs hold word counts, never words; no audio ever. In llm mode the text goes Mac → Anthropic API, and the gateway doesn't see it. Since 1.2.89 the only trace is memory.*.
+  - **PROPOSED by Suzi Master, pending the founder's own words and Nexeo's AGREE:**
+    - conversation.add {conversation_id, day, started, ended, part, turns[{at, who, text}]}, sent when each conversation ends, in parts under 14 KB (gateway cap 16 KB).
+    - His turns and hers only: not others, not training mode, not off-record turns.
+    - conversation.forget {conversation_id | day | all}.
+    - Text only, W-1 privacy.
