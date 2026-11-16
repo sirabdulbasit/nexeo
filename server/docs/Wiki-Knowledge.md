@@ -572,6 +572,12 @@ Its verdict: the first examples and the provenance defect are fixed; task and do
 
 Also seen: the server's own hourly job landed a second user's attachments (user 3, 14:34 PKT) unattended, so the scheduled run works for other users.
 
+**End-to-end acceptance test, in progress (founder's go-ahead 16 Nov; recipient Muhammad.Rafay@tmcltd.com, founder sends the trigger):**
+- Done 16 Nov 17:30 PKT: Muhammad Rafay added as a person (`persons` cmwj8rg450000rt6uin7aif1j, by hand: no contact path exists, DEF-487); rule `uar_7768fe543151` set (email_delegate, subject contains "nexeo chain test", forward to Rafay); its rule note is in the Wiki. A read-only chain map (six agents and a critic) proved the scope: only this rule, only that subject (0 of his 1,899 stored emails match), only Rafay, no other mailbox.
+- Waiting: the founder's email "Nexeo chain test 1" (from a personal address, To basit.ahmed@tmcltd.com, no attachment). It did not arrive before office hours closed (18:00 PKT), so the forward goes at the first rule-forward tick after 09:00 PKT.
+- Then: observe the forward (agent_actions `rule_fwd:%`, output.send state sent, his Sent folder), Rafay's task, the Wiki marks and notes; remove the rule; the founder sends "Nexeo chain test 2" inside office hours; it must not be forwarded; then close Rafay's task.
+- Gaps found and logged before the send: DEF-487 (no contact path), DEF-488 (attachments not forwarded although agreed), DEF-489 (a forward is learned as a reply), DEF-490 (the colleague's task reads as his), DEF-491 ("delivered" means only in his Sent folder), DEF-492 (rule note only hourly; fixed, D-277).
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
