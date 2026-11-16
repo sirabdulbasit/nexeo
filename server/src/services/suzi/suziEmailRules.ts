@@ -84,6 +84,8 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
     );
     // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
     void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
+    // DEF-492: the rule is a Wiki rule note at once, as on rule.remove, not only at the hourly build.
+    void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
     return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, ...(kind === 'email_delegate' && (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
   }
   const id = `uar_${crypto.randomBytes(6).toString('hex')}`;
@@ -96,6 +98,8 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   );
   // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
   void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
+  // DEF-492: the rule is a Wiki rule note at once, as on rule.remove, not only at the hourly build.
+  void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
   return { ok: true, item: { rule_id: id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), ...(kind === 'email_delegate' && (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
 }
 

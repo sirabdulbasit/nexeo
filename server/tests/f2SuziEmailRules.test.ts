@@ -17,6 +17,9 @@ vi.mock('../src/db/prisma', () => ({ default: { $executeRawUnsafe: (...a: any[])
 vi.mock('../src/utils/redisClient', () => ({ invalidate: async () => {} }));
 vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: string, _u: number, id: string) => (id === 'p1' ? { id: 'p1', name: 'Ali Raza', email: 'ali@x.com' } : id === 'p2' ? { id: 'p2', name: 'No Mail' } : null) }));
 vi.mock('../src/services/suzi/suziRules', () => ({ rulesDocument: async () => ({ rules_version: 12 }) }));
+const rebuilt = { n: 0 };
+vi.mock('../src/services/wiki/wikiRuleNotes', () => ({ rebuildRuleNotesForUser: async () => { rebuilt.n += 1; return {}; } }));
+vi.mock('../src/services/suzi/wikiEmails', () => ({ sweepRuleMarks: async () => undefined }));
 
 import { ruleSet, ruleRemove, ruleFor, type SuziEmailRule } from '../src/services/suzi/suziEmailRules';
 import { RULE_FORWARD_ENABLED } from '../src/jobs/ruleForwardJob';
@@ -24,6 +27,17 @@ import { RULE_FORWARD_ENABLED } from '../src/jobs/ruleForwardJob';
 beforeEach(() => { tx.mockClear(); exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
 
 describe('rule.set', () => {
+  it('DEF-492: a new rule, and a rule saved again, is a Wiki rule note at once (as on remove)', async () => {
+    rebuilt.n = 0;
+    await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'newsletter' } }, true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(rebuilt.n).toBe(1);
+    query.mockResolvedValueOnce([{ id: 'uar_1' }]);
+    await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'newsletter' } }, true);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(rebuilt.n).toBe(2);
+  });
+
   it('a delegate rule is stored as his own DRAFT rule, with the person', async () => {
     const r: any = await ruleSet('T', 2, { kind: 'email_delegate', match: { by: 'domain', value: '@Vendor.com' }, person_id: 'p1', note: 'handle quotes' }, true);
     expect(r.item).toMatchObject({ kind: 'email_delegate', match: { by: 'domain', value: 'vendor.com' }, person_name: 'Ali Raza', rules_version: 12 });
