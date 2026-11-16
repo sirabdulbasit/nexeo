@@ -855,3 +855,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - device.report at 04:36:44 still says app_version 1.2.65.
   - Sent to suzi-b5 and suzi-8f with the question: which version is he on now, and is it 1.2.68 or later (that would allow suzi-b5's "go")? The relay install still waits on the founder.
   - **Closed, 16 Nov (suzi-8f):** the identity.put thread is closed on this evidence. The 1.2.65 in that report is not stale: it was sent by the old process just before the restart. The stored identity.put calls came from a build of 1.2.66 or later. Suzi-Master is confirming the exact build; suzi-b5's "go" waits on that being 1.2.68 or later.
+
+- **16 Nov, meeting.status condition 2 met: suzi-b5 sent "go".** The founder's Mac has been healthy on Suzi 1.2.69 since 09:38:01 PKT (per Suzi-Master).
+  - Condition 1 is still open: the founder's word ("Nexeo installs it" or "Suzi installs it"), then the relay install.
+  - After that, Nexeo-Builder deploys the switch-on: the real-change filter for updated: true, and status_push: true in the pack.
+  - Nexeo-Builder has been told to hold the deploy until then. suzi-b5 asked for the times of his answer, the relay install and the switch-on deploy.
