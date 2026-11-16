@@ -23,12 +23,15 @@ import { marksOf, markSource } from './wikiMarks';
 import { writeNote, retireNote, WIKI_GENERATION } from './wikiStore';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { prunedAndUnchanged, unchangedNote, citationsOf, withSisterAddresses } from './wikiSync';
+import { isSame, pairKey, loadVerdicts, judgePairs, type SameJudge } from './wikiSame';
 
 export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
 export const OPEN_WINDOW_DAYS = 60;
 const MODEL = 'gemini-flash';
 const PROMPT_VERSION = 'meaning-v2';
+/** Pairs of readings the model is asked about per user per run, at most (about $0.0003 each). */
+const SAME_PER_RUN = 300;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_THREAD_CHARS = 20000;
 /** Conversations read by the model at once. */
@@ -218,29 +221,47 @@ export function distinguishers(text: string): string[] {
 }
 
 /**
- * Two commitment readings are one obligation only on evidence (review 16 Nov, second P1): the same owner,
- * no conflicting recipient or due date, the same period and numbers, and wording that says the same thing
- * both ways. Shared words or a shared project only make them candidates; anything unclear stays two.
+ * Do two texts name DIFFERENT periods or numbers? Only a clear clash counts: both name a month (or a year,
+ * a quarter, a number) and share none. "August" and "August 2026" do not clash; "November" and "December" do.
  */
-export function sameObligation(a: { what: string; owner?: string | null; to?: string | null; due?: string | null }, b: { what: string; owner?: string | null; to?: string | null; due?: string | null }): boolean {
-  if ((a.owner ?? null) !== (b.owner ?? null)) return false;
+export function periodsClash(a: string, b: string): boolean {
+  const kinds = (t: string) => {
+    const d = distinguishers(t);
+    return { m: d.filter((x) => /^m\d\d$/.test(x)), q: d.filter((x) => /^q[1-4]$/.test(x)), y: d.filter((x) => /^(19|20)\d\d$/.test(x)), n: d.filter((x) => !/^m\d\d$|^q[1-4]$|^(19|20)\d\d$/.test(x)) };
+  };
+  const A = kinds(a); const B = kinds(b);
+  return (['m', 'q', 'y', 'n'] as const).some((k) => A[k].length > 0 && B[k].length > 0 && !A[k].some((x) => B[k].includes(x)));
+}
+
+/**
+ * Could two commitment readings be one obligation at all? Hard facts that RULE IT OUT: two named owners,
+ * two recipients, two due dates, another period or number. Passing this proves nothing: whether two
+ * readings that could be one ARE one is a judgement of meaning, made by the model (wikiSame), never here.
+ */
+export function mayBeSame(a: { what: string; owner?: string | null; to?: string | null; due?: string | null }, b: { what: string; owner?: string | null; to?: string | null; due?: string | null }): boolean {
+  if (a.owner && b.owner && a.owner !== b.owner) return false;
   if (a.to && b.to && a.to !== b.to) return false;
   if (a.due && b.due && a.due !== b.due) return false;
-  if (distinguishers(a.what).join('|') !== distinguishers(b.what).join('|')) return false;
-  return bothWays(a.what, b.what) >= 0.6;
+  return !periodsClash(a.what, b.what);
 }
-function bothWays(a: string, b: string): number {
-  const A = rwords(a); const B = rwords(b);
-  let n = 0;
-  for (const w of A) if (B.has(w)) n += 1;
-  return n / Math.max(1, Math.max(A.size, B.size));
-}
+
+export const SAME_TASK_PROMPT = 'same-task-v1';
+export const SAME_TASK_SYSTEM = `You are given two action-item readings (A and B) from a business executive's email, meetings or task list.
+Decide whether they are ONE obligation: the same piece of work, owed once. Similar is not the same.
+Different: another period (November vs December), another deliverable, another recipient or customer, another invoice or document, or opposite actions (approve vs reject, send vs cancel, hire vs dismiss).
+The same: a paraphrase of one request; a task-list entry and the email request it was made from; a later message reporting that A's work was done or dropped.
+Answer with JSON only: {"same": true|false, "sure": true|false, "why": ""}
+sure = false whenever the two readings do not show it clearly. Never guess.`;
 
 /** Extractions in, notes out. Pure. */
 export function buildMeaningNotes(
   items: Array<{ conv: Conversation; ex: Extracted }>,
-  ctx: { personByEmail: Map<string, string>; now: Date; ownEmails?: Set<string>; rulings?: Ruling[] },
+  ctx: { personByEmail: Map<string, string>; now: Date; ownEmails?: Set<string>; rulings?: Ruling[]; same?: SameJudge },
 ): Built[] {
+  // The one question of identity (wikiSame): words and context find the pair, the model's kept answer
+  // decides it, and with no answer the two stay separate.
+  const sameTaskPair = (idA: string, a: Record<string, unknown>, idB: string, b: Record<string, unknown>, anchor: string | null) =>
+    isSame(ctx.same, { key: pairKey('same:', idA, String(a.what ?? ''), idB, String(b.what ?? ''), SAME_TASK_PROMPT), a, b, anchor });
   const own = ctx.ownEmails ?? new Set<string>();
   const person = (e?: string | null) => (e && own.has(e) ? 'you' : e && ctx.personByEmail.get(e) ? wikiLink(ctx.personByEmail.get(e)!) : e ?? null);
   const day = (d: Date) => d.toISOString().slice(0, 10);
@@ -310,11 +331,17 @@ export function buildMeaningNotes(
     for (const c0 of ex.commitments) {
       // His word on the same task in the same conversation wins over the model's reading.
       // A ruling from the same conversation matches on fewer shared words than one whose conversation is not known.
-      const ruling = (ctx.rulings ?? []).filter((r) => r.thread === conv.key || !r.thread)
+      const candidates = (ctx.rulings ?? []).filter((r) => r.thread === conv.key || !r.thread)
         .map((r) => ({ r, s: sameTask(r.title, c0.what) }))
         // His word on November's report is not his word on December's: periods and numbers must not conflict.
-        .filter((x) => { const dr = distinguishers(x.r.title); const dc = distinguishers(c0.what); return !(dr.length && dc.length && dr.join('|') !== dc.join('|')); })
-        .filter((x) => x.s >= (x.r.thread ? 0.34 : 0.5)).sort((x, y) => y.s - x.s || (x.r.itemId < y.r.itemId ? -1 : 1))[0]?.r;
+        .filter((x) => !periodsClash(x.r.title, c0.what))
+        .filter((x) => x.s >= (x.r.thread ? 0.34 : 0.5)).sort((x, y) => y.s - x.s || (x.r.itemId < y.r.itemId ? -1 : 1));
+      // The words above only find his entries that might be this task; the model's answer applies one.
+      const c0Id = `commitment:${conv.key}:${titleKey(c0.what).slice(0, 80)}${c0.owner ? `:${c0.owner}` : ''}`;
+      const ruling = candidates.find((x) => sameTaskPair(
+        `commitment:item:${x.r.itemId}`, { what: x.r.title, from: 'his task list', his_word: x.r.kind === 'mine' ? 'his own open task' : x.r.kind === 'watch' ? `someone else's task (${x.r.ownerName ?? x.r.ownerEmail ?? 'not named'})` : 'closed', note: x.r.why ?? null },
+        c0Id, { what: c0.what, owner: c0.owner ?? null, owed_to: c0.to ?? null, due: c0.due ?? null, state: c0.state, evidence: c0.evidence ?? null, conversation: conv.subject, date: day(conv.last) },
+        sourceIds[0] ?? null))?.r;
       if (ruling) usedRulings.add(ruling.itemId);
       const ownFirst = [...own][0] ?? null;
       const c = ruling?.kind === 'watch' ? { ...c0, owner: ruling.ownerEmail ?? c0.owner, evidence: `not his: ${ruling.why ?? 'he watches it'}` }
@@ -380,24 +407,44 @@ export function buildMeaningNotes(
       sourceIds: [...new Set(t.convs.flatMap((c) => c.sources.map((s) => s.id)))],
     });
   }
-  // A task he confirmed as his that the model did not find becomes a commitment note from his own list.
+  // His word on a task is in the Wiki whether or not a conversation's reading was found to be that task:
+  // an entry of his Action Center that no reading matched becomes a commitment note from his own list
+  // (his own task: open and his; someone else's: theirs, he watches; closed at his word: done).
   const convByKey = new Map(items.map((i) => [i.conv.key, i.conv]));
   for (const r of ctx.rulings ?? []) {
-    if (r.kind !== 'mine' || usedRulings.has(r.itemId)) continue;
+    if (usedRulings.has(r.itemId)) continue;
     const conv = r.thread ? convByKey.get(r.thread) : undefined;
+    const ownFirst = [...own][0] ?? null;
+    const theirs = r.kind === 'watch';
+    const ownerLabel = theirs ? (r.ownerEmail ? ctx.personByEmail.get(r.ownerEmail) ?? r.ownerName ?? r.ownerEmail : r.ownerName ?? 'someone else') : 'you';
+    const state = r.kind === 'closed' ? 'done' : 'open';
     notes.push({
-      type: 'commitment', title: cleanTitle(`${r.title} (you)`).slice(0, 180),
+      type: 'commitment', title: cleanTitle(`${r.title} (${ownerLabel})`).slice(0, 180),
       body: [
-        `**What:** ${r.title}`, '**Owed by:** you', ...(r.delegate ? [`**Delegated to:** ${r.delegate}`] : []),
-        '**State:** open', '**Evidence:** "his task (confirmed in his Action Center)"',
+        `**What:** ${r.title}`,
+        `**Owed by:** ${theirs ? (r.ownerEmail ? person(r.ownerEmail) : r.ownerName ?? 'someone else') : 'you'}`,
+        ...(r.delegate ? [`**Delegated to:** ${r.delegate}`] : []),
+        `**State:** ${state}`,
+        `**Evidence:** "${r.kind === 'mine' ? 'his task (confirmed in his Action Center)' : r.kind === 'watch' ? `not his: ${r.why ?? 'he watches it'}` : `closed at his word: ${r.why ?? ''}`.trim()}"`,
         ...(conv ? [`**Last activity:** ${day(conv.last)}`, `**Conversation:** ${conv.subject}`] : []),
       ].join('\n'),
-      properties: { what: r.title, state: 'open', openNow: true, owner: [...own][0] ?? null, ownedByYou: true, to: null, due: null, lastActivity: conv ? day(conv.last) : null, conversation: r.thread, ruledBy: 'him', ruling: 'mine', actionItem: r.itemId },
+      properties: { what: r.title, state, openNow: r.kind !== 'closed', owner: theirs ? r.ownerEmail ?? null : ownFirst, ownedByYou: !theirs, to: null, due: null, lastActivity: conv ? day(conv.last) : null, conversation: r.thread, ruledBy: 'him', ruling: r.kind, actionItem: r.itemId },
       ids: [`commitment:item:${r.itemId}`],
       sourceIds: conv ? conv.sources.map((s) => s.id) : [],
     });
     grounds.set(notes[notes.length - 1], { convs: new Set(r.thread ? [r.thread] : []), projects: new Set(), people: conv ? peopleIn(conv) : new Set() });
   }
+  const readingId = (n: Built) => String((n.ids ?? [])[0] ?? `${n.type}:${titleKey(n.title)}`);
+  const readingOf = (n: Built): Record<string, unknown> => {
+    const q = n.properties as any;
+    return { what: q.what ?? n.title, owner: q.owner ?? null, owed_to: q.to ?? null, due: q.due ?? null, state: q.state ?? null, his_word: q.ruledBy ? q.ruling : null,
+      evidence: n.body.match(/\*\*Evidence:\*\* "(.*)"/)?.[1] ?? null, conversation: n.body.match(/\*\*Conversation:\*\* (.+)/)?.[1] ?? null, date: q.lastActivity ?? null };
+  };
+  const anchorOf = (a: Built, b: Built) => (a.sourceIds ?? [])[0] ?? (b.sourceIds ?? [])[0] ?? null;
+  const fromOneReading = (a: Built, b: Built) => {
+    const ia = readingId(a); const ib = readingId(b);
+    return !ia.startsWith('commitment:item:') && !ib.startsWith('commitment:item:') && !!(a.properties as any).conversation && (a.properties as any).conversation === (b.properties as any).conversation;
+  };
   const meet = <T>(a: Set<T>, b: Set<T>) => [...a].some((x) => b.has(x));
   const groundOf = (n: Built) => grounds.get(n) ?? { convs: new Set<string>(), projects: new Set<string>(), people: new Set<string>() };
   /** Same conversation; or a shared project; or, when neither has a project, a person other than him in both. */
@@ -425,16 +472,14 @@ export function buildMeaningNotes(
         // he keeps it open in his Action Center (his word wins).
         const [older, newer] = String((a.properties as any).lastActivity ?? '') <= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
         const po = older.properties as any; const pn = newer.properties as any;
-        const candidate = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75
-          // The same obligation, but for the owner the later reading did not name: same period, numbers and due date.
-          && sameObligation({ what: po.what ?? '', owner: null, to: po.to, due: po.due }, { what: pn.what ?? '', owner: null, to: pn.to, due: pn.due });
+        const candidate = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.6
+          && sameContext(older, newer) && mayBeSame({ what: po.what ?? '', to: po.to, due: po.due }, { what: pn.what ?? '', to: pn.to, due: pn.due });
         if (!candidate) continue;
-        // Shared words only find a candidate. It closes the task only when the later conversation is about
-        // the same work (a shared project) and the person who owed it is in it; otherwise it is flagged for him.
-        const go = groundOf(older); const gn = groundOf(newer);
-        const grounded = go.projects.size > 0 && meet(go.projects, gn.projects) && (!po.owner || own.has(po.owner) || gn.people.has(po.owner));
-        if (!grounded) {
-          older.properties = { ...po, possiblyDoneIn: pn.conversation ?? null };
+        // A candidate only. The later reading closes the task when the model, shown both, says it is that
+        // task's completion; until it has answered, the task stays open and is flagged for him.
+        const closeKey = pairKey('same:', readingId(older), String(po.what ?? ''), readingId(newer), String(pn.what ?? ''), SAME_TASK_PROMPT);
+        if (!sameTaskPair(readingId(older), readingOf(older), readingId(newer), readingOf(newer), anchorOf(older, newer))) {
+          if (ctx.same?.verdict(closeKey) === undefined) older.properties = { ...po, possiblyDoneIn: pn.conversation ?? null };
           continue;
         }
         older.properties = { ...po, state: pn.state, openNow: false, closedIn: pn.conversation ?? null, lastActivity: pn.lastActivity ?? po.lastActivity };
@@ -445,10 +490,13 @@ export function buildMeaningNotes(
         if (newer === a) break;
         continue;
       }
-      // Candidates by context; one obligation only on evidence (owner, recipient, due date, period, wording).
+      // Candidates by words and context; hard facts can rule a pair out; only the model's answer makes it one.
       if (likeness < 0.6 || !sameContext(a, b)) continue;
       const pa = a.properties as any; const pb = b.properties as any;
-      if (!sameObligation({ what: pa.what ?? a.title, owner: pa.owner, to: pa.to, due: pa.due }, { what: pb.what ?? b.title, owner: pb.owner, to: pb.to, due: pb.due })) continue;
+      if (!mayBeSame({ what: pa.what ?? a.title, owner: pa.owner, to: pa.to, due: pa.due }, { what: pb.what ?? b.title, owner: pb.owner, to: pb.to, due: pb.due })) continue;
+      // Two readings the model gave from ONE conversation are two things: it read them together.
+      if (fromOneReading(a, b)) continue;
+      if (!sameTaskPair(readingId(a), readingOf(a), readingId(b), readingOf(b), anchorOf(a, b))) continue;
       const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
       keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
       // His word on either copy holds for the one note.
@@ -544,8 +592,8 @@ export async function loadRulings(clientNumber: string, userId: number): Promise
 export async function rebuildMeaningForUser(
   clientNumber: string,
   userId: number,
-  opts: { limit?: number; dryRun?: boolean; now?: Date; call?: (sys: string, user: string) => Promise<string> } = {},
-): Promise<{ conversations: number; read: number; cached: number; failed: number; notes: Built[]; written: number; retired: number }> {
+  opts: { limit?: number; dryRun?: boolean; now?: Date; call?: (sys: string, user: string) => Promise<string>; judge?: (sys: string, user: string) => Promise<string>; judgeLimit?: number } = {},
+): Promise<{ conversations: number; read: number; cached: number; failed: number; notes: Built[]; written: number; retired: number; judged: { asked: number; same: number; failed: number; left: number } }> {
   const now = opts.now ?? new Date();
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   const sources = await listSources(clientNumber, userId, ['email']);
@@ -613,7 +661,25 @@ export async function rebuildMeaningForUser(
   });
   const personByEmail = new Map<string, string>();
   for (const p of people as any[]) for (const id of p.metadata?.ids ?? []) if (String(id).startsWith('email:')) personByEmail.set(String(id).slice(6), p.title);
-  const notes = renameClashes(buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings }),
+  // Identity is judged before anything is written: the build lists the pairs that might be one thing,
+  // the model answers them (each once, kept), and the build runs again with the answers. A pair still
+  // unanswered (over the run's limit, or a failed call) stays two notes until a later run.
+  const verdicts = await loadVerdicts(clientNumber, userId, 'same:');
+  const judgeNow = (): SameJudge => ({ verdict: (k) => verdicts.get(k), pending: [] });
+  let same = judgeNow();
+  let built = buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings, same });
+  let judgeLeft = opts.judgeLimit ?? SAME_PER_RUN;
+  const judged = { asked: 0, same: 0, failed: 0, left: 0 };
+  for (let pass = 0; pass < 3 && same.pending.length > 0 && judgeLeft > 0; pass += 1) {
+    const r = await judgePairs(clientNumber, userId, same.pending, verdicts, { system: SAME_TASK_SYSTEM, promptVersion: SAME_TASK_PROMPT, purpose: 'wiki_same_task', limit: judgeLeft, call: opts.judge });
+    judged.asked += r.asked; judged.same += r.same; judged.failed += r.failed;
+    judgeLeft -= r.asked;
+    if (r.asked === 0) break;
+    same = judgeNow();
+    built = buildMeaningNotes(items, { personByEmail, now, ownEmails, rulings, same });
+  }
+  judged.left = same.pending.length;
+  const notes = renameClashes(built,
     await prisma.wikiPage.findMany({
       where: { clientNumber, OR: [{ scope: 'tenant' }, { userId }], status: 'active', metadata: { path: ['wiki'], equals: WIKI_GENERATION }, NOT: { lastUpdatedBy: MEANING_ACTOR } },
       select: { title: true },
@@ -643,5 +709,5 @@ export async function rebuildMeaningForUser(
       }
     }
   }
-  return { conversations: convs.length, read, cached, failed, notes, written, retired };
+  return { conversations: convs.length, read, cached, failed, notes, written, retired, judged };
 }

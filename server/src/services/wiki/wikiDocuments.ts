@@ -16,6 +16,7 @@ import { listSources, removeSource, saveSource, sourceId, sourcesHeld, textHash,
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { WIKI_GENERATION } from './wikiStore';
 import { syncNotes, withSisterAddresses, type BuiltNote, type SyncResult } from './wikiSync';
+import { isSame, pairKey, loadVerdicts, judgePairs, type SameJudge } from './wikiSame';
 
 export const DOCUMENT_ACTOR = 'wiki_documents';
 export const ATTACHMENT_KIND = 'attachment' as const;
@@ -139,6 +140,27 @@ export function references(text: string): string[] {
   return [...out].sort();
 }
 
+/** How much two texts share: words in common over words in either (a candidate finder, never a decision). */
+export function alike(a: string, b: string): number {
+  const words = (t: string) => new Set(String(t ?? '').slice(0, 3000).toLowerCase().split(/[^a-z0-9\u0600-\u06ff]+/).filter((w) => w.length > 2));
+  const A = words(a); const B = words(b);
+  if (A.size === 0 || B.size === 0) return 0;
+  let n = 0;
+  for (const w of A) if (B.has(w)) n += 1;
+  return n / (A.size + B.size - n);
+}
+
+/** Earlier attachments one attachment is put to the model with, at most. */
+const CANDIDATES_PER_ATTACHMENT = 4;
+/** Pairs of attachments the model is asked about per user per run, at most. */
+const SAME_DOC_PER_RUN = 80;
+export const SAME_DOC_PROMPT = 'same-doc-v1';
+export const SAME_DOC_SYSTEM = `You are given two email attachments (A, then the later B) that have the same file name.
+Decide whether B is the SAME document as A: a re-send of it, or a revised version of that one document.
+Different documents: another invoice, order or receipt (another number, amount, period or purchase), another month's or person's report, an agreement with another party, a document issued by another organisation even if it carries the same number.
+Answer with JSON only: {"same": true|false, "sure": true|false, "why": ""}
+sure = false whenever the two openings do not show it clearly. Never guess.`;
+
 const KIND_NAMES: Array<[RegExp, string]> = [
   [/pdf/i, 'PDF'], [/wordprocessingml|msword/i, 'Word document'], [/spreadsheetml|ms-excel|csv/i, 'Spreadsheet'],
   [/presentationml|powerpoint/i, 'Presentation'], [/markdown/i, 'Markdown text'], [/html/i, 'Web page'], [/text\/plain/i, 'Text'],
@@ -158,7 +180,7 @@ const plain = (t: string) => t.replace(/\[\[|\]\]/g, '').replace(/\r/g, '');
 /** Attachments in, document notes out. Pure. */
 export function buildDocumentNotes(
   attachments: Source[],
-  ctx: { personByEmail: Map<string, string>; emailIdByMessage: Map<string, string>; projectsByThread: Map<string, string[]>; ownEmails: Set<string> },
+  ctx: { personByEmail: Map<string, string>; emailIdByMessage: Map<string, string>; projectsByThread: Map<string, string[]>; ownEmails: Set<string>; same?: SameJudge },
 ): BuiltNote[] {
   // A file name is a label, not an identity (review 16 Nov, P1). Two attachments are versions of one
   // document only when they share the name AND come from the same sender or the same conversation;
@@ -178,20 +200,37 @@ export function buildDocumentNotes(
     const sorted = [...all].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : 1));
     const parent = new Map<string, string>(sorted.map((s) => [s.id, s.id]));
     const find = (x: string): string => (parent.get(x) === x ? x : find(parent.get(x)!));
-    // Versions of one document only on evidence (review 16 Nov, second P1). Same name, sender or
-    // conversation make two attachments candidates; they are one document when
-    //  - their content is identical (the same file sent again), or
-    //  - they carry the same reference numbers (the same invoice or contract), or
-    //  - one sender revised it in one conversation and no reference number conflicts.
-    // Anything else, two invoices of one vendor among them, stays two documents.
-    for (let x = 0; x < sorted.length; x += 1) for (let y = 0; y < x; y += 1) {
-      const a = sorted[x]; const b = sorted[y];
-      const ra = references(a.body); const rb = references(b.body);
-      const conflict = ra.length > 0 && rb.length > 0 && ra.join('|') !== rb.join('|');
-      const same = textHash((a.body ?? '').trim()) === textHash((b.body ?? '').trim())
-        || (ra.length > 0 && !conflict && ra.join('|') === rb.join('|'))
-        || (!conflict && !!a.threadKey && a.threadKey === b.threadKey && !!senderKey((a.details as any)?.from) && senderKey((a.details as any)?.from) === senderKey((b.details as any)?.from));
-      if (same) parent.set(find(a.id), find(b.id));
+    // One document, or two? (tag identity-from-words.) Identical content is the same file. For anything
+    // else the same name, sender, conversation, reference number or similar text only make two
+    // attachments CANDIDATES (two vendors both number an invoice INV-001; one vendor sends a new invoice
+    // every month on one template): the model, shown both, decides, and with no answer they stay two.
+    for (let x = 0; x < sorted.length; x += 1) {
+      const a = sorted[x];
+      let asked = 0;
+      for (let y = x - 1; y >= 0 && asked < CANDIDATES_PER_ATTACHMENT; y -= 1) {
+        const b = sorted[y];
+        if (find(a.id) === find(b.id)) continue;
+        const sameThread = !!a.threadKey && a.threadKey === b.threadKey;
+        const sameSender = !!senderKey((a.details as any)?.from) && senderKey((a.details as any)?.from) === senderKey((b.details as any)?.from);
+        // The same file again: the same text and size, from the same sender or in the same conversation.
+        // The same text from another sender elsewhere proves nothing (a scan may read as the same few words).
+        const sa = Number((a.details as any)?.size ?? 0); const sb = Number((b.details as any)?.size ?? 0);
+        if (textHash((a.body ?? '').trim()) === textHash((b.body ?? '').trim()) && (sameThread || sameSender) && (!sa || !sb || sa === sb)) {
+          parent.set(find(a.id), find(b.id));
+          continue;
+        }
+        const ra = references(a.body); const rb = references(b.body);
+        const candidate = sameThread || (sameSender && (ra.some((r) => rb.includes(r)) || alike(a.body, b.body) >= 0.5));
+        if (!candidate) continue;
+        asked += 1;
+        const shown = (v: Source, refs: string[]) => ({
+          file: (v.details as any)?.filename ?? v.title, from: (v.details as any)?.from ?? null, date: day(v.occurredAt),
+          came_with: (v.details as any)?.subject ?? null, conversation: v.threadKey ?? null, reference_numbers: refs.join(', ') || null,
+          opening: plain(v.body ?? '').slice(0, 1200),
+        });
+        const key = pairKey('samedoc:', a.externalId, textHash((a.body ?? '').trim()), b.externalId, textHash((b.body ?? '').trim()), SAME_DOC_PROMPT);
+        if (isSame(ctx.same, { key, a: shown(b, rb), b: shown(a, ra), anchor: a.id })) parent.set(find(a.id), find(b.id));
+      }
     }
     const sets = new Map<string, Source[]>();
     for (const s of sorted) sets.set(find(s.id), [...(sets.get(find(s.id)) ?? []), s]);
@@ -256,7 +295,9 @@ export function buildDocumentNotes(
 }
 
 /** Write this user's document notes from the attachments the Wiki holds. */
-export async function rebuildDocumentsForUser(clientNumber: string, userId: number): Promise<SyncResult> {
+export async function rebuildDocumentsForUser(
+  clientNumber: string, userId: number, opts: { judge?: (sys: string, msg: string) => Promise<string>; judgeLimit?: number } = {},
+): Promise<SyncResult & { judged: { asked: number; same: number; failed: number; left: number } }> {
   const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
   const attachments = await listSources(clientNumber, userId, [ATTACHMENT_KIND]);
   const emails = await prisma.$queryRawUnsafe<Array<{ id: string; external_id: string; from_addr: string | null; labels: any }>>(
@@ -283,6 +324,20 @@ export async function rebuildDocumentsForUser(clientNumber: string, userId: numb
   const projectsByThread = new Map<string, string[]>();
   for (const r of proj) projectsByThread.set(r.thread_key, [...(projectsByThread.get(r.thread_key) ?? []), r.title]);
   const emailIdByMessage = new Map(emails.map((e) => [e.external_id, e.id]));
-  const notes = buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails: own });
-  return syncNotes({ clientNumber, userId }, DOCUMENT_ACTOR, notes);
+  // Which attachments are one document is judged first (wikiSame): the build lists its candidate pairs, the
+  // model answers each once, and the build runs again with the answers. Unanswered pairs stay two documents.
+  const verdicts = await loadVerdicts(clientNumber, userId, 'samedoc:');
+  const build = () => { const same: SameJudge = { verdict: (k) => verdicts.get(k), pending: [] }; return { same, notes: buildDocumentNotes(attachments, { personByEmail, emailIdByMessage, projectsByThread, ownEmails: own, same }) }; };
+  let b = build();
+  let left = opts.judgeLimit ?? SAME_DOC_PER_RUN;
+  const judged = { asked: 0, same: 0, failed: 0, left: 0 };
+  for (let pass = 0; pass < 3 && b.same.pending.length > 0 && left > 0; pass += 1) {
+    const r = await judgePairs(clientNumber, userId, b.same.pending, verdicts, { system: SAME_DOC_SYSTEM, promptVersion: SAME_DOC_PROMPT, purpose: 'wiki_same_doc', limit: left, call: opts.judge });
+    judged.asked += r.asked; judged.same += r.same; judged.failed += r.failed;
+    left -= r.asked;
+    if (r.asked === 0) break;
+    b = build();
+  }
+  judged.left = b.same.pending.length;
+  return { ...(await syncNotes({ clientNumber, userId }, DOCUMENT_ACTOR, b.notes)), judged };
 }

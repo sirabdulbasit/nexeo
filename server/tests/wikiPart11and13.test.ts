@@ -163,13 +163,46 @@ describe('documents: a file name is a label, not an identity (review 16 Nov, P1)
     expect(buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), inv('c', 'ali@a.com', 't1', '2026-11-20', 'INV-002')], ctx)).toHaveLength(2);
   });
 
-  it('a genuine revision stays one document with its trail: the same invoice number again, or a revision in one conversation', () => {
-    const again = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), { ...inv('c', 'ali@a.com', 't9', '2026-11-20', 'INV-001'), body: 'Invoice No: INV-001\nRevised: corrected amount for the services rendered in October, replacing the earlier copy.' }], ctx);
+  it('a genuine revision is one document with its trail when the model says so: the same invoice again, or a revised draft', () => {
+    const yes = { verdict: () => true, pending: [] as any[] };
+    const again = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), { ...inv('c', 'ali@a.com', 't9', '2026-11-20', 'INV-001'), body: 'Invoice No: INV-001\nRevised: corrected amount for the services rendered in October, replacing the earlier copy.' }], { ...ctx, same: yes });
     expect(again).toHaveLength(1);
     expect((again[0].properties as any).versions).toBe(2);
     expect(again[0].ids).toEqual(['document:invoice.pdf:a:Invoice.pdf']);
     const design = (id: string, body: string) => ({ ...inv(id, 'ali@a.com', 't1', '2026-11-01'), body, details: { filename: 'Invoice.pdf', mimeType: 'application/pdf', from: 'ali@a.com', gmailMessageId: `g${id}` } });
-    expect(buildDocumentNotes([design('a', 'Draft terms of the engagement. '.repeat(4)), design('b', 'Final terms of the engagement, signed. '.repeat(4))], ctx)).toHaveLength(1);
+    expect(buildDocumentNotes([design('a', 'Draft terms of the engagement. '.repeat(4)), design('b', 'Final terms of the engagement, signed. '.repeat(4))], { ...ctx, same: yes })).toHaveLength(1);
+  });
+
+  it('third P1: two vendors that both number an invoice INV-001 are two documents, and are never even put to the model', () => {
+    const asking = { verdict: () => true, pending: [] as any[] };
+    const notes = buildDocumentNotes([inv('a', 'ali@a.com', 'purchase-a', '2026-11-01', 'INV-001'), inv('b', 'sara@b.com', 'purchase-b', '2026-11-03', 'INV-001')], { ...ctx, same: asking });
+    expect(notes).toHaveLength(2);
+    expect(asking.pending).toHaveLength(0);
+  });
+
+  it('class: with no answer from the model nothing but identical content is one document; the pair is put to the model', () => {
+    const cases: any[][] = [
+      [inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), inv('c', 'ali@a.com', 't1', '2026-11-20', 'INV-002')], // one vendor, one thread, two numbers
+      [inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), { ...inv('c', 'ali@a.com', 't2', '2026-11-20', 'INV-001'), body: 'Invoice No: INV-001\nA different month of services rendered, on the same template as before, for another period.' }], // same number, other text
+      [inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), { ...inv('c', 'sara@b.com', 't1', '2026-11-02', 'INV-001'), body: 'Invoice No: INV-001\nIssued by another organisation in the same conversation, for its own services and amounts.' }], // two senders in one thread
+    ];
+    for (const pair of cases) {
+      const asking = { verdict: () => undefined, pending: [] as any[] };
+      expect(buildDocumentNotes(pair, { ...ctx, same: asking })).toHaveLength(2);
+      expect(buildDocumentNotes(pair, ctx)).toHaveLength(2);
+      expect(asking.pending).toHaveLength(1);
+      expect(asking.pending[0].anchor).toBe('c');
+      expect(buildDocumentNotes(pair, { ...ctx, same: { verdict: () => false, pending: [] } })).toHaveLength(2);
+    }
+    // The same file sent again is the same document with no model at all.
+    const same = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01', 'INV-001'), inv('c', 'ali@a.com', 't7', '2026-11-20', 'INV-001')].map((x, i) => ({ ...x, body: 'Invoice No: INV-001\nIdentical content of one invoice file, sent twice by the vendor.' })), ctx);
+    expect(same).toHaveLength(1);
+    expect((same[0].properties as any).versions).toBe(2);
+    // The same text with another file size is not known to be the same file: it is put to the model.
+    const sized = [inv('a', 'ali@a.com', 't1', '2026-11-01'), inv('c', 'ali@a.com', 't1', '2026-11-20')].map((x, i) => ({ ...x, body: 'Scanned page. '.repeat(10), details: { ...x.details, size: 1000 + i } }));
+    const asking = { verdict: () => undefined, pending: [] as any[] };
+    expect(buildDocumentNotes(sized, { ...ctx, same: asking })).toHaveLength(2);
+    expect(asking.pending).toHaveLength(1);
   });
 });
 
@@ -232,9 +265,11 @@ describe('cross-conversation closing', () => {
   const s = (id: string, thread: string, day: string, people: string[]) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: people, body: '', details: {} }) as any;
   const conv = (key: string, day: string, people: string[] = ['fida@acme.com']) => ({ key, subject: key, sources: [s(`${key}1`, key, day, people)], last: new Date(`${day}T09:00:00Z`) });
   const ex = (c: any, project = 'Payroll') => ({ projects: project ? [{ name: project, summary: '' }] : [], topics: [], decisions: [], commitments: [c] });
-  const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-13T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+  const yes = { verdict: () => true, pending: [] as any[] };
+  const no = { verdict: () => false, pending: [] as any[] };
+  const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-13T12:00:00Z'), ownEmails: new Set(['basit@acme.com']), same: yes };
 
-  it('a later conversation saying the task was done closes it, citing both', () => {
+  it('a later conversation saying the task was done closes it (the model says it is that task), citing both', () => {
     const notes = buildMeaningNotes([
       { conv: conv('t1', '2026-11-01'), ex: ex({ what: 'Send the payroll sheet for October', owner: 'fida@acme.com', state: 'open' }) },
       { conv: conv('t2', '2026-11-08'), ex: ex({ what: 'Payroll sheet for October sent', owner: null, state: 'done', evidence: 'sent the sheet' }) },
@@ -253,17 +288,26 @@ describe('cross-conversation closing', () => {
     ] as any, ctx).filter((n) => n.type === 'commitment');
     expect(notes).toHaveLength(2);
     const alpha = notes.find((n) => (n.properties as any).conversation === 'alpha')!;
+    // Another project: never even a candidate, whatever the model would say.
     expect((alpha.properties as any).state).toBe('open');
-    expect((alpha.properties as any).possiblyDoneIn).toBe('beta');
+    expect((alpha.properties as any).possiblyDoneIn).toBeUndefined();
     expect((alpha.properties as any).closedIn).toBeUndefined();
   });
 
-  it('the same project, but the person who owed it is not in the later conversation: flagged, not closed', () => {
-    const notes = buildMeaningNotes([
+  it('a candidate the model has not answered yet stays open and is flagged; one it says is different stays open, unflagged', () => {
+    const items = [
       { conv: conv('t1', '2026-11-01'), ex: ex({ what: 'Send the payroll sheet for October', owner: 'fida@acme.com', state: 'open' }) },
-      { conv: conv('t2', '2026-11-08', ['omar@acme.com']), ex: ex({ what: 'Payroll sheet for October sent', owner: null, state: 'done' }) },
-    ] as any, ctx).filter((n) => n.type === 'commitment');
-    expect(notes.find((n) => (n.properties as any).conversation === 't1')!.properties).toMatchObject({ state: 'open', possiblyDoneIn: 't2' });
+      { conv: conv('t2', '2026-11-08'), ex: ex({ what: 'Payroll sheet for October sent', owner: null, state: 'done' }) },
+    ] as any;
+    const asking = { verdict: () => undefined, pending: [] as any[] };
+    const waiting = buildMeaningNotes(items, { ...ctx, same: asking }).filter((n) => n.type === 'commitment');
+    expect(waiting.find((n) => (n.properties as any).conversation === 't1')!.properties).toMatchObject({ state: 'open', possiblyDoneIn: 't2' });
+    expect(asking.pending).toHaveLength(1);
+    expect(asking.pending[0].anchor).toBe('t11');
+    const refused = buildMeaningNotes(items, { ...ctx, same: no }).filter((n) => n.type === 'commitment');
+    const t1 = refused.find((n) => (n.properties as any).conversation === 't1')!;
+    expect((t1.properties as any).state).toBe('open');
+    expect((t1.properties as any).possiblyDoneIn).toBeUndefined();
   });
 
   it('his word keeps it open, and a different task is not closed', () => {
@@ -460,7 +504,8 @@ describe('distinct obligations of one kind stay distinct (review 16 Nov, second 
   const s = (id: string, thread: string, day: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: ['fida@acme.com'], body: '', details: {} }) as any;
   const conv = (key: string, day: string) => ({ key, subject: key, sources: [s(`${key}1`, key, day)], last: new Date(`${day}T09:00:00Z`) });
   const ex = (cs: any[]) => ({ projects: [{ name: 'Payroll', summary: '' }], topics: [], decisions: [], commitments: cs });
-  const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-12-21T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+  // The model says "the same" to everything here: periods, numbers, due dates and recipients still keep them apart.
+  const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-12-21T12:00:00Z'), ownEmails: new Set(['basit@acme.com']), same: { verdict: () => true, pending: [] as any[] } };
   const tasks = (notes: any[]) => notes.filter((n) => n.type === 'commitment');
 
   it('November and December reports, one owner, one project: two obligations; December done never removes November', async () => {
@@ -498,5 +543,122 @@ describe('distinct obligations of one kind stay distinct (review 16 Nov, second 
     const dec = notes.find((n) => (n.properties as any).conversation === 'dec')!;
     expect((dec.properties as any).state).toBe('open');
     expect((dec.properties as any).ruledBy).toBeUndefined();
+  });
+});
+
+describe('identity is a judgement of meaning, never of words (review 16 Nov, third P1; tag identity-from-words)', () => {
+  const s = (id: string, thread: string, day: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: ['fida@acme.com'], body: '', details: {} }) as any;
+  const conv = (key: string, day: string) => ({ key, subject: key, sources: [s(`${key}1`, key, day)], last: new Date(`${day}T09:00:00Z`) });
+  const ex = (cs: any[]) => ({ projects: [{ name: 'Payroll', summary: '' }], topics: [], decisions: [], commitments: cs });
+  const base = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-21T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+  const tasks = (notes: any[]) => notes.filter((n) => n.type === 'commitment');
+  const pair = (a: string, b: string, extra: any = {}) => [
+    { conv: conv('t1', '2026-11-10'), ex: ex([{ what: a, owner: 'fida@acme.com', state: 'open' }]) },
+    { conv: conv('t2', '2026-11-12'), ex: ex([{ what: b, owner: 'fida@acme.com', state: 'open', ...extra }]) },
+  ] as any;
+  // Every kind of near-identical wording, the identical one included.
+  const VARIANTS: Array<[string, string]> = [
+    ['Approve payroll release', 'Reject payroll release'],
+    ['Send the payroll sheet', 'Send the payroll sheet'],
+    ['Send the payroll sheet to finance', 'Do not send the payroll sheet to finance'],
+    ['Hire the payroll analyst', 'Dismiss the payroll analyst'],
+    ['Share the payroll summary with the board', 'Share the payroll summary with the auditors'],
+  ];
+
+  it('with no answer from the model, nothing is ever merged, closed or ruled, however alike the words', () => {
+    for (const [a, b] of VARIANTS) {
+      const asking = { verdict: () => undefined, pending: [] as any[] };
+      expect(tasks(buildMeaningNotes(pair(a, b), { ...base, same: asking }))).toHaveLength(2);
+      // And with no judge at all (an older caller): the same.
+      expect(tasks(buildMeaningNotes(pair(a, b), base))).toHaveLength(2);
+      // The pair was put to the model, not decided here.
+      expect(asking.pending).toHaveLength(1);
+      expect(asking.pending[0].a.what === a || asking.pending[0].b.what === a).toBe(true);
+    }
+  });
+
+  it('opposite actions stay two tasks when the model says they differ, and a paraphrase becomes one when it says so', () => {
+    const byMeaning = { verdict: undefined as any, pending: [] as any[] };
+    const answers = new Map<string, boolean>();
+    byMeaning.verdict = (k: string) => answers.get(k);
+    const items = pair('Approve payroll release', 'Reject payroll release');
+    buildMeaningNotes(items, { ...base, same: byMeaning });
+    answers.set(byMeaning.pending[0].key, false);
+    expect(tasks(buildMeaningNotes(items, { ...base, same: byMeaning }))).toHaveLength(2);
+    const para = pair('Send the October payroll sheet to finance', 'Send finance the payroll sheet for October');
+    const asking = { verdict: (k: string) => answers.get(k), pending: [] as any[] };
+    buildMeaningNotes(para, { ...base, same: asking });
+    answers.set(asking.pending[0].key, true);
+    const one = tasks(buildMeaningNotes(para, { ...base, same: asking }));
+    expect(one).toHaveLength(1);
+    expect(one[0].sourceIds!.sort()).toEqual(['t11', 't21']);
+  });
+
+  it('his Action Center word is applied to a task only when the model says it is that task', () => {
+    const items = [{ conv: conv('t1', '2026-11-10'), ex: ex([{ what: 'Reject payroll release', owner: 'basit@acme.com', state: 'open' }]) }] as any;
+    const rulings = [{ itemId: 'o1', thread: 't1', title: 'Approve payroll release', kind: 'closed' as const }];
+    const refused = tasks(buildMeaningNotes(items, { ...base, rulings, same: { verdict: () => false, pending: [] } }));
+    expect(refused[0].properties).toMatchObject({ state: 'open' });
+    expect((refused[0].properties as any).ruledBy).toBeUndefined();
+    const unanswered = tasks(buildMeaningNotes(items, { ...base, rulings, same: { verdict: () => undefined, pending: [] } }));
+    expect((unanswered[0].properties as any).ruledBy).toBeUndefined();
+    const agreed = tasks(buildMeaningNotes(items, { ...base, rulings, same: { verdict: () => true, pending: [] } }));
+    expect(agreed[0].properties).toMatchObject({ state: 'done', ruledBy: 'him' });
+  });
+
+  it('two readings the model gave from one conversation are never merged, even on a yes', () => {
+    const items = [{ conv: conv('t1', '2026-11-10'), ex: ex([{ what: 'Approve payroll release', owner: 'fida@acme.com', state: 'open' }, { what: 'Approve the payroll release today', owner: 'fida@acme.com', state: 'open' }]) }] as any;
+    expect(tasks(buildMeaningNotes(items, { ...base, same: { verdict: () => true, pending: [] } }))).toHaveLength(2);
+  });
+
+  it('an answer counts only when the model says the same AND sure; a pair has one key in either order', async () => {
+    const { parseVerdict, pairKey, isSame } = await import('../src/services/wiki/wikiSame');
+    expect(parseVerdict('{"same": true, "sure": true, "why": "paraphrase"}')).toMatchObject({ same: true, sure: true });
+    expect(parseVerdict('{"same": true, "sure": false}')).toMatchObject({ same: true, sure: false });
+    expect(parseVerdict('maybe')).toBeNull();
+    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).toBe(pairKey('same:', 'b', 'y', 'a', 'x', 'v1'));
+    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).not.toBe(pairKey('same:', 'a', 'x changed', 'b', 'y', 'v1'));
+    expect(pairKey('same:', 'a', 'x', 'b', 'y', 'v1')).not.toBe(pairKey('same:', 'a', 'x', 'b', 'y', 'v2'));
+    const j = { verdict: () => undefined, pending: [] as any[] };
+    const p = { key: 'k', a: {}, b: {}, anchor: 's' };
+    expect(isSame(j, p)).toBe(false);
+    expect(isSame(j, p)).toBe(false);
+    expect(j.pending).toHaveLength(1);
+    expect(isSame(undefined, p)).toBe(false);
+  });
+});
+
+describe('his Action Center word is always in the Wiki (found 16 Nov against his real list)', () => {
+  const s = { id: 'e1', kind: 'email', title: 't1', occurredAt: new Date('2026-11-10T09:00:00Z'), threadKey: 't1', clientNumber: 'T-1', userId: 2, scope: 'user', externalId: 'e1', feedEventId: null, participants: ['numair@acme.com'], body: '', details: {} } as any;
+  const conv = { key: 't1', subject: 'TMC Systems Catalogue', sources: [s], last: s.occurredAt };
+  const ex = { projects: [], topics: [], decisions: [], commitments: [{ what: 'Send a calendar invite to discuss the source of the systems catalogue', owner: 'basit@acme.com', state: 'open' as const }] };
+  const base = { personByEmail: new Map([['numair@acme.com', 'Numair Khan']]), now: new Date('2026-11-16T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
+
+  it('an entry no reading was found to match still becomes a note: someone else\'s is theirs, a closed one is done', () => {
+    const rulings = [
+      { itemId: 'w1', thread: 't1', title: 'Implement TMC Systems Catalogue', kind: 'watch' as const, ownerEmail: 'numair@acme.com', ownerName: 'Numair', why: 'his team builds it' },
+      { itemId: 'c1', thread: null, title: 'Report unexpected authenticator setup', kind: 'closed' as const, why: 'not a task' },
+    ];
+    const notes = buildMeaningNotes([{ conv, ex }] as any, { ...base, rulings, same: { verdict: () => false, pending: [] } }).filter((n) => n.type === 'commitment');
+    expect(notes).toHaveLength(3);
+    const w = notes.find((n) => (n.properties as any).actionItem === 'w1')!;
+    expect(w.title).toBe('Implement TMC Systems Catalogue (Numair Khan)');
+    expect(w.properties).toMatchObject({ ownedByYou: false, ruling: 'watch', owner: 'numair@acme.com', openNow: true });
+    expect(links(w.body)).toContain('Numair Khan');
+    expect(w.sourceIds).toEqual(['e1']);
+    const c = notes.find((n) => (n.properties as any).actionItem === 'c1')!;
+    expect(c.properties).toMatchObject({ state: 'done', openNow: false, ruling: 'closed' });
+    // The other task in that conversation is its own obligation, untouched by his word on the first.
+    expect((notes.find((n) => !(n.properties as any).actionItem)!.properties as any).ruledBy).toBeUndefined();
+  });
+
+  it('a period or number rules a pair out only on a clear clash', async () => {
+    const { periodsClash } = await import('../src/services/wiki/wikiMeaning');
+    expect(periodsClash('Approve the August missing timesheet', 'Approve missing timesheet for August 2026')).toBe(false);
+    expect(periodsClash('Submit November payroll report', 'Submit December payroll report')).toBe(true);
+    expect(periodsClash('Pay invoice 1041', 'Pay invoice 1042')).toBe(true);
+    expect(periodsClash('Approve 40 missing August hours', 'Approve missing timesheet for August')).toBe(false);
+    expect(periodsClash('Close Q3 books', 'Close Q4 books')).toBe(true);
+    expect(periodsClash('Send the plan', 'Send the plan for 2026')).toBe(false);
   });
 });

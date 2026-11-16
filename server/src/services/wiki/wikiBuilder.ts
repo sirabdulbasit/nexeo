@@ -730,10 +730,10 @@ export interface RebuildResult {
   /** The rule notes built with them (null on a dry run). */
   rules?: { rules: number; written: number; unchanged: number; retired: number } | { error: string } | null;
   /** The meaning notes built with them (null on a dry run). */
-  meaning?: { read: number; cached: number; failed: number; written: number; retired: number } | { error: string } | null;
+  meaning?: { read: number; cached: number; failed: number; written: number; retired: number; judged?: { asked: number; same: number; failed: number; left: number } } | { error: string } | null;
   /** Part 11 and 13, each reported on its own (null on a dry run). */
   companies?: { read: number; named: number; failed: number } | { error: string } | null;
-  documents?: { notes: number; written: number; retired: number } | { error: string } | null;
+  documents?: { notes: number; written: number; retired: number; judged?: { asked: number; same: number; failed: number; left: number } } | { error: string } | null;
   upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
 }
 
@@ -832,12 +832,12 @@ export async function rebuildWikiForUser(
   }
   // Meaning notes (projects, topics, decisions, commitments), read by the model (part 10). Only new or
   // changed conversations cost a call, and at most MEANING_PER_RUN of them per run.
-  let meaning: { read: number; cached: number; failed: number; written: number; retired: number } | { error: string } | null = null;
+  let meaning: RebuildResult['meaning'] = null;
   if (!opts.dryRun) {
     try {
       const { rebuildMeaningForUser } = await import('./wikiMeaning');
       const m = await rebuildMeaningForUser(clientNumber, userId, { limit: MEANING_PER_RUN });
-      meaning = { read: m.read, cached: m.cached, failed: m.failed, written: m.written, retired: m.retired };
+      meaning = { read: m.read, cached: m.cached, failed: m.failed, written: m.written, retired: m.retired, judged: m.judged };
     } catch (err: any) {
       meaning = { error: String(err?.message ?? err).slice(0, 200) };
     }
@@ -849,7 +849,7 @@ export async function rebuildWikiForUser(
     documents = await step(async () => {
       const { rebuildDocumentsForUser } = await import('./wikiDocuments');
       const d = await rebuildDocumentsForUser(clientNumber, userId);
-      return { notes: d.notes, written: d.written, retired: d.retired };
+      return { notes: d.notes, written: d.written, retired: d.retired, judged: d.judged };
     });
     // The upkeep runs once a day, after the day's first build.
     upkeep = await step(async () => {

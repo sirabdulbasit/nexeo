@@ -18,7 +18,10 @@ vi.mock('../src/utils/redisClient', () => ({ invalidate: async () => {} }));
 vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: string, _u: number, id: string) => (id === 'p1' ? { id: 'p1', name: 'Ali Raza', email: 'ali@x.com' } : id === 'p2' ? { id: 'p2', name: 'No Mail' } : null) }));
 vi.mock('../src/services/suzi/suziRules', () => ({ rulesDocument: async () => ({ rules_version: 12 }) }));
 const rebuilt = { n: 0 };
-vi.mock('../src/services/wiki/wikiRuleNotes', () => ({ rebuildRuleNotesForUser: async () => { rebuilt.n += 1; return {}; } }));
+const rebuildFails = { on: false };
+const warned: any[] = [];
+vi.mock('../src/utils/logger', () => ({ default: () => ({ warn: (...a: any[]) => warned.push(a), info: () => {}, error: () => {}, debug: () => {} }) }));
+vi.mock('../src/services/wiki/wikiRuleNotes', () => ({ rebuildRuleNotesForUser: async () => { rebuilt.n += 1; if (rebuildFails.on) throw new Error('database went away'); return {}; } }));
 vi.mock('../src/services/suzi/wikiEmails', () => ({ sweepRuleMarks: async () => undefined }));
 
 import { ruleSet, ruleRemove, ruleFor, type SuziEmailRule } from '../src/services/suzi/suziEmailRules';
@@ -27,6 +30,16 @@ import { RULE_FORWARD_ENABLED } from '../src/jobs/ruleForwardJob';
 beforeEach(() => { tx.mockClear(); exec.mockReset(); query.mockReset(); exec.mockResolvedValue(1); query.mockResolvedValue([]); });
 
 describe('rule.set', () => {
+  it('review finding 6: a rule-note rebuild that fails is logged, the rule is still saved, and nothing claims the Wiki is in step', async () => {
+    rebuildFails.on = true; warned.length = 0;
+    const r: any = await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'digest' } }, true);
+    await new Promise((x) => setTimeout(x, 20));
+    rebuildFails.on = false;
+    expect(r.ok).toBe(true);
+    expect(JSON.stringify(r)).not.toMatch(/wiki|synchron/i);
+    expect(warned.some((w) => /rule note rebuild failed/.test(String(w[0])) && /database went away/.test(JSON.stringify(w[1])))).toBe(true);
+  });
+
   it('DEF-492: a new rule, and a rule saved again, is a Wiki rule note at once (as on remove)', async () => {
     rebuilt.n = 0;
     await ruleSet('T', 2, { kind: 'email_ignore', match: { by: 'subject', value: 'newsletter' } }, true);

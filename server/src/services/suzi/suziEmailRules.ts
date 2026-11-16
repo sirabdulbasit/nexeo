@@ -15,6 +15,7 @@
  * Only he sets rules on his own mailbox (scope "user", his own user id). A subject match is a case-insensitive
  * substring; a domain match is the sender's domain or a subdomain of it; a sender match is the address itself.
  */
+import createLogger from '../../utils/logger';
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
 import { personById } from './suziPeople';
@@ -25,6 +26,20 @@ const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
 const KINDS = ['email_delegate', 'email_ignore'] as const;
 const BY = ['sender', 'domain', 'subject'] as const;
+const ruleLog = createLogger('suzi-email-rules');
+
+/**
+ * The rule is saved; its Wiki rule note follows at once, best effort. A rebuild that fails here is not a saved
+ * rule lost: it is logged (never silently dropped), and the hourly Wiki build rebuilds every rule note from the
+ * rule stores (wikiBuilder → rebuildRuleNotesForUser), also after a restart. rule.set and rule.remove answer
+ * "rule saved", never "Wiki synchronized".
+ */
+export function syncRuleNotes(clientNumber: string, userId: number): void {
+  void import('../wiki/wikiRuleNotes')
+    .then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId))
+    .catch((err: any) => { ruleLog.warn('rule note rebuild failed; the hourly Wiki build will rebuild it', { clientNumber, userId, error: String(err?.message ?? err).slice(0, 200) }); });
+}
+
 export const SUZI_RULE_TYPE = { email_delegate: 'forward_email', email_ignore: 'suzi_email_ignore' } as const;
 
 export interface SuziEmailRule {
@@ -85,7 +100,7 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
     // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
     void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
     // DEF-492: the rule is a Wiki rule note at once, as on rule.remove, not only at the hourly build.
-    void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
+    syncRuleNotes(clientNumber, userId);
     return { ok: true, item: { rule_id: same[0].id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), existing: true, ...(kind === 'email_delegate' && (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
   }
   const id = `uar_${crypto.randomBytes(6).toString('hex')}`;
@@ -99,7 +114,7 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
   void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
   // DEF-492: the rule is a Wiki rule note at once, as on rule.remove, not only at the hourly build.
-  void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
+  syncRuleNotes(clientNumber, userId);
   return { ok: true, item: { rule_id: id, kind, match: { by, value }, ...(person ? { person_name: person.name } : {}), ...(kind === 'email_delegate' && (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED ? { auto: true } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
 }
 
@@ -128,7 +143,7 @@ export async function ruleRemove(clientNumber: string, userId: number, a: Args, 
     return { instructionId: ins };
   });
   if (!removed) return fail('not_found');
-  void import('../wiki/wikiRuleNotes').then(({ rebuildRuleNotesForUser }) => rebuildRuleNotesForUser(clientNumber, userId)).catch(() => undefined);
+  syncRuleNotes(clientNumber, userId);
   // DEF-465: his emails already in the Wiki take the rule's mark now, not only new packs.
   void import('./wikiEmails').then(({ sweepRuleMarks }) => sweepRuleMarks(clientNumber, userId)).catch(() => undefined);
   if (removed.instructionId) {

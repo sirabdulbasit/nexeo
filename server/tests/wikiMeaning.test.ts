@@ -15,7 +15,10 @@ const src = (id: string, day: string, from: string, body: string, extra: Record<
   externalId: id, feedEventId: null, participants: [from, 'basit@acme.com'], body, details: { from, to: 'basit@acme.com', ...extra },
 }) as any;
 const now = new Date('2026-11-13T12:00:00Z');
-const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now, ownEmails: new Set(['basit@acme.com']) };
+// A model that answers "the same" to every pair it is asked about: what still stays apart in these tests
+// stays apart on hard facts or because the pair is never a candidate.
+const yes = { verdict: () => true, pending: [] as any[] };
+const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now, ownEmails: new Set(['basit@acme.com']), same: yes };
 
 describe('meaning notes', () => {
   it('reads only the conversations he wrote in, newest first', () => {
