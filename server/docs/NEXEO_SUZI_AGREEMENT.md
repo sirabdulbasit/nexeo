@@ -869,3 +869,5 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - A record_ready push goes out only when the record first becomes ready or its notes change. updated:true is sent only on a real change. Mutation-checked; suite 5318/0.
     - After the founder's word: relay install (patch 0002), then one deploy of ad3ac556 with status_push on.
     - If he chooses "Nexeo installs it", the install needs his permission approved in the Nexeo-Builder session (refused there on 14 Nov).
+
+- **16 Nov 12:01:59 PKT: the 1.2.70 device.report fix is confirmed.** The founder's Mac sent app_version "1.2.70" at 07:01:06 UTC, status ok. Sent to suzi-8f.
