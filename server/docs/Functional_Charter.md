@@ -138,7 +138,7 @@ Every brief, the morning brief or one section, starts with one summary line per 
     per day, and when the count can't be checked nothing goes (the rest wait, and the brief says so). A held forward is
     checked again when it goes: the rule must still be active and he must still be allowed to send; if the rule's person
     or their email changed meanwhile, it is cancelled and queued again for the new person. Until Gmail returns the sent
-    id and it reads back as sent, the pack marks it `state: "sending"` (Suzi shows it in progress), then delivered. Attachments go with it; nothing is screened beyond the rule's match. There is no
+    id and it reads back as sent, the pack marks it `state: "sending"` (Suzi shows it in progress), then `"sent"`: accepted by Gmail and in his Sent folder (`sent_at`; `delivered_at` kept equal until 23 Nov 2026). It is `"bounced"` when a bounce notice carrying the forward's Message-ID reaches his inbox within 30 minutes; the person's task is then cancelled. Other states: `"cancelled"`, `"failed"`. Suzi says "sent", never "delivered" (AGREED 16 Nov 2026, Nexeo D-287). The original attachments go with it, up to 18 MB, any left out counted in `attachments_left_out`; nothing is screened beyond the rule's match. There is no
     undo: he sees each forward (F-2.5) and in the brief ("N emails forwarded by your rules"); `rule.remove` stops further
     forwards at once, and sent ones aren't recalled.
   - Only he sets rules on his own mailbox.
@@ -275,8 +275,8 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
 |---|---|---|
 | `meeting.upload` | F-4.6, sent when a meeting noted on the computer ends | no (confirmed) |
 | `identity.put` {kind: voiceprint \| faceprint \| voice_sample, data, model} / `identity.get` {kind} / `identity.delete` {kind} | S2; get answers only to the same user's device | put and delete |
-| `profile.update` {notes[{key, value, evidence_count, updated}]} | USER learning, one person note "How to work with <user>"; the pack returns `profile{}` | no (confirmed) |
-| `device.report` {settings, audit[], usage} | daily, extending /v1/usage | no |
+| `profile.update` {notes[{key, value, evidence_count, updated}]} | USER learning, one person note "How to work with <user>"; the pack returns `profile{}`. Keys: `brief.<part>` (brief habits, daily); `memory.<slug>` (her lasting memory of him, after each conversation; value "" = forgotten); `speech.english_share`, `speech.urdu_words` (how he speaks Urdu: his English share and top Urdu words with counts, weekly). Each value within 2,000 characters of JSON, at most 100 keys a call, his scope only (founder 16 Nov 2026: "if nexeo/suzi learn anything from me should also be part of wiki"; AGREED 16 Nov 2026) | no (confirmed) |
+| `device.report` {settings, audit[], usage} | daily, extending /v1/usage, and again when the app version changes. `settings` also carries `user_name`, `assistant_name`, `sleep_phrases`, `wake_phrases`, `voice`, `accent`, `speed` (AGREED 16 Nov 2026); never a secret or token; private to him | no |
 | `learning.note` | GENERIC learning, relayed unread to Suzi Master (SuziUpgrade Charter) | yes, by the device |
 
 ## 5. Credentials (Google project nexeo-tmc)

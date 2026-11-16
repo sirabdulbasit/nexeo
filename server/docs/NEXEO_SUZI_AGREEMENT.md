@@ -975,3 +975,6 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Charter: both go into the W-1 key list. Suzi Master writes the text; Nexeo mirrors it.
     - Founder decides: (3) the 8-second voice sample (also needs the gateway's 16 KB cap changed) and (4) request.G-n copies. (5) stays on the device.
     - Nexeo follow-ups (no contract change): keep each profile.update as a source; readers for speech.* and the new settings. No memory.* key seen on production yet.
+  - **Charter mirrored 16 Nov:** Functional_Charter.md from suzi-client 582690e, sha256 bcf36a9a… (cmp identical). It adds the W-1 keys (memory, speech, extra settings) and the F-2.4 sent/bounced states (D-287, DEF-491, AGREEd directly with Suzi Master in bc078893).
+    - memory.* is not on production yet: his Mac runs 1.2.85, and it starts after a restart into 1.2.89+ (speech and settings need 1.2.91+).
+    - suzi-nexeo-link/charter has been stale since 6 Nov; Suzi Master keeps the charter in suzi-client.
