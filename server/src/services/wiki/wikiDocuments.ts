@@ -132,16 +132,41 @@ export function buildDocumentNotes(
   attachments: Source[],
   ctx: { personByEmail: Map<string, string>; emailIdByMessage: Map<string, string>; projectsByThread: Map<string, string[]>; ownEmails: Set<string> },
 ): BuiltNote[] {
-  const byDoc = new Map<string, Source[]>();
+  // A file name is a label, not an identity (review 16 Nov, P1). Two attachments are versions of one
+  // document only when they share the name AND come from the same sender or the same conversation;
+  // two unrelated "Invoice.pdf" files are two documents.
+  const byName = new Map<string, Source[]>();
   for (const s of attachments) {
     const d = s.details as any;
     if (!isDocument({ filename: String(d?.filename ?? s.title ?? ''), mimeType: String(d?.mimeType ?? ''), text: s.body || 'x'.repeat(MIN_TEXT) })) continue;
     const k = titleKey(String(d?.filename ?? s.title ?? ''));
     if (!k) continue;
-    byDoc.set(k, [...(byDoc.get(k) ?? []), s]);
+    byName.set(k, [...(byName.get(k) ?? []), s]);
   }
+  const groups: Array<{ k: string; anchor: string; list: Source[] }> = [];
+  for (const [k, all] of byName) {
+    const sorted = [...all].sort((a, b) => (a.occurredAt?.getTime() ?? 0) - (b.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : 1));
+    const parent = new Map<string, string>(sorted.map((s) => [s.id, s.id]));
+    const find = (x: string): string => (parent.get(x) === x ? x : find(parent.get(x)!));
+    const firstBy = new Map<string, string>();
+    for (const s of sorted) {
+      for (const key of [`from:${emailIn((s.details as any)?.from) ?? ''}`, `thread:${s.threadKey ?? ''}`]) {
+        if (/:$/.test(key)) continue;
+        const prior = firstBy.get(key);
+        if (prior) parent.set(find(s.id), find(prior)); else firstBy.set(key, s.id);
+      }
+    }
+    const sets = new Map<string, Source[]>();
+    for (const s of sorted) sets.set(find(s.id), [...(sets.get(find(s.id)) ?? []), s]);
+    for (const list of sets.values()) {
+      const first = list[0];
+      groups.push({ k, anchor: emailIn((first.details as any)?.from) ?? first.threadKey ?? first.id, list });
+    }
+  }
+  const titleCount = new Map<string, number>();
+  for (const g of groups) titleCount.set(g.k, (titleCount.get(g.k) ?? 0) + 1);
   const notes: BuiltNote[] = [];
-  for (const [k, list] of byDoc) {
+  for (const { k, anchor, list } of groups) {
     const versions = [...list].sort((a, b) => (b.occurredAt?.getTime() ?? 0) - (a.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : 1));
     const latest = versions[0];
     const d = latest.details as any;
@@ -164,15 +189,20 @@ export function buildDocumentNotes(
       ...(opening ? ['', '## Opening', opening + (latest.body.length > OPENING_CHARS ? ' …' : '')] : []),
     ];
     const emailIds = versions.map((v) => ctx.emailIdByMessage.get(String((v.details as any)?.gmailMessageId ?? ''))).filter((x): x is string => !!x);
+    // One title per document: a name two documents share is told apart by who first sent it.
+    const name = String(d?.filename ?? latest.title);
+    const firstFrom = emailIn((list[0].details as any)?.from);
+    const sender = firstFrom ? (ctx.ownEmails.has(firstFrom) ? 'you' : ctx.personByEmail.get(firstFrom) ?? firstFrom) : null;
+    const title = (titleCount.get(k) ?? 0) > 1 ? cleanTitle(`${name} (from ${sender ?? day(list[0].occurredAt)})`) : cleanTitle(name);
     notes.push({
       type: 'document',
-      title: cleanTitle(String(d?.filename ?? latest.title)),
+      title,
       body: lines.join('\n'),
       properties: {
         filename: d?.filename ?? latest.title, kind: kindName(String(d?.mimeType ?? '')), versions: versions.length,
         lastReceived: day(latest.occurredAt), from: emailIn(d?.from), pages: d?.pageCount ?? null, projects: projects.length,
       },
-      ids: [`document:${k.slice(0, 160)}`],
+      ids: [`document:${k.slice(0, 140)}:${anchor}`],
       sourceIds: [...new Set([...versions.map((v) => v.id), ...emailIds])],
     });
   }

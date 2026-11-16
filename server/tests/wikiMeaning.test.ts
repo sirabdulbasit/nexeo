@@ -101,13 +101,22 @@ describe('meaning notes', () => {
   });
 
   it('one task in several conversations is one commitment citing them all', () => {
-    const c1: Conversation = { key: 't1', subject: 'a', last: new Date('2026-11-10T09:00:00Z'), sources: [src('a', '2026-11-10', 'f', 'x')] };
-    const c2: Conversation = { key: 't2', subject: 'b', last: new Date('2026-11-12T09:00:00Z'), sources: [{ ...src('b', '2026-11-12', 'f', 'y'), threadKey: 't2' }] };
+    // Both conversations are with Haseeb: the same work, not just the same words.
+    const c1: Conversation = { key: 't1', subject: 'a', last: new Date('2026-11-10T09:00:00Z'), sources: [src('a', '2026-11-10', 'haseeb@acme.com', 'x')] };
+    const c2: Conversation = { key: 't2', subject: 'b', last: new Date('2026-11-12T09:00:00Z'), sources: [{ ...src('b', '2026-11-12', 'haseeb@acme.com', 'y'), threadKey: 't2' }] };
     const task = (what: string) => ({ projects: [], topics: [], decisions: [], commitments: [{ what, owner: 'basit@acme.com', state: 'open' as const, due: null, date: null, evidence: null }] });
     const notes = buildMeaningNotes([{ conv: c2, ex: task('Send Haseeb your comments on the Travel Booking Audit spec') }, { conv: c1, ex: task('Send your comments on the Travel Booking Audit spec') }], ctx);
     const cs = notes.filter((n) => n.type === 'commitment');
     expect(cs).toHaveLength(1);
     expect([...cs[0].sourceIds!].sort()).toEqual(['a', 'b']);
+  });
+
+  it('the same words in two unrelated conversations stay two tasks (no shared project, no shared person)', () => {
+    const c1: Conversation = { key: 't1', subject: 'a', last: new Date('2026-11-10T09:00:00Z'), sources: [src('a', '2026-11-10', 'haseeb@acme.com', 'x')] };
+    const c2: Conversation = { key: 't2', subject: 'b', last: new Date('2026-11-12T09:00:00Z'), sources: [{ ...src('b', '2026-11-12', 'omar@other.com', 'y'), threadKey: 't2' }] };
+    const task = (what: string) => ({ projects: [], topics: [], decisions: [], commitments: [{ what, owner: 'basit@acme.com', state: 'open' as const, due: null, date: null, evidence: null }] });
+    const cs = buildMeaningNotes([{ conv: c2, ex: task('Send the proposal') }, { conv: c1, ex: task('Send the proposal') }], ctx).filter((n) => n.type === 'commitment');
+    expect(cs).toHaveLength(2);
   });
 
   it('a project named like another note gets its kind in the title, and links follow it', () => {

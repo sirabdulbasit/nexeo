@@ -22,7 +22,7 @@ import { listSources, type Source } from './wikiSources';
 import { marksOf, markSource } from './wikiMarks';
 import { writeNote, retireNote, WIKI_GENERATION } from './wikiStore';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { prunedAndUnchanged } from './wikiSync';
+import { prunedAndUnchanged, unchangedNote, citationsOf } from './wikiSync';
 
 export const MEANING_ACTOR = 'wiki_meaning';
 /** A commitment with no activity for longer than this is history, not open. A first guess, to be set from his data. */
@@ -220,6 +220,19 @@ export function buildMeaningNotes(
   };
 
   const usedRulings = new Set<string>();
+  // What grounds a commitment beyond its words: its conversation, its projects and the people in it.
+  // Two commitments are one task only when this context says so, never on shared words alone.
+  const grounds = new Map<Built, { convs: Set<string>; projects: Set<string>; people: Set<string> }>();
+  const peopleIn = (c: Conversation) => {
+    const out = new Set<string>();
+    for (const s of c.sources) {
+      const d = (s.details ?? {}) as any;
+      for (const raw of [...((s.participants as unknown[]) ?? []), d.from, d.to, d.cc]) {
+        for (const e of String(raw ?? '').toLowerCase().match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/g) ?? []) if (!own.has(e)) out.add(e);
+      }
+    }
+    return out;
+  };
   for (const { conv, ex } of items) {
     const sourceIds = conv.sources.map((s) => s.id);
     const convPeople = peopleOf(conv);
@@ -293,6 +306,7 @@ export function buildMeaningNotes(
         ids: [`commitment:${conv.key}:${titleKey(c.what).slice(0, 80)}${c.owner ? `:${c.owner}` : ''}`],
         sourceIds,
       });
+      grounds.set(notes[notes.length - 1], { convs: new Set([conv.key]), projects: new Set(projectTitles.map(titleKey)), people: peopleIn(conv) });
     }
   }
 
@@ -342,7 +356,17 @@ export function buildMeaningNotes(
       ids: [`commitment:item:${r.itemId}`],
       sourceIds: conv ? conv.sources.map((s) => s.id) : [],
     });
+    grounds.set(notes[notes.length - 1], { convs: new Set(r.thread ? [r.thread] : []), projects: new Set(), people: conv ? peopleIn(conv) : new Set() });
   }
+  const meet = <T>(a: Set<T>, b: Set<T>) => [...a].some((x) => b.has(x));
+  const groundOf = (n: Built) => grounds.get(n) ?? { convs: new Set<string>(), projects: new Set<string>(), people: new Set<string>() };
+  /** Same conversation; or a shared project; or, when neither has a project, a person other than him in both. */
+  const sameContext = (a: Built, b: Built) => {
+    const ga = groundOf(a); const gb = groundOf(b);
+    if (meet(ga.convs, gb.convs)) return true;
+    if (ga.projects.size || gb.projects.size) return meet(ga.projects, gb.projects);
+    return meet(ga.people, gb.people);
+  };
 
   // One task in several conversations is one commitment: same owner and the same words. The newest keeps
   // its title and state; it cites every conversation.
@@ -361,8 +385,16 @@ export function buildMeaningNotes(
         // he keeps it open in his Action Center (his word wins).
         const [older, newer] = String((a.properties as any).lastActivity ?? '') <= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
         const po = older.properties as any; const pn = newer.properties as any;
-        const closes = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75;
-        if (!closes) continue;
+        const candidate = pn.owner == null && (pn.state === 'done' || pn.state === 'dropped') && po.state !== 'done' && po.state !== 'dropped' && !po.ruledBy && likeness >= 0.75;
+        if (!candidate) continue;
+        // Shared words only find a candidate. It closes the task only when the later conversation is about
+        // the same work (a shared project) and the person who owed it is in it; otherwise it is flagged for him.
+        const go = groundOf(older); const gn = groundOf(newer);
+        const grounded = go.projects.size > 0 && meet(go.projects, gn.projects) && (!po.owner || own.has(po.owner) || gn.people.has(po.owner));
+        if (!grounded) {
+          older.properties = { ...po, possiblyDoneIn: pn.conversation ?? null };
+          continue;
+        }
         older.properties = { ...po, state: pn.state, openNow: false, closedIn: pn.conversation ?? null, lastActivity: pn.lastActivity ?? po.lastActivity };
         older.body = older.body.replace(/\*\*State:\*\* .*/, `**State:** ${pn.state} (said in a later conversation, ${pn.lastActivity ?? ''})`);
         older.sourceIds = [...new Set([...(older.sourceIds ?? []), ...(newer.sourceIds ?? [])])];
@@ -371,7 +403,7 @@ export function buildMeaningNotes(
         if (newer === a) break;
         continue;
       }
-      if (likeness < 0.6) continue;
+      if (likeness < 0.6 || !sameContext(a, b)) continue;
       const [keep, gone] = String((a.properties as any).lastActivity ?? '') >= String((b.properties as any).lastActivity ?? '') ? [a, b] : [b, a];
       keep.sourceIds = [...new Set([...(keep.sourceIds ?? []), ...(gone.sourceIds ?? [])])];
       // His word on either copy holds for the one note.
@@ -381,6 +413,8 @@ export function buildMeaningNotes(
       }
       dropped.add(gone);
       rename.set(titleKey(gone.title), keep.title);
+      const gk = groundOf(keep); const gg = groundOf(gone);
+      grounds.set(keep, { convs: new Set([...gk.convs, ...gg.convs]), projects: new Set([...gk.projects, ...gg.projects]), people: new Set([...gk.people, ...gg.people]) });
       if (keep === b) break;
     }
   }
@@ -393,13 +427,33 @@ export function buildMeaningNotes(
   // topics come first, so a link from a decision or commitment finds its project already written.
   const order: Record<string, number> = { project: 0, topic: 1, decision: 2, commitment: 3 };
   notes.sort((a, b) => (order[a.type] ?? 9) - (order[b.type] ?? 9));
-  const seen = new Set<string>();
+  const retitled: Array<{ project: string; from: string; to: string }> = [];
+  const seen = new Map<string, Built>();
   return notes.filter((n) => {
     if (n.type === 'topic' && projectKeys.has(titleKey(n.title))) return false;
-    const k = `${n.type}|${titleKey(n.title)}`;
+    let k = `${n.type}|${titleKey(n.title)}`;
+    const first = seen.get(k);
+    // Two decisions or commitments that only share a title are two things (their identities differ):
+    // the later one is told apart by its conversation, never folded into the first by its words.
+    if (first && (n.type === 'commitment' || n.type === 'decision') && JSON.stringify(first.ids ?? []) !== JSON.stringify(n.ids ?? [])) {
+      const subject = n.body.match(/\*\*Conversation:\*\* (.+)/)?.[1]?.trim();
+      if (subject) {
+        const was = n.title;
+        n.title = cleanTitle(`${n.title} — ${subject}`).slice(0, 200);
+        k = `${n.type}|${titleKey(n.title)}`;
+        // Its own projects link to it by its new title; the first one's projects keep linking to the first.
+        const mine = groundOf(n).projects; const theirs = groundOf(first).projects;
+        for (const pk of mine) if (!theirs.has(pk)) retitled.push({ project: pk, from: was, to: n.title });
+      }
+    }
     if (seen.has(k)) return false;
-    seen.add(k);
+    seen.set(k, n);
     return true;
+  }).map((n) => {
+    if (n.type !== 'project') return n;
+    let body = n.body;
+    for (const r of retitled) if (r.project === titleKey(n.title)) body = body.replace(`[[${r.from}]]`, `[[${r.to}]]`);
+    return body === n.body ? n : { ...n, body };
   });
 }
 
@@ -521,14 +575,15 @@ export async function rebuildMeaningForUser(
 
   let written = 0; let retired = 0;
   if (!opts.dryRun) {
-    const existing = await prisma.wikiPage.findMany({ where: { clientNumber, userId, lastUpdatedBy: MEANING_ACTOR }, select: { id: true, status: true, pageType: true, title: true, bodyMarkdown: true, metadata: true } });
+    const existing = await prisma.wikiPage.findMany({ where: { clientNumber, userId, lastUpdatedBy: MEANING_ACTOR }, select: { id: true, status: true, scope: true, pageType: true, title: true, bodyMarkdown: true, metadata: true } });
     const byKey = new Map((existing as any[]).map((e) => [`${e.pageType}|${e.title}`, e]));
+    const cited = await citationsOf((existing as any[]).map((e) => e.id));
     const kept = new Set<string>();
     for (const n of notes) {
       const have: any = byKey.get(`${n.type}|${cleanTitle(n.title)}`);
       // Unchanged, and every link already reaches its note: nothing to write.
-      if ((have && have.status === 'active' && have.bodyMarkdown === n.body && !(have.metadata?.unresolvedLinks ?? []).length && !(have.metadata?.ambiguousLinks ?? []).length)
-        || prunedAndUnchanged(have, n.body)) { kept.add(have.id); continue; }
+      // The whole note must be what the build derived, its trail and properties included (review 16 Nov, P1).
+      if (have && (unchangedNote(have, n, cited.get(have.id)) || prunedAndUnchanged(have, n, cited.get(have.id)))) { kept.add(have.id); continue; }
       const r = await writeNote({ ...n, clientNumber, userId, actor: MEANING_ACTOR, exact: true });
       kept.add(r.id);
       written += 1;

@@ -128,11 +128,35 @@ describe('part 11: documents', () => {
     const d = notes[0];
     expect(d.type).toBe('document');
     expect(d.title).toBe('Design.pdf');
-    expect(d.ids).toEqual(['document:design.pdf']);
+    expect(d.ids).toEqual(['document:design.pdf:fida@acme.com']);
     expect(d.body).toContain('**Latest from:** you on 2026-11-10');
     expect(links(d.body).sort()).toEqual(['Fida Khan', 'PMS Pilot']);
     expect(d.sourceIds!.sort()).toEqual(['a1', 'a2', 'e1', 'e2']);
     expect((d.properties as any).versions).toBe(2);
+  });
+});
+
+describe('documents: a file name is a label, not an identity (review 16 Nov, P1)', () => {
+  const inv = (id: string, from: string, thread: string, day: string) => ({
+    id, kind: 'attachment', title: 'Invoice.pdf', occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user',
+    externalId: `${id}:Invoice.pdf`, feedEventId: null, participants: [from], body: 'Invoice for services rendered in the month. '.repeat(4),
+    details: { filename: 'Invoice.pdf', mimeType: 'application/pdf', from, gmailMessageId: `g${id}` },
+  }) as any;
+  const ctx = { personByEmail: new Map([['ali@a.com', 'Ali Khan'], ['sara@b.com', 'Sara Malik']]), emailIdByMessage: new Map(), projectsByThread: new Map(), ownEmails: new Set(['basit@acme.com']) };
+
+  it('two unrelated invoices with one name are two documents, told apart by who sent them', () => {
+    const notes = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01'), inv('b', 'sara@b.com', 't2', '2026-11-03')], ctx);
+    expect(notes).toHaveLength(2);
+    expect(notes.map((n) => n.title).sort()).toEqual(['Invoice.pdf (from Ali Khan)', 'Invoice.pdf (from Sara Malik)']);
+    expect(notes.every((n) => (n.properties as any).versions === 1)).toBe(true);
+    expect(new Set(notes.map((n) => n.ids![0])).size).toBe(2);
+  });
+
+  it('a revised invoice from the same sender keeps one identity and its version trail', () => {
+    const notes = buildDocumentNotes([inv('a', 'ali@a.com', 't1', '2026-11-01'), inv('c', 'ali@a.com', 't9', '2026-11-20')], ctx);
+    expect(notes).toHaveLength(1);
+    expect((notes[0].properties as any).versions).toBe(2);
+    expect(notes[0].ids).toEqual(['document:invoice.pdf:ali@a.com']);
   });
 });
 
@@ -192,9 +216,9 @@ describe('company names', () => {
 });
 
 describe('cross-conversation closing', () => {
-  const s = (id: string, thread: string, day: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: [], body: '', details: {} }) as any;
-  const conv = (key: string, day: string) => ({ key, subject: key, sources: [s(`${key}1`, key, day)], last: new Date(`${day}T09:00:00Z`) });
-  const ex = (c: any) => ({ projects: [], topics: [], decisions: [], commitments: [c] });
+  const s = (id: string, thread: string, day: string, people: string[]) => ({ id, kind: 'email', title: thread, occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: people, body: '', details: {} }) as any;
+  const conv = (key: string, day: string, people: string[] = ['fida@acme.com']) => ({ key, subject: key, sources: [s(`${key}1`, key, day, people)], last: new Date(`${day}T09:00:00Z`) });
+  const ex = (c: any, project = 'Payroll') => ({ projects: project ? [{ name: project, summary: '' }] : [], topics: [], decisions: [], commitments: [c] });
   const ctx = { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-13T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) };
 
   it('a later conversation saying the task was done closes it, citing both', () => {
@@ -207,6 +231,26 @@ describe('cross-conversation closing', () => {
     expect((notes[0].properties as any).closedIn).toBe('t2');
     expect(notes[0].body).toContain('said in a later conversation');
     expect(notes[0].sourceIds!.sort()).toEqual(['t11', 't21']);
+  });
+
+  it('the same words in another project never close it: flagged for him, kept open (review 16 Nov, P1)', () => {
+    const notes = buildMeaningNotes([
+      { conv: conv('alpha', '2026-11-01'), ex: ex({ what: 'Send the proposal', owner: 'fida@acme.com', state: 'open' }, 'Project Alpha') },
+      { conv: conv('beta', '2026-11-08'), ex: ex({ what: 'Send the proposal', owner: null, state: 'done' }, 'Project Beta') },
+    ] as any, ctx).filter((n) => n.type === 'commitment');
+    expect(notes).toHaveLength(2);
+    const alpha = notes.find((n) => (n.properties as any).conversation === 'alpha')!;
+    expect((alpha.properties as any).state).toBe('open');
+    expect((alpha.properties as any).possiblyDoneIn).toBe('beta');
+    expect((alpha.properties as any).closedIn).toBeUndefined();
+  });
+
+  it('the same project, but the person who owed it is not in the later conversation: flagged, not closed', () => {
+    const notes = buildMeaningNotes([
+      { conv: conv('t1', '2026-11-01'), ex: ex({ what: 'Send the payroll sheet for October', owner: 'fida@acme.com', state: 'open' }) },
+      { conv: conv('t2', '2026-11-08', ['omar@acme.com']), ex: ex({ what: 'Payroll sheet for October sent', owner: null, state: 'done' }) },
+    ] as any, ctx).filter((n) => n.type === 'commitment');
+    expect(notes.find((n) => (n.properties as any).conversation === 't1')!.properties).toMatchObject({ state: 'open', possiblyDoneIn: 't2' });
   });
 
   it('his word keeps it open, and a different task is not closed', () => {
@@ -270,12 +314,13 @@ describe('part 13: upkeep', () => {
   });
 
   it('the builders leave an archived note archived until they have something new to say of it', () => {
-    const archived = { status: 'archived', bodyMarkdown: 'text', metadata: { upkeep: { archived: 'orphan' } } };
-    expect(prunedAndUnchanged(archived, 'text')).toBe(true);
-    expect(prunedAndUnchanged(archived, 'new text')).toBe(false);
-    expect(prunedAndUnchanged({ ...archived, metadata: {} }, 'text')).toBe(false);
-    expect(unchangedNote({ status: 'active', bodyMarkdown: 'x', metadata: { wiki: 2, rev: 1 } }, 'x')).toBe(true);
-    expect(unchangedNote({ status: 'active', bodyMarkdown: 'x', metadata: { wiki: 2, rev: 1, unresolvedLinks: ['y'] } }, 'x')).toBe(false);
+    const n = { type: 'person', title: 'x', body: 'text', properties: { a: 1 }, ids: ['email:x@y.com'], sourceIds: ['s1'] };
+    const archived = { status: 'archived', bodyMarkdown: 'text', metadata: { upkeep: { archived: 'orphan' }, properties: { a: 1 }, ids: ['email:x@y.com'] } };
+    expect(prunedAndUnchanged(archived, n, new Set(['s1']))).toBe(true);
+    expect(prunedAndUnchanged(archived, { ...n, body: 'new text' }, new Set(['s1']))).toBe(false);
+    // A new source is something new: it comes back.
+    expect(prunedAndUnchanged(archived, { ...n, sourceIds: ['s1', 's2'] }, new Set(['s1']))).toBe(false);
+    expect(prunedAndUnchanged({ ...archived, metadata: { ...archived.metadata, upkeep: undefined } }, n, new Set(['s1']))).toBe(false);
   });
 });
 
@@ -329,5 +374,46 @@ describe('one ask put to two people', () => {
     const notes = buildMeaningNotes([{ conv, ex }] as any, { personByEmail: new Map(), now: new Date('2026-11-12'), ownEmails: new Set() }).filter((n) => n.type === 'commitment');
     expect(notes).toHaveLength(2);
     expect(new Set(notes.map((n) => n.ids![0])).size).toBe(2);
+  });
+});
+
+describe('same words, two projects (review 16 Nov, P1)', () => {
+  it('two open tasks with one title in two projects are two notes, each project linking to its own', () => {
+    const s = (id: string, thread: string) => ({ id, kind: 'email', title: thread, occurredAt: new Date('2026-11-05T09:00:00Z'), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user', externalId: id, feedEventId: null, participants: ['fida@acme.com'], body: '', details: {} }) as any;
+    const conv = (key: string) => ({ key, subject: `Subject ${key}`, sources: [s(`${key}1`, key)], last: new Date('2026-11-05T09:00:00Z') });
+    const ex = (project: string) => ({ projects: [{ name: project, summary: '' }], topics: [], decisions: [], commitments: [{ what: 'Send the proposal', owner: 'fida@acme.com', state: 'open' }] });
+    const notes = buildMeaningNotes([{ conv: conv('alpha'), ex: ex('Project Alpha') }, { conv: conv('beta'), ex: ex('Project Beta') }] as any,
+      { personByEmail: new Map([['fida@acme.com', 'Fida Khan']]), now: new Date('2026-11-13T12:00:00Z'), ownEmails: new Set(['basit@acme.com']) });
+    const cs = notes.filter((n) => n.type === 'commitment');
+    expect(cs).toHaveLength(2);
+    const alpha = notes.find((n) => n.title === 'Project Alpha')!;
+    const beta = notes.find((n) => n.title === 'Project Beta')!;
+    const titleOf = (conv: string) => cs.find((c) => (c.properties as any).conversation === conv)!.title;
+    expect(links(alpha.body)).toContain(titleOf('alpha'));
+    expect(links(beta.body)).toContain(titleOf('beta'));
+    expect(titleOf('alpha')).not.toBe(titleOf('beta'));
+  });
+});
+
+describe('unchanged means the whole note, not only its text (review 16 Nov, P1)', () => {
+  const stored = { status: 'active', scope: 'user', bodyMarkdown: 'Same summary', metadata: { wiki: 2, rev: 3, properties: { state: 'open', due: null }, ids: ['commitment:t1:x'] } };
+  const built = { type: 'commitment', title: 'x', body: 'Same summary', properties: { state: 'open', due: null }, ids: ['commitment:t1:x'], sourceIds: ['s1'] };
+
+  it('fully unchanged input writes nothing', () => {
+    expect(unchangedNote(stored, built, new Set(['s1']))).toBe(true);
+  });
+  it('the same summary with a new source is a change: its trail must update', () => {
+    expect(unchangedNote(stored, { ...built, sourceIds: ['s1', 's2'] }, new Set(['s1']))).toBe(false);
+    expect(unchangedNote(stored, built, new Set(['s1', 'old']))).toBe(false);
+  });
+  it('a property-only correction is a change', () => {
+    expect(unchangedNote(stored, { ...built, properties: { state: 'done' } }, new Set(['s1']))).toBe(false);
+  });
+  it('a changed identifier or scope is a change', () => {
+    expect(unchangedNote(stored, { ...built, ids: ['commitment:t1:x:fida@acme.com'] }, new Set(['s1']))).toBe(false);
+    expect(unchangedNote(stored, { ...built, scope: 'tenant' }, new Set(['s1']))).toBe(false);
+  });
+  it('an unresolved link is still rewritten until it reaches its note', () => {
+    expect(unchangedNote({ ...stored, metadata: { ...stored.metadata, unresolvedLinks: ['y'] } }, built, new Set(['s1']))).toBe(false);
   });
 });

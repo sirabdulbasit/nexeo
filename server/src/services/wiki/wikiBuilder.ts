@@ -22,9 +22,9 @@
  */
 import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
-import { writeNote, retireNote, mergeNotes, citeSources, listSources, normalizeIds, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
+import { writeNote, retireNote, mergeNotes, listSources, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
-import { prunedAndUnchanged } from './wikiSync';
+import { prunedAndUnchanged, unchangedNote, citationsOf } from './wikiSync';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
@@ -742,11 +742,6 @@ async function step<T>(run: () => Promise<T>): Promise<T | { error: string }> {
   try { return await run(); } catch (err: any) { return { error: String(err?.message ?? err).slice(0, 200) }; }
 }
 
-function sameProperties(stored: unknown, built: Record<string, unknown> | undefined): boolean {
-  const have = (stored && typeof stored === 'object' ? stored : {}) as Record<string, unknown>;
-  const want = Object.fromEntries(Object.entries(built ?? {}).filter(([, v]) => v !== null && v !== undefined));
-  return JSON.stringify(Object.entries(have).sort()) === JSON.stringify(Object.entries(want).sort());
-}
 
 /**
  * Build the notes for one user. With `dryRun`, nothing is written. A note
@@ -780,27 +775,19 @@ export async function rebuildWikiForUser(
   if (!opts.dryRun) {
     const existing = await (prisma as any).wikiPage.findMany({
       where: { clientNumber, userId, lastUpdatedBy: BUILDER_ACTOR },
-      select: { id: true, pageType: true, title: true, bodyMarkdown: true, metadata: true, status: true },
+      select: { id: true, pageType: true, title: true, bodyMarkdown: true, metadata: true, status: true, scope: true },
     });
     const stored = new Map<string, any>(existing.map((e: any) => [`${e.pageType}|${e.title}`, e]));
-    const sameIds = (have: unknown, built?: string[]) => JSON.stringify(normalizeIds(have)) === JSON.stringify(normalizeIds(built ?? []));
+    const cited = await citationsOf(existing.map((e: any) => e.id));
     // Every note this run stands behind, by its id: a note found by its identifier and renamed is
     // still the same note, so the retiring below goes by id, not by title.
     const kept = new Set<string>();
     for (const n of notes) {
       const have = stored.get(`${n.type}|${cleanTitle(n.title)}`);
       // Archived by the daily upkeep and nothing new about it: it stays archived (part 13).
-      if (prunedAndUnchanged(have, n.body)) { unchanged += 1; kept.add(have.id); continue; }
-      if (have && have.status === 'active' && have.metadata?.wiki === WIKI_GENERATION && have.bodyMarkdown === n.body && sameProperties(have.metadata?.properties, n.properties) && !(have.metadata?.unresolvedLinks ?? []).length && sameIds(have.metadata?.ids, n.ids)
-        // A note written before notes had a revision is written once more, so its links are re-read
-        // by the present rules (only live notes, nothing ambiguous) and it carries a revision.
-        && typeof have.metadata?.rev === 'number') {
-        // The text is current, but a new source may still belong to its trail.
-        if (n.sourceIds?.length) await citeSources({ clientNumber, userId }, have.id, n.sourceIds);
-        unchanged += 1;
-        kept.add(have.id);
-        continue;
-      }
+      if (have && prunedAndUnchanged(have, n, cited.get(have.id))) { unchanged += 1; kept.add(have.id); continue; }
+      // The whole note, its trail included (review 16 Nov, P1): a new source under the same text is a change.
+      if (have && unchangedNote(have, n, cited.get(have.id))) { unchanged += 1; kept.add(have.id); continue; }
       const input = { ...n, clientNumber, userId, actor: BUILDER_ACTOR, exact: true };
       let r;
       try {
