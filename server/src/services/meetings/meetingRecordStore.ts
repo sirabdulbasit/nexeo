@@ -35,9 +35,9 @@ export interface MeetingRecord {
  * F-4.9: tell his live Suzi sessions when a record's status really changes (meeting.status). Fire-and-forget: a
  * push that fails changes nothing here, and Suzi's meeting.list read stays correct.
  */
-// OFF until Suzi's server has POST /admin/meeting-status (patch 0002, built and tested 14 Nov; its install on the
-// gateway waits on the founder). While off, nothing is pushed and the pack's status_push stays absent: Suzi polls.
-export const PUSH_STATUS = { on: false };
+// ON since 16 Nov 2026: Suzi's server has POST /admin/meeting-status (patch 0002, installed 12:42:51 PKT on the
+// founder's "ok do it"), and suzi-b5 sent its "go". Off = nothing pushed and the pack's status_push absent: Suzi polls.
+export const PUSH_STATUS = { on: true };
 function pushStatus(r: MeetingRecord | null | undefined): void {
   if (!r || !PUSH_STATUS.on) return;
   const proposed = (Array.isArray(r.action_items) ? r.action_items : []).filter((a) => a.state === 'proposed').length;
