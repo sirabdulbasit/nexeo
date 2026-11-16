@@ -90,16 +90,38 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     const { writeNote, getNote } = await import('../wiki/wikiStore');
     const name = await userName(clientNumber, userId);
     const title = profileTitle(name);
+    // W-1 (charter, 16 Nov): an empty value means he asked her to forget it. The key leaves the note, and
+    // its source is removed with every citation (forgotten everywhere, as identity.delete does).
+    const forgotten = (v: unknown) => v === '' || v === null;
     const props: Record<string, unknown> = {};
-    for (const n of clean) props[`profile.${n.key}`] = { value: n.value, evidence_count: n.evidence_count, updated: n.updated };
+    for (const n of clean) props[`profile.${n.key}`] = forgotten(n.value) ? null : { value: n.value, evidence_count: n.evidence_count, updated: n.updated };
     const existing = await getNote(clientNumber, userId, { title }).catch(() => null);
-    const merged = { ...((existing?.properties ?? {}) as Record<string, any>), ...props };
-    const lines = Object.entries(merged).filter(([k]) => k.startsWith('profile.'))
-      .map(([k, v]: [string, any]) => `- **${k.slice(8)}**: ${typeof v?.value === 'string' ? v.value : JSON.stringify(v?.value)} (seen ${v?.evidence_count ?? 0} times)`);
+    const merged: Record<string, any> = { ...((existing?.properties ?? {}) as Record<string, any>), ...props };
+    for (const [k, v] of Object.entries(merged)) if (v === null) delete merged[k];
+    // Each line of the note has its source: what Suzi sent for that key, kept as she sent it (the latest
+    // value replaces the earlier one), so the note's trail says where every line came from.
+    const { removeSource } = await import('../wiki/wikiStore');
+    const keySource = (key: string) => sourceId(clientNumber, userId, 'record', `profile:${key}`);
+    for (const n of clean) {
+      if (forgotten(n.value)) { await removeSource(writer, keySource(n.key)).catch(() => undefined); continue; }
+      const at = new Date(n.updated);
+      await saveSource({
+        clientNumber, userId, kind: 'record', externalId: `profile:${n.key}`, title: `Suzi learned: ${n.key}`,
+        occurredAt: Number.isNaN(at.getTime()) ? new Date() : at, asOf: new Date(),
+        body: typeof n.value === 'string' ? n.value : JSON.stringify(n.value),
+        details: { type: 'profile', key: n.key, evidence_count: n.evidence_count, updated: n.updated, device_id: gate.deviceId ?? null },
+      });
+    }
+    const keys = Object.keys(merged).filter((k) => k.startsWith('profile.')).sort();
+    const lines = keys.map((k) => { const v: any = merged[k]; return `- **${k.slice(8)}**: ${typeof v?.value === 'string' ? v.value : JSON.stringify(v?.value)} (seen ${v?.evidence_count ?? 0} times)`; });
+    // Only sources the Wiki holds are cited (a key learned before sources were kept has none yet).
+    const { sourcesHeld } = await import('../wiki/wikiSources');
+    const heldMap = await sourcesHeld(clientNumber, userId, keys.map((k) => keySource(k.slice(8)))).catch(() => new Map<string, unknown>());
+    const held = [...heldMap.keys()].map((id) => ({ id }));
     await writeNote({
       clientNumber, userId, type: 'person', title, scope: 'user', actor: 'suzi',
       body: [`What Suzi has learned about how ${name} likes to work (W-1, his own; never shared).`, '', ...lines].join('\n'),
-      properties: props, ids: [`profile:user:${userId}`],
+      properties: props, ids: [`profile:user:${userId}`], sourceIds: held.map((h) => h.id),
     });
     return { ok: true, item: { title, keys: clean.map((n) => n.key) } };
   }

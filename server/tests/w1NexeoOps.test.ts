@@ -13,10 +13,12 @@ vi.mock('../src/services/wiki/wikiSources', () => ({
   sourceId: (_c: string, _u: number, k: string, e: string) => `src:${k}:${e}`,
   saveSource: async (i: any) => { saved.push(i); stored = i.body; return { id: 'src_1', created: true }; },
   readSource: async () => (stored ? { body: stored } : null),
+  sourcesHeld: async (_c: string, _u: number, ids: string[]) => new Map(ids.filter((id) => saved.some((x) => `src:${x.kind}:${x.externalId}` === id) && !removed.includes(id)).map((id) => [id, {}])),
 }));
 const notes: any[] = [];
 const removed: string[] = [];
-vi.mock('../src/services/wiki/wikiStore', () => ({ writeNote: async (n: any) => { notes.push(n); return {}; }, getNote: async () => null, removeSource: async (_w: any, id: string) => { removed.push(id); return { removed: true, marks: 0, citations: 0 }; } }));
+const have: { props: Record<string, any> | null } = { props: null };
+vi.mock('../src/services/wiki/wikiStore', () => ({ writeNote: async (n: any) => { notes.push(n); return {}; }, getNote: async () => (have.props ? { properties: have.props } : null), removeSource: async (_w: any, id: string) => { removed.push(id); return { removed: true, marks: 0, citations: 0 }; } }));
 vi.mock('../src/db/prisma', () => ({ default: { user: { findFirst: async () => ({ name: 'Basit Ahmed' }) } } }));
 
 import { runW1Op, W1_OPS } from '../src/services/suzi/suziW1';
@@ -44,6 +46,23 @@ describe('profile and device report', () => {
     const r = await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'brief.length', value: 'short', evidence_count: 4, updated: '2026-11-13' }, { key: 'bad key!', value: 1 }] }, true, unsigned);
     expect(r).toMatchObject({ ok: true, item: { title: 'How to work with Basit Ahmed', keys: ['brief.length'] } });
     expect(notes[0]).toMatchObject({ type: 'person', scope: 'user', title: 'How to work with Basit Ahmed', ids: ['profile:user:2'], properties: { 'profile.brief.length': { value: 'short', evidence_count: 4 } } });
+  });
+  it('each line of the profile note has its source, and the note cites it (16 Nov)', async () => {
+    await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'memory.tea', value: 'no sugar', evidence_count: 1, updated: '2026-11-16T10:00:00Z' }] }, true, signed);
+    expect(saved[0]).toMatchObject({ kind: 'record', externalId: 'profile:memory.tea', body: 'no sugar', details: { type: 'profile', key: 'memory.tea' } });
+    expect(notes[0].sourceIds).toEqual(['src:record:profile:memory.tea']);
+    expect(notes[0].body).toContain('- **memory.tea**: no sugar');
+  });
+  it('W-1: an empty value means forgotten: the line leaves the note and its source is removed', async () => {
+    have.props = { 'profile.memory.tea': { value: 'no sugar', evidence_count: 1 }, 'profile.brief.length': { value: 'short', evidence_count: 4 } };
+    const r = await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'memory.tea', value: '' }] }, true, signed);
+    have.props = null;
+    expect(r.ok).toBe(true);
+    expect(removed).toEqual(['src:record:profile:memory.tea']);
+    expect(saved).toHaveLength(0);
+    expect(notes[0].properties).toEqual({ 'profile.memory.tea': null });
+    expect(notes[0].body).not.toContain('memory.tea');
+    expect(notes[0].body).toContain('- **brief.length**: short');
   });
   it('device.report is one record per device per day', async () => {
     await runW1Op('T', 2, 'device.report', { settings: { voice: 'on' }, audit: [{ op: 'x' }], usage: { minutes: 3 } }, false, unsigned);
