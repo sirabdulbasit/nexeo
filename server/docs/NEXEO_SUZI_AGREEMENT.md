@@ -941,3 +941,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - FYI: Suzi 1.2.75 (13:49:29 PKT) assigns a meeting action item on a click (task.create with confirmed_by_user), with no spoken yes.
   - **D-267 (7d85672b + 1f680956) LIVE 13:52:46 PKT:** the /v1/changes calendar flag, keyed on a new changed_at column (migration applied 13:52:33). The 3 conditions were met and proved on a throwaway PG; live changed = [].
     - Same deploy: DEF-480 fixed (the push filter compared JSON key order). No false push went out. Sent to suzi-b5.
+  - **Polling stopped, CONFIRMED (13:55:47 PKT reading):** the 5-minute meeting.list clock ran until 08:12:42 UTC and stopped at the first push (08:14:13). After that there was only one list+get pair, at 08:44:10, which is not a clock. Sent to suzi-b5.
