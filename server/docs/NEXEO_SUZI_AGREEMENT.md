@@ -931,3 +931,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     2. No new change type and no content in the feed. A leave (his_choice) flags it even though it pushes nothing.
     3. His own records only, with the pack's owner check.
     - No charter text change. Passed to Nexeo-Builder to build. Suzi has also added a pack fetch after her own attend/leave.
+  - **Suzi 1.2.74** published 13:34:44 PKT: a pack fetch right after her own successful attend/leave. Suzi-Master has no objection to the calendar flag, so the AGREE stands.
