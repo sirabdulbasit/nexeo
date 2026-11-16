@@ -943,3 +943,7 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Same deploy: DEF-480 fixed (the push filter compared JSON key order). No false push went out. Sent to suzi-b5.
   - **Polling stopped, CONFIRMED (13:55:47 PKT reading):** the 5-minute meeting.list clock ran until 08:12:42 UTC and stopped at the first push (08:14:13). After that there was only one list+get pair, at 08:44:10, which is not a clock. Sent to suzi-b5.
   - **16 Nov 14:49:49 PKT: the founder's Mac is on Suzi 1.2.75** (device.report). The transcript fix is on his Mac; his view of the transcript is not confirmed yet.
+
+- **16 Nov ~15:05 PKT, the task due question (Suzi Master).** What's pending showed "Tue 16 Nov" for the meeting follow-up task cmwj33pjz001srt5difi81mgy. Nexeo's due is NULL throughout (task.create args, the open_items row, action item ai_79e22608, the pack). The cause is on Suzi's display side, and Suzi Master has been asked to show "no deadline" for due: null.
+  - Suzi 1.2.76 (15:01:05 PKT) shows the year when a due isn't in the current year, and adds Done / Change deadline / Assign / Cancel buttons (existing ops).
+  - suzi-8f's session has ended; Suzi Master items now go to "Suzi-Master".
