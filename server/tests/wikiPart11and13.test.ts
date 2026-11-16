@@ -425,3 +425,19 @@ describe('his own addresses', () => {
     expect([...own].sort()).toEqual(['basit.ahmed@tmcltd.ai', 'basit.ahmed@tmcltd.com']);
   });
 });
+
+describe('documents he sent from either of his addresses', () => {
+  it('are one document, and two same-name documents never share a title', () => {
+    const f = (id: string, from: string, thread: string, day: string) => ({
+      id, kind: 'attachment', title: 'list.xlsx', occurredAt: new Date(`${day}T09:00:00Z`), threadKey: thread, clientNumber: 'T-1', userId: 2, scope: 'user',
+      externalId: `${id}:list.xlsx`, feedEventId: null, participants: [from], body: 'Employee list with departments and grades. '.repeat(4),
+      details: { filename: 'list.xlsx', mimeType: 'application/vnd.ms-excel', from, gmailMessageId: `g${id}` },
+    }) as any;
+    const ctx = { personByEmail: new Map(), emailIdByMessage: new Map(), projectsByThread: new Map(), ownEmails: new Set(['basit@tmc.com', 'basit@tmc.ai']) };
+    const one = buildDocumentNotes([f('a', 'basit@tmc.com', 't1', '2026-11-01'), f('b', 'basit@tmc.ai', 't2', '2026-11-05')], ctx);
+    expect(one).toHaveLength(1);
+    expect(one[0].ids).toEqual(['document:list.xlsx:you']);
+    const titles = buildDocumentNotes([f('a', 'x@a.com', 't1', '2026-11-01'), f('b', 'y@b.com', 't2', '2026-11-05'), f('c', 'y@b.com', 't2', '2026-11-06')], ctx).map((n) => n.title);
+    expect(new Set(titles).size).toBe(titles.length);
+  });
+});

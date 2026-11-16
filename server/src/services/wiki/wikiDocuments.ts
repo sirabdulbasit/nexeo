@@ -135,6 +135,8 @@ export function buildDocumentNotes(
   // A file name is a label, not an identity (review 16 Nov, P1). Two attachments are versions of one
   // document only when they share the name AND come from the same sender or the same conversation;
   // two unrelated "Invoice.pdf" files are two documents.
+  // All his addresses are one sender: what he sent from either is his.
+  const senderKey = (v: unknown) => { const e = emailIn(v); return !e ? '' : ctx.ownEmails.has(e) ? 'you' : e; };
   const byName = new Map<string, Source[]>();
   for (const s of attachments) {
     const d = s.details as any;
@@ -150,7 +152,7 @@ export function buildDocumentNotes(
     const find = (x: string): string => (parent.get(x) === x ? x : find(parent.get(x)!));
     const firstBy = new Map<string, string>();
     for (const s of sorted) {
-      for (const key of [`from:${emailIn((s.details as any)?.from) ?? ''}`, `thread:${s.threadKey ?? ''}`]) {
+      for (const key of [`from:${senderKey((s.details as any)?.from)}`, `thread:${s.threadKey ?? ''}`]) {
         if (/:$/.test(key)) continue;
         const prior = firstBy.get(key);
         if (prior) parent.set(find(s.id), find(prior)); else firstBy.set(key, s.id);
@@ -160,12 +162,13 @@ export function buildDocumentNotes(
     for (const s of sorted) sets.set(find(s.id), [...(sets.get(find(s.id)) ?? []), s]);
     for (const list of sets.values()) {
       const first = list[0];
-      groups.push({ k, anchor: emailIn((first.details as any)?.from) ?? first.threadKey ?? first.id, list });
+      groups.push({ k, anchor: senderKey((first.details as any)?.from) || first.threadKey || first.id, list });
     }
   }
   const titleCount = new Map<string, number>();
   for (const g of groups) titleCount.set(g.k, (titleCount.get(g.k) ?? 0) + 1);
   const notes: BuiltNote[] = [];
+  const usedTitles = new Set<string>();
   for (const { k, anchor, list } of groups) {
     const versions = [...list].sort((a, b) => (b.occurredAt?.getTime() ?? 0) - (a.occurredAt?.getTime() ?? 0) || (a.id < b.id ? -1 : 1));
     const latest = versions[0];
@@ -193,7 +196,11 @@ export function buildDocumentNotes(
     const name = String(d?.filename ?? latest.title);
     const firstFrom = emailIn((list[0].details as any)?.from);
     const sender = firstFrom ? (ctx.ownEmails.has(firstFrom) ? 'you' : ctx.personByEmail.get(firstFrom) ?? firstFrom) : null;
-    const title = (titleCount.get(k) ?? 0) > 1 ? cleanTitle(`${name} (from ${sender ?? day(list[0].occurredAt)})`) : cleanTitle(name);
+    let title = (titleCount.get(k) ?? 0) > 1 ? cleanTitle(`${name} (from ${sender ?? day(list[0].occurredAt)})`) : cleanTitle(name);
+    // Two documents of one name from one sender in two conversations: told apart by when it first came.
+    if (usedTitles.has(titleKey(title))) title = cleanTitle(`${title.replace(/\)$/, '')}, ${day(list[0].occurredAt)})`);
+    if (!title.endsWith(')') && usedTitles.has(titleKey(title))) title = cleanTitle(`${name} (${day(list[0].occurredAt)})`);
+    usedTitles.add(titleKey(title));
     notes.push({
       type: 'document',
       title,
