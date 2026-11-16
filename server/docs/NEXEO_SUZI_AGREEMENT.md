@@ -956,3 +956,5 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - The repeat alerts were Suzi's, fixed in 1.2.79.
   - **Gap on Nexeo's side:** a calendar.* op doesn't flag /v1/changes "calendar" (it flags only on calendar feed_events, of which there are 0 today, or on meeting_records changes).
   - **PROPOSED to Suzi Master, awaiting AGREE:** flag "calendar" after a successful calendar.cancel, update or create.
+  - **AGREED 16 Nov (Suzi Master):** /v1/changes flags "calendar" after a successful calendar.cancel, update or create. No new type, no content, nothing on a failed op, and no client change. Passed to Nexeo-Builder to build.
+  - Suzi 1.2.80: every {ok:false} is a refusal (the second "Done" was a not_found read as success). A not_found on cancel is now said as "That meeting is already cancelled."
