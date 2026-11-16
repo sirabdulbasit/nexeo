@@ -932,3 +932,10 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     3. His own records only, with the pack's owner check.
     - No charter text change. Passed to Nexeo-Builder to build. Suzi has also added a pack fetch after her own attend/leave.
   - **Suzi 1.2.74** published 13:34:44 PKT: a pack fetch right after her own successful attend/leave. Suzi-Master has no objection to the calendar flag, so the AGREE stands.
+
+- **16 Nov, PROPOSED by Suzi Master (via suzi-8f): SU-10 "When" gains the reason "error".**
+  - The lead device sends its cleaned 30-minute log unprompted on a logged error, or when one op is refused 3 times in 10 minutes.
+  - Limits: lead device only; at most 1 per hour, within 12 per day; the same cleaning; the opt-out setting still works; kept 14 days; the wire is unchanged apart from the reason value.
+  - The master queues a fix lead first. Nexeo-side causes come back with UTC times and error codes.
+  - **Awaiting the founder's AGREE for Nexeo; not built until then.**
+  - FYI: Suzi 1.2.75 (13:49:29 PKT) assigns a meeting action item on a click (task.create with confirmed_by_user), with no spoken yes.
