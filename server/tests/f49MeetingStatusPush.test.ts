@@ -1,7 +1,7 @@
 /**
  * F-4.9 (charter, agreed 13 Nov 2026): Nexeo pushes meeting.status to his live Suzi sessions on a real status
  * change only: a new record, a changed status or reason, and record_ready on every save of the notes (with updated
- * and the proposed count). A repeat of the same status pushes nothing; a finished record is never pushed back.
+ * and the proposed count) only when the notes are new or changed. A repeat of the same status pushes nothing; a finished record is never pushed back.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -11,7 +11,7 @@ vi.mock('../src/db/prisma', () => ({ default: {
   $executeRawUnsafe: async (sql: string, ...a: any[]) => {
     if (/INSERT INTO meeting_records/.test(sql)) s.rec = { id: a[0], client_number: a[1], user_id: a[2], meeting_key: a[3], event_id: a[4], title: a[5], status: a[9], status_reason: a[10], action_items: [], updated_flag: false };
     else if (/SET status = \$2/.test(sql)) s.rec = { ...s.rec, status: a[1], status_reason: a[2] };
-    else if (/status = 'record_ready'/.test(sql)) s.rec = { ...s.rec, status: 'record_ready', status_reason: null, action_items: JSON.parse(a[4]), updated_flag: a[5] };
+    else if (/status = 'record_ready'/.test(sql)) s.rec = { ...s.rec, status: 'record_ready', status_reason: null, minutes: a[1], minutes_offered: a[2], decisions: JSON.parse(a[3]), action_items: JSON.parse(a[4]), updated_flag: a[5] };
     return 1;
   },
 } }));
@@ -37,6 +37,21 @@ describe('F-4.9 meeting.status push', () => {
     expect(s.pushed[1].m).toMatchObject({ status: 'record_ready', updated: false, action_items_proposed: 1 });
     await setStatus('TMC-0001', 2, 'event:e2', 'failed', { reason: 'late' }); await tick();
     expect(s.pushed).toHaveLength(2);
+  });
+  it('real-change filter: the same notes again push nothing; changed notes push updated:true', async () => {
+    await setStatus('TMC-0001', 2, 'event:e4', 'transcribing', { title: 'Board' }); await tick();
+    const notes = { minutes: 'm1', minutes_offered: null, decisions: ['d'], action_items: [{ id: 'a', title: 'x', state: 'proposed' }] as any };
+    await saveDerived(s.rec.id, { ...notes, updated: false }); await tick();
+    expect(s.pushed.map((p) => p.m.status)).toEqual(['transcribing', 'record_ready']);
+    expect(s.pushed[1].m.updated).toBe(false);
+    await saveDerived(s.rec.id, { ...notes, updated: true }); await tick(); // a re-read with the same notes
+    expect(s.pushed).toHaveLength(2);
+    expect(s.rec.updated_flag).toBe(false);
+    await saveDerived(s.rec.id, { ...notes, minutes: 'm2', updated: true }); await tick();
+    expect(s.pushed).toHaveLength(3);
+    expect(s.pushed[2].m).toMatchObject({ status: 'record_ready', updated: true, action_items_proposed: 1 });
+    await saveDerived(s.rec.id, { ...notes, minutes: 'm2', action_items: [...notes.action_items, { id: 'b', title: 'y', state: 'proposed' }], updated: true }); await tick();
+    expect(s.pushed[3].m).toMatchObject({ updated: true, action_items_proposed: 2 });
   });
   it('switched off (until the gateway route is installed): nothing is pushed', async () => {
     PUSH_STATUS.on = false;

@@ -190,13 +190,31 @@ export function mergeDerived(
   };
 }
 
+/** True when the notes a save would write differ from what the record already holds: minutes, offered minutes,
+ *  decisions or action items. A re-read that produced the same notes is not a change. */
+export function notesChanged(
+  prev: Pick<MeetingRecord, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'> | null | undefined,
+  m: Pick<ReturnType<typeof mergeDerived>, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'>,
+): boolean {
+  if (!prev) return true;
+  const j = (v: unknown) => JSON.stringify(v ?? null);
+  return (prev.minutes ?? null) !== (m.minutes ?? null) || (prev.minutes_offered ?? null) !== (m.minutes_offered ?? null)
+    || j(prev.decisions ?? []) !== j(m.decisions ?? []) || j(prev.action_items ?? []) !== j(m.action_items ?? []);
+}
+
 export async function saveDerived(id: string, m: ReturnType<typeof mergeDerived>): Promise<void> {
+  // The real-change filter (suzi-b5, 14 Nov): a save pushes only when the record became record_ready or its notes
+  // changed, and updated:true marks a re-read that actually changed them. The same notes again push nothing and
+  // leave updated_flag as it was.
+  const prev = (await prisma.$queryRawUnsafe<MeetingRecord[]>(`SELECT * FROM meeting_records WHERE id = $1`, id).catch(() => [] as MeetingRecord[]))[0];
+  const wasReady = prev?.status === 'record_ready';
+  const changed = notesChanged(prev, m);
+  if (wasReady && !changed) return;
   await prisma.$executeRawUnsafe(
     `UPDATE meeting_records SET minutes = $2, minutes_offered = $3, decisions = $4::jsonb, action_items = $5::jsonb,
         status = 'record_ready', status_reason = NULL, updated_flag = $6, updated_at = now() WHERE id = $1`,
-    id, m.minutes, m.minutes_offered, JSON.stringify(m.decisions), JSON.stringify(m.action_items), m.updated,
+    id, m.minutes, m.minutes_offered, JSON.stringify(m.decisions), JSON.stringify(m.action_items), m.updated && wasReady && changed,
   );
-  // record_ready on every save: the first one, and each re-read that improved the notes (updated: true).
   const rows = await prisma.$queryRawUnsafe<MeetingRecord[]>(`SELECT * FROM meeting_records WHERE id = $1`, id).catch(() => [] as MeetingRecord[]);
   pushStatus(rows[0]);
 }
