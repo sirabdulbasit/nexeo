@@ -28,7 +28,7 @@ export interface MeetingRecord {
   start_at: Date | null; end_at: Date | null; way: MeetingWay; sources: Array<{ way: MeetingWay; ref: string; received_at: string }>;
   participants: Participant[]; transcript: TranscriptLine[]; minutes: string | null; minutes_offered: string | null;
   minutes_edited: boolean; decisions: string[]; action_items: ActionItem[]; status: MeetingStatus;
-  status_reason: string | null; updated_flag: boolean; reread_due_at: Date | null; created_at: Date; updated_at: Date;
+  status_reason: string | null; updated_flag: boolean; reread_due_at: Date | null; created_at: Date; updated_at: Date; changed_at?: Date;
 }
 
 /**
@@ -87,7 +87,8 @@ export async function setStatus(
     // His "no notes" for this meeting (meeting.leave) stands until his own meeting.attend (transcribing) replaces it.
     if (existing.status === 'not_covered' && existing.status_reason === 'his_choice' && status !== 'transcribing') return existing;
     await prisma.$executeRawUnsafe(
-      `UPDATE meeting_records SET status = $2, status_reason = $3, conference_record = COALESCE(conference_record, $4), updated_at = now() WHERE id = $1`,
+      `UPDATE meeting_records SET changed_at = CASE WHEN status IS DISTINCT FROM $2 OR status_reason IS DISTINCT FROM $3 THEN now() ELSE changed_at END,
+         status = $2, status_reason = $3, conference_record = COALESCE(conference_record, $4), updated_at = now() WHERE id = $1`,
       existing.id, status, base.reason ?? null, base.conferenceRecord ?? null,
     );
     const after = (await getRecord(clientNumber, userId, existing.id))!;
@@ -151,6 +152,7 @@ export async function putTranscript(
         way = CASE WHEN $9 THEN $10 ELSE way END,
         participants = CASE WHEN $9 THEN $11::jsonb ELSE participants END,
         transcript = CASE WHEN $9 THEN $12::jsonb ELSE transcript END,
+        changed_at = CASE WHEN $9 AND status NOT IN ('record_ready', 'transcript_ready') THEN now() ELSE changed_at END,
         status = CASE WHEN $9 AND status NOT IN ('record_ready') THEN 'transcript_ready' ELSE status END,
         updated_at = now()
       WHERE id = $1`,
@@ -195,12 +197,19 @@ export function mergeDerived(
 
 /** True when the notes a save would write differ from what the record already holds: minutes, offered minutes,
  *  decisions or action items. A re-read that produced the same notes is not a change. */
+function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stableJson((v as any)[k])}`).join(',')}}`;
+  return JSON.stringify(v);
+}
+
 export function notesChanged(
   prev: Pick<MeetingRecord, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'> | null | undefined,
   m: Pick<ReturnType<typeof mergeDerived>, 'minutes' | 'minutes_offered' | 'decisions' | 'action_items'>,
 ): boolean {
   if (!prev) return true;
-  const j = (v: unknown) => JSON.stringify(v ?? null);
+  // Key order is not a change: Postgres jsonb returns keys in its own order (found 16 Nov on a real Postgres).
+  const j = (v: unknown) => stableJson(v ?? null);
   return (prev.minutes ?? null) !== (m.minutes ?? null) || (prev.minutes_offered ?? null) !== (m.minutes_offered ?? null)
     || j(prev.decisions ?? []) !== j(m.decisions ?? []) || j(prev.action_items ?? []) !== j(m.action_items ?? []);
 }
@@ -215,7 +224,7 @@ export async function saveDerived(id: string, m: ReturnType<typeof mergeDerived>
   if (wasReady && !changed) return;
   await prisma.$executeRawUnsafe(
     `UPDATE meeting_records SET minutes = $2, minutes_offered = $3, decisions = $4::jsonb, action_items = $5::jsonb,
-        status = 'record_ready', status_reason = NULL, updated_flag = $6, updated_at = now() WHERE id = $1`,
+        status = 'record_ready', status_reason = NULL, updated_flag = $6, updated_at = now(), changed_at = now() WHERE id = $1`,
     id, m.minutes, m.minutes_offered, JSON.stringify(m.decisions), JSON.stringify(m.action_items), m.updated && wasReady && changed,
   );
   const rows = await prisma.$queryRawUnsafe<MeetingRecord[]>(`SELECT * FROM meeting_records WHERE id = $1`, id).catch(() => [] as MeetingRecord[]);
@@ -276,6 +285,8 @@ export async function setActionItemState(
                                     THEN (e || jsonb_build_object('state', $5::text)) || CASE WHEN $6::text IS NULL THEN '{}'::jsonb ELSE jsonb_build_object('task_id', $6::text) END
                                     ELSE e END ORDER BY o)
                 FROM jsonb_array_elements(action_items) WITH ORDINALITY AS t(e, o)),
+            changed_at = CASE WHEN EXISTS (SELECT 1 FROM jsonb_array_elements(action_items) y WHERE y->>'id' = $4 AND y->>'state' IS DISTINCT FROM $5::text)
+                              THEN now() ELSE changed_at END,
             updated_at = now()
       WHERE id = $3 AND client_number = $1 AND user_id = $2
         AND EXISTS (SELECT 1 FROM jsonb_array_elements(action_items) x WHERE x->>'id' = $4)

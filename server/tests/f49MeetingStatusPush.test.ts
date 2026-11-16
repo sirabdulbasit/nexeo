@@ -10,7 +10,7 @@ vi.mock('../src/db/prisma', () => ({ default: {
   $queryRawUnsafe: async () => (s.rec ? [s.rec] : []),
   $executeRawUnsafe: async (sql: string, ...a: any[]) => {
     if (/INSERT INTO meeting_records/.test(sql)) s.rec = { id: a[0], client_number: a[1], user_id: a[2], meeting_key: a[3], event_id: a[4], title: a[5], status: a[9], status_reason: a[10], action_items: [], updated_flag: false };
-    else if (/SET status = \$2/.test(sql)) s.rec = { ...s.rec, status: a[1], status_reason: a[2] };
+    else if (/status = \$2, status_reason = \$3/.test(sql)) s.rec = { ...s.rec, status: a[1], status_reason: a[2] };
     else if (/status = 'record_ready'/.test(sql)) s.rec = { ...s.rec, status: 'record_ready', status_reason: null, minutes: a[1], minutes_offered: a[2], decisions: JSON.parse(a[3]), action_items: JSON.parse(a[4]), updated_flag: a[5] };
     return 1;
   },
@@ -44,6 +44,7 @@ describe('F-4.9 meeting.status push', () => {
     await saveDerived(s.rec.id, { ...notes, updated: false }); await tick();
     expect(s.pushed.map((p) => p.m.status)).toEqual(['transcribing', 'record_ready']);
     expect(s.pushed[1].m.updated).toBe(false);
+    s.rec = { ...s.rec, action_items: [{ state: 'proposed', id: 'a', title: 'x' }] }; // as Postgres jsonb returns it: its own key order
     await saveDerived(s.rec.id, { ...notes, updated: true }); await tick(); // a re-read with the same notes
     expect(s.pushed).toHaveLength(2);
     expect(s.rec.updated_flag).toBe(false);

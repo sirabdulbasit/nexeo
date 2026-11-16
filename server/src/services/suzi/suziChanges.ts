@@ -26,7 +26,10 @@ export async function changesSince(clientNumber: string, userId: number, since: 
   const rows = await prisma.$queryRawUnsafe<Array<Record<ChangeType, boolean>>>(
     `SELECT
        EXISTS (SELECT 1 FROM open_items WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS actions,
-       EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${CALENDAR_SOURCES} AND created_at > $3) AS calendar,
+       (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${CALENDAR_SOURCES} AND created_at > $3)
+        -- suzi-b5 AGREE 16 Nov: one of his meeting records really changed (status/reason, notes, items; changed_at is set
+        -- only on a real change, so a write that moves updated_at alone flags nothing). His leave (his_choice) flags too.
+        OR EXISTS (SELECT 1 FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND changed_at > $3)) AS calendar,
        (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${EMAIL_SOURCES} AND created_at > $3)
         OR EXISTS (SELECT 1 FROM decision_logs WHERE client_number = $1 AND user_id = $2 AND created_at > $3)) AS emails,
        EXISTS (SELECT 1 FROM suzi_rules_version WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS rules,
