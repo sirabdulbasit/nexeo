@@ -129,6 +129,16 @@ describe('wiki identity', () => {
     expect(linksTo(x.id)).toHaveLength(0);
   });
 
+  it('7b. a former name is no proof when the identifiers say it is another thing', async () => {
+    const a = await writeNote({ ...base, type: 'commitment', title: 'Check Lahore (Ali)', body: '', ids: ['commitment:t1:check:ali@x.com'] });
+    // An older write gave the same note the other owner's title, so that title is now one of its former names.
+    await writeNote({ ...base, type: 'commitment', title: 'Check Lahore (Sara)', body: '', ids: ['commitment:t1:check:ali@x.com'] });
+    await writeNote({ ...base, type: 'commitment', title: 'Check Lahore (Ali)', body: '', ids: ['commitment:t1:check:ali@x.com'] });
+    const b = await writeNote({ ...base, type: 'commitment', title: 'Check Lahore (Sara)', body: '', ids: ['commitment:t1:check:sara@x.com'] });
+    expect(b.id).not.toBe(a.id);
+    expect(b.created).toBe(true);
+  });
+
   it('8. a merge moves citations and backlinks and is recorded; an unmerge puts them back', async () => {
     ['s1', 's2', 's3'].forEach(src);
     const keep = await writeNote({ ...base, type: 'person', title: 'Malik Irfan Ahmed', body: '', ids: ['email:irfan.ahmed@x.com'], sourceIds: ['s1', 's2'] });

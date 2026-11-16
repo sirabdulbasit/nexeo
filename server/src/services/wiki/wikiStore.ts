@@ -310,9 +310,12 @@ async function writeNoteIn(tx: any, input: NoteInput): Promise<WriteResult> {
   const titled = await tx.wikiPage.findFirst({ where: { ...owner, title } });
   if (!existing) existing = titled;
   if (!existing) {
-    const aliased = await tx.wikiPage.findMany({
+    const found = await tx.wikiPage.findMany({
       where: { AND: [owner, IS_NOTE, { status: 'active' }, { metadata: { path: ['aliasKeys'], array_contains: [titleKey(title)] } }] },
     });
+    // A former name is no proof when the identifiers say otherwise: a note with identifiers of its own,
+    // none of them this write's, is another thing that once had this name.
+    const aliased = ids.length ? found.filter((n: any) => { const have = normalizeIds(asRecord(n.metadata).ids); return have.length === 0 || have.some((x) => ids.includes(x)); }) : found;
     if (aliased.length === 1) {
       existing = aliased[0];
       foundByAlias = true;

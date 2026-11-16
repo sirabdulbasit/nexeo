@@ -289,7 +289,8 @@ export function buildMeaningNotes(
           `**Conversation:** ${conv.subject}`,
         ].join('\n'),
         properties: { what: c.what, state: shownState, openNow: open, owner: c.owner ?? null, ownedByYou: ruling?.kind === 'watch' ? false : !!c.owner && own.has(c.owner), to: c.to ?? null, due: c.due, lastActivity: day(conv.last), conversation: conv.key, ...(ruling ? { ruledBy: 'him', ruling: ruling.kind, actionItem: ruling.itemId } : {}) },
-        ids: [`commitment:${conv.key}:${titleKey(c.what).slice(0, 80)}`],
+        // The same ask put to two people in one conversation is two tasks: the owner is part of the identity.
+        ids: [`commitment:${conv.key}:${titleKey(c.what).slice(0, 80)}${c.owner ? `:${c.owner}` : ''}`],
         sourceIds,
       });
     }

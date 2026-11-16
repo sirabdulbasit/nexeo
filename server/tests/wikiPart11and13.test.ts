@@ -317,3 +317,17 @@ describe('the same conversation reads the same every run', () => {
     expect(a.sources.map((s) => s.id)).toEqual(['a', 'b']);
   });
 });
+
+describe('one ask put to two people', () => {
+  it('is two commitments with two identities, so neither overwrites the other', () => {
+    const s = { id: 'e1', kind: 'email', title: 't', occurredAt: new Date('2026-11-10T09:00:00Z'), threadKey: 't1', clientNumber: 'T-1', userId: 2, scope: 'user', externalId: 'e1', feedEventId: null, participants: [], body: '', details: {} } as any;
+    const conv = { key: 't1', subject: 't', sources: [s], last: s.occurredAt };
+    const ex = { projects: [], topics: [], decisions: [], commitments: [
+      { what: 'Check the changes for Lahore resources', owner: 'a@x.com', state: 'open' as const },
+      { what: 'Check the changes for Lahore resources', owner: 'b@x.com', state: 'open' as const },
+    ] };
+    const notes = buildMeaningNotes([{ conv, ex }] as any, { personByEmail: new Map(), now: new Date('2026-11-12'), ownEmails: new Set() }).filter((n) => n.type === 'commitment');
+    expect(notes).toHaveLength(2);
+    expect(new Set(notes.map((n) => n.ids![0])).size).toBe(2);
+  });
+});
