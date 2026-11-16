@@ -796,3 +796,27 @@ describe('a merge needs more than one confident answer (review 8, finding 3; mea
     expect(failed.r.failed).toBe(1);
   });
 });
+
+describe('what Nexeo and Suzi learned from him is in the Wiki (owner, 16 Nov)', () => {
+  it('each learned thing is one private note that says its state, how it was learned, and that it never acts by itself', async () => {
+    const { buildLearnedNotes } = await import('../src/services/wiki/wikiLearned');
+    const rows: any[] = [
+      { store: 'governed_brain_memories', id: '1', kind: 'preference', title: 'Always send text instead of voice notes', text: 'Use text, not voice notes. [[x]]', state: 'in use', howLearned: 'he said it', confidence: 0.9, at: new Date('2026-11-01') },
+      { store: 'governed_brain_memories', id: '2', kind: 'preference', title: 'Greet me with Morning, Sir', text: 'Begin briefings with Morning, Sir.', state: 'waiting for his approval', howLearned: 'Brain distilled it', sensitive: true, at: new Date('2026-11-02') },
+      { store: 'pattern_insights', id: '9', kind: 'pattern', title: "You've ignored 12 emails from x.com this week", text: 'Want a rule?', state: 'suggestion', howLearned: 'Brain noticed it', times: 12, at: new Date('2026-11-03') },
+      { store: 'thought_entries', id: 'a', kind: 'weekly review', title: 'Weekly review — 24 Apr 2026', text: 'r1', state: 'draft', howLearned: 'Brain wrote it', at: new Date('2026-04-24') },
+      { store: 'thought_entries', id: 'b', kind: 'weekly review', title: 'Weekly review — 24 Apr 2026', text: 'r2', state: 'draft', howLearned: 'Brain wrote it', at: new Date('2026-04-24') },
+    ];
+    const notes = buildLearnedNotes(rows, (r) => `src_${r.id}`);
+    expect(notes).toHaveLength(5);
+    expect(new Set(notes.map((n) => n.title)).size).toBe(5);
+    expect(notes.every((n) => n.type === 'learned' && n.scope === undefined && n.body.includes('**Acts by itself:** no'))).toBe(true);
+    const text = notes.find((n) => n.ids![0] === 'learned:governed_brain_memories:1')!;
+    expect(text.body).toContain('**State:** in use');
+    expect(text.body).toContain('**How it was learned:** he said it');
+    expect(links(text.body)).toEqual([]);
+    expect(text.sourceIds).toEqual(['src_1']);
+    expect(notes.find((n) => n.ids![0] === 'learned:pattern_insights:9')!.body).toContain('a suggestion only');
+    expect((notes.find((n) => n.ids![0] === 'learned:governed_brain_memories:2')!.properties as any)).toMatchObject({ state: 'waiting for his approval', sensitive: true });
+  });
+});

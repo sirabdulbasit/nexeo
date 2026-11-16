@@ -734,6 +734,7 @@ export interface RebuildResult {
   /** Part 11 and 13, each reported on its own (null on a dry run). */
   companies?: { read: number; named: number; failed: number } | { error: string } | null;
   documents?: { notes: number; written: number; retired: number; judged?: { asked: number; same: number; failed: number; left: number } } | { error: string } | null;
+  learned?: { rows: number; written: number; retired: number } | { error: string } | null;
   upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
 }
 
@@ -845,7 +846,14 @@ export async function rebuildWikiForUser(
   // Documents (attachments) after the meaning notes, so a document links to the projects it came in.
   let documents: RebuildResult['documents'] = null;
   let upkeep: RebuildResult['upkeep'] = null;
+  let learned: RebuildResult['learned'] = null;
   if (!opts.dryRun) {
+    // What Nexeo and Suzi learned from him (owner, 16 Nov: all information is in the Wiki).
+    learned = await step(async () => {
+      const { rebuildLearnedForUser } = await import('./wikiLearned');
+      const l = await rebuildLearnedForUser(clientNumber, userId);
+      return { rows: l.rows, written: l.written, retired: l.retired };
+    });
     documents = await step(async () => {
       const { rebuildDocumentsForUser } = await import('./wikiDocuments');
       const d = await rebuildDocumentsForUser(clientNumber, userId);
@@ -859,7 +867,7 @@ export async function rebuildWikiForUser(
       return { archived: u.archived, staled: u.staled, freshened: u.freshened, restored: u.restored };
     });
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep };
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep, learned };
 }
 
 /** Company names read by the model per user per build, at most. */
