@@ -963,3 +963,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 
 - **16 Nov ~20:55 PKT, founder ruling (relayed by Nexeo Wiki):** "wiki should contain all information… if nexeo/suzi learn anything from me should also be part of wiki". Nexeo's side is done (D-285/286: learned notes in the Wiki).
   - Asked of Suzi Master: does Suzi keep anything learned about the user only on her side? If yes, list it; how it reaches the Wiki is a charter change to agree first.
+  - **Suzi Master's answer (16 Nov).**
+    - Already reaching Nexeo: memory.<slug> (since 1.2.89), brief.<part>, and the voice and face prints.
+    - Only on Suzi's side: (1) Urdu speech style; (2) settings device.report doesn't carry (names, wake/sleep phrases, voice, accent); (3) the 8-second voice sample (founder decides); (4) his builder requests and verdicts (gaps.json); (5) small on-device states.
+    - PROPOSED: (1) as weekly profile.update speech.* keys; (2) as extra device.report.settings keys; (3) left to the founder; (4) request.G-n keys if he wants it.
+    - Sent to Nexeo Wiki for AGREE or changes. Likely needs a charter W-1 key-list text.
