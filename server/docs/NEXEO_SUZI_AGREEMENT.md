@@ -947,3 +947,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **16 Nov ~15:05 PKT, the task due question (Suzi Master).** What's pending showed "Tue 16 Nov" for the meeting follow-up task cmwj33pjz001srt5difi81mgy. Nexeo's due is NULL throughout (task.create args, the open_items row, action item ai_79e22608, the pack). The cause is on Suzi's display side, and Suzi Master has been asked to show "no deadline" for due: null.
   - Suzi 1.2.76 (15:01:05 PKT) shows the year when a due isn't in the current year, and adds Done / Change deadline / Assign / Cancel buttons (existing ops).
   - suzi-8f's session has ended; Suzi Master items now go to "Suzi-Master".
+  - **Fixed in Suzi 1.2.77 (Suzi Master):** the cause was a placeholder due a year ahead that Suzi stored for due: null. Such tasks now say "no deadline" everywhere, and Change deadline opens empty. Nothing for Nexeo to change.
