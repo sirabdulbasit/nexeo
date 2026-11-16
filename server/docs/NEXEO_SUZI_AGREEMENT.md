@@ -915,3 +915,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Asked: a date (ideally the 15:00 deploy), and no attend "always" until leave works.
     - Suzi meanwhile builds voice "take notes of / no notes of X" (branch f4-notes-by-voice).
   - **Suzi 1.2.73** published at 13:23:59 PKT. It carries the transcript fix, voice/typed "take notes of / no notes of <meeting>" (meeting.attend / meeting.leave), and the new "transcribing" line. The 15:30 test also works without the restart.
+  - **8d0bed80 (Nexeo-Builder, for the 15:00 deploy):** meeting.attend (Way A) and meeting.leave {event_id}, built to suzi-b5's proposal.
+    - A leave stores a single "never" and switches the space OFF only if Nexeo switched it ON.
+    - Result: not_covered with reason his_choice, and no push. Answer {ok:true, item:{meeting_id, status}}; a failed switch-off is an error.
+    - meeting.leave {meeting_id} (Way B) stays not_yet.
+    - Tests: f4WayAAttend (10). Sent to suzi-b5 to check against the client by 15:20.
