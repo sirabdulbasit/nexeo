@@ -908,3 +908,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - Per-event attend: only on Meets he hosts, while his switch is on. "always" only once the space is really ON; "ask" until the poll applies a rule. Nexeo never switches a space off.
     - A rule set before 15:00 is applied by the first poll after the deploy.
     - meeting.leave stays not_yet; switching a space off would be a new item to agree.
+  - **meeting.leave is owed, not new:** F-4.2 and F-4.9 already cover it (checked in the charter). suzi-b5's proposal is with Nexeo-Builder:
+    - Store a single-meeting "never".
+    - Switch the space OFF only if Nexeo switched it ON. If he had it ON in Meet himself, keep no record.
+    - Answer {ok:true, status:"not_covered"}; the last single choice wins.
+    - Asked: a date (ideally the 15:00 deploy), and no attend "always" until leave works.
+    - Suzi meanwhile builds voice "take notes of / no notes of X" (branch f4-notes-by-voice).
