@@ -23,6 +23,13 @@ export interface RecordRow {
 
 const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
 
+/** JSON with every object's keys sorted, so two equal values print the same. */
+export function stableJson(v: unknown): string {
+  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
+  if (v && typeof v === 'object') return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stableJson((v as any)[k])}`).join(',')}}`;
+  return JSON.stringify(v ?? null);
+}
+
 /** The calendar series a record belongs to (Google's event id without the instance suffix). */
 export function seriesOf(eventId: string | null | undefined): string | null {
   const s = String(eventId ?? '').trim();
@@ -79,7 +86,8 @@ export async function landTranscripts(clientNumber: string, userId: number): Pro
       `SELECT details FROM wiki_sources WHERE id = $1`, sourceId(clientNumber, userId, TRANSCRIPT_KIND, r.id),
     );
     // Unchanged record: nothing to land (the text is encrypted, so the details tell).
-    if (held[0] && JSON.stringify(held[0].details ?? {}) === JSON.stringify({ ...(held[0].details ?? {}), ...src.details })) continue;
+    // (The database stores keys in its own order: compared key-sorted.)
+    if (held[0] && stableJson(held[0].details ?? {}) === stableJson({ ...(held[0].details ?? {}), ...JSON.parse(JSON.stringify(src.details)) })) continue;
     await saveSource(src);
     landed += 1;
   }

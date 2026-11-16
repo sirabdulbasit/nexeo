@@ -511,7 +511,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     return work ? top(orgDomains.get(orgLabel(domainOf(work[0])))!)! : null;
   };
   // A company is titled by its real name when it is known, else by its domain (which stays an alias).
-  const companyTitle = (domain: string): string => {
+  const namedTitle = (domain: string): string => {
     const all = [...(orgDomains.get(orgLabel(domain))?.keys() ?? [domain])].sort();
     const named = [domain, ...all].map((d) => ctx.companyNames?.get(d)).find(Boolean);
     return named ? noteTitle(named) || domain : domain;
@@ -526,6 +526,17 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     companies.get(d)!.add(p.title);
     companySources.set(d, [...(companySources.get(d) ?? []), ...p.sources]);
   }
+  // One name, one company: a name read for several (people writing from a sister company's domain)
+  // goes to the company with the most people; the others keep their domain.
+  const claimed = new Map<string, string>();
+  for (const [domain, members] of [...companies.entries()].sort((a, b) => b[1].size - a[1].size || (a[0] < b[0] ? -1 : 1))) {
+    const t = namedTitle(domain);
+    if (t !== domain && !claimed.has(titleKey(t))) claimed.set(titleKey(t), domain);
+  }
+  const companyTitle = (domain: string): string => {
+    const t = namedTitle(domain);
+    return t !== domain && claimed.get(titleKey(t)) === domain ? t : domain;
+  };
   for (const [domain, members] of companies) {
     const names = [...members].sort((a, b) => a.localeCompare(b));
     const domains = [...orgDomains.get(orgLabel(domain))!.keys()].sort();

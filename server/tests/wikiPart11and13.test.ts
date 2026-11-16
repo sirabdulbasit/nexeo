@@ -278,3 +278,30 @@ describe('part 13: upkeep', () => {
     expect(unchangedNote({ status: 'active', bodyMarkdown: 'x', metadata: { wiki: 2, rev: 1, unresolvedLinks: ['y'] } }, 'x')).toBe(false);
   });
 });
+
+describe('fixes found on the first production run (16 Nov)', () => {
+  it('an unchanged record is seen as unchanged whatever order the database keeps its keys in', async () => {
+    const { stableJson } = await import('../src/services/wiki/wikiTranscripts');
+    expect(stableJson({ b: 1, a: [{ y: 2, x: 1 }] })).toBe(stableJson({ a: [{ x: 1, y: 2 }], b: 1 }));
+    expect(stableJson({ a: 1 })).not.toBe(stableJson({ a: 2 }));
+  });
+
+  it('one name, one company: a name read for two domains goes to the company with more people', () => {
+    const at = new Date('2026-11-10T09:00:00Z');
+    const m = (id: string, from: string, thread: string): StoredItem => ({ id, sourceType: 'gmail', at, payload: { threadId: thread, subject: 'x', from, to: 'basit@acme.com' } });
+    const sent = (id: string, to: string, thread: string): StoredItem => ({ id, sourceType: 'gmail', at, payload: { threadId: thread, subject: 'x', from: 'basit@acme.com', to, labels: ['SENT'] } });
+    const items = [m('1', 'ali@tmc.com', 't1'), sent('2', 'ali@tmc.com', 't1'), m('3', 'sara@tmc.com', 't2'), sent('4', 'sara@tmc.com', 't2'), m('5', 'omar@sister.com', 't3'), sent('6', 'omar@sister.com', 't3')];
+    const notes = buildNotes(items, { userName: 'Basit Ahmed', userEmail: 'basit@acme.com', now: new Date('2026-11-12'), companyNames: new Map([['tmc.com', 'TMC'], ['sister.com', 'TMC']]) });
+    expect(notes.filter((n) => n.type === 'company').map((n) => n.title).sort()).toEqual(['TMC', 'sister.com']);
+    expect(notes.find((n) => n.title === 'sister.com')!.aliases).toBeUndefined();
+  });
+});
+
+describe('company names read from the writer\'s own words', () => {
+  it('quoted earlier messages are cut before the model reads an email', async () => {
+    const { ownPart } = await import('../src/services/wiki/wikiCompanyNames');
+    expect(ownPart('How do I log in?\nAli Safdar Raja\nKnowledge Streams\n\nOn Tue, Oct 27, 2026 at 11:02 AM Vision Metric <vm@tmcltd.com> wrote:\nDear Ali')).toBe('How do I log in?\nAli Safdar Raja\nKnowledge Streams');
+    expect(ownPart('Thanks\n-----Original Message-----\nFrom: x')).toBe('Thanks');
+    expect(ownPart('No quote here')).toBe('No quote here');
+  });
+});
