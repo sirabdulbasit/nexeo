@@ -15,6 +15,7 @@
  * here and `title` is the default for a model that writes none. One source down never fails
  * the pack: `missing` says which and how to reconnect it (the DEF-385 rule).
  */
+import { meetingAttendFor, type MeetingAttendRule } from './suziMeetingRules';
 import { emailGist } from './emailGist';
 import { rulesDocument, type RulesDocument, type SuziRules } from './suziRules';
 import { recentPeople, type SuziPerson } from './suziPeople';
@@ -37,7 +38,10 @@ export interface PackAttendee { name: string; email: string; self?: true }
 export interface PackEvent {
   id: string; start: string; end: string | null; all_day: boolean; title: string;
   attendees: PackAttendee[]; organizer_self: boolean; location: string | null; link: string | null; prep_notes: string | null;
+  /** F-4.2: only on his hosted Meets while his switch is on; always = the space's transcription is really on. */
+  attend?: { decision: 'always' | 'never' | 'ask'; rule_id?: string };
 }
+export type AttendOf = (e: RawPackEvent, id: string, organizerSelf: boolean, link: string | null) => PackEvent['attend'] | undefined;
 /** His own addresses (lower-cased) and the names his contacts give addresses, for attendees. */
 export interface PackPeople { own: Set<string>; names: Map<string, string> }
 
@@ -76,7 +80,7 @@ export function endOfWeek(day: string): string {
  * Sort synced events into the pack's calendar. `events` must be newest-synced first: the poller
  * can store an event more than once, and the latest copy is the true one.
  */
-export function packCalendar(events: RawPackEvent[], today: string, tz: string, prep: Map<string, string> = new Map(), people: PackPeople = { own: new Set(), names: new Map() }): PackCalendar {
+export function packCalendar(events: RawPackEvent[], today: string, tz: string, prep: Map<string, string> = new Map(), people: PackPeople = { own: new Set(), names: new Map() }, attendOf?: AttendOf): PackCalendar {
   const tomorrow = addDays(today, 1);
   const weekEnd = endOfWeek(today);
   const seen = new Set<string>();
@@ -93,6 +97,9 @@ export function packCalendar(events: RawPackEvent[], today: string, tz: string, 
     const day = dateOnly ? e.start : localDate(start!, tz);
     const end = e.end && !/^\d{4}-\d{2}-\d{2}$/.test(e.end) && !isNaN(new Date(e.end).getTime()) ? toZonedIso(new Date(e.end), tz) : (e.end ?? null);
     const allDay = !!e.isAllDay || dateOnly;
+    const organizerSelf = !!addrOf(e.organizer) && people.own.has(addrOf(e.organizer));
+    const link = e.hangoutLink ?? e.link ?? null;
+    const attend = attendOf && !allDay ? attendOf(e, id, organizerSelf, link) : undefined;
     dated.push({
       day,
       sort: allDay ? '0' : `1${start!.toISOString()}`,
@@ -103,10 +110,11 @@ export function packCalendar(events: RawPackEvent[], today: string, tz: string, 
         all_day: allDay,
         title: String(e.title || '(no title)').slice(0, 200),
         attendees: packAttendees(e.attendees, people),
-        organizer_self: !!addrOf(e.organizer) && people.own.has(addrOf(e.organizer)),
+        organizer_self: organizerSelf,
         location: e.location ?? null,
-        link: e.hangoutLink ?? e.link ?? null,
+        link,
         prep_notes: prep.get(id) ?? null,
+        ...(attend ? { attend } : {}),
       },
     });
   }
@@ -314,7 +322,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     cursor: now.toISOString(),
     tz,
     date: today,
-    calendar: packCalendar(events, today, tz, prep, people),
+    calendar: packCalendar(events, today, tz, prep, people, await attendOfFor(clientNumber, userId)),
     actions,
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
     emails: await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
@@ -327,5 +335,34 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
     ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
+  };
+}
+
+/**
+ * F-4.2 per-event attend (charter, agreed 13 Nov; sent since Way A can switch transcription on, 16 Nov): only on his
+ * hosted Meets, only while his Meeting Assistant switch is on. always = the space is really on (his single choice, or
+ * an always rule already applied by the meet poll); never = a never rule; otherwise ask. Undefined when off or unread.
+ */
+export async function attendOfFor(clientNumber: string, userId: number): Promise<AttendOf | undefined> {
+  try {
+    const { isOn } = await import('../meetings/meetingSwitch');
+    if (!(await isOn(userId))) return undefined;
+    const { meetingAttendRules } = await import('./suziMeetingRules');
+    const { chosenEvents } = await import('../meetings/meetAttend');
+    const { meetingCodeOf } = await import('../meetings/meetTranscripts');
+    const [rules, chosen] = await Promise.all([meetingAttendRules(clientNumber, userId), chosenEvents(clientNumber, userId)]);
+    return attendOf(rules, chosen, meetingCodeOf);
+  } catch { return undefined; }
+}
+
+export function attendOf(rules: MeetingAttendRule[], chosen: Map<string, 'always' | 'never'>, codeOf: (l?: string | null) => string | null): AttendOf {
+  return (e, id, organizerSelf, link) => {
+    if (!organizerSelf || !codeOf(link)) return undefined;
+    const d = meetingAttendFor(rules, { title: e.title, organizer: addrOf(e.organizer), attendees: (e.attendees ?? []).map(addrOf), hasJoinLink: true });
+    const choice = chosen.get(id); // his single-meeting choice beats both rules
+    if (choice === 'never') return { decision: 'never' };
+    if (choice === 'always') return { decision: 'always', ...(d.decision === 'always' && d.rule_id ? { rule_id: d.rule_id } : {}) };
+    if (d.decision === 'never') return { decision: 'never', ...(d.rule_id ? { rule_id: d.rule_id } : {}) };
+    return { decision: 'ask' };
   };
 }

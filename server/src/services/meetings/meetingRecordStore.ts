@@ -51,6 +51,7 @@ function pushStatus(r: MeetingRecord | null | undefined): void {
 export const keyForEvent = (eventId: string) => `event:${eventId}`;
 export const keyForConference = (space: string, start: Date) => `conf:${space}@${start.toISOString()}`;
 
+export const byKeyPublic = (clientNumber: string, userId: number, key: string) => byKey(clientNumber, userId, key);
 async function byKey(clientNumber: string, userId: number, key: string): Promise<MeetingRecord | null> {
   const rows = await prisma.$queryRawUnsafe<MeetingRecord[]>(
     `SELECT * FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND meeting_key = $3`, clientNumber, userId, key,
@@ -77,18 +78,20 @@ export async function overlappingRecord(clientNumber: string, userId: number, st
 /** A status with no transcript yet (transcribing, not_covered, failed): makes the record if needed. */
 export async function setStatus(
   clientNumber: string, userId: number, key: string, status: MeetingStatus,
-  base: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null; way?: MeetingWay; reason?: string; conferenceRecord?: string | null },
+  base: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null; way?: MeetingWay; reason?: string; conferenceRecord?: string | null; quiet?: boolean },
 ): Promise<MeetingRecord> {
   const existing = await byKey(clientNumber, userId, key);
   if (existing) {
     // A finished record is never pushed back to an earlier state by a late status.
     if (existing.status === 'record_ready' || existing.status === 'transcript_ready') return existing;
+    // His "no notes" for this meeting (meeting.leave) stands until his own meeting.attend (transcribing) replaces it.
+    if (existing.status === 'not_covered' && existing.status_reason === 'his_choice' && status !== 'transcribing') return existing;
     await prisma.$executeRawUnsafe(
       `UPDATE meeting_records SET status = $2, status_reason = $3, conference_record = COALESCE(conference_record, $4), updated_at = now() WHERE id = $1`,
       existing.id, status, base.reason ?? null, base.conferenceRecord ?? null,
     );
     const after = (await getRecord(clientNumber, userId, existing.id))!;
-    if (existing.status !== status || (existing.status_reason ?? null) !== (base.reason ?? null)) pushStatus(after);
+    if (!base.quiet && (existing.status !== status || (existing.status_reason ?? null) !== (base.reason ?? null))) pushStatus(after);
     return after;
   }
   const id = `mtg_${crypto.randomBytes(8).toString('hex')}`;
@@ -99,7 +102,7 @@ export async function setStatus(
     base.way ?? 'google_transcript', status, base.reason ?? null, base.conferenceRecord ?? null,
   );
   const made = (await byKey(clientNumber, userId, key))!;
-  if (made?.id === id) pushStatus(made); // a lost race was pushed by the winner
+  if (made?.id === id && !base.quiet) pushStatus(made); // a lost race was pushed by the winner
   return made;
 }
 

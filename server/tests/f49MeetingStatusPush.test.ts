@@ -53,6 +53,15 @@ describe('F-4.9 meeting.status push', () => {
     await saveDerived(s.rec.id, { ...notes, minutes: 'm2', action_items: [...notes.action_items, { id: 'b', title: 'y', state: 'proposed' }], updated: true }); await tick();
     expect(s.pushed[3].m).toMatchObject({ updated: true, action_items_proposed: 2 });
   });
+  it('his no-notes choice: quiet (no push), stands against a late status, and his attend replaces it', async () => {
+    await setStatus('TMC-0001', 2, 'event:e5', 'not_covered', { reason: 'his_choice', quiet: true }); await tick();
+    expect(s.pushed).toHaveLength(0);
+    await setStatus('TMC-0001', 2, 'event:e5', 'not_covered', { reason: 'no_transcript' }); await tick();
+    expect(s.rec.status_reason).toBe('his_choice');
+    expect(s.pushed).toHaveLength(0);
+    await setStatus('TMC-0001', 2, 'event:e5', 'transcribing', {}); await tick();
+    expect(s.pushed.map((p) => p.m.status)).toEqual(['transcribing']);
+  });
   it('switched off (until the gateway route is installed): nothing is pushed', async () => {
     PUSH_STATUS.on = false;
     await setStatus('TMC-0001', 2, 'event:e3', 'not_covered', { reason: 'not_host' }); await tick();

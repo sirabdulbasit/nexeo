@@ -6,7 +6,8 @@
  *   meeting.delete  {meeting_id}                          confirmed and signed (irreversible)
  *   meeting.upload  {event_id?, title, start, end, transcript[], minutes, action_items[]}
  *                                                          from the computer, on his yes; attaches to the same record (C5)
- *   meeting.attend / meeting.leave                         Way B only: "not_yet" until Way B is agreed and built
+ *   meeting.attend {event_id, way:"google_transcript"}   Way A: his hosted Meet's transcription switched on (meetAttend.ts)
+ *   meeting.attend (other ways) / meeting.leave            "not_yet" until Way B is agreed and built
  *
  * Only he reads his records. Meeting data reaches Nexeo only while his Meeting Assistant switch is on (F-4.10).
  */
@@ -46,6 +47,16 @@ function lines(v: unknown): TranscriptLine[] {
 export async function runMeetingOp(
   clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: { signatureVerified: boolean },
 ): Promise<Result> {
+  // Way A (16 Nov): meeting.attend {event_id, way:"google_transcript"} switches his hosted Meet's transcription on.
+  if (op === 'meeting.attend' && text(a.way) === 'google_transcript') {
+    const { meetingAttendWayA } = await import('../meetings/meetAttend');
+    return meetingAttendWayA(clientNumber, userId, text(a.event_id));
+  }
+  if (op === 'meeting.leave' && text(a.event_id) && !text(a.meeting_id)) {
+    const { meetingLeaveWayA } = await import('../meetings/meetAttend');
+    return meetingLeaveWayA(clientNumber, userId, text(a.event_id));
+  }
+  if (op === 'meeting.leave' && text(a.event_id) && text(a.meeting_id)) return fail('bad_args', 'exactly one of event_id or meeting_id');
   if (op === 'meeting.attend' || op === 'meeting.leave') return fail('not_yet', 'joining as a participant (Way B) is not built yet');
   if (op === 'meeting.list') {
     const from = text(a.from) ? new Date(text(a.from)) : undefined;

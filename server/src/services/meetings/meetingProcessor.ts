@@ -109,6 +109,10 @@ export async function ingestConference(
   meta: { title?: string | null; eventId?: string | null; start?: Date | null; end?: Date | null },
   opts: { reread?: boolean } = {},
 ): Promise<MeetingRecord | null> {
+  // His "no notes" for this meeting (meeting.leave): Nexeo keeps no record of it, even if Meet made a transcript.
+  const { byKeyPublic } = await import('./meetingRecordStore');
+  const mine = await byKeyPublic(clientNumber, userId, key);
+  if (mine?.status === 'not_covered' && mine.status_reason === 'his_choice') return mine;
   const conf = await conference(meet, confName);
   const t = await readTranscript(meet, confName);
   if (!t.transcriptName) return null;

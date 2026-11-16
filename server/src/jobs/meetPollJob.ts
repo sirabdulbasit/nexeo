@@ -65,6 +65,13 @@ export async function runMeetPoll(now = new Date()): Promise<{ users: number; pr
       // His Workspace Events subscription: created once he has the Meet scopes, renewed a day before it expires.
       await ensureSubscription(u.clientNumber, u.userId);
       const { events } = await getEvents(u.userId, new Date(now.getTime() - LOOKBACK_MS - 6 * 60 * 60_000), now, 100);
+      // F-4.2 Way A (16 Nov): his "always" rules switch on transcription for his hosted Meets of today and tomorrow.
+      try {
+        const { autoAttend, AUTO_AHEAD_MS } = await import('../services/meetings/meetAttend');
+        const ahead = await getEvents(u.userId, now, new Date(now.getTime() + AUTO_AHEAD_MS), 100);
+        const n = await autoAttend(u.clientNumber, u.userId, ahead.events as any[], u.emails, now);
+        if (n) log.info('meetings switched on by his rules', { userId: u.userId, n });
+      } catch (e: any) { log.warn('auto attend failed', { userId: u.userId, error: String(e?.message ?? e).slice(0, 160) }); }
       const done = await prisma.$queryRawUnsafe<Array<{ event_id: string }>>(
         `SELECT event_id FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND event_id IS NOT NULL
             AND status IN ('record_ready','not_covered')`, u.clientNumber, u.userId,
