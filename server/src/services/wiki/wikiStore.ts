@@ -307,7 +307,13 @@ async function writeNoteIn(tx: any, input: NoteInput): Promise<WriteResult> {
     if (same.length > 1) throw new IdentityConflict(same.map((n: any) => n.id), ids);
     existing = same[0] ?? null;
   }
-  const titled = await tx.wikiPage.findFirst({ where: { ...owner, title } });
+  let titled = await tx.wikiPage.findFirst({ where: { ...owner, title } });
+  // A retired note does not keep a live note from its name: when this write is for another note (found by
+  // its identifiers) and the wanted title is held only by a retired one, the retired note steps aside.
+  if (existing && titled && titled.id !== existing.id && titled.status === 'superseded') {
+    await tx.wikiPage.update({ where: { id: titled.id }, data: { title: `${title} (retired ${String(titled.id).slice(-6)})`.slice(0, 250) } });
+    titled = null;
+  }
   if (!existing) existing = titled;
   if (!existing) {
     const found = await tx.wikiPage.findMany({

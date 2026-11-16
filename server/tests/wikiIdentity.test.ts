@@ -139,6 +139,19 @@ describe('wiki identity', () => {
     expect(b.created).toBe(true);
   });
 
+  it('7c. a retired note does not keep a live note from its name', async () => {
+    const old = await writeNote({ ...base, type: 'document', title: 'Plan.pdf (from Ali)', body: 'old', ids: ['document:plan.pdf:ali'] });
+    await retireNote(old.id, 'test');
+    const live = await writeNote({ ...base, type: 'document', title: 'Plan.pdf', body: 'v1', ids: ['document:plan.pdf:m1'] });
+    // The live note is now to be called what the retired one was called.
+    const r = await writeNote({ ...base, type: 'document', title: 'Plan.pdf (from Ali)', body: 'v1', ids: ['document:plan.pdf:m1'] });
+    expect(r.id).toBe(live.id);
+    expect(t.pages.find((p) => p.id === live.id)!.title).toBe('Plan.pdf (from Ali)');
+    expect(t.pages.find((p) => p.id === old.id)!.status).toBe('superseded');
+    expect(t.pages.find((p) => p.id === old.id)!.title).toMatch(/^Plan\.pdf \(from Ali\) \(retired /);
+    // A LIVE note's title is still never taken from it (test 7).
+  });
+
   it('8. a merge moves citations and backlinks and is recorded; an unmerge puts them back', async () => {
     ['s1', 's2', 's3'].forEach(src);
     const keep = await writeNote({ ...base, type: 'person', title: 'Malik Irfan Ahmed', body: '', ids: ['email:irfan.ahmed@x.com'], sourceIds: ['s1', 's2'] });
