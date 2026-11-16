@@ -14,6 +14,7 @@
  * invitation; on a cancel it is written first, so the cancellation they receive carries it.
  * The pack's event id is Google's, from his primary calendar.
  */
+import prisma from '../../db/prisma';
 import { personById } from './suziPeople';
 import type { SendGate } from './suziEmail';
 
@@ -194,9 +195,23 @@ export async function calendarCreate(clientNumber: string, userId: number, a: Ar
 
 export const CALENDAR_OPS = ['calendar.update', 'calendar.cancel', 'calendar.create'] as const;
 
-export async function runCalendarOp(clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: SendGate): Promise<Result> {
-  if (op === 'calendar.update') return calendarUpdate(clientNumber, userId, a, confirmed, gate);
-  if (op === 'calendar.cancel') return calendarCancel(clientNumber, userId, a, confirmed, gate);
-  if (op === 'calendar.create') return calendarCreate(clientNumber, userId, a, confirmed, gate);
-  return fail('unknown_op');
+export async function runCalendarOp(
+  clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: SendGate,
+  ops: { update: typeof calendarUpdate; cancel: typeof calendarCancel; create: typeof calendarCreate } = { update: calendarUpdate, cancel: calendarCancel, create: calendarCreate },
+): Promise<Result> {
+  const r = op === 'calendar.update' ? await ops.update(clientNumber, userId, a, confirmed, gate)
+    : op === 'calendar.cancel' ? await ops.cancel(clientNumber, userId, a, confirmed, gate)
+    : op === 'calendar.create' ? await ops.create(clientNumber, userId, a, confirmed, gate)
+    : fail('unknown_op');
+  if (r.ok) await touchCalendar(clientNumber, userId);
+  return r;
+}
+
+/** Suzi Master AGREE 16 Nov: a successful calendar op flags "calendar" on /v1/changes (suziChanges.ts). A failed op
+ *  flags nothing. A stamp that cannot be written never fails the op that already succeeded. */
+export async function touchCalendar(clientNumber: string, userId: number): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO suzi_calendar_touch (client_number, user_id, touched_at) VALUES ($1, $2, now())
+     ON CONFLICT (client_number, user_id) DO UPDATE SET touched_at = now()`, clientNumber, userId,
+  ).catch(() => undefined);
 }
