@@ -901,3 +901,10 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Both pieces are due by 15:00 PKT today: meeting.attend for a Meet he hosts turns the space's autoTranscriptionGeneration ON (not_host otherwise), and the pack carries the per-event attend {decision, rule_id?}.
   - The test: before 15:30 he says "take notes" for "TMC System Catalogues" (its space is OFF now). No reconnect is needed.
   - The 14-minute delay is the poll: every 5 minutes, on meetings that ended at least 15 minutes ago. The Workspace Events path delivers nothing (one event, on 12 Nov); a date follows after the build.
+  - **meeting.attend shapes, final (Nexeo-Builder, 16 Nov; sent to suzi-b5 to check against the client before 15:20):**
+    - not_host → {status:"not_covered", reason:"not_host"}.
+    - Success → {meeting_id, status:"transcribing"}, only once Meet confirms transcription ON.
+    - Failures are {ok:false, error}: needs_reconnect, meet_failed, not_found, switched_off, calendar_unavailable, ended, not_meet, bad_args.
+    - Per-event attend: only on Meets he hosts, while his switch is on. "always" only once the space is really ON; "ask" until the poll applies a rule. Nexeo never switches a space off.
+    - A rule set before 15:00 is applied by the first poll after the deploy.
+    - meeting.leave stays not_yet; switching a space off would be a new item to agree.
