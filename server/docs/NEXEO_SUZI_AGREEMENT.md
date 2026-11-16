@@ -848,3 +848,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **14 Nov 16:57:29 PKT, meeting.status target restated (suzi-b5's ask).** The 17:30 PKT target is replaced by a condition: **the founder's go-ahead + his restart**.
   - That means: his word on who installs the gateway relay ("Nexeo installs it" or "Suzi installs it"); his Mac on 1.2.68 or later (it is on 1.2.65 now, with 1.2.69 offered); then suzi-b5's "go"; then Nexeo-Builder's switch-on deploy.
   - The relay question was last put to the founder at 12:22:37 PKT and is still open. Nothing has been installed.
+
+- **16 Nov 09:37:16 PKT, founder's Mac back; signed identity.put works.** From suzi_act_log, user 2, device f24c638f (times UTC):
+  - 04:36:43 and 04:36:44: identity.put failed, needs_signature.
+  - 04:37:18 and 04:37:19: identity.put voiceprint and faceprint ok, stored. This is the first signed success since the 25 failures on 13 Nov.
+  - device.report at 04:36:44 still says app_version 1.2.65.
+  - Sent to suzi-b5 and suzi-8f with the question: which version is he on now, and is it 1.2.68 or later (that would allow suzi-b5's "go")? The relay install still waits on the founder.
