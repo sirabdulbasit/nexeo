@@ -11,6 +11,7 @@
  * A record he deleted takes its source with it.
  */
 import prisma from '../../db/prisma';
+import { stableJson } from '../../utils/stableJson';
 import { saveSource, removeSource, listSources, sourceId, type Source } from './wikiSources';
 
 export const TRANSCRIPT_KIND = 'transcript' as const;
@@ -23,12 +24,8 @@ export interface RecordRow {
 
 const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
 
-/** JSON with every object's keys sorted, so two equal values print the same. */
-export function stableJson(v: unknown): string {
-  if (Array.isArray(v)) return `[${v.map(stableJson).join(',')}]`;
-  if (v && typeof v === 'object') return `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${stableJson((v as any)[k])}`).join(',')}}`;
-  return JSON.stringify(v ?? null);
-}
+// The one order-blind compare (shared with meetingRecordStore); re-exported for the tests.
+export { stableJson };
 
 /** The calendar series a record belongs to (Google's event id without the instance suffix). */
 export function seriesOf(eventId: string | null | undefined): string | null {
