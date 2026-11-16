@@ -881,3 +881,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
   - Meeting: "PMS System Demo - Vision Metrics", 11:00–12:00 PKT.
   - Suzi shows about 15 lines (06:23:06Z to 06:26:10Z), then "… (the rest is in the record)". Nexeo holds and returns all 232 lines (06:01:47Z to 06:58:01Z).
   - Asked of Suzi: show the whole transcript or let him scroll it; start at the first line; show times in PKT. Sent to suzi-b5; waiting for the answer and release time.
+  - **suzi-b5, 13:07 PKT:** the cause is on Suzi's side. Her view cut the text at 6,000 characters and printed raw ISO times.
+    - Fix on branch f4-transcript-whole, 90ddaa9: the whole transcript scrolls, in the order spoken, with HH:MM:SS times in his zone. It goes to Suzi-Master for release; he then needs one restart.
+    - This Meet (mtg_2c6aa83534e97ef4) is agreed as the F-4 test Meet.
+    - Its record_ready (row updated 07:49:03 UTC) came before the switch-on at 07:49:38 UTC, so no push went for it.
+    - Asked of Nexeo-Builder: the times of each status, and what the Meet API answered about switching transcription on by itself.
