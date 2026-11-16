@@ -602,6 +602,24 @@ Its verdict: small progress, no score change; identity errors remain; Wiki-first
 | HIGH 7 Wiki-first behaviour partial | Unchanged: the readers have not moved; the end-to-end test waits for the founder's test email | Open |
 
 **Withdrawn:** the statement in §0.19 and the D-276 chart row that the identity class was "closed by rule". Whether it is closed now is for the next review to say.
+### 0.20 Suzi's Wiki search reads the text, not only titles (16 Nov, founder, Nexeo-Builder)
+
+Founder: *"when i ask suzi to see anything it always read the subject, where subject is one step to search and other
+to search through content (wiki should help this)"*. `/v1/knowledge` (`suzi/suziKnowledge.ts`) matched his words only in
+note TITLES (plus the meaning search). Body text was searched only for codes like `R-26-00081`. Asked about "yellow
+columns business owner technical owner", words from the catalogue email itself, it returned "Book of business" and
+"Yellow Belt Course".
+
+- **Built:** a text pass. Notes whose text holds all of his words, or failing that most of them, join the candidates.
+  Every candidate scores `0.6 × (share of his words in its text)²` on top of the title bonus, so a note holding all
+  of them beats a title sharing one. Scoped as before (tenant, or his own pages).
+- **Verified live, read-only, on his account:** that query now returns Enterprise Data Implementation, TMC Systems
+  Catalogue (project), and the 13 Nov, 30 Oct and 27 Oct catalogue emails. Six other queries were unchanged or better.
+  Time is unchanged at 2.5 to 4.4 s; the meaning search dominates.
+- **Test:** `suziKnowledge.test.ts`, "his words in the TEXT beat a title". The mutation with the text bonus at 0 turns
+  it red.
+- **Not done:** no full-text index. The pass is `ILIKE` over about 18,800 notes; the index is owed if the Wiki grows.
+
 
 ## 1. Owner direction (2026-11-12)
 

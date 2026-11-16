@@ -19,6 +19,7 @@ export const MAX_CHARS = 4000;
 const MIN_SCORE = 0.3;
 const KEYWORD_ONLY_SCORE = 0.55;
 const TITLE_BONUS = 0.2;
+const BODY_BONUS = 0.6; // his words found in the note's text (16 Nov), squared so all-of-them beats some-of-them
 
 /** Not facts: Brain's notes about itself, its own earlier answers, and what it knows it doesn't know. */
 const NOT_FACTS = ['gap', 'tenant_index', 'tenant_log', 'mind_state', 'observation', 'answer'];
@@ -84,10 +85,30 @@ export async function searchKnowledge(clientNumber: string, userId: number, rawQ
     clientNumber, userId, patterns,
   ).catch(() => [] as any[]);
 
+  // Notes whose text holds at least `need` of the patterns, most matches first, then newest.
+  const bodyRows = (patterns: string[], need: number, limit: number) => prisma.$queryRawUnsafe<any[]>(
+    `SELECT id, title, page_type AS "pageType", body_markdown AS "bodyMarkdown", user_id AS "userId"
+       FROM wiki_pages w
+      WHERE client_number = $1
+        AND (scope = 'tenant' OR (scope = 'user' AND user_id = $2))
+        AND (SELECT count(*) FROM unnest($3::text[]) p WHERE w.body_markdown ILIKE p) >= $4
+      ORDER BY (SELECT count(*) FROM unnest($3::text[]) p WHERE w.body_markdown ILIKE p) DESC, last_updated_at DESC
+      LIMIT ${limit}`,
+    clientNumber, userId, patterns, need,
+  ).catch(() => [] as any[]);
+
   if (terms.length) {
     for (const r of await keywordRows('title', terms.map(likePattern), 30)) {
       if (!hits.has(r.id)) hits.set(r.id, { ...r, score: KEYWORD_ONLY_SCORE });
     }
+  }
+  // Founder 16 Nov: "subject is one step to search and other to search through content". The words he gives are
+  // looked for in the note's TEXT too: notes holding all of them (or, failing that, most of them) join the candidates.
+  if (terms.length >= 2) {
+    const pats = terms.map(likePattern);
+    const all = await bodyRows(pats, pats.length, 20);
+    const most = all.length ? [] : await bodyRows(pats, Math.max(2, Math.ceil(pats.length * 0.6)), 20);
+    for (const r of [...all, ...most]) if (!hits.has(r.id)) hits.set(r.id, { ...r, score: KEYWORD_ONLY_SCORE });
   }
   const codes = extractDistinctiveTokens(q);
   if (codes.length) {
@@ -109,7 +130,11 @@ export async function searchKnowledge(clientNumber: string, userId: number, rawQ
     if (!m || NOT_SHOWN_STATUS.includes(m.status) || NOT_FACTS.includes(m.page_type) || !h.bodyMarkdown?.trim()) return [];
     const title = String(h.title).toLowerCase();
     const inTitle = terms.filter((t) => title.includes(t)).length;
-    return [{ ...h, score: h.score + (terms.length ? TITLE_BONUS * (inTitle / terms.length) : 0) }];
+    const body = String(h.bodyMarkdown ?? '').toLowerCase();
+    const inBody = terms.filter((t) => body.includes(t)).length;
+    // His words in the text count more than in the title: a title sharing one word ("Yellow Belt") must not beat the
+    // email that holds all of them.
+    return [{ ...h, score: h.score + (terms.length ? TITLE_BONUS * (inTitle / terms.length) + BODY_BONUS * (inBody / terms.length) ** 2 : 0) }];
   });
   if (shown.length === 0) return [];
 

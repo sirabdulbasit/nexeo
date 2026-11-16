@@ -22,9 +22,10 @@ import { excerptOf, MAX_CHARS, MAX_RESULTS, queryTerms, searchKnowledge } from '
 
 const page = (id: string, over: any = {}) => ({ id, title: `Page ${id}`, pageType: 'project', bodyMarkdown: `Body of ${id}`, userId: 2, score: 0.5, ...over });
 
-function db(opts: { title?: any[]; body?: any[]; meta?: Record<string, { status?: string; page_type?: string }> } = {}) {
+function db(opts: { title?: any[]; body?: any[]; text?: any[]; meta?: Record<string, { status?: string; page_type?: string }> } = {}) {
   query.mockImplementation(async (sql: string, _cn: string, _u: number, arg: any) => {
     if (sql.includes('title ILIKE ANY')) return opts.title ?? [];
+    if (sql.includes('w.body_markdown ILIKE p')) return opts.text ?? []; // his words in the note's text (16 Nov)
     if (sql.includes('body_markdown ILIKE ANY')) return opts.body ?? [];
     return (arg as string[]).map((id) => ({ id, status: opts.meta?.[id]?.status ?? 'active', page_type: opts.meta?.[id]?.page_type ?? 'project', last_updated_at: new Date('2026-11-01T10:00:00Z') }));
   });
@@ -100,11 +101,20 @@ describe('finding pages', () => {
     db({ title: [page('p2')] });
     await searchKnowledge('TMC-0001', 2, 'project R-26-00081');
     expect(vector.mock.calls[0].slice(0, 2)).toEqual(['TMC-0001', 2]);
-    expect(query.mock.calls.length).toBe(3);
+    expect(query.mock.calls.length).toBe(5); // vector + title + text (all words, then most) + code + meta
     for (const c of query.mock.calls) {
       expect(c[0]).toContain("scope = 'tenant' OR (scope = 'user' AND user_id = $2)");
       expect(c.slice(1, 3)).toEqual(['TMC-0001', 2]);
     }
+  });
+  it('founder 16 Nov: his words in the TEXT beat a title that shares one of them', async () => {
+    db({
+      title: [page('belt', { title: 'Yellow Belt Course', bodyMarkdown: 'A six sigma course.' })],
+      text: [page('mail', { title: '2026-10-26 · TMC Systems Catalogue', pageType: 'email_message', bodyMarkdown: 'Please fill in the yellow columns: business owner and technical owner.' })],
+    });
+    const r = await searchKnowledge('T', 2, 'yellow columns business owner technical owner');
+    expect(r[0].title).toBe('2026-10-26 · TMC Systems Catalogue');
+    expect(r.map((x) => x.title)).toContain('Yellow Belt Course');
   });
   it('a page the scoped read doesn\'t return is never served', async () => {
     vector.mockResolvedValue([page('other_user')]);
