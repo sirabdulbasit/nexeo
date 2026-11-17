@@ -308,7 +308,10 @@ async function mark(clientNumber: string, userId: number, a: Args): Promise<Emai
  * The thread's emails, decided. `delegated` is Nexeo's own (DEF-489, not an op Suzi sends): a forward to a person is
  * learned as a delegation, and in the Wiki the email is handled.
  */
-export async function markThread(clientNumber: string, userId: number, threadId: string, state: 'handled' | 'no_reply_needed' | 'delegated'): Promise<EmailOpResult> {
+export async function markThread(clientNumber: string, userId: number, threadId: string, state: 'handled' | 'no_reply_needed' | 'delegated', origin: { ruleId?: string | null } = {}): Promise<EmailOpResult> {
+  // Ninth review P1 (17 Nov): a rule run is outcome evidence, never another choice of his. Its row names the rule
+  // (sessionType 'rule', actionTaken 'rule:<id>') and carries no dedup hash, so the miner and the suggester, which group
+  // by dedup_hash, cannot count repeated runs of one rule as him choosing it again.
   const a: Args = { thread_id: threadId, state };
   const decision = state === 'delegated' ? 'delegated' : MARKS[state];
   if (!decision) return fail('bad_state');
@@ -323,14 +326,15 @@ export async function markThread(clientNumber: string, userId: number, threadId:
   for (const r of rows) {
     const sender = r.sender_email ?? '';
     // The same hash the Day Brief's own decisions use, so what's learned from this adds up with them.
-    const dedupHash = computeDedupHash({
+    const byRule = !!origin.ruleId;
+    const dedupHash = byRule ? null : computeDedupHash({
       userId, itemType: 'email', senderDomain: sender.split('@')[1] ?? '',
       archetype: classifyArchetypeFromPayload(r.subject ?? '', r.snippet ?? '', sender) as any,
     });
     await prisma.decisionLog.create({
       data: {
-        id: `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, clientNumber, userId, sessionType: 'decide', itemType: 'email',
-        entityId: r.id, connectorSlug: 'gmail', userDecision: decision, actionTaken: `suzi_${text(a.state)}`, dedupHash,
+        id: `dl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, clientNumber, userId, sessionType: byRule ? 'rule' : 'decide', itemType: 'email',
+        entityId: r.id, connectorSlug: 'gmail', userDecision: decision, actionTaken: byRule ? `rule:${origin.ruleId}` : `suzi_${text(a.state)}`, dedupHash,
         // His own decision, not an accepted AI suggestion. Required by the schema: without it every mark threw (DEF-451).
         isMatch: false,
       },
@@ -349,10 +353,27 @@ export async function markThread(clientNumber: string, userId: number, threadId:
   return { ok: true, item: { thread_id: threadId, state: text(a.state), emails: rows.length } };
 }
 
-export const EMAIL_OPS = ['email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark'] as const;
+export const EMAIL_OPS = ['email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark', 'email.drafts', 'email.discard_draft'] as const;
 
 export async function runEmailOp(clientNumber: string, userId: number, op: string, args: Args, confirmed: boolean, gate: SendGate = UNSIGNED): Promise<EmailOpResult> {
+  // T32: his own Gmail drafts ("g:<id>") are taken into Nexeo's draft record on their first change or send.
+  if ((op === 'email.update_draft' || op === 'email.send') && text(args.draft_id).startsWith('g:')) {
+    const { adoptGmailDraft } = await import('./suziDrafts');
+    const id = await adoptGmailDraft(clientNumber, userId, text(args.draft_id));
+    if (!id) return fail('not_found');
+    args = { ...args, draft_id: id };
+  }
   switch (op) {
+    case 'email.drafts': {
+      const { listDrafts, openDraft } = await import('./suziDrafts');
+      if (text(args.draft_id)) return openDraft(clientNumber, userId, text(args.draft_id));
+      const r = await listDrafts(clientNumber, userId);
+      return r ? { ok: true, item: r } : fail('gmail_unavailable', 'his Gmail drafts could not be read');
+    }
+    case 'email.discard_draft': {
+      const { discardDraft } = await import('./suziDrafts');
+      return discardDraft(clientNumber, userId, text(args.draft_id), confirmed);
+    }
     case 'email.draft': return createDraft(clientNumber, userId, args);
     case 'email.new': return newEmail(clientNumber, userId, args);
     case 'email.forward': return forwardEmail(clientNumber, userId, args);

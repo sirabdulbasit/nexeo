@@ -16,6 +16,8 @@
 import prisma from '../../db/prisma';
 
 export const HISTORY_MAX = 20;
+/** T33 Q1 (both AGREE 17 Nov): the whole trail on request (`all`), at most this many; `asc` = oldest first. */
+export const HISTORY_ALL_MAX = 500;
 const NOTE_MAX = 300;
 
 export interface HistoryEntry { at: string; who: string; change: string; note?: string }
@@ -98,7 +100,7 @@ function events(item: Item, status: StatusRow[], userId: number): Ev[] {
  * everything that really happened), so the same Nexeo step is folded into one line with a count, at its
  * latest time; real events are never folded.
  */
-export function historyOf(item: Item, status: StatusRow[], userId: number): HistoryEntry[] {
+export function historyOf(item: Item, status: StatusRow[], userId: number, opts: { all?: boolean; asc?: boolean } = {}): HistoryEntry[] {
   const sorted = events(item, status, userId).sort((a, b) => b.ms - a.ms);
   const out: Array<HistoryEntry & { n: number; key?: string }> = [];
   const folded = new Map<string, HistoryEntry & { n: number }>();
@@ -114,7 +116,8 @@ export function historyOf(item: Item, status: StatusRow[], userId: number): Hist
       out.push({ at: e.at, who: e.who, change: e.change, ...(e.note ? { note: e.note } : {}), n: 1 });
     }
   }
-  return out.slice(0, HISTORY_MAX).map(({ n, ...h }) => (n > 1 ? { ...h, change: `${h.change} (${n} times)` } : h));
+  const kept = out.slice(0, opts.all ? HISTORY_ALL_MAX : HISTORY_MAX).map(({ n, ...h }) => (n > 1 ? { ...h, change: `${h.change} (${n} times)` } : h));
+  return opts.asc ? kept.reverse() : kept;
 }
 
 /** The latest real change, or null when nothing is recorded. */
@@ -148,12 +151,12 @@ export type HistoryAnswer =
   | { ok: true; history: HistoryEntry[]; checked: boolean }
   | { ok: false; error: 'not_found'; detail: string };
 
-export async function taskHistory(clientNumber: string, userId: number, id: string): Promise<HistoryAnswer> {
+export async function taskHistory(clientNumber: string, userId: number, id: string, opts: { all?: boolean; asc?: boolean } = {}): Promise<HistoryAnswer> {
   const item = id && id.length <= 100
     ? await prisma.openItem.findFirst({ where: { id, clientNumber, userId }, select: HISTORY_SELECT })
     : null;
   if (!item) return { ok: false, error: 'not_found', detail: 'no such task' };
   let checked = true;
   const status = await statusRowsFor(clientNumber, userId, [id]).catch(() => { checked = false; return new Map<string, StatusRow[]>(); });
-  return { ok: true, history: historyOf(item as Item, status.get(id) ?? [], userId), checked };
+  return { ok: true, history: historyOf(item as Item, status.get(id) ?? [], userId, opts), checked };
 }

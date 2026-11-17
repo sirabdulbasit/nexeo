@@ -209,7 +209,7 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
   // It is his no longer: the thread leaves the emails needing a reply. DEF-489: learned as DELEGATED to the person, not
   // as a reply (the "handled" mark wrote decision approved, which the miner and the suggester count as draft_reply).
   const { markThread } = await import('./suziEmail');
-  await markThread(row.clientNumber, row.userId as any, d.thread_id, 'delegated').catch(() => undefined);
+  await markThread(row.clientNumber, row.userId as any, d.thread_id, 'delegated', d.by_rule ? { ruleId: d.rule_id || 'unknown' } : {}).catch(() => undefined);
 }
 
 /** DEF-490: who has it now, for the watch (brainOwnership.isWatchOnly: a person is enough). */

@@ -200,6 +200,15 @@ describe('marking', () => {
     expect(decision.mock.calls[0][0].data).toMatchObject({ clientNumber: 'TMC-0001', userId: 2, entityId: 'fe1', userDecision: 'dismissed', isMatch: false });
     expect(invalidate).toHaveBeenCalledWith('fe2');
   });
+  it('ninth review P1: a rule run is the rule\'s, not his choice: no dedup hash, origin named', async () => {
+    const { markThread } = await import('../src/services/suzi/suziEmail');
+    decision.mockClear();
+    await markThread('T', 2, 'th1', 'delegated', { ruleId: 'uar_r1' });
+    expect(decision.mock.calls[0][0].data).toMatchObject({ userDecision: 'delegated', sessionType: 'rule', actionTaken: 'rule:uar_r1', dedupHash: null });
+    decision.mockClear();
+    await markThread('T', 2, 'th1', 'delegated');
+    expect(decision.mock.calls[0][0].data).toMatchObject({ userDecision: 'delegated', sessionType: 'decide', dedupHash: 'hash' });
+  });
   it('an unknown state or thread changes nothing', async () => {
     expect(await runEmailOp('T', 2, 'email.mark', { thread_id: 'th1', state: 'done' }, false)).toEqual({ ok: false, error: 'bad_state' });
     query.mockResolvedValue([]);

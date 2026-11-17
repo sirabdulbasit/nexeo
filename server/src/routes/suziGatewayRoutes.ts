@@ -237,7 +237,8 @@ router.get('/task-history', async (req: Request, res: Response) => {
   const id = typeof req.query.id === 'string' ? req.query.id.trim() : '';
   if (!id || id.length > 100) { res.status(400).json({ error: { code: 'bad_query', message: 'id is required, up to 100 characters' } }); return; }
   try {
-    const r = await taskHistory(who.tenantId, who.userId, id);
+    // T33 Q1 (both AGREE 17 Nov): all=1 → the whole trail (at most 500); order=asc → oldest first.
+    const r = await taskHistory(who.tenantId, who.userId, id, { all: req.query.all === '1' || req.query.all === 'true', asc: req.query.order === 'asc' });
     if (!r.ok) { res.status(404).json({ error: { code: r.error, message: r.detail } }); return; }
     res.json({ history: r.history, checked: r.checked });
   } catch (err: any) {

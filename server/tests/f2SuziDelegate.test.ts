@@ -177,13 +177,15 @@ describe('after the send has really gone', () => {
     expect(exec.mock.calls.find((c: any[]) => /jsonb_build_object\('watch'/.test(c[0]))?.[1]).toBe('i1');
     expect(JSON.parse(exec.mock.calls.find((c: any[]) => /'\{send\}'/.test(c[0]))![2])).toEqual({ task_id: 'i1' });
     // DEF-489: learned as a delegation, never as a reply
-    expect(markThread.mock.calls[0]).toEqual(['T', 2, 'th9', 'delegated']);
+    expect(markThread.mock.calls[0]).toEqual(['T', 2, 'th9', 'delegated', {}]);
     expect(emailOp).not.toHaveBeenCalledWith('T', 2, 'email.mark', expect.anything(), true);
   });
   it('DEF-490: a rule forward is watched as forwarded by his rule, linked to the exact message', async () => {
     findAction.mockResolvedValue({ id: 53, clientNumber: 'T', userId: 2, input: { delegate: { thread_id: 'th8', message_id: 'm8', by_rule: true, rule_id: 'r1', person_id: 'p1', person_name: 'Ali Raza', person_email: 'ali@x.com', subject: 'Invoice' } } });
     await afterSuziSent(53, 'gm80');
     expect(create.mock.calls[0][2]).toMatchObject({ sourceRef: 'm8', metadata: { suziRule: 'r1', suziSource: { email_id: 'th8', message_id: 'm8' }, watch: { person: 'Ali Raza', why: 'forwarded by your rule' } } });
+    // Ninth review P1: a rule run is marked as the rule's, so it cannot count as his choice again
+    expect(markThread.mock.calls.at(-1)).toEqual(['T', 2, 'th8', 'delegated', { ruleId: 'r1' }]);
   });
   it('a note to a person: only that task is marked told, scoped to his tenant and user', async () => {
     findAction.mockResolvedValue({ id: 41, clientNumber: 'T', userId: 2, input: { tellOpenItemId: 'i1' } });

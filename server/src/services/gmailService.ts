@@ -435,6 +435,40 @@ export async function createGmailDraft(
   }
 }
 
+/** T32 (both AGREE 17 Nov): his Gmail drafts, newest first. Headers and a preview only, unless `full`. */
+export interface GmailDraftRow { gmailDraftId: string; threadId: string | null; to: string; cc: string; subject: string; snippet: string; updatedAt: string | null; body?: string }
+export async function listGmailDrafts(userId: number, max = 50): Promise<{ drafts: GmailDraftRow[]; total: number } | null> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client) return null;
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const list = await gmail.users.drafts.list({ userId: 'me', maxResults: max });
+    const ids = (list.data.drafts ?? []).map((d) => d.id).filter(Boolean) as string[];
+    const rows = await Promise.all(ids.map((id) => getGmailDraft(userId, id, false, gmail)));
+    const drafts = rows.filter((r): r is GmailDraftRow => !!r).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+    return { drafts, total: Number(list.data.resultSizeEstimate ?? drafts.length) };
+  } catch {
+    return null;
+  }
+}
+export async function getGmailDraft(userId: number, gmailDraftId: string, full: boolean, gmailIn?: any): Promise<GmailDraftRow | null> {
+  try {
+    let gmail = gmailIn;
+    if (!gmail) {
+      const { client } = await getAuthenticatedClient(userId);
+      if (!client) return null;
+      gmail = google.gmail({ version: 'v1', auth: client });
+    }
+    const r = await gmail.users.drafts.get({ userId: 'me', id: gmailDraftId, format: full ? 'full' : 'metadata', ...(full ? {} : { metadataHeaders: ['To', 'Cc', 'Subject'] }) });
+    const m = r.data.message ?? {};
+    const h = (n: string) => (m.payload?.headers ?? []).find((x: any) => String(x.name).toLowerCase() === n.toLowerCase())?.value ?? '';
+    const at = m.internalDate ? new Date(Number(m.internalDate)).toISOString() : null;
+    return { gmailDraftId, threadId: m.threadId ?? null, to: h('To'), cc: h('Cc'), subject: h('Subject'), snippet: String(m.snippet ?? ''), updatedAt: at, ...(full ? { body: extractEmailBody(m.payload) } : {}) };
+  } catch (err: any) {
+    return null;
+  }
+}
+
 export interface DraftAttachment { filename: string; mimeType: string; data: string /* standard base64 */ }
 /** Gmail allows 25 MB a message; the text and encoding need room. */
 export const FORWARD_ATTACHMENTS_MAX_BYTES = 18 * 1024 * 1024;

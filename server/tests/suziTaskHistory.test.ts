@@ -80,6 +80,10 @@ describe('history', () => {
   it('at most 20', () => {
     const many = Array.from({ length: 30 }, (_, i) => ({ text: `n${i}`, at: new Date(Date.UTC(2026, 10, 1, i % 24, i)).toISOString(), by: 'user:2' }));
     expect(historyOf({ notes: many }, [], 2)).toHaveLength(HISTORY_MAX);
+    // T33 Q1 (both AGREE 17 Nov): the whole trail on request, and oldest first on request
+    expect(historyOf({ notes: many }, [], 2, { all: true }).length).toBeGreaterThan(HISTORY_MAX);
+    const asc = historyOf({ notes: many }, [], 2, { all: true, asc: true });
+    expect(Date.parse(asc[0].at)).toBeLessThan(Date.parse(asc[asc.length - 1].at));
   });
 });
 

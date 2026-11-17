@@ -336,6 +336,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
     ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
+    // T32 (both AGREE 17 Nov): how many drafts wait (Suzi's and his own Gmail drafts); left out when Gmail is unreadable.
+    ...(await import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
     ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
     ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
