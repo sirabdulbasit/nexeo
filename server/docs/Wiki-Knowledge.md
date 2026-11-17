@@ -671,6 +671,18 @@ Each note says how it was learned and **"Acts by itself: no"**: a learned thing 
 
 **Order for the rest of what is outside (largest gain first):** (1) his conversations with Suzi (Nexeo's are in, above; Suzi's wait on his word); (2) the decisions and delegation history, as the trail of commitment notes; (3) Brain's own documents and risk flags; (4) what Brain found about itself; (5) how Brain is told to behave; (6) settings and the account. Each is landed as sources first, notes second, and checked for privacy and for a repeat run that writes nothing.
 
+### 0.24 Ninth outside note (17 Nov): a route to 98%, measured on whole tasks (PROPOSAL, waits on the founder; nothing built)
+
+The reviewer puts readiness at 92/100 and says the Wiki alone cannot give 98%: that needs a separate measure, the share of agreed assistant scenarios Nexeo completes correctly, with privacy and authorization failures at zero tolerance. Five workflows (understand and remember; handle corrections; delegate and follow up; monitor commitments; learn preferences), a frozen benchmark plus unseen cases, a baseline before further change, failures closed in measured batches, and **Wiki consumption finished before the Wiki grows further**. Next milestone proposed: one demonstrably reliable Wiki-driven workflow.
+
+**The Wiki session's reading (17 Nov, 09:20 PKT):**
+
+- **Agreed, and it matches what is already written here:** Wiki-first behaviour is PARTIAL (§0.18, §8): the Action Center, the brief, Suzi's pack, contacts and triage do not read these notes. More notes change no answer until a reader reads them. The identity eval (§0.21) is the only measured part today; the rest of the score is a judgement.
+- **It conflicts with a standing ruling.** The founder ruled on 16 Nov that all information goes into the Wiki (§0.23), and five groups are still outside. The reviewer says stop expanding and connect first. Which comes first is the founder's decision; until he says, §0.23 stands.
+- **What the Wiki session would do if he agrees:** (1) the benchmark's "understand and remember" and "handle corrections" cases, built from his real failures (the chat log and DEF rows) with expected answers and sources, held in `tests/eval/`, a part kept unseen; (2) a baseline run before any reader moves; (3) with Nexeo-Builder, one reader moved end to end (proposed: delegate and follow up, since the end-to-end test of §0.19 is already prepared for it and DEF-487 to 491 are its known failures). Readers, forwarding and learning code are Nexeo-Builder's; anything Suzi reads differently is agreed with Suzi first.
+- **Not accepted as written:** 500 cases at once. A set that size written by the builders would be mostly invented, not representative. Start with the real failures and requests on record (about 60 to 100), measure, and grow the set from live use.
+- **Not decided here:** what counts as a success, who labels the expected answers (the founder's rulings are the only ground truth so far: 24 tasks, 8 watch, 10 closed), and the cost of running the set.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
