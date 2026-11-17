@@ -691,10 +691,12 @@ Verdict given: architecture progressing; identity no longer circling but under e
 |---|---|---|---|
 | P1 One Wiki-driven workflow, end to end | Agreed (§0.24). Conflicts with the order of §0.23 (all information first); asked the founder which comes first | Nothing built. Proposed first workflow: delegate and follow up | Founder decides; readers are Nexeo-Builder's |
 | P1 Forwarding fixes verified through the real path | Agreed. The prepared test (§0.19) has no attachment, so it shows forwarding and removal only | Nothing new. Rule `uar_7768fe543151` still active, fired 0 times, no test email yet (checked 09:02 PKT) | Founder sends; Nexeo-Builder owns D-287's acceptance cases |
-| P1 An automatic forward must not count as the user's own decision | Not read in code by this session; passed to Nexeo-Builder as written | Told Nexeo-Builder 17 Nov | Nexeo-Builder |
+| P1 An automatic forward must not count as the user's own decision | Not read in code by this session; passed to Nexeo-Builder as written | Told Nexeo-Builder 17 Nov. **Nexeo-Builder reports it fixed (DEF-506, live D-291, 12:51 PKT):** a rule forward's decision row belongs to the rule (`sessionType 'rule'`, `actionTaken 'rule:<id>'`, no dedup hash), so repeated runs cannot count as his choice. Not checked by this session; not yet seen on a live rule run | Nexeo-Builder |
 | P2 Identity on unseen cases | Agreed: 47 pairs written by the builder measure stability, not reliability. A held-out set written by the same builder is not unseen either: it has to be real production pairs labelled by the founder, or by the reviewer | Not built; needs his labels | Wiki session, with the founder |
 | P2 Privacy and ingestion limits | Drive write by a second signed-in user still owed; the rest are Nexeo-Builder's and Integration's | Unchanged | Mixed |
 | P2 Fixed UTC+5 in conversations | **True** | **Fixed (DEF-505, D-290):** days and hours in the user's own timezone, the zone recorded on each source, an unreal zone refused. No change for user 2 (Asia/Karachi) | Wiki session |
+
+**Nexeo-Builder, 17 Nov 12:55 PKT:** agrees "delegate and follow up" is the first workflow; will write the separate D-287 acceptance cases (plain forward, attachment kept, colleague owner and source, rule removal, sent/bounced wording, learning recorded as the rule's, contact creation DEF-487) and run them when the founder's test email arrives.
 
 **Held until the founder answers §0.24:** no new note type is started. The five groups still outside the Wiki (§0.23) stay listed, not built.
 
