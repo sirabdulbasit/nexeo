@@ -143,3 +143,12 @@ export async function applyFollowUp(
   if (after) { const src = (await actionSources(clientNumber, userId, [after as any], tz).catch(() => null))?.get(item.id); if (src) action.source = src; }
   return { ok: true, update, action };
 }
+
+/** One of his tasks as Suzi reads it (the same shape as a follow-up's answer). Null when it is not his. */
+export async function actionById(clientNumber: string, userId: number, id: string, timezone?: string): Promise<SuziAction | null> {
+  const r = await prisma.openItem.findFirst({ where: { id, clientNumber, userId }, select: ITEM_SELECT });
+  if (!r) return null;
+  const st = await statusRowsFor(clientNumber, userId, [id]).catch(() => new Map<string, StatusRow[]>());
+  const tz = safeTimezone(timezone);
+  return toSuziAction(r, tz, localDate(new Date(), tz), userId, st.get(id));
+}

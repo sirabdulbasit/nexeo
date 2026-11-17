@@ -53,10 +53,38 @@ async function forwardTask(clientNumber: string, userId: number, id: string, a: 
   const person = await personById(clientNumber, userId, text(a.person_id));
   if (!person) return fail('not_found', 'no such person');
   if (!person.email) return fail('no_email', 'telling the person needs their email on record');
+  // DEF-507 (b): the same task to the same person again within 10 minutes is the first forward, not a new one (Suzi
+  // retried after her 15 s limit while the first was still writing the note): no second trail entry, no second note.
+  const repeat = await repeatForward(clientNumber, userId, id, person.email);
+  if (repeat) {
+    const { actionById } = await import('./suziActions');
+    const action = await actionById(clientNumber, userId, id, timezone);
+    if (action) return { ok: true, item: { ...action, told: repeat.told, repeat: true } };
+  }
   const r = await applyFollowUp(clientNumber, userId, { actionId: id, update: 'assign', personId: person.id, note: text(a.note) || undefined, timezone });
   if (!r.ok) return fail(r.error, r.detail);
   const told = await tell(clientNumber, userId, gate, { itemId: id, title: r.action.title, due: r.action.due, note: text(a.note), person: { name: person.name, email: person.email } });
   return { ok: true, item: { ...r.action, told } };
+}
+
+export const REPEAT_FORWARD_MS = 10 * 60_000;
+/** DEF-507 (b): was this task handed to this person by Suzi in the last 10 minutes? Then the first note's state. */
+export async function repeatForward(clientNumber: string, userId: number, id: string, email: string, now = new Date()): Promise<{ told: Record<string, unknown> } | null> {
+  const item = await prisma.openItem.findFirst({ where: { id, clientNumber, userId }, select: { delegationTrail: true } as any }) as any;
+  const trail: any[] = Array.isArray(item?.delegationTrail) ? item.delegationTrail : [];
+  const last = trail[trail.length - 1];
+  const at = Date.parse(String(last?.delegatedAt ?? ''));
+  if (!last || String(last.delegatedToEmail ?? '').toLowerCase() !== email.toLowerCase() || !Number.isFinite(at) || now.getTime() - at > REPEAT_FORWARD_MS) return null;
+  const notes = await prisma.$queryRawUnsafe<Array<{ id: number; st: string | null; gd: string | null }>>(
+    `SELECT id, output->'send'->>'state' AS st, output->>'gmailDraftId' AS gd FROM agent_actions
+      WHERE client_number = $1 AND user_id = $2 AND action_type = 'draft_reply' AND input->>'tellOpenItemId' = $3
+        AND lower(output->>'to') = lower($4) AND created_at > $5 ORDER BY id ASC LIMIT 1`,
+    clientNumber, userId, id, email, new Date(now.getTime() - REPEAT_FORWARD_MS),
+  ).catch(() => [] as Array<{ id: number; st: string | null; gd: string | null }>);
+  const n = notes[0];
+  if (!n) return { told: { told: false, in_progress: true } }; // the first is still writing its note
+  const sent = ['held', 'sending', 'sent'].includes(String(n.st ?? ''));
+  return { told: { told: sent, draft_id: String(n.id) } };
 }
 
 /** F-2.2: task.update {update: "forward"}. Confirmation is needed because someone is told. */

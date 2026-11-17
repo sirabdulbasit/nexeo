@@ -16,17 +16,20 @@ const updateAction = vi.fn();
 const updateItem = vi.fn();
 const updateManyItems = vi.fn();
 const exec = vi.fn();
+const findItem = vi.fn(async (..._a: any[]) => null as any);
+const rawQuery = vi.fn(async (..._a: any[]) => [] as any[]);
 vi.mock('../src/db/prisma', () => ({
   default: {
     agentAction: { findFirst: (...a: any[]) => findAction(...a), update: (...a: any[]) => updateAction(...a) },
-    openItem: { update: (...a: any[]) => updateItem(...a), updateMany: (...a: any[]) => updateManyItems(...a) },
+    openItem: { update: (...a: any[]) => updateItem(...a), updateMany: (...a: any[]) => updateManyItems(...a), findFirst: (...a: any[]) => findItem(...a) },
     $executeRawUnsafe: (...a: any[]) => exec(...a),
+    $queryRawUnsafe: (...a: any[]) => rawQuery(...a),
   },
 }));
 const person = vi.fn();
 vi.mock('../src/services/suzi/suziPeople', () => ({ personById: (...a: any[]) => person(...a) }));
 const follow = vi.fn();
-vi.mock('../src/services/suzi/suziActions', () => ({ applyFollowUp: (...a: any[]) => follow(...a) }));
+vi.mock('../src/services/suzi/suziActions', () => ({ applyFollowUp: (...a: any[]) => follow(...a), actionById: async (_c: string, _u: number, id: string) => ({ id, title: 'Vision Metrics session', status: 'delegated' }) }));
 const write = vi.fn();
 const saveNew = vi.fn();
 const gateSend = vi.fn();
@@ -103,6 +106,37 @@ describe('task.create (F-2.1)', () => {
     person.mockResolvedValue({ id: 'p1', name: 'Ali' });
     expect(await taskCreate('T', 2, { title: 'X', person_id: 'p1' }, true, SIGNED)).toMatchObject({ ok: false, error: 'no_email' });
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe('DEF-507 (b): a repeat forward within 10 minutes is the first one', () => {
+  it('same task, same person, 17 s later: no second assign, no second note; the first note\'s state comes back', async () => {
+    const { taskForward } = await import('../src/services/suzi/suziDelegate');
+    person.mockResolvedValue({ id: 'p9', name: 'Sofia Rana', email: 'sofia.rana@tmcltd.com' });
+    findItem.mockResolvedValueOnce({ delegationTrail: [{ delegatedAt: new Date(Date.now() - 17_000).toISOString(), delegatedTo: 'Sofia Rana', delegatedToEmail: 'Sofia.Rana@tmcltd.com' }] });
+    rawQuery.mockResolvedValueOnce([{ id: 3550, st: null, gd: 'r-1' }]);
+    follow.mockClear(); write.mockClear();
+    const r: any = await taskForward('T', 2, { id: 'i7', person_id: 'p9' }, true, { signatureVerified: false, voiceScore: 0.75 } as any);
+    expect(r).toMatchObject({ ok: true, item: { id: 'i7', repeat: true, told: { told: false, draft_id: '3550' } } });
+    expect(follow).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+  it('the first still writing its note: in_progress, nothing new', async () => {
+    const { taskForward } = await import('../src/services/suzi/suziDelegate');
+    person.mockResolvedValue({ id: 'p9', name: 'Sofia Rana', email: 'sofia.rana@tmcltd.com' });
+    findItem.mockResolvedValueOnce({ delegationTrail: [{ delegatedAt: new Date(Date.now() - 5_000).toISOString(), delegatedToEmail: 'sofia.rana@tmcltd.com' }] });
+    rawQuery.mockResolvedValueOnce([]);
+    follow.mockClear();
+    const r: any = await taskForward('T', 2, { id: 'i7', person_id: 'p9' }, true, { signatureVerified: false, voiceScore: 0.75 } as any);
+    expect(r.item.told).toEqual({ told: false, in_progress: true });
+    expect(follow).not.toHaveBeenCalled();
+  });
+  it('another person, or after 10 minutes: a real forward', async () => {
+    const { repeatForward } = await import('../src/services/suzi/suziDelegate');
+    findItem.mockResolvedValueOnce({ delegationTrail: [{ delegatedAt: new Date(Date.now() - 5_000).toISOString(), delegatedToEmail: 'ali@x.com' }] });
+    expect(await repeatForward('T', 2, 'i7', 'sofia.rana@tmcltd.com')).toBeNull();
+    findItem.mockResolvedValueOnce({ delegationTrail: [{ delegatedAt: new Date(Date.now() - 11 * 60_000).toISOString(), delegatedToEmail: 'sofia.rana@tmcltd.com' }] });
+    expect(await repeatForward('T', 2, 'i7', 'sofia.rana@tmcltd.com')).toBeNull();
   });
 });
 
