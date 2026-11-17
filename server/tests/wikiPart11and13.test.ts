@@ -842,9 +842,9 @@ describe('his conversations with Nexeo are in the Wiki (owner, 16 Nov)', () => {
       { at: at('2026-11-10T04:00:00Z'), who: 'nexeo', text: 'Day Brief: 3 things need you.', unprompted: 'day_brief' },
       { at: at('2026-11-10T20:30:00Z'), who: 'him', text: 'remind me tomorrow' }, // 01:30 on the 11th, his time
       { at: at('2026-11-10T13:55:00Z'), who: 'him', text: '   ' },
-    ]);
+    ], 'Asia/Karachi');
     expect(days.map((d) => d.externalId)).toEqual(['nexeo:2:2026-11-10', 'nexeo:2:2026-11-11']);
-    expect(dayOf(at('2026-11-10T20:30:00Z'))).toBe('2026-11-11');
+    expect(dayOf(at('2026-11-10T20:30:00Z'), 'Asia/Karachi')).toBe('2026-11-11');
     expect(days[0].kind).toBe('conversation');
     expect(days[0].scope).toBeUndefined();
     expect(String(days[0].body).split('\n')).toEqual([
@@ -858,5 +858,22 @@ describe('his conversations with Nexeo are in the Wiki (owner, 16 Nov)', () => {
     expect(notes[1].sourceIds).toEqual(['s1', 's2']);
     expect(notes[1].properties).toMatchObject({ days: 2, his: 2, nexeo: 2, unprompted: 1 });
     expect(notes[1].body).not.toContain('voice note');
+  });
+
+  it('the day and the hour are the user\'s own timezone, never a fixed offset (ninth review)', async () => {
+    const { conversationDays } = await import('../src/services/wiki/wikiConversations');
+    const turns = [
+      { at: new Date('2026-11-10T20:30:00Z'), who: 'him' as const, text: 'remind me tomorrow' },
+      { at: new Date('2026-11-11T02:10:00Z'), who: 'nexeo' as const, text: 'Reminder set.' },
+    ];
+    const of = (tz: string) => conversationDays('T-1', 7, turns, tz).map((d) => [d.externalId, String(d.body).split('\n').map((l) => l.slice(0, 5)), (d.details as any).tz]);
+    expect(of('Asia/Karachi')).toEqual([['nexeo:7:2026-11-11', ['01:30', '07:10'], 'Asia/Karachi']]);
+    // New York: both fall on the evening of the 10th. Under a fixed +5 they were the 11th.
+    expect(of('America/New_York')).toEqual([['nexeo:7:2026-11-10', ['15:30', '21:10'], 'America/New_York']]);
+    expect(of('UTC')).toEqual([['nexeo:7:2026-11-10', ['20:30'], 'UTC'], ['nexeo:7:2026-11-11', ['02:10'], 'UTC']]);
+    // Summer time: the same wall-clock instant in July is four hours behind UTC in New York, not five.
+    expect(String(conversationDays('T-1', 7, [{ at: new Date('2026-07-10T03:30:00Z'), who: 'him', text: 'x' }], 'America/New_York')[0].body)).toMatch(/^23:30 /);
+    expect(() => conversationDays('T-1', 7, turns, 'Mars/Olympus')).toThrow(/not a timezone/);
+    expect(() => conversationDays('T-1', 7, turns, '')).toThrow(/not a timezone/);
   });
 });

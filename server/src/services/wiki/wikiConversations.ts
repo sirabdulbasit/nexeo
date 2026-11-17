@@ -2,7 +2,8 @@
  * The user's conversations with Nexeo, in the Wiki (owner, 16 Nov 2026: "wiki
  * should contain all information"; docs/Wiki-Knowledge.md §0.23).
  *
- *  - One `conversation` source per user per day (his day, Pakistan time): what
+ *  - One `conversation` source per user per day (the day in the user's own
+ *    timezone, from userTimezoneService; ninth review, 17 Nov: never a fixed offset): what
  *    he said to Nexeo and what Nexeo answered (`messages`), and what Nexeo sent
  *    him unprompted and really sent (`brain_user_messages`, status sent: briefs,
  *    prompts, alerts), in the order it happened. Private to him.
@@ -17,22 +18,24 @@
 import prisma from '../../db/prisma';
 import { saveSource, sourceId, sourcesHeld, textHash, type SourceInput } from './wikiSources';
 import { syncNotes, type BuiltNote, type SyncResult } from './wikiSync';
+import { formatLocalDate, formatTimeInZone, getUserTimezone, isValidTimezone } from '../userTimezoneService';
 
 export const CONVERSATION_ACTOR = 'wiki_conversations';
 export const CONVERSATION_KIND = 'conversation' as const;
 
 export interface Turn { at: Date; who: 'him' | 'nexeo'; text: string; unprompted?: string | null }
 
-/** His day: Pakistan time. */
-export const dayOf = (d: Date) => new Date(d.getTime() + 5 * 3600_000).toISOString().slice(0, 10);
-const timeOf = (d: Date) => new Date(d.getTime() + 5 * 3600_000).toISOString().slice(11, 16);
+/** The user's day and hour, in the user's own timezone. A zone that is not a real one is refused, never guessed. */
+export const dayOf = (d: Date, tz: string) => formatLocalDate(tz, d);
+const timeOf = (d: Date, tz: string) => formatTimeInZone(tz, d);
 
-/** Turns in, one source per day out. Pure. */
-export function conversationDays(clientNumber: string, userId: number, turns: Turn[]): SourceInput[] {
+/** Turns in, one source per day out, days cut in the user's timezone. Pure. */
+export function conversationDays(clientNumber: string, userId: number, turns: Turn[], tz: string): SourceInput[] {
+  if (!isValidTimezone(tz)) throw new Error(`conversationDays: "${tz}" is not a timezone`);
   const byDay = new Map<string, Turn[]>();
   for (const t of turns) {
     if (!t.text?.trim() || Number.isNaN(new Date(t.at).getTime())) continue;
-    const k = dayOf(new Date(t.at));
+    const k = dayOf(new Date(t.at), tz);
     byDay.set(k, [...(byDay.get(k) ?? []), t]);
   }
   const out: SourceInput[] = [];
@@ -45,8 +48,8 @@ export function conversationDays(clientNumber: string, userId: number, turns: Tu
       threadKey: `nexeo:${userId}`, title: `Conversation with Nexeo, ${day}`,
       occurredAt: new Date(sorted[sorted.length - 1].at), asOf: new Date(sorted[sorted.length - 1].at),
       participants: ['Nexeo'],
-      body: sorted.map((t) => `${timeOf(new Date(t.at))} ${t.who === 'him' ? 'He' : t.unprompted ? `Nexeo (${t.unprompted.replace(/_/g, ' ')})` : 'Nexeo'}: ${t.text.replace(/\s+\n/g, '\n').trim()}`).join('\n'),
-      details: { with: 'nexeo', day, turns: sorted.length, his, nexeo: sorted.length - his, unprompted },
+      body: sorted.map((t) => `${timeOf(new Date(t.at), tz)} ${t.who === 'him' ? 'He' : t.unprompted ? `Nexeo (${t.unprompted.replace(/_/g, ' ')})` : 'Nexeo'}: ${t.text.replace(/\s+\n/g, '\n').trim()}`).join('\n'),
+      details: { with: 'nexeo', day, tz, turns: sorted.length, his, nexeo: sorted.length - his, unprompted },
     });
   }
   return out;
@@ -95,7 +98,7 @@ export async function loadTurns(clientNumber: string, userId: number): Promise<T
 
 /** Land the days the Wiki does not hold yet, or holds with other text (a day still going on). */
 export async function landConversations(clientNumber: string, userId: number): Promise<{ days: number; landed: number }> {
-  const days = conversationDays(clientNumber, userId, await loadTurns(clientNumber, userId));
+  const days = conversationDays(clientNumber, userId, await loadTurns(clientNumber, userId), await getUserTimezone(userId));
   const ids = days.map((d) => sourceId(clientNumber, userId, CONVERSATION_KIND, d.externalId));
   const held = await sourcesHeld(clientNumber, userId, ids);
   let landed = 0;

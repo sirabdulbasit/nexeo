@@ -683,6 +683,21 @@ The reviewer puts readiness at 92/100 and says the Wiki alone cannot give 98%: t
 - **Not accepted as written:** 500 cases at once. A set that size written by the builders would be mostly invented, not representative. Start with the real failures and requests on record (about 60 to 100), measure, and grow the set from live use.
 - **Not decided here:** what counts as a success, who labels the expected answers (the founder's rulings are the only ground truth so far: 24 tasks, 8 watch, 10 closed), and the cost of running the set.
 
+### 0.25 Ninth outside review (17 Nov, at `41f65478`, score 92): answered; the founder's target is 98 or 99
+
+Verdict given: architecture progressing; identity no longer circling but under evaluation; **a second loop named: more sources and notes are built while the assistant's readers still read the old stores.** The Wiki session accepts that: §0.23's expansion made the store bigger and no answer better. The founder said the same morning that his target is 98 or 99.
+
+| Finding | Reading | What was done | Owner |
+|---|---|---|---|
+| P1 One Wiki-driven workflow, end to end | Agreed (§0.24). Conflicts with the order of §0.23 (all information first); asked the founder which comes first | Nothing built. Proposed first workflow: delegate and follow up | Founder decides; readers are Nexeo-Builder's |
+| P1 Forwarding fixes verified through the real path | Agreed. The prepared test (§0.19) has no attachment, so it shows forwarding and removal only | Nothing new. Rule `uar_7768fe543151` still active, fired 0 times, no test email yet (checked 09:02 PKT) | Founder sends; Nexeo-Builder owns D-287's acceptance cases |
+| P1 An automatic forward must not count as the user's own decision | Not read in code by this session; passed to Nexeo-Builder as written | Told Nexeo-Builder 17 Nov | Nexeo-Builder |
+| P2 Identity on unseen cases | Agreed: 47 pairs written by the builder measure stability, not reliability. A held-out set written by the same builder is not unseen either: it has to be real production pairs labelled by the founder, or by the reviewer | Not built; needs his labels | Wiki session, with the founder |
+| P2 Privacy and ingestion limits | Drive write by a second signed-in user still owed; the rest are Nexeo-Builder's and Integration's | Unchanged | Mixed |
+| P2 Fixed UTC+5 in conversations | **True** | **Fixed (DEF-505, D-290):** days and hours in the user's own timezone, the zone recorded on each source, an unreal zone refused. No change for user 2 (Asia/Karachi) | Wiki session |
+
+**Held until the founder answers §0.24:** no new note type is started. The five groups still outside the Wiki (§0.23) stay listed, not built.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
