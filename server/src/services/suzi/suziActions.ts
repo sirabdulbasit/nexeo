@@ -29,7 +29,9 @@ const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /** `updated_at` moves on every write, Nexeo's bookkeeping included; `changed_at` only on a real change (T25, DEF-406). */
-export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource }
+export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
+  /** T35 (a) (both AGREE 17 Nov): the note to the person a task was forwarded to. */
+  told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string }
 
 const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, sourceFeed: true, sourceRef: true, sourceFeedEventId: true, ...HISTORY_SELECT } as const;
 
@@ -42,7 +44,15 @@ function toSuziAction(r: any, tz: string, today: string, userId: number, status:
     priority: r.priority ?? '', status: r.status ?? '', due, overdue: !!due && due < today,
     updated_at: r.updatedAt ? toZonedIso(r.updatedAt, tz) : null,
     changed_at: changed ? toZonedIso(changed, tz) : null,
+    ...toldOf(r.metadata),
   };
+}
+
+/** T35 (a): metadata.suziTold {state, draft_id?} → the action's told / told_draft_id. */
+function toldOf(meta: any): { told?: SuziAction['told']; told_draft_id?: string } {
+  const t = meta?.suziTold;
+  if (!t || !['pending', 'sent', 'drafted', 'failed'].includes(t.state)) return {};
+  return { told: t.state, ...(t.state === 'drafted' && t.draft_id ? { told_draft_id: String(t.draft_id) } : {}) };
 }
 
 export async function listPendingActions(clientNumber: string, userId: number, opts: { limit?: number; timezone?: string; now?: Date } = {}): Promise<{ total: number; overdue: number; actions: SuziAction[] }> {

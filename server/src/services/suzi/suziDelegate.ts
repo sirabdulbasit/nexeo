@@ -59,17 +59,32 @@ async function forwardTask(clientNumber: string, userId: number, id: string, a: 
   if (repeat) {
     const { actionById } = await import('./suziActions');
     const action = await actionById(clientNumber, userId, id, timezone);
-    if (action) return { ok: true, item: { ...action, told: repeat.told, repeat: true } };
+    if (action) return { ok: true, item: { ...action, assigned: true, told: repeat.told, ...(repeat.told_draft_id ? { told_draft_id: repeat.told_draft_id } : {}), repeat: true } };
   }
   const r = await applyFollowUp(clientNumber, userId, { actionId: id, update: 'assign', personId: person.id, note: text(a.note) || undefined, timezone });
   if (!r.ok) return fail(r.error, r.detail);
-  const told = await tell(clientNumber, userId, gate, { itemId: id, title: r.action.title, due: r.action.due, note: text(a.note), person: { name: person.name, email: person.email } });
-  return { ok: true, item: { ...r.action, told } };
+  // T35 (a) (both AGREE 17 Nov): the answer goes as soon as the task is assigned; the note (written by the model, which
+  // can be slow) follows, and the task's told says how it ended.
+  await setTold(id, { state: 'pending' });
+  void tell(clientNumber, userId, gate, { itemId: id, title: r.action.title, due: r.action.due, note: text(a.note), person: { name: person.name, email: person.email } })
+    .then((t) => setTold(id, t.told ? { state: 'sent', draft_id: t.draft_id } : t.draft_id && !t.error ? { state: 'drafted', draft_id: t.draft_id } : { state: 'failed', ...(t.draft_id ? { draft_id: t.draft_id } : {}), error: String(t.error ?? 'not saved').slice(0, 200) }))
+    .catch((e: any) => setTold(id, { state: 'failed', error: String(e?.message ?? e).slice(0, 200) }));
+  return { ok: true, item: { ...r.action, assigned: true, told: 'pending' } };
+}
+
+/** T35 (a): the note's outcome on the task (metadata.suziTold), merged, never a whole-row write. */
+export async function setTold(itemId: string, t: { state: 'pending' | 'sent' | 'drafted' | 'failed'; draft_id?: string; error?: string }): Promise<void> {
+  try {
+    await prisma.$executeRawUnsafe(
+      `UPDATE open_items SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('suziTold', $2::jsonb) WHERE id = $1`,
+      itemId, JSON.stringify({ ...t, at: new Date().toISOString() }),
+    );
+  } catch { /* the task is assigned either way; told stays as it was */ }
 }
 
 export const REPEAT_FORWARD_MS = 10 * 60_000;
 /** DEF-507 (b): was this task handed to this person by Suzi in the last 10 minutes? Then the first note's state. */
-export async function repeatForward(clientNumber: string, userId: number, id: string, email: string, now = new Date()): Promise<{ told: Record<string, unknown> } | null> {
+export async function repeatForward(clientNumber: string, userId: number, id: string, email: string, now = new Date()): Promise<{ told: 'pending' | 'sent' | 'drafted'; told_draft_id?: string } | null> {
   const item = await prisma.openItem.findFirst({ where: { id, clientNumber, userId }, select: { delegationTrail: true } as any }) as any;
   const trail: any[] = Array.isArray(item?.delegationTrail) ? item.delegationTrail : [];
   const last = trail[trail.length - 1];
@@ -82,9 +97,9 @@ export async function repeatForward(clientNumber: string, userId: number, id: st
     clientNumber, userId, id, email, new Date(now.getTime() - REPEAT_FORWARD_MS),
   ).catch(() => [] as Array<{ id: number; st: string | null; gd: string | null }>);
   const n = notes[0];
-  if (!n) return { told: { told: false, in_progress: true } }; // the first is still writing its note
+  if (!n) return { told: 'pending' }; // the first is still writing its note (T35 (a) wording)
   const sent = ['held', 'sending', 'sent'].includes(String(n.st ?? ''));
-  return { told: { told: sent, draft_id: String(n.id) } };
+  return sent ? { told: 'sent' } : { told: 'drafted', told_draft_id: String(n.id) };
 }
 
 /** F-2.2: task.update {update: "forward"}. Confirmation is needed because someone is told. */

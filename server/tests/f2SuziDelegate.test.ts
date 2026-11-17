@@ -95,12 +95,17 @@ describe('task.create (F-2.1)', () => {
     expect(await taskCreate('T', 2, { title: 'Vendor review', person_id: 'p1' }, false, SIGNED)).toEqual({ ok: false, error: 'needs_confirmation' });
     expect(create).not.toHaveBeenCalled();
     const r: any = await taskCreate('T', 2, { title: 'Vendor review', person_id: 'p1', source: { email_id: 'th9' } }, true, SIGNED);
+    expect(r.item).toMatchObject({ assigned: true, told: 'pending' });
+    await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
     expect(create.mock.calls[0][2].metadata.suziSource).toEqual({ email_id: 'th9' });
     expect(follow.mock.calls[0][2]).toMatchObject({ actionId: 'i1', update: 'assign', personId: 'p1' });
     expect(saveNew.mock.calls[0][2]).toMatchObject({ to: 'ali@x.com', subject: 'Task: Vendor review', body: 'Ali, the vendor review is now yours.' });
     expect(saveNew.mock.calls[0][3]).toEqual({ tellOpenItemId: 'i1' });
+    // T35 (a): the answer comes as soon as it is assigned; the note follows and its outcome lands on the task
+    expect(r.item).toMatchObject({ assigned: true, told: 'pending' });
+    await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
     expect(gateSend.mock.calls[0]).toEqual(['T', 2, { draft_id: '41' }, true, SIGNED]);
-    expect(r.item.told).toEqual({ told: true, draft_id: '41', undo_until: '2026-11-11T13:00:10Z' });
+    expect(JSON.parse(exec.mock.calls.filter((c: any[]) => /suziTold/.test(c[0])).at(-1)![2])).toMatchObject({ state: 'sent', draft_id: '41' });
   });
   it('a person with no email on record: refused, no task made', async () => {
     person.mockResolvedValue({ id: 'p1', name: 'Ali' });
@@ -117,7 +122,7 @@ describe('DEF-507 (b): a repeat forward within 10 minutes is the first one', () 
     rawQuery.mockResolvedValueOnce([{ id: 3550, st: null, gd: 'r-1' }]);
     follow.mockClear(); write.mockClear();
     const r: any = await taskForward('T', 2, { id: 'i7', person_id: 'p9' }, true, { signatureVerified: false, voiceScore: 0.75 } as any);
-    expect(r).toMatchObject({ ok: true, item: { id: 'i7', repeat: true, told: { told: false, draft_id: '3550' } } });
+    expect(r).toMatchObject({ ok: true, item: { id: 'i7', repeat: true, assigned: true, told: 'drafted', told_draft_id: '3550' } });
     expect(follow).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
   });
@@ -128,7 +133,7 @@ describe('DEF-507 (b): a repeat forward within 10 minutes is the first one', () 
     rawQuery.mockResolvedValueOnce([]);
     follow.mockClear();
     const r: any = await taskForward('T', 2, { id: 'i7', person_id: 'p9' }, true, { signatureVerified: false, voiceScore: 0.75 } as any);
-    expect(r.item.told).toEqual({ told: false, in_progress: true });
+    expect(r.item.told).toBe('pending');
     expect(follow).not.toHaveBeenCalled();
   });
   it('another person, or after 10 minutes: a real forward', async () => {
@@ -145,8 +150,11 @@ describe('task.update forward (F-2.2)', () => {
     gateSend.mockResolvedValue({ ok: true, item: { sent: false, saved_to_gmail_drafts: true } });
     const r: any = await taskForward('T', 2, { id: 'i1', person_id: 'p1', note: 'by Friday' }, true, { signatureVerified: false, voiceScore: null });
     expect(follow.mock.calls[0][2]).toMatchObject({ actionId: 'i1', update: 'assign', personId: 'p1', note: 'by Friday' });
+    await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
     expect(write.mock.calls[0][2]).toContain('What Basit Ahmed wants said: by Friday');
-    expect(r.item.told).toEqual({ told: false, draft_id: '41' });
+    expect(r.item).toMatchObject({ assigned: true, told: 'pending' });
+    await new Promise((r) => setTimeout(r, 0)); await new Promise((r) => setTimeout(r, 0));
+    expect(JSON.parse(exec.mock.calls.filter((c: any[]) => /suziTold/.test(c[0])).at(-1)![2])).toMatchObject({ state: 'drafted', draft_id: '41' });
   });
   it('without his confirmation nothing changes', async () => {
     expect(await taskForward('T', 2, { id: 'i1', person_id: 'p1' }, false, SIGNED)).toEqual({ ok: false, error: 'needs_confirmation' });
