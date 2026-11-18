@@ -162,7 +162,7 @@ describe('EMAILS (DEF-509)', () => {
       e('t-del', '2026-11-18T14:00:00+05:00', { action: 'delegated', rule_id: 'r', at: 'x' }),
       e('t-plain', '2026-11-18T14:00:00+05:00'),
     ] as any, tasks);
-    expect(r.emails_hidden).toEqual({ ignored: 1, tasked: 1 });
+    expect(r.emails_hidden).toEqual({ ignored: 1, tasked: 1, calendar: 0 });
     expect(r.emails.map((x) => [x.thread_id, x.task_id])).toEqual([['t-new', 'i2'], ['t-del', undefined], ['t-plain', undefined]]);
   });
 });

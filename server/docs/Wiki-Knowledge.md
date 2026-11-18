@@ -711,11 +711,14 @@ acted, skipped, stopped) and `speech.counts` (utterances, English and Urdu word 
   `suziW1.ts`); each still has its own source, so the trail holds them. Other keys are unchanged.
 - **Already true, now pinned by a test:** an unknown or malformed key does not refuse the call; it is dropped, and only a
   call with no good key is refused (`bad_notes`).
-- **Proposed, not built (waits on Suzi's AGREE):** the learning curve. From `brief.history`, the parts he skips or stops
-  most move later and get shorter, the parts he opens get more detail; from `speech.counts`, his English share week by
-  week. Counting only, no AI call, so no cost. Written into the same note as readable `brief.<part>` advice, which Suzi
-  already reads.
-- **Not verified live:** Suzi's first real send comes at his next restart on the Mac.
+- **Learning curve: BUILT (D-298), agreed by Suzi 14:33 with her caution.** Counting only, no AI call, so no cost; re-counted
+  in the same note whenever `brief.history` or `speech.counts` changes. Keys (Nexeo's only: Suzi cannot write `learned.*`):
+  `learned.brief_order` (parts he opens first, skipped or stopped later; **a part is never removed**),
+  `learned.brief.<part>` (`more detail` | `shorter` | `as is`), `learned.english_share_by_week` (weekly English share from
+  the totals' differences; the weekly totals are kept as raw `learned.speech_weeks`, not printed). Skips sent before
+  19 Nov 2026 count half (Suzi counted silence as a skip until then).
+- **Verified live:** Suzi's first send stored at 14:32:19; her fetch at a restart, 15:08:57 (Suzi's log). Not yet verified:
+  the learned keys on his real note (they appear at her next send).
 
 ## 1. Owner direction (2026-11-12)
 

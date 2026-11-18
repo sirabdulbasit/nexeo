@@ -24,6 +24,7 @@ import { buildDayBriefFacts, loadAttentionEmails, localDate, safeTimezone, type 
 import { listPendingActions, type SuziAction } from './suziActions';
 import { toZonedIso } from './zonedTime';
 import { packPeople, readableName as nameFromEmail, meetingsRecorded, type RecordedMeeting } from './packMeetings';
+import { noticeLinks, type EventUpdate, type NoticeLinks } from './suziCalendarNotices';
 
 export const DAY_PACK_VERSION = 1;
 export const EMAIL_PREVIEW_MAX = 200;
@@ -40,6 +41,8 @@ export interface PackEvent {
   attendees: PackAttendee[]; organizer_self: boolean; location: string | null; link: string | null; prep_notes: string | null;
   /** F-4.2: only on his hosted Meets while his switch is on; always = the space's transcription is really on. */
   attend?: { decision: 'always' | 'never' | 'ask'; rule_id?: string };
+  /** T34 (both AGREE 17 Nov): the calendar notices about this event, newest first, at most 10. */
+  updates?: EventUpdate[];
 }
 export type AttendOf = (e: RawPackEvent, id: string, organizerSelf: boolean, link: string | null) => PackEvent['attend'] | undefined;
 /** His own addresses (lower-cased) and the names his contacts give addresses, for attendees. */
@@ -200,7 +203,7 @@ export function toPackRisks(doc: { flags?: unknown; runDate?: Date | string | nu
     }));
 }
 
-export interface PackEmail { summary?: string; point?: string; task_id?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
+export interface PackEmail { summary?: string; point?: string; task_id?: string; event_id?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
 function decodeEntities(t: string): string {
@@ -239,7 +242,7 @@ export function toPackFyi(i: { feedEventId: string; threadId?: string | null; fr
 
 export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
-  calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number }; emails_loading: boolean;
+  calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number; calendar?: number }; emails_loading: boolean;
   risks?: PackRisk[];
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
   fyi?: PackFyi[];
@@ -311,11 +314,21 @@ async function withRules(clientNumber: string, userId: number, items: Array<{ em
  * his rule, or its thread has an open task (his, or handed on). A new message in the thread after the task brings it
  * back, carrying `task_id` (T33 P4: a reply on a task's thread is shown on the task). Rule-delegated rows stay (F-2.5).
  */
-export function leaveHandled(emails: PackEmail[], tasks: Map<string, { id: string; since: string }>): { emails: PackEmail[]; emails_hidden: { ignored: number; tasked: number } } {
-  const hidden = { ignored: 0, tasked: 0 };
+export function leaveHandled(
+  emails: PackEmail[], tasks: Map<string, { id: string; since: string }>,
+  notices: NoticeLinks['threads'] = new Map(), now: Date = new Date(),
+): { emails: PackEmail[]; emails_hidden: { ignored: number; tasked: number; calendar: number } } {
+  const hidden = { ignored: 0, tasked: 0, calendar: 0 };
   const out: PackEmail[] = [];
   for (const e of emails) {
     if (e.by_rule?.action === 'ignored') { hidden.ignored += 1; continue; }
+    // T34: a calendar notice placed on its event leaves; a proposed new time for a meeting still ahead stays.
+    const n = notices.get(e.thread_id);
+    if (n) {
+      const ahead = !!n.start && Date.parse(n.start) > now.getTime();
+      if (n.kind === 'proposed_time' && ahead) { out.push({ ...e, event_id: n.event_id }); continue; }
+      hidden.calendar += 1; continue;
+    }
     const t = e.by_rule?.action === 'delegated' ? undefined : tasks.get(e.thread_id);
     if (t) {
       const newer = Date.parse(e.received_at) > Date.parse(t.since);
@@ -326,6 +339,12 @@ export function leaveHandled(emails: PackEmail[], tasks: Map<string, { id: strin
     out.push(e);
   }
   return { emails: out, emails_hidden: hidden };
+}
+
+/** T34: today's and tomorrow's events carry their notices (rest_of_week stays a short list). */
+export function withUpdates(cal: PackCalendar, notices: NoticeLinks): PackCalendar {
+  const add = (e: PackEvent): PackEvent => { const u = notices.updates.get(e.id); return u?.length ? { ...e, updates: u } : e; };
+  return { ...cal, today: cal.today.map(add), tomorrow: cal.tomorrow.map(add) };
 }
 
 /** Thread → its open task and since when (the card's task from cardTruth, or a task email's linked thread). */
@@ -367,6 +386,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   // Slice 2: attendee names from his contacts and his own addresses. A read that fails gives readable names only.
   const addrs = events.flatMap((e) => (Array.isArray(e.attendees) ? e.attendees : []).map((a: any) => String(a?.email ?? a ?? '')));
   const people = await packPeople(clientNumber, userId, addrs).catch(() => ({ own: new Set<string>(), names: new Map<string, string>() }));
+  // T34: his calendar notices placed on their events (a read that fails places nothing).
+  const notices = await noticeLinks(clientNumber, userId, events, tz, people.names, people.own, now).catch((): NoticeLinks => ({ updates: new Map(), threads: new Map() }));
 
   const { actions } = await listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now });
   // The brief already waited up to the cap on this same list; a second wait would double it.
@@ -382,11 +403,11 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     cursor: now.toISOString(),
     tz,
     date: today,
-    calendar: packCalendar(events, today, tz, prep, people, await attendOfFor(clientNumber, userId)),
+    calendar: withUpdates(packCalendar(events, today, tz, prep, people, await attendOfFor(clientNumber, userId)), notices),
     actions,
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
     ...leaveHandled(await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
-      await taskOfThread(clientNumber, userId, attention.items)),
+      await taskOfThread(clientNumber, userId, attention.items), notices.threads, now),
     emails_loading: attention.loading,
     ...(attention.fyi.length ? { fyi: attention.fyi.slice(0, PACK_FYI_MAX).map((i) => toPackFyi(i, tz)) } : {}),
     kpis: toDeviceKpis(kpiBlock?.items ?? []),

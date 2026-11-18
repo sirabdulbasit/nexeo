@@ -33,7 +33,54 @@ async function userName(clientNumber: string, userId: number): Promise<string> {
 export const profileTitle = (name: string) => `How to work with ${name}`;
 /** T36 (18 Nov): raw habit data Suzi sends for Nexeo's learning curve. Stored and returned in profile{} exactly as
  *  sent, but never printed as a line of the readable note (they are not sentences about him). */
-export const RAW_PROFILE_KEYS = ['brief.history', 'speech.counts'] as const;
+export const RAW_PROFILE_KEYS = ['brief.history', 'speech.counts', 'learned.speech_weeks'] as const;
+
+/**
+ * T36 learning curve (both AGREE 18 Nov 14:33, with Suzi's caution): counting only, no AI call, so no cost.
+ *  - learned.brief_order: the brief's parts, the ones he opens first, the ones he skips or stops later. A part is never
+ *    removed: "skips it most" makes it shorter or later, never gone; on his "yes" he still gets every part.
+ *  - learned.brief.<part>: "more detail" | "shorter" | "as is".
+ *  - learned.english_share_by_week: his English share of words per week (from the totals' weekly differences).
+ * Skips sent before 19 Nov 2026 count half (Suzi counted silence as a skip until then).
+ */
+export const SKIP_FULL_FROM = Date.parse('2026-11-19T00:00:00+05:00');
+const ANSWER_SCORE: Record<string, number> = { details: 1, acted: 1, skipped: -1, stopped: -1 };
+export function learnCurve(merged: Record<string, any>, now = new Date()): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const hist = merged['profile.brief.history']?.value;
+  if (hist && typeof hist === 'object' && !Array.isArray(hist)) {
+    const skipW = now.getTime() < SKIP_FULL_FROM ? 0.5 : 1;
+    const parts = Object.keys(hist).filter((k) => Array.isArray(hist[k]));
+    const score = new Map<string, number>();
+    parts.forEach((part) => {
+      const answers: string[] = (hist[part] as unknown[]).map(String).slice(-8);
+      const total = answers.reduce((n, x) => n + (ANSWER_SCORE[x] ?? 0) * (x === 'skipped' ? skipW : 1), 0);
+      const avg = answers.length ? total / answers.length : 0;
+      score.set(part, avg);
+      out[`learned.brief.${part}`] = avg >= 0.25 ? 'more detail' : avg <= -0.25 ? 'shorter' : 'as is';
+    });
+    if (parts.length) out['learned.brief_order'] = [...parts].sort((x, y) => (score.get(y)! - score.get(x)!) || parts.indexOf(x) - parts.indexOf(y));
+  }
+  const counts = merged['profile.speech.counts']?.value;
+  if (counts && typeof counts === 'object') {
+    const en = Number(counts.english_words) || 0; const ur = Number(counts.urdu_words) || 0;
+    const d = new Date(now); d.setUTCHours(0, 0, 0, 0); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); // Monday of this week
+    const week = d.toISOString().slice(0, 10);
+    const weeks: Record<string, { english_words: number; urdu_words: number }> = { ...(merged['profile.learned.speech_weeks']?.value ?? {}) };
+    weeks[week] = { english_words: en, urdu_words: ur }; // the totals as they stand this week
+    const keys = Object.keys(weeks).sort().slice(-12);
+    const kept: typeof weeks = {}; for (const k of keys) kept[k] = weeks[k];
+    out['learned.speech_weeks'] = kept;
+    const share: Record<string, number> = {};
+    keys.forEach((k, i) => {
+      const prev = i ? kept[keys[i - 1]] : { english_words: 0, urdu_words: 0 };
+      const e = kept[k].english_words - prev.english_words; const u = kept[k].urdu_words - prev.urdu_words;
+      if (e + u > 0) share[k] = Math.round((e / (e + u)) * 100) / 100;
+    });
+    out['learned.english_share_by_week'] = share;
+  }
+  return out;
+}
 const isRawKey = (k: string) => (RAW_PROFILE_KEYS as readonly string[]).includes(k);
 
 /** His profile note's facts, for the pack's profile{} (key -> value). null when there is none or it cannot be read. */
@@ -89,7 +136,7 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     const notes = Array.isArray(a.notes) ? (a.notes as any[]).slice(0, 100) : [];
     const clean = notes
       .map((n) => ({ key: text(n?.key).slice(0, 80), value: n?.value, evidence_count: Number(n?.evidence_count) || 0, updated: text(n?.updated) || new Date().toISOString() }))
-      .filter((n) => /^[a-z0-9_.-]+$/i.test(n.key) && n.value !== undefined && JSON.stringify(n.value).length <= 2000);
+      .filter((n) => /^[a-z0-9_.-]+$/i.test(n.key) && !n.key.startsWith('learned.') && n.value !== undefined && JSON.stringify(n.value).length <= 2000);
     if (!clean.length) return fail('bad_notes', 'notes[{key, value, evidence_count, updated}]');
     const { writeNote, getNote } = await import('../wiki/wikiStore');
     const name = await userName(clientNumber, userId);
@@ -102,6 +149,14 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     const existing = await getNote(clientNumber, userId, { title }).catch(() => null);
     const merged: Record<string, any> = { ...((existing?.properties ?? {}) as Record<string, any>), ...props };
     for (const [k, v] of Object.entries(merged)) if (v === null) delete merged[k];
+    // T36: the learning curve, re-counted whenever his habits change (never from Suzi's keys of the same name).
+    if (clean.some((n) => n.key === 'brief.history' || n.key === 'speech.counts')) {
+      const nowIso = new Date().toISOString();
+      for (const [k, value] of Object.entries(learnCurve(merged))) {
+        const entry = { value, evidence_count: 0, updated: nowIso };
+        props[`profile.${k}`] = entry; merged[`profile.${k}`] = entry;
+      }
+    }
     // Each line of the note has its source: what Suzi sent for that key, kept as she sent it (the latest
     // value replaces the earlier one), so the note's trail says where every line came from.
     const { removeSource } = await import('../wiki/wikiStore');

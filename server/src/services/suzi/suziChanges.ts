@@ -5,6 +5,7 @@
  * so reporting it now would make every tick fetch.
  */
 import { REPLY_CHANGED_SQL } from './suziTaskTrail';
+import { NOTICE_SUBJECT_SQL } from './suziCalendarNotices';
 import prisma from '../../db/prisma';
 import { rulesDocument } from './suziRules';
 
@@ -33,6 +34,8 @@ export async function changesSince(clientNumber: string, userId: number, since: 
         -- suzi-b5 AGREE 16 Nov: one of his meeting records really changed (status/reason, notes, items; changed_at is set
         -- only on a real change, so a write that moves updated_at alone flags nothing). His leave (his_choice) flags too.
         OR EXISTS (SELECT 1 FROM meeting_records WHERE client_number = $1 AND user_id = $2 AND changed_at > $3)
+        -- T34: a calendar notice (invitation, reply, new time, cancel) arrived for one of his events.
+        OR EXISTS (SELECT 1 FROM wiki_sources WHERE client_number = $1 AND user_id = $2 AND kind = 'email' AND created_at > $3 AND title ~* ${NOTICE_SUBJECT_SQL})
         -- Suzi Master AGREE 16 Nov: his successful calendar.cancel / update / create through Suzi.
         OR EXISTS (SELECT 1 FROM users WHERE client_number = $1 AND id = $2 AND (notification_preferences->'suzi'->>'calendar_touched_at')::timestamptz > $3)) AS calendar,
        (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${EMAIL_SOURCES} AND created_at > $3)
