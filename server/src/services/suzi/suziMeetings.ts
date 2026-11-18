@@ -28,13 +28,17 @@ const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : nul
 export function toWire(r: MeetingRecord, full: boolean): Record<string, unknown> {
   const base = {
     meeting_id: r.id, event_id: r.event_id, title: r.title, platform: r.platform, start: iso(r.start_at), end: iso(r.end_at),
-    way: r.way, sources: (r.sources ?? []).map((s) => ({ way: s.way, received_at: s.received_at })), status: r.status,
+    way: r.way, sources: (r.sources ?? []).map((s) => ({ way: s.way, received_at: s.received_at, ...(s.text_from ? { text_from: s.text_from } : {}) })), status: r.status,
     ...(r.status_reason ? { reason: r.status_reason } : {}), ...(r.updated_flag ? { updated: true } : {}),
     action_items_proposed: (r.action_items ?? []).filter((a) => a.state === 'proposed').length,
   };
   if (!full) return base;
   return {
-    ...base, participants: r.participants ?? [], transcript: r.transcript ?? [], minutes: r.minutes,
+    // T39: where the transcript's text came from: Google's own document (word for word as Google shows it) or the
+    // Meet API's entries (only when there is no document yet). Records read before 18 Nov carry no text_from.
+    ...base, participants: r.participants ?? [], transcript: r.transcript ?? [],
+    transcript_from: r.way === 'google_transcript' ? ((r.sources ?? []).filter((s) => s.way === r.way).map((s) => s.text_from).filter(Boolean).pop() ?? 'google_entries') : r.way,
+    minutes: r.minutes,
     ...(r.minutes_offered ? { minutes_offered: r.minutes_offered } : {}), decisions: r.decisions ?? [], action_items: r.action_items ?? [],
   };
 }

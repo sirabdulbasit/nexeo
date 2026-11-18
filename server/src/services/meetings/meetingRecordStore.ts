@@ -26,7 +26,7 @@ export interface ActionItem {
 export interface MeetingRecord {
   id: string; client_number: string; user_id: number; meeting_key: string; event_id: string | null;
   conference_record: string | null; space: string | null; title: string | null; platform: string;
-  start_at: Date | null; end_at: Date | null; way: MeetingWay; sources: Array<{ way: MeetingWay; ref: string; received_at: string }>;
+  start_at: Date | null; end_at: Date | null; way: MeetingWay; sources: Array<{ way: MeetingWay; ref: string; received_at: string; text_from?: TextFrom }>;
   participants: Participant[]; transcript: TranscriptLine[]; minutes: string | null; minutes_offered: string | null;
   minutes_edited: boolean; decisions: string[]; action_items: ActionItem[]; status: MeetingStatus;
   status_reason: string | null; updated_flag: boolean; reread_due_at: Date | null; created_at: Date; updated_at: Date; changed_at?: Date;
@@ -113,16 +113,22 @@ export async function setStatus(
  * transcript only when it is better (higher way, or the same way with more lines: Google's entries can be
  * incomplete right after fileGenerated). Returns whether the minutes must be (re-)derived.
  */
+export type TextFrom = 'google_doc' | 'google_entries';
+const TEXT_FROM_RANK: Record<string, number> = { google_entries: 0, google_doc: 1 };
+export const wordsOf = (lines: TranscriptLine[]): number => (lines ?? []).reduce((n, l) => n + String(l?.text ?? '').split(/\s+/).filter(Boolean).length, 0);
+
 export async function putTranscript(
   clientNumber: string, userId: number, key: string,
   t: {
     way: MeetingWay; ref: string; title?: string | null; eventId?: string | null; conferenceRecord?: string | null;
     space?: string | null; platform?: string; start?: Date | null; end?: Date | null;
     participants: Participant[]; transcript: TranscriptLine[];
+    /** T39: Google's transcript document, or the Meet API's entries (rougher; Google's document wins). */
+    textFrom?: TextFrom;
   },
 ): Promise<{ record: MeetingRecord; derive: boolean }> {
   const now = new Date().toISOString();
-  const source = { way: t.way, ref: t.ref, received_at: now };
+  const source = { way: t.way, ref: t.ref, received_at: now, ...(t.textFrom ? { text_from: t.textFrom } : {}) };
   const existing = await byKey(clientNumber, userId, key);
   if (!existing) {
     const id = `mtg_${crypto.randomBytes(8).toString('hex')}`;
@@ -142,9 +148,16 @@ export async function putTranscript(
   const sources = Array.isArray(existing.sources) ? existing.sources : [];
   const known = sources.some((s) => s.way === t.way && s.ref === t.ref);
   const hasTranscript = Array.isArray(existing.transcript) && existing.transcript.length > 0;
+  // T39 (18 Nov): within one way, Google's document beats the API entries, then more WORDS win (the document joins a
+  // speaker's entries into fewer, fuller lines, so a line count would keep the rougher copy).
+  const fromOld = TEXT_FROM_RANK[sources.filter((x) => x.way === existing.way).map((x) => x.text_from).filter(Boolean).pop() ?? 'google_entries'] ?? 0;
+  const fromNew = TEXT_FROM_RANK[t.textFrom ?? 'google_entries'] ?? 0;
   const better = !hasTranscript
     || WAY_RANK[t.way] > WAY_RANK[existing.way]
-    || (t.way === existing.way && t.transcript.length > existing.transcript.length);
+    || (t.way === existing.way && (fromNew > fromOld || (fromNew === fromOld && wordsOf(t.transcript) > wordsOf(existing.transcript))));
+  const nextSources = known
+    ? sources.map((x) => (better && x.way === t.way && x.ref === t.ref && t.textFrom ? { ...x, text_from: t.textFrom } : x))
+    : [...sources, source];
   await prisma.$executeRawUnsafe(
     `UPDATE meeting_records SET
         sources = $2::jsonb,
@@ -157,7 +170,7 @@ export async function putTranscript(
         status = CASE WHEN $9 AND status NOT IN ('record_ready') THEN 'transcript_ready' ELSE status END,
         updated_at = now()
       WHERE id = $1`,
-    existing.id, JSON.stringify(known ? sources : [...sources, source]), t.eventId ?? null, t.conferenceRecord ?? null,
+    existing.id, JSON.stringify(nextSources), t.eventId ?? null, t.conferenceRecord ?? null,
     t.space ?? null, t.title ?? null, t.start ?? null, t.end ?? null, better, t.way,
     JSON.stringify(t.participants), JSON.stringify(t.transcript),
   );

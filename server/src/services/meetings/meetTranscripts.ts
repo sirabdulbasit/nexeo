@@ -50,8 +50,9 @@ const shownName = (p: any): string =>
  * The transcript of one conference: its state and lines with the speaker's real name. `state` is Google's
  * (STARTED, ENDED, FILE_GENERATED); lines are read whenever entries exist.
  */
-export async function readTranscript(meet: any, conferenceName: string): Promise<{
+export async function readTranscript(meet: any, conferenceName: string, opts: { userId?: number } = {}): Promise<{
   transcriptName: string | null; state: string | null; lines: TranscriptLine[]; participants: Participant[]; minutes: number;
+  textFrom?: 'google_doc' | 'google_entries';
 }> {
   const ts = await meet.conferenceRecords.transcripts.list({ parent: conferenceName });
   const transcript = (ts.data.transcripts ?? [])[0] ?? null;
@@ -78,5 +79,77 @@ export async function readTranscript(meet: any, conferenceName: string): Promise
   const first = lines[0]?.t ? Date.parse(lines[0].t) : NaN;
   const last = lines[lines.length - 1]?.t ? Date.parse(lines[lines.length - 1].t) : NaN;
   const minutes = Number.isFinite(first) && Number.isFinite(last) ? Math.max(1, Math.round((last - first) / 60_000)) : 0;
-  return { transcriptName: transcript.name, state: transcript.state ?? null, lines, participants, minutes };
+  // T39 (founder 18 Nov: "the transcript Google made is one thing, the one you show me another"): Google's transcript
+  // document is the text he reads in Google; the API's entries are a rougher copy (PMS Demo: 1,063 words in entries,
+  // 1,112 in the document). Once the document exists (FILE_GENERATED), its text wins; times come from the entries.
+  const docId = transcript.docsDestination?.document;
+  if (opts.userId && docId && transcript.state === 'FILE_GENERATED') {
+    const text = await docText(opts.userId, String(docId)).catch(() => null);
+    const doc = text ? alignDoc(parseTranscriptDoc(text), lines, String(transcript.startTime ?? lines[0]?.t ?? '')) : [];
+    if (doc.length) return { transcriptName: transcript.name, state: transcript.state ?? null, lines: doc, participants, minutes, textFrom: 'google_doc' };
+  }
+  return { transcriptName: transcript.name, state: transcript.state ?? null, lines, participants, minutes, textFrom: 'google_entries' };
+}
+
+/** Google's transcript document as plain text (Drive export), with his own token. Null when it can't be read. */
+async function docText(userId: number, docId: string): Promise<string | null> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client) return null;
+  const drive = google.drive({ version: 'v3', auth: client as any });
+  const r = await drive.files.export({ fileId: docId, mimeType: 'text/plain' }, { responseType: 'text' });
+  return typeof r.data === 'string' ? r.data : String(r.data ?? '');
+}
+
+const STAMP = /^\s*(\d{1,2}):(\d{2}):(\d{2})\s*$/;
+const ENDED = /^\s*transcription ended after\s+(\d{1,2}):(\d{2}):(\d{2})/i;
+const SPOKEN = /^([^:\n]{1,80}?):\s?(.*)$/;
+
+/**
+ * T39: the lines of Google's transcript document, word for word: after the "Transcript" heading, "Speaker: text"
+ * lines, with an elapsed-time stamp (hh:mm:ss) every few minutes, ending with "Transcription ended after …".
+ * Nothing is reworded; a speaker line with no text is kept out. A line with no "Name:" continues the line before.
+ */
+export function parseTranscriptDoc(text: string): Array<{ speaker: string; text: string; offsetMs: number }> {
+  const raw = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+  const start = raw.findIndex((l) => /^\s*transcript\s*$/i.test(l));
+  const body = start >= 0 ? raw.slice(start + 1) : raw;
+  const out: Array<{ speaker: string; text: string; offsetMs: number }> = [];
+  let offset = 0;
+  for (const l of body) {
+    if (!l.trim()) continue;
+    if (ENDED.test(l)) break;
+    const st = STAMP.exec(l);
+    if (st) { offset = ((+st[1] * 60 + +st[2]) * 60 + +st[3]) * 1000; continue; }
+    const m = SPOKEN.exec(l);
+    if (m && m[1].trim() && !/^https?$/i.test(m[1].trim()) && !/[\/]|\d{4}/.test(m[1])) {
+      const said = m[2].trim();
+      if (said) out.push({ speaker: m[1].trim(), text: said, offsetMs: offset });
+    } else if (out.length) {
+      out[out.length - 1].text = `${out[out.length - 1].text} ${l.trim()}`;
+    }
+  }
+  return out;
+}
+
+/**
+ * Each document line takes the time of its speaker's next API entry at or after the line's stamp (so the times are
+ * Google's own); with no such entry, the stamp itself. Times never go backwards.
+ */
+export function alignDoc(doc: Array<{ speaker: string; text: string; offsetMs: number }>, entries: TranscriptLine[], startIso: string): TranscriptLine[] {
+  const start = Date.parse(startIso);
+  const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+  let i = 0; let lastMs = -Infinity;
+  const out: TranscriptLine[] = [];
+  for (const d of doc) {
+    const floor = Number.isFinite(start) ? start + d.offsetMs : NaN;
+    let j = i;
+    while (j < entries.length && !(norm(entries[j].speaker) === norm(d.speaker) && (!Number.isFinite(floor) || Date.parse(entries[j].t) >= floor - 60_000))) j++;
+    let ms: number;
+    if (j < entries.length) { ms = Date.parse(entries[j].t); i = j + 1; } else ms = floor;
+    if (!Number.isFinite(ms)) ms = Number.isFinite(lastMs) ? lastMs : 0;
+    if (ms < lastMs) ms = lastMs;
+    lastMs = ms;
+    out.push({ t: new Date(ms).toISOString(), speaker: d.speaker, text: d.text });
+  }
+  return out;
 }

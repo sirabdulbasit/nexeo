@@ -114,7 +114,7 @@ export async function ingestConference(
   const mine = await byKeyPublic(clientNumber, userId, key);
   if (mine?.status === 'not_covered' && mine.status_reason === 'his_choice') return mine;
   const conf = await conference(meet, confName);
-  const t = await readTranscript(meet, confName);
+  const t = await readTranscript(meet, confName, { userId });
   if (!t.transcriptName) return null;
   if (t.state === 'STARTED' || t.lines.length === 0) {
     return setStatus(clientNumber, userId, key, 'transcribing', { title: meta.title, eventId: meta.eventId, start: meta.start, end: meta.end });
@@ -124,7 +124,7 @@ export async function ingestConference(
     conferenceRecord: confName, space: conf?.space ?? null, platform: 'meet',
     start: meta.start ?? (conf?.startTime ? new Date(conf.startTime) : null),
     end: meta.end ?? (conf?.endTime ? new Date(conf.endTime) : null),
-    participants: t.participants, transcript: t.lines,
+    participants: t.participants, transcript: t.lines, textFrom: t.textFrom,
   });
   const { recordMeetingTranscriptMinutes } = await import('../consumption/consumptionService');
   await recordMeetingTranscriptMinutes(clientNumber, userId, t.transcriptName, t.minutes).catch(() => undefined);
