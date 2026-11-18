@@ -179,6 +179,27 @@ export function toDeviceBlocks(facts: Pick<DayBriefFacts, 'blocks' | 'missing'>)
 /** F-2.5: an email a rule of his has handled or prepared. Suzi lists these apart from the emails needing a reply. */
 /** state on 'delegated' (F-2.4, agreed 13 Nov): sending until Gmail's receipt, then delivered; cancelled if it did not go. */
 export interface PackByRule { action: 'ready' | 'ignored' | 'delegated'; rule_id: string; person_name?: string; task_id?: string | null; at: string; state?: 'sending' | 'sent' | 'bounced' | 'cancelled' | 'failed' }
+/** T38 (both AGREE 18 Nov 14:33): his latest risk radar run, read only, ranked, at most 12. */
+export interface PackRisk { id: string; severity: 'high' | 'medium' | 'low'; title: string; reason: string; suggested_action?: string; refs: Array<{ kind: string; id: string; label?: string }>; run_date: string }
+export const PACK_RISKS_MAX = 12;
+
+/** T38: the flags of his latest active radar run, ranked as the radar ranked them. */
+export function toPackRisks(doc: { flags?: unknown; runDate?: Date | string | null } | null): PackRisk[] {
+  if (!doc) return [];
+  const runDate = doc.runDate ? new Date(doc.runDate).toISOString().slice(0, 10) : '';
+  const flags = Array.isArray(doc.flags) ? (doc.flags as any[]) : [];
+  return flags
+    .filter((f) => f && f.id && f.title && ['high', 'medium', 'low'].includes(f.severity))
+    .sort((a, b) => (Number(b.rank) || 0) - (Number(a.rank) || 0))
+    .slice(0, PACK_RISKS_MAX)
+    .map((f) => ({
+      id: String(f.id), severity: f.severity, title: String(f.title).slice(0, 200), reason: String(f.reason ?? '').slice(0, 500),
+      ...(f.suggestedAction ? { suggested_action: String(f.suggestedAction).slice(0, 200) } : {}),
+      refs: (Array.isArray(f.sourceRefs) ? f.sourceRefs : []).slice(0, 10).map((r: any) => ({ kind: String(r?.kind ?? ''), id: String(r?.id ?? ''), ...(r?.label ? { label: String(r.label).slice(0, 120) } : {}) })),
+      run_date: runDate,
+    }));
+}
+
 export interface PackEmail { summary?: string; point?: string; task_id?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
@@ -219,6 +240,7 @@ export function toPackFyi(i: { feedEventId: string; threadId?: string | null; fr
 export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
   calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number }; emails_loading: boolean;
+  risks?: PackRisk[];
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
   fyi?: PackFyi[];
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
@@ -376,6 +398,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
     ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
+    // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
+    ...(await import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
   };
 }
 

@@ -36,7 +36,7 @@ describe('the changes feed', () => {
     await changesSince('TMC-0001', 2, '2026-11-05T07:45:00.000Z', now);
     const [sql, ...args] = query.mock.calls[0];
     expect(args.slice(0, 2)).toEqual(['TMC-0001', 2]);
-    expect(sql.match(/client_number = \$1 AND user_id = \$2/g)).toHaveLength(7); // + his meeting records (16 Nov)
+    expect(sql.match(/client_number = \$1 AND user_id = \$2/g)).toHaveLength(8); // + his meeting records (16 Nov) + his risk radar runs (T38, 18 Nov)
     expect(sql).toMatch(/FROM users WHERE client_number = \$1 AND id = \$2/); // his calendar touch (16 Nov)
     expect(rules).toHaveBeenCalledWith('TMC-0001', 2);
   });

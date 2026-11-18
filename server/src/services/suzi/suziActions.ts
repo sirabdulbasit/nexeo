@@ -42,7 +42,7 @@ const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDa
 function toSuziAction(r: any, tz: string, today: string, userId: number, status: StatusRow[] = [], replies: TrailEntry[] = []): SuziAction {
   const due = r.dueDate ? localDate(r.dueDate, tz) : null;
   const changed = r.createdAt !== undefined ? changedAt(r, status, userId, replies) : null;
-  const helpers = packHelpers(r.metadata);
+  const helpers = packHelpers(r.metadata, replies);
   return {
     id: r.id, title: String(r.title ?? '').slice(0, 200), owner: r.delegateeName || 'me',
     priority: r.priority ?? '', status: r.status ?? '', due, overdue: !!due && due < today,
@@ -79,8 +79,8 @@ export async function listPendingActions(clientNumber: string, userId: number, o
   return { total: actions.length, overdue: actions.filter((a) => a.overdue).length, actions: actions.slice(0, limit) };
 }
 
-export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign' | 'rename';
-export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign', 'rename'];
+export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign' | 'rename' | 'take_back';
+export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign', 'rename', 'take_back'];
 
 /** Back to the open list from these (R1). CANCELLED → TRIAGED was already there; CLOSED → TRIAGED came with R1. */
 const REOPENABLE = ['CLOSED', 'CANCELLED'];
@@ -97,11 +97,12 @@ export async function applyFollowUp(
 ): Promise<FollowUpResult> {
   const update = p.update as FollowUp;
   if (!FOLLOW_UPS.includes(update)) return { ok: false, error: 'bad_update' };
-  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true, title: true } });
+  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true, title: true, delegateeName: true, delegateeEmail: true } as any }) as any;
   if (!item) return { ok: false, error: 'not_found' };
   const status = String(item.status ?? '').toUpperCase();
   if (update === 'reopen' && !REOPENABLE.includes(status)) return { ok: false, error: 'bad_state', detail: 'it is already open' };
   if (update !== 'reopen' && update !== 'note' && REOPENABLE.includes(status)) return { ok: false, error: 'bad_state', detail: 'it is finished or cancelled; reopen it first' };
+  if (update === 'take_back' && status !== 'DELEGATED' && !item.delegateeName && !item.delegateeEmail) return { ok: false, error: 'bad_state', detail: 'it is already yours' };
   let person: Awaited<ReturnType<typeof personById>> = null;
   if (update === 'assign') {
     if (!(status in BEFORE_DELEGATING)) return { ok: false, error: 'bad_state', detail: `it can't be delegated from ${status}` };
@@ -120,7 +121,15 @@ export async function applyFollowUp(
   }
   const actor = `user:${userId}`;
   try {
-    if (update === 'rename') {
+    if (update === 'take_back') {
+      // T33 (both AGREE 18 Nov 15:05): his own again. DELEGATED → IN_PROGRESS through the matrix ("Owner pulled it
+      // back"); the delegate, the told stamps and the watch are cleared, so no chaser follows the person up any more.
+      const from = String(item.delegateeName || item.delegateeEmail || 'the person it was with');
+      if (status === 'DELEGATED') await changeStatus(item.id, clientNumber, 'IN_PROGRESS' as any, 'The owner took it back through Suzi', actor);
+      await prisma.openItem.update({ where: { id: item.id }, data: { delegateeId: null, delegateeName: null, delegateeEmail: null, delegationEmailedAt: null, delegationEmailMessageId: null } as any });
+      await prisma.$executeRawUnsafe(`UPDATE open_items SET metadata = COALESCE(metadata, '{}'::jsonb) - 'watch' - 'suziTold' WHERE id = $1`, item.id);
+      await trailPush(item.id, { who: 'you, through Suzi', change: `Taken back from ${from}`.slice(0, 160) });
+    } else if (update === 'rename') {
       // T37 (both AGREE 18 Nov): his own tasks only (the query above), kept in the trail with the old and new title.
       const old = String(item.title ?? '');
       if (old !== newTitle) {

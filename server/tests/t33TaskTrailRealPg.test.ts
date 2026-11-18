@@ -33,6 +33,7 @@ run('task trail (real Postgres)', () => {
       `CREATE TABLE IF NOT EXISTS decision_logs (client_number text, user_id int, created_at timestamptz)`,
       `CREATE TABLE IF NOT EXISTS suzi_rules_version (client_number text, user_id int, updated_at timestamptz)`,
       `CREATE TABLE IF NOT EXISTS persons (client_number text, user_id int, updated_at timestamptz)`,
+      `CREATE TABLE IF NOT EXISTS risk_flag_docs (client_number text, user_id int, generated_at timestamptz)`,
     ]) await prisma.$executeRawUnsafe(t);
     for (const t of ['open_items', 'wiki_sources']) await prisma.$executeRawUnsafe(`DELETE FROM ${t} WHERE client_number = 'T33'`);
     await prisma.$executeRawUnsafe(`DELETE FROM users WHERE id = 9033`);

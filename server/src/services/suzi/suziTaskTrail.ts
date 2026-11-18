@@ -16,7 +16,7 @@ import prisma from '../../db/prisma';
 export const TRAIL_MAX = 200;
 export const REPLY_NOTE_MAX = 500;
 
-export interface TrailEntry { at: string; who: string; change: string; note?: string; thread_id?: string; email_id?: string }
+export interface TrailEntry { at: string; who: string; change: string; note?: string; thread_id?: string; email_id?: string; /** a reply's sender address (not shown) */ from?: string }
 export interface Helper { person_id: string; name: string; email: string; note?: string; added_at: string; told?: 'pending' | 'sent' | 'drafted' | 'failed'; draft_id?: string }
 
 const arr = (v: unknown): any[] => (Array.isArray(v) ? v : []);
@@ -43,12 +43,17 @@ export function helpersOf(meta: unknown): Helper[] {
   return arr((meta as any)?.suziHelpers).filter((h) => h && typeof h.person_id === 'string');
 }
 
-/** The pack's view of the helpers: {person_id, name, note?, told?, told_draft_id?}. */
-export function packHelpers(meta: unknown): Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string }> {
-  return helpersOf(meta).map((h) => ({
-    person_id: h.person_id, name: h.name, ...(h.note ? { note: h.note } : {}),
-    ...(h.told ? { told: h.told } : {}), ...(h.told === 'drafted' && h.draft_id ? { told_draft_id: h.draft_id } : {}),
-  }));
+/** The pack's view of the helpers: {person_id, name, note?, told?, told_draft_id?, replied_at?}. replied_at = the
+ *  helper's latest reply on one of the task's threads (Suzi 15:05: "who has answered?" without reading the history). */
+export function packHelpers(meta: unknown, replies: TrailEntry[] = []): Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string; replied_at?: string }> {
+  return helpersOf(meta).map((h) => {
+    const last = replies.filter((r) => r.from && h.email && r.from === h.email.toLowerCase()).map((r) => r.at).sort().pop();
+    return {
+      person_id: h.person_id, name: h.name, ...(h.note ? { note: h.note } : {}),
+      ...(h.told ? { told: h.told } : {}), ...(h.told === 'drafted' && h.draft_id ? { told_draft_id: h.draft_id } : {}),
+      ...(last ? { replied_at: last } : {}),
+    };
+  });
 }
 
 export async function setHelpers(itemId: string, helpers: Helper[]): Promise<void> {
@@ -114,7 +119,7 @@ export async function taskReplies(clientNumber: string, userId: number, items: A
       list.push({
         at: new Date(r.occurred_at).toISOString(), who: nameOf(from).slice(0, 120), change: 'reply',
         ...(r.body ? { note: String(r.body).replace(/\s+/g, ' ').trim().slice(0, REPLY_NOTE_MAX) } : {}),
-        thread_id: r.thread_key, email_id: r.external_id,
+        thread_id: r.thread_key, email_id: r.external_id, from: addressOf(from),
       });
       out.set(l.item, list);
     }

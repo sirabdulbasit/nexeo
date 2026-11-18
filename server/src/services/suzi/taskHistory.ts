@@ -54,7 +54,7 @@ function events(item: Item, status: StatusRow[], userId: number, extra: TrailEnt
   // T33 P2-P4 + T37: helpers, follow-ups and renames (metadata.suziTrail), and replies on the task's threads (read by
   // the caller from the Wiki's email sources). All are real changes.
   for (const e of trailOf(item.metadata)) push(e.at, e.who, e.change, true, cut(e.note));
-  for (const r of extra) push(r.at, r.who, r.change, true, r.note ? r.note.replace(/\s+/g, ' ').trim().slice(0, REPLY_NOTE_MAX) : undefined, r);
+  for (const r of extra) push(r.at, r.who, r.change, true, r.note ? r.note.replace(/\s+/g, ' ').trim().slice(0, REPLY_NOTE_MAX) : undefined, { thread_id: r.thread_id, email_id: r.email_id });
 
   push(item.createdAt, 'Nexeo', 'Created', true);
 

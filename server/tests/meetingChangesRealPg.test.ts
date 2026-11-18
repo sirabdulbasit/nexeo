@@ -27,10 +27,13 @@ run('meeting changes flag calendar (real Postgres)', () => {
     }
     for (const t of [
       `CREATE TABLE IF NOT EXISTS open_items (client_number text, user_id int, updated_at timestamptz)`,
+      `ALTER TABLE open_items ADD COLUMN IF NOT EXISTS metadata jsonb`, // T33 P4 reads linked threads
       `CREATE TABLE IF NOT EXISTS feed_events (client_number text, user_id int, source_type text, created_at timestamptz)`,
       `CREATE TABLE IF NOT EXISTS decision_logs (client_number text, user_id int, created_at timestamptz)`,
       `CREATE TABLE IF NOT EXISTS suzi_rules_version (client_number text, user_id int, updated_at timestamptz)`,
       `CREATE TABLE IF NOT EXISTS persons (client_number text, user_id int, updated_at timestamptz)`,
+      `CREATE TABLE IF NOT EXISTS risk_flag_docs (client_number text, user_id int, generated_at timestamptz)`, // T38
+      `CREATE TABLE IF NOT EXISTS wiki_sources (client_number text, user_id int, kind text, external_id text, thread_key text, occurred_at timestamptz, details jsonb, body_text text, created_at timestamptz DEFAULT now())`, // T33 P4 (same shape as t33TaskTrailRealPg)
     ]) await prisma.$executeRawUnsafe(t);
     await prisma.$executeRawUnsafe(`DELETE FROM meeting_records WHERE client_number = 'RACE'`);
     store = await import('../src/services/meetings/meetingRecordStore');
