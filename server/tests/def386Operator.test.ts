@@ -18,6 +18,9 @@
  *     space → image px.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Link T41 (18 Nov): the central loop is off unless the server is switched. These tests pin the loop itself.
+process.env.OPERATOR_CENTRAL = 'on';
 import express from 'express';
 import request from 'supertest';
 

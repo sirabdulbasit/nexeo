@@ -16,7 +16,8 @@
  * Ops: task.update (done / cancel / move / not_yet / note / reopen / assign / forward), task.create, email.delegate
  * (F-2, suziDelegate.ts), whatsapp.to_user, the
  * email session (suziEmail.ts; a signed send for a user on the switch is really sent, suziSend.ts), and
- * build control's gap.report / gap.approve (suziGaps.ts, link T28).
+ * build control's gap.report / gap.approve (suziGaps.ts, link T28), and the computer operator's operator.report /
+ * operator.permission (suziOperator.ts, link T41).
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
@@ -30,8 +31,9 @@ import { MEETING_OPS, runMeetingOp } from './suziMeetings';
 import { W1_OPS, runW1Op } from './suziW1';
 import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
+import { OPERATOR_OPS, runOperatorOp } from './suziOperator';
 
-export const ACT_OPS = ['task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -71,6 +73,8 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   if (req.op.startsWith('delegation.') || req.op.startsWith('instruction.')) return runDelegationOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   // W-1 (agreed 13 Nov): identity, profile and device reports go into the Wiki.
   if ((W1_OPS as readonly string[]).includes(req.op)) return runW1Op(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, { ...gate, deviceId: req.device_id ?? null });
+  // Link T41 (both AGREE 18 Nov): the computer operator's run reports and his two permissions.
+  if (req.op.startsWith('operator.')) return runOperatorOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true);
   if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   // T37: `action` is accepted as another name for `update` (Suzi's rename proposal used it).

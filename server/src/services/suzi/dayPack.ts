@@ -244,6 +244,8 @@ export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
   calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number; calendar?: number }; emails_loading: boolean;
   risks?: PackRisk[];
+  /** Link T41: the computer operator's control. Left out when it cannot be read; the desktop then keeps its last copy. */
+  operator?: import('./suziOperator').PackOperator;
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
   fyi?: PackFyi[];
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
@@ -421,6 +423,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
     // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
     ...(await import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
+    // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.
+    ...(await import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
   };
 }
 

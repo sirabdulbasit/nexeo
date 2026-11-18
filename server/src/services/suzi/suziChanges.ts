@@ -13,7 +13,7 @@ const MAX_CURSOR_AGE_MS = 7 * 24 * 60 * 60_000;
 const EMAIL_SOURCES = "('gmail', 'outlook', 'imap_smtp')";
 const CALENDAR_SOURCES = "('gcal', 'google_calendar', 'outlook_calendar')";
 
-export type ChangeType = 'actions' | 'calendar' | 'emails' | 'rules' | 'people';
+export type ChangeType = 'actions' | 'calendar' | 'emails' | 'rules' | 'people' | 'operator';
 export type ChangesAnswer = { cursor: string; full: true } | { cursor: string; changed: ChangeType[] };
 
 export async function changesSince(clientNumber: string, userId: number, since: unknown, now = new Date()): Promise<ChangesAnswer> {
@@ -41,9 +41,12 @@ export async function changesSince(clientNumber: string, userId: number, since: 
        (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${EMAIL_SOURCES} AND created_at > $3)
         OR EXISTS (SELECT 1 FROM decision_logs WHERE client_number = $1 AND user_id = $2 AND created_at > $3)) AS emails,
        EXISTS (SELECT 1 FROM suzi_rules_version WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS rules,
-       EXISTS (SELECT 1 FROM persons WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS people`,
+       EXISTS (SELECT 1 FROM persons WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS people,
+       -- T41: his own permission changed, or an admin changed the customer's operator settings. A run report flags nothing.
+       (EXISTS (SELECT 1 FROM users WHERE client_number = $1 AND id = $2 AND (notification_preferences->'suzi'->>'operator_touched_at')::timestamptz > $3)
+        OR EXISTS (SELECT 1 FROM operator_settings WHERE client_number = $1 AND updated_at > $3)) AS operator`,
     clientNumber, userId, from,
   );
   const row = rows[0];
-  return { cursor, changed: (['actions', 'calendar', 'emails', 'rules', 'people'] as ChangeType[]).filter((t) => row?.[t]) };
+  return { cursor, changed: (['actions', 'calendar', 'emails', 'rules', 'people', 'operator'] as ChangeType[]).filter((t) => row?.[t]) };
 }

@@ -1008,4 +1008,17 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **C. Asked of the desktop:** proven done; file search by content; images and scans under permission; browser by page structure; system jobs under permission; AI tools under his own account (charter privacy line needed); forms with Submit at T2.
 - **D. Unchanged:** tiers, Guard, R1, R2. Owed before go-live: the planted-instructions test and the Mixamo test on the real Mac.
 
-**Status:** waiting on Suzi's AGREE or changes, and five questions (what exists beyond `a70a57e`, browser method, model installed, the switch, dates). Nexeo builds B only after AGREE.
+**B: AGREED by both sides, 18 Nov 2026 16:37:35 PKT** (Suzi-Builder, link `20261118-163735-suzi.md`: "AGREE as written… Build it"). Suzi's answers:
+- On his Mac the UI-TARS 1.5 7B 4-bit model is installed and "Operate the computer" is on; the Mac runs Suzi Client UAT 1.3.0 from source.
+- C1 (proven done, loop tests) by 19 Nov 18:00 PKT; C2 (file search by content) by 20 Nov 13:00 PKT.
+- Attachments in her chat (PDF, Office, images) already exist on the Mac; C3 (the local index of scans) stays separate under `images.allowed`.
+- Still to come from Suzi: the C6 charter line (what she types into an AI tool leaves the computer) and the C4 browser choice (her proposal: page structure through Accessibility first, an extension only if that fails). A, C and the charter text for row 13 are NOT agreed yet.
+
+**B built on Nexeo (18 Nov, `server/src/services/suzi/suziOperator.ts`, D-301):**
+- Pack `operator`: `enabled` is true only with the customer's switch AND recorded consent. No migration: the customer's settings and the run ledger are the existing `operator_settings` / `operator_runs`; his two permissions live in `users.notification_preferences.suzi.operator` (no new store).
+- `operator.report`: arguments are exactly `run_id, job, status, proof, steps, actions, started, ended, goal`; any other argument answers `bad_args`, so content has no field to arrive in. `done` with `proof: "none"` is stored and answered as `unverified`. The stored id is a hash of customer, user and `run_id`; a repeat answers the first outcome with `already: true`. The answer carries `used {tasks, steps}`.
+- `operator.permission`: `needs_confirmation` unless `confirmed_by_user`; a part not sent keeps its value; `images.allowed: false` forgets the folders; at most 20 folders.
+- `/changes` says `operator` after his permission changes or an admin changes the customer's settings. A run report flags nothing.
+- Totally free, held in code: the central Claude loop (`operator/start`) answers `{status: "local", reason: "central_off"}` unless the server has `OPERATOR_CENTRAL=on`.
+- Limits are the customer's, so `used` counts the customer's runs. The desktop enforces the limits from the pack; Nexeo still records a run reported over the limit.
+- Tests: `tests/t41Operator.test.ts`, 16, each rule mutation-checked (6 mutations, each caught).

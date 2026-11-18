@@ -82,7 +82,7 @@ export type TerminalStatus = 'done' | 'unverified' | 'needs_user' | 'failed' | '
 
 export type StartResult =
   | { status: 'act'; run_id: string; actions: GatewayAction[]; max_steps: number }
-  | { status: 'local'; reason: 'private_mode' }
+  | { status: 'local'; reason: 'private_mode' | 'central_off' }
   | { status: 'refused'; reason: 'disabled' | 'no_consent' | 'no_model' | 'limit_reached' | 'bad_goal' };
 
 export type StepResult =
@@ -137,6 +137,9 @@ export async function startRun(
   const goal = (p.goal ?? '').trim();
   if (!goal || goal.length > 1000) return { status: 'refused', reason: 'bad_goal' };
   const s = await getOperatorSettings(p.clientNumber);
+  // Founder, 18 Nov 2026 (link T41): the operator is totally free, so the model runs on the user's computer. The
+  // central loop below costs money per step and stays off unless the server itself is switched (OPERATOR_CENTRAL=on).
+  if (process.env.OPERATOR_CENTRAL !== 'on') return { status: 'local', reason: 'central_off' };
   if (s.privateMode) return { status: 'local', reason: 'private_mode' };
   if (!s.enabled) return { status: 'refused', reason: 'disabled' };
   if (!s.consentAt) return { status: 'refused', reason: 'no_consent' };
