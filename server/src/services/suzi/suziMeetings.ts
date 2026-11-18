@@ -20,7 +20,7 @@ type Args = Record<string, unknown>;
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
-export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave', 'meeting.item'] as const;
+export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave', 'meeting.item', 'meeting.reread'] as const;
 
 const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : null);
 
@@ -84,6 +84,10 @@ export async function runMeetingOp(
     const state = await setActionItemState(clientNumber, userId, id, itemId, decision === 'skip' ? 'skipped' : 'proposed');
     return state ? { ok: true, item: { meeting_id: id, item_id: itemId, state } } : fail('not_found');
   }
+  // T39 round 2 (both AGREE 18 Nov): read Google's transcript again on his word. {meeting_id}, or {all: true, days?}
+  // for his Google-transcript meetings of the last `days` (default 14, at most 30; at most 10 per call). The minutes and
+  // proposed items are re-made only when the text changed; his decisions on items stay (mergeDerived).
+  if (op === 'meeting.reread') return reread(clientNumber, userId, a);
   if (op === 'meeting.delete') {
     if (!confirmed) return fail('needs_confirmation');
     if (!gate.signatureVerified) return fail('needs_signature', 'deleting a meeting record is irreversible and must be signed');
@@ -112,4 +116,41 @@ export async function runMeetingOp(
     return { ok: true, item: toWire(after ?? record, false) };
   }
   return fail('unknown_op');
+}
+
+export const REREAD_MAX = 10;
+async function reread(clientNumber: string, userId: number, a: Args): Promise<Result> {
+  const prisma = (await import('../../db/prisma')).default;
+  const all = a.all === true;
+  const id = text(a.meeting_id);
+  if (!all && !id) return fail('bad_args', 'meeting_id, or all: true');
+  const days = Math.min(Math.max(Number(a.days) || 14, 1), 30);
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; meeting_key: string; conference_record: string | null; title: string | null; event_id: string | null; start_at: Date | null; end_at: Date | null; way: string }>>(
+    all
+      ? `SELECT id, meeting_key, conference_record, title, event_id, start_at, end_at, way FROM meeting_records
+          WHERE client_number = $1 AND user_id = $2 AND way = 'google_transcript' AND conference_record IS NOT NULL
+            AND start_at > now() - ($3 || ' days')::interval ORDER BY start_at DESC LIMIT ${REREAD_MAX}`
+      : `SELECT id, meeting_key, conference_record, title, event_id, start_at, end_at, way FROM meeting_records
+          WHERE client_number = $1 AND user_id = $2 AND id = $3`,
+    clientNumber, userId, all ? String(days) : id,
+  );
+  if (!all && !rows.length) return fail('not_found');
+  if (!all && (rows[0].way !== 'google_transcript' || !rows[0].conference_record)) return fail('bad_state', 'only a meeting with a Google Meet transcript can be read again');
+  const { meetFor } = await import('../meetings/meetTranscripts');
+  const meet = await meetFor(userId);
+  if (!meet) return fail('not_connected', 'Google is not connected');
+  const { ingestConference } = await import('../meetings/meetingProcessor');
+  const { wordsOf } = await import('../meetings/meetingRecordStore');
+  const out: unknown[] = [];
+  for (const r of rows) {
+    const before = await getRecord(clientNumber, userId, r.id);
+    const after = await ingestConference(clientNumber, userId, meet, r.conference_record!, r.meeting_key,
+      { title: r.title, eventId: r.event_id, start: r.start_at, end: r.end_at }, { reread: true }).catch(() => null);
+    const w = after ? toWire(after, true) as any : null;
+    out.push(w
+      ? { meeting_id: r.id, transcript_from: w.transcript_from, lines: w.transcript.length, words: wordsOf(w.transcript),
+          changed: JSON.stringify(before?.transcript ?? []) !== JSON.stringify(after!.transcript ?? []) }
+      : { meeting_id: r.id, error: 'not_read' });
+  }
+  return { ok: true, item: { meetings: out } };
 }
