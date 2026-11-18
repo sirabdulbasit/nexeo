@@ -27,14 +27,36 @@ vi.mock('../src/services/suzi/suziPeople', () => ({ personById: (...a: any[]) =>
 const sendUserEmail = vi.fn();
 vi.mock('../src/services/gmailService', () => ({ sendUserEmail: (...a: any[]) => sendUserEmail(...a) }));
 
+const trailPush = vi.fn(async (..._a: any[]) => undefined);
+vi.mock('../src/services/suzi/suziTaskTrail', async () => ({ ...(await vi.importActual<any>('../src/services/suzi/suziTaskTrail')), trailPush: (...a: any[]) => trailPush(...a) }));
+
 import { applyFollowUp } from '../src/services/suzi/suziActions';
 import { allFromTransitions, findTransition } from '../src/services/itemLifecycle/transitionMatrix';
 
 const item = (status: string) => findFirst.mockResolvedValue({ id: 'a1', title: 'T', priority: 'high', status, dueDate: null, notes: [] });
 
 beforeEach(() => {
-  for (const f of [findFirst, update, changeStatus, delegateItem, lifecycle, personById, sendUserEmail]) f.mockReset();
+  for (const f of [findFirst, update, changeStatus, delegateItem, lifecycle, personById, sendUserEmail, trailPush]) f.mockReset();
   personById.mockResolvedValue({ id: 'p1', name: 'Rafay', email: 'r@x' });
+});
+
+describe('T37 rename (both AGREE 18 Nov)', () => {
+  it('his own task: the title changes and the trail keeps old and new', async () => {
+    item('NEW');
+    const r = await applyFollowUp('TMC-0001', 2, { actionId: 'a1', update: 'rename', title: '  Agreeofy product   work ' });
+    expect(r.ok).toBe(true);
+    expect(update).toHaveBeenCalledWith({ where: { id: 'a1' }, data: { title: 'Agreeofy product work' } });
+    expect(trailPush).toHaveBeenCalledWith('a1', { who: 'you, through Suzi', change: 'Renamed', note: 'T → Agreeofy product work' });
+  });
+  it('no title is bad_update; another user\'s task is not_found; a finished task must be reopened first', async () => {
+    item('NEW');
+    expect(await applyFollowUp('TMC-0001', 2, { actionId: 'a1', update: 'rename', title: ' ' })).toMatchObject({ ok: false, error: 'bad_update' });
+    findFirst.mockResolvedValue(null);
+    expect(await applyFollowUp('TMC-0001', 2, { actionId: 'x', update: 'rename', title: 'New' })).toEqual({ ok: false, error: 'not_found' });
+    item('CLOSED');
+    expect(await applyFollowUp('TMC-0001', 2, { actionId: 'a1', update: 'rename', title: 'New' })).toMatchObject({ ok: false, error: 'bad_state' });
+    expect(update).not.toHaveBeenCalled();
+  });
 });
 
 describe('R1 reopen', () => {

@@ -24,6 +24,7 @@ import { toZonedIso } from './zonedTime';
 import { personById } from './suziPeople';
 import { changedAt, statusRowsFor, HISTORY_SELECT, type StatusRow } from './taskHistory';
 import { actionSources, type ActionSource } from './actionSource';
+import { packHelpers, taskReplies, trailPush, type TrailEntry } from './suziTaskTrail';
 
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -31,20 +32,24 @@ const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2,
 /** `updated_at` moves on every write, Nexeo's bookkeeping included; `changed_at` only on a real change (T25, DEF-406). */
 export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
   /** T35 (a) (both AGREE 17 Nov): the note to the person a task was forwarded to. */
-  told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string }
+  told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string;
+  /** T33 P2 (both AGREE 17 Nov): the other people responsible; the lead owner is `owner`. */
+  helpers?: Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string }> }
 
 const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, sourceFeed: true, sourceRef: true, sourceFeedEventId: true, ...HISTORY_SELECT } as const;
 
 /** An open item as Suzi sees it. `owner` is the delegate when delegated, else 'me'. */
-function toSuziAction(r: any, tz: string, today: string, userId: number, status: StatusRow[] = []): SuziAction {
+function toSuziAction(r: any, tz: string, today: string, userId: number, status: StatusRow[] = [], replies: TrailEntry[] = []): SuziAction {
   const due = r.dueDate ? localDate(r.dueDate, tz) : null;
-  const changed = r.createdAt !== undefined ? changedAt(r, status, userId) : null;
+  const changed = r.createdAt !== undefined ? changedAt(r, status, userId, replies) : null;
+  const helpers = packHelpers(r.metadata);
   return {
     id: r.id, title: String(r.title ?? '').slice(0, 200), owner: r.delegateeName || 'me',
     priority: r.priority ?? '', status: r.status ?? '', due, overdue: !!due && due < today,
     updated_at: r.updatedAt ? toZonedIso(r.updatedAt, tz) : null,
     changed_at: changed ? toZonedIso(changed, tz) : null,
     ...toldOf(r.metadata),
+    ...(helpers.length ? { helpers } : {}),
   };
 }
 
@@ -67,13 +72,15 @@ export async function listPendingActions(clientNumber: string, userId: number, o
   const status = await statusRowsFor(clientNumber, userId, rows.map((r) => r.id)).catch(() => new Map<string, StatusRow[]>());
   // F-2.5a: where each came from. A read that fails leaves `source` out, never the action.
   const sources = await actionSources(clientNumber, userId, rows as any[], tz).catch(() => new Map<string, ActionSource>());
-  const actions = rows.map((r) => { const a = toSuziAction(r, tz, today, userId, status.get(r.id)); const src = sources.get(r.id); if (src) a.source = src; return a; }).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
+  // T33 P4: replies on a task's threads are real changes (changed_at). A read that fails leaves them out.
+  const replies = await taskReplies(clientNumber, userId, rows as any[]).catch(() => new Map<string, TrailEntry[]>());
+  const actions = rows.map((r) => { const a = toSuziAction(r, tz, today, userId, status.get(r.id), replies.get(r.id)); const src = sources.get(r.id); if (src) a.source = src; return a; }).sort((a, b) => (PRIORITY_RANK[a.priority] ?? 9) - (PRIORITY_RANK[b.priority] ?? 9) || (a.due ?? '9999').localeCompare(b.due ?? '9999'));
   const limit = Math.min(Math.max(opts.limit ?? 20, 1), 500);
   return { total: actions.length, overdue: actions.filter((a) => a.overdue).length, actions: actions.slice(0, limit) };
 }
 
-export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign';
-export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign'];
+export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign' | 'rename';
+export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign', 'rename'];
 
 /** Back to the open list from these (R1). CANCELLED → TRIAGED was already there; CLOSED → TRIAGED came with R1. */
 const REOPENABLE = ['CLOSED', 'CANCELLED'];
@@ -86,11 +93,11 @@ export type FollowUpResult =
 
 export async function applyFollowUp(
   clientNumber: string, userId: number,
-  p: { actionId: string; update: string; due?: string; note?: string; personId?: string; timezone?: string },
+  p: { actionId: string; update: string; due?: string; note?: string; personId?: string; title?: string; timezone?: string },
 ): Promise<FollowUpResult> {
   const update = p.update as FollowUp;
   if (!FOLLOW_UPS.includes(update)) return { ok: false, error: 'bad_update' };
-  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true } });
+  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true, title: true } });
   if (!item) return { ok: false, error: 'not_found' };
   const status = String(item.status ?? '').toUpperCase();
   if (update === 'reopen' && !REOPENABLE.includes(status)) return { ok: false, error: 'bad_state', detail: 'it is already open' };
@@ -103,6 +110,8 @@ export async function applyFollowUp(
     if (!person.email) return { ok: false, error: 'no_email', detail: 'a delegated task needs the person\'s email on record' };
   }
   if (update === 'note' && !String(p.note ?? '').trim()) return { ok: false, error: 'bad_update', detail: 'note text is required' };
+  const newTitle = String(p.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (update === 'rename' && !newTitle) return { ok: false, error: 'bad_update', detail: 'title is required' };
   const said = `Suzi follow-up from the owner: ${update}${p.due ? ` → ${p.due}` : ''}${p.note ? ` (${String(p.note).slice(0, 300)})` : ''}`;
   let dueDate: Date | null = null;
   if (update === 'move') {
@@ -111,7 +120,14 @@ export async function applyFollowUp(
   }
   const actor = `user:${userId}`;
   try {
-    if (update === 'reopen') {
+    if (update === 'rename') {
+      // T37 (both AGREE 18 Nov): his own tasks only (the query above), kept in the trail with the old and new title.
+      const old = String(item.title ?? '');
+      if (old !== newTitle) {
+        await prisma.openItem.update({ where: { id: item.id }, data: { title: newTitle } });
+        await trailPush(item.id, { who: 'you, through Suzi', change: 'Renamed', note: `${old.slice(0, 140)} → ${newTitle.slice(0, 140)}` });
+      }
+    } else if (update === 'reopen') {
       await changeStatus(item.id, clientNumber, 'TRIAGED' as any, 'The owner reopened it through Suzi', actor);
     } else if (update === 'assign') {
       const step = BEFORE_DELEGATING[status];

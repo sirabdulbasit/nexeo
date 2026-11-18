@@ -18,19 +18,21 @@ const BANDS = new Set(['critical', 'high', 'medium', 'low']);
 type Card = {
   feedEventId: string; threadId?: string | null; threadFeedEventIds?: string[];
   criticality?: { band?: string; [k: string]: unknown } | null; critical?: boolean; rationale?: string | null;
-  openItem?: { id: string; priority: string; dueDate: string | null; title: string } | null;
+  openItem?: { id: string; priority: string; dueDate: string | null; title: string; createdAt?: string } | null;
 };
 
 export async function applyOpenItems(items: Card[], clientNumber: string, userId: number): Promise<void> {
   if (!items.length) return;
   const threads = [...new Set(items.map((i) => i.threadId).filter(Boolean) as string[])];
   const feeds = [...new Set(items.flatMap((i) => [i.feedEventId, ...(i.threadFeedEventIds ?? [])]).filter(Boolean))];
+  // T37 / DEF-509 (18 Nov): a task Suzi made from an email (metadata.suziSource.email_id = the thread) counts too.
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string; description: string | null; priority: string; due_date: Date | null; th: string | null; fe: string | null; sr: string | null; created_at: Date }>>(
-    `SELECT id, title, description, priority, due_date, metadata->'derivedFrom'->>'threadId' AS th,
+    `SELECT id, title, description, priority, due_date, COALESCE(metadata->'derivedFrom'->>'threadId', metadata->'suziSource'->>'email_id') AS th,
             metadata->'derivedFrom'->>'feedEventId' AS fe, source_ref AS sr, created_at
        FROM open_items
       WHERE client_number = $1 AND user_id = $2 AND status::text = ANY($3::text[])
-        AND (metadata->'derivedFrom'->>'threadId' = ANY($4::text[]) OR metadata->'derivedFrom'->>'feedEventId' = ANY($5::text[])
+        AND (metadata->'derivedFrom'->>'threadId' = ANY($4::text[]) OR metadata->'suziSource'->>'email_id' = ANY($4::text[])
+             OR metadata->'derivedFrom'->>'feedEventId' = ANY($5::text[])
              OR source_ref = ANY($5::text[]) OR source_ref = ANY($4::text[]))
       ORDER BY created_at DESC LIMIT 200`,
     clientNumber, userId, OPEN, threads, feeds,
@@ -48,7 +50,7 @@ export async function applyOpenItems(items: Card[], clientNumber: string, userId
     const due = r.due_date ? new Date(r.due_date) : null;
     const line = String(r.description ?? '').split('\n')[0].trim() || r.title;
     if (line) it.rationale = line;
-    it.openItem = { id: r.id, priority: band, dueDate: due && !isNaN(due.getTime()) ? due.toISOString() : null, title: r.title };
+    it.openItem = { id: r.id, priority: band, dueDate: due && !isNaN(due.getTime()) ? due.toISOString() : null, title: r.title, ...(r.created_at && !isNaN(new Date(r.created_at).getTime()) ? { createdAt: new Date(r.created_at).toISOString() } : {}) };
   }
 }
 

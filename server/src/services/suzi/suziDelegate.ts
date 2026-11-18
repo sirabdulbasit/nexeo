@@ -30,23 +30,57 @@ async function ownerName(clientNumber: string, userId: number): Promise<string> 
   return p?.userFullName || p?.userFirstName || 'your manager';
 }
 
+/** Who is on a task, for the note (founder 18 Nov 14:35: the person is told the lead, the others and the date). */
+export type Role = 'owner' | 'helper' | 'followup';
+export interface TellTask { itemId: string; title: string; due: string | null; note: string; person: { name: string; email: string }; role?: Role; lead?: string | null; helpers?: string[] }
+
+/** The facts the model words the note from (never a canned sentence). Exported for the test. */
+export function tellPrompt(owner: string, t: TellTask): string {
+  const role = t.role ?? 'owner';
+  const lead = role === 'owner' ? t.person.name : (t.lead || owner);
+  const others = (t.helpers ?? []).filter((n) => n && n !== t.person.name);
+  const ask = role === 'owner' ? `handing them this task. They are the lead owner.`
+    : role === 'helper' ? `asking them to help on this task as one of the people responsible.`
+    : `following up on this task, which they are responsible for. Ask where it stands.`;
+  return `Write a short email from ${owner} to ${t.person.name}, ${ask}\nTask: ${t.title}\n` +
+    `Lead owner: ${lead === t.person.name ? `${t.person.name} (the person this email is to)` : lead}\n` +
+    `${others.length ? `Also responsible: ${others.join(', ')}\n` : ''}` +
+    `Due: ${t.due ?? 'no date set yet'}\n` +
+    `${t.note ? `What ${owner} wants said: ${t.note}\n` : ''}` +
+    (role === 'owner' ? 'Say plainly that the task is now theirs. ' : '') +
+    'Name the lead owner, everyone else responsible and the due date. Add nothing that is not given here.';
+}
+
 /** The note to the person: an email from his mailbox, through the send gate. */
 async function tell(
-  clientNumber: string, userId: number, gate: SendGate,
-  t: { itemId: string; title: string; due: string | null; note: string; person: { name: string; email: string } },
+  clientNumber: string, userId: number, gate: SendGate, t: TellTask,
 ): Promise<{ told: boolean; draft_id?: string; undo_until?: string; error?: string }> {
   const owner = await ownerName(clientNumber, userId);
-  const body = await writeWithModel(clientNumber, userId,
-    `Write a short email from ${owner} to ${t.person.name}, handing them this task.\nTask: ${t.title}\n` +
-    `${t.due ? `Due: ${t.due}\n` : ''}${t.note ? `What ${owner} wants said: ${t.note}\n` : ''}` +
-    'Say plainly that the task is now theirs. Add nothing that is not given here.');
-  const draft = await saveNewDraft(clientNumber, userId, { to: t.person.email, subject: `Task: ${t.title}`.slice(0, 200), body, mode: 'new' }, { tellOpenItemId: t.itemId });
+  const body = await writeWithModel(clientNumber, userId, tellPrompt(owner, t));
+  const role = t.role ?? 'owner';
+  const subject = role === 'followup' ? `Following up: ${t.title}` : `Task: ${t.title}`;
+  // Only the owner's note marks the delegate as told (delegation_emailed_at); a helper's or a follow-up only links
+  // its thread to the task (T33 P4).
+  const link = role === 'owner' ? { tellOpenItemId: t.itemId } : { tellTaskThreadOf: t.itemId, tellRole: role, tellEmail: t.person.email };
+  const draft = await saveNewDraft(clientNumber, userId, { to: t.person.email, subject: subject.slice(0, 200), body, mode: 'new' }, link);
   if (!draft.ok) return { told: false, error: draft.error };
   const draftId = (draft.item as any).draft_id;
   const sent = await saveToGmailDrafts(clientNumber, userId, { draft_id: draftId }, true, gate);
   if (!sent.ok) return { told: false, draft_id: draftId, error: sent.error };
   const i: any = sent.item;
   return i.sent ? { told: true, draft_id: draftId, undo_until: i.undo_until } : { told: false, draft_id: draftId };
+}
+
+type ToldState = { state: 'sent' | 'drafted' | 'failed'; draft_id?: string; error?: string };
+const toldState = (t: { told: boolean; draft_id?: string; error?: string }): ToldState =>
+  t.told ? { state: 'sent', draft_id: t.draft_id } : t.draft_id && !t.error ? { state: 'drafted', draft_id: t.draft_id } : { state: 'failed', ...(t.draft_id ? { draft_id: t.draft_id } : {}), error: String(t.error ?? 'not saved').slice(0, 200) };
+
+/** Lead (delegate or him) and helper names of a task, for the note. */
+async function crew(clientNumber: string, userId: number, id: string): Promise<{ lead: string | null; helpers: string[]; title: string; due: string | null; status: string; delegateeEmail: string | null; delegateeName: string | null; metadata: unknown } | null> {
+  const r = await prisma.openItem.findFirst({ where: { id, clientNumber, userId }, select: { title: true, dueDate: true, status: true, delegateeName: true, delegateeEmail: true, metadata: true } as any }) as any;
+  if (!r) return null;
+  const { helpersOf } = await import('./suziTaskTrail');
+  return { lead: r.delegateeName || null, helpers: helpersOf(r.metadata).map((h) => h.name), title: String(r.title ?? ''), due: r.dueDate ? new Date(r.dueDate).toISOString().slice(0, 10) : null, status: String(r.status ?? '').toUpperCase(), delegateeEmail: r.delegateeEmail ?? null, delegateeName: r.delegateeName ?? null, metadata: r.metadata };
 }
 
 async function forwardTask(clientNumber: string, userId: number, id: string, a: Args, gate: SendGate, timezone?: string): Promise<Result> {
@@ -66,8 +100,9 @@ async function forwardTask(clientNumber: string, userId: number, id: string, a: 
   // T35 (a) (both AGREE 17 Nov): the answer goes as soon as the task is assigned; the note (written by the model, which
   // can be slow) follows, and the task's told says how it ended.
   await setTold(id, { state: 'pending' });
-  void tell(clientNumber, userId, gate, { itemId: id, title: r.action.title, due: r.action.due, note: text(a.note), person: { name: person.name, email: person.email } })
-    .then((t) => setTold(id, t.told ? { state: 'sent', draft_id: t.draft_id } : t.draft_id && !t.error ? { state: 'drafted', draft_id: t.draft_id } : { state: 'failed', ...(t.draft_id ? { draft_id: t.draft_id } : {}), error: String(t.error ?? 'not saved').slice(0, 200) }))
+  const c = await crew(clientNumber, userId, id).catch(() => null);
+  void tell(clientNumber, userId, gate, { itemId: id, title: r.action.title, due: r.action.due, note: text(a.note), person: { name: person.name, email: person.email }, role: 'owner', helpers: c?.helpers ?? [] })
+    .then((t) => setTold(id, toldState(t)))
     .catch((e: any) => setTold(id, { state: 'failed', error: String(e?.message ?? e).slice(0, 200) }));
   return { ok: true, item: { ...r.action, assigned: true, told: 'pending' } };
 }
@@ -108,6 +143,109 @@ export async function taskForward(clientNumber: string, userId: number, a: Args,
   return forwardTask(clientNumber, userId, text(a.id), a, gate, timezone);
 }
 
+const OPEN_STATES = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED', 'SNOOZED'];
+
+/**
+ * T33 P2 (both AGREE 17 Nov): task.update {id, update: helper_add | helper_remove, person_id, note?}. A helper is one
+ * of the people responsible; the lead owner stays one (founder 18 Nov 14:39). helper_add tells the helper (same gate
+ * as forward), answering at once with told "pending" (T35 (a)); the same helper again within 10 minutes is the first
+ * add (T35 (b)). Each add and remove is a dated history entry.
+ */
+export async function taskHelper(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate, timezone?: string, opts: { leadName?: string } = {}): Promise<Result> {
+  const id = text(a.id);
+  const update = text(a.update);
+  const { helpersOf, setHelpers, setHelperTold, trailPush } = await import('./suziTaskTrail');
+  const c = await crew(clientNumber, userId, id);
+  if (!c) return fail('not_found');
+  if (!OPEN_STATES.includes(c.status)) return fail('bad_state', 'it is finished or cancelled; reopen it first');
+  const helpers = helpersOf(c.metadata);
+  const answer = async (extra: Record<string, unknown>): Promise<Result> => {
+    const { actionById } = await import('./suziActions');
+    const action = await actionById(clientNumber, userId, id, timezone);
+    return action ? { ok: true, item: { ...action, ...extra } } : fail('not_found');
+  };
+  if (update === 'helper_remove') {
+    const pid = text(a.person_id);
+    const h = helpers.find((x) => x.person_id === pid);
+    if (!h) return fail('not_found', 'that person is not a helper on this task');
+    await setHelpers(id, helpers.filter((x) => x.person_id !== pid));
+    await trailPush(id, { who: 'you, through Suzi', change: `Helper removed: ${h.name}`.slice(0, 160) });
+    return answer({ helper_removed: true });
+  }
+  if (!confirmed) return fail('needs_confirmation');
+  const person = await personById(clientNumber, userId, text(a.person_id));
+  if (!person) return fail('not_found', 'no such person');
+  if (!person.email) return fail('no_email', 'telling a helper needs their email on record');
+  if (c.delegateeEmail && c.delegateeEmail.toLowerCase() === person.email.toLowerCase()) return fail('bad_state', `${person.name} is already the lead owner of this task`);
+  const had = helpers.find((x) => x.person_id === person.id);
+  if (had) {
+    // T35 (b): a repeat is the first add (no second entry, no second note).
+    return answer({ helper_added: true, told: had.told ?? 'pending', ...(had.told === 'drafted' && had.draft_id ? { told_draft_id: had.draft_id } : {}), repeat: true });
+  }
+  const note = text(a.note).slice(0, 300);
+  await setHelpers(id, [...helpers, { person_id: person.id, name: person.name, email: person.email, ...(note ? { note } : {}), added_at: new Date().toISOString(), told: 'pending' }]);
+  await trailPush(id, { who: 'you, through Suzi', change: `Helper added: ${person.name}`.slice(0, 160), ...(note ? { note } : {}) });
+  void tell(clientNumber, userId, gate, { itemId: id, title: c.title, due: c.due, note, person: { name: person.name, email: person.email }, role: 'helper', lead: opts.leadName ?? c.lead, helpers: [...c.helpers, person.name] })
+    .then((t) => setHelperTold(id, person.id, toldState(t)))
+    .catch(() => setHelperTold(id, person.id, { state: 'failed' }));
+  return answer({ helper_added: true, told: 'pending' });
+}
+
+export const REPEAT_FOLLOWUP_MS = 10 * 60_000;
+
+/**
+ * T33 P3 (both AGREE 17 Nov): task.followup {id, person_id?, note?, all?}. To person_id; without it, to the person the
+ * task is delegated to; with all: true, to the lead owner and every helper (founder 18 Nov 14:39). Each note goes
+ * through the same gate as forward, answered at once (told "pending"); the same person again within 10 minutes is
+ * the first follow-up. One history entry "Followed up: <name>" per person.
+ */
+export async function taskFollowup(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate, timezone?: string): Promise<Result> {
+  if (!confirmed) return fail('needs_confirmation');
+  const id = text(a.id);
+  const { helpersOf, setHelperTold, trailOf, trailPush } = await import('./suziTaskTrail');
+  const c = await crew(clientNumber, userId, id);
+  if (!c) return fail('not_found');
+  if (!OPEN_STATES.includes(c.status)) return fail('bad_state', 'it is finished or cancelled; reopen it first');
+  const helpers = helpersOf(c.metadata);
+  type To = { person_id: string | null; name: string; email: string; helper: boolean };
+  const to: To[] = [];
+  if (text(a.person_id)) {
+    const p = await personById(clientNumber, userId, text(a.person_id));
+    if (!p) return fail('not_found', 'no such person');
+    if (!p.email) return fail('no_email', 'a follow-up needs the person\'s email on record');
+    to.push({ person_id: p.id, name: p.name, email: p.email, helper: helpers.some((h) => h.person_id === p.id) });
+  } else {
+    if (c.delegateeEmail) to.push({ person_id: null, name: c.delegateeName || c.delegateeEmail, email: c.delegateeEmail, helper: false });
+    if (a.all === true) for (const h of helpers) to.push({ person_id: h.person_id, name: h.name, email: h.email, helper: true });
+    if (!to.length) return fail('bad_state', helpers.length ? 'it is not delegated; give person_id, or all: true for the helpers' : 'it is not delegated to anyone; give person_id');
+  }
+  const note = text(a.note).slice(0, 300);
+  const now = Date.now();
+  const recent = trailOf(c.metadata).filter((e) => /^Followed up: /.test(e.change) && now - Date.parse(e.at) < REPEAT_FOLLOWUP_MS);
+  const out: Array<{ name: string; person_id?: string; told: string; repeat?: true }> = [];
+  for (const t of to) {
+    const entry = `Followed up: ${t.name}`.slice(0, 160);
+    if (recent.some((e) => e.change === entry)) { out.push({ name: t.name, ...(t.person_id ? { person_id: t.person_id } : {}), told: 'pending', repeat: true }); continue; }
+    await trailPush(id, { who: 'you, through Suzi', change: entry, ...(note ? { note } : {}) });
+    const done = (st: ToldState) => (t.helper && t.person_id ? setHelperTold(id, t.person_id, st) : setTold(id, st));
+    if (!t.helper) await setTold(id, { state: 'pending' });
+    void tell(clientNumber, userId, gate, { itemId: id, title: c.title, due: c.due, note, person: { name: t.name, email: t.email }, role: 'followup', lead: c.lead, helpers: c.helpers })
+      .then((r) => done(toldState(r)))
+      .catch(() => done({ state: 'failed' }));
+    out.push({ name: t.name, ...(t.person_id ? { person_id: t.person_id } : {}), told: 'pending' });
+  }
+  const { actionById } = await import('./suziActions');
+  const action = await actionById(clientNumber, userId, id, timezone);
+  return action ? { ok: true, item: { ...action, followed_up: out } } : fail('not_found');
+}
+
+/** task.create helpers: [person_id] or [{person_id, note?}], at most 10. */
+function helpersArg(v: unknown): Array<{ person_id: string; note?: string }> {
+  if (!Array.isArray(v)) return [];
+  return v.slice(0, 10).map((h) => (typeof h === 'string' ? { person_id: h.trim() } : { person_id: text((h as any)?.person_id), note: text((h as any)?.note) || undefined }))
+    .filter((h) => h.person_id);
+}
+
 /** F-2.1 */
 export async function taskCreate(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate, timezone?: string): Promise<Result> {
   const title = text(a.title).slice(0, 200);
@@ -115,6 +253,7 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
   const due = text(a.due);
   if (due && (!DAY.test(due) || isNaN(Date.parse(`${due}T12:00:00Z`)))) return fail('bad_date');
   const personId = text(a.person_id);
+  if (helpersArg(a.helpers).length && !confirmed) return fail('needs_confirmation');
   if (personId) {
     if (!confirmed) return fail('needs_confirmation');
     const p = await personById(clientNumber, userId, personId);
@@ -140,9 +279,24 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
     itemState = (await setActionItemState(clientNumber, userId, source.meeting_id, source.item_id, 'accepted', item.id).catch(() => null)) ?? 'not_found';
   }
   const withItem = (r: Result): Result => (itemState && r.ok ? { ok: true, item: { ...(r.item as any), item_state: itemState } } : r);
-  if (personId) return withItem(await forwardTask(clientNumber, userId, item.id, { person_id: personId, note }, gate, timezone));
+  // T33 P2 + founder 18 Nov 14:39: one call makes a complete task: lead owner (person_id) and helpers together. Helpers
+  // are added first so the lead's note names them.
+  const helperArgs = helpersArg(a.helpers);
+  const added: Array<{ person_id: string; ok: boolean; error?: string }> = [];
+  const leadName = personId ? (await personById(clientNumber, userId, personId))?.name : undefined;
+  for (const h of helperArgs) {
+    const hr = await taskHelper(clientNumber, userId, { id: item.id, update: 'helper_add', person_id: h.person_id, note: h.note }, confirmed, gate, timezone, { leadName });
+    added.push(hr.ok ? { person_id: h.person_id, ok: true } : { person_id: h.person_id, ok: false, error: hr.error });
+  }
+  const withHelpers = async (r: Result): Promise<Result> => {
+    if (!helperArgs.length || !r.ok) return r;
+    const { actionById } = await import('./suziActions');
+    const fresh = await actionById(clientNumber, userId, item.id, timezone);
+    return { ok: true, item: { ...(r.item as any), ...(fresh?.helpers ? { helpers: fresh.helpers } : {}), helpers_added: added } };
+  };
+  if (personId) return withItem(await withHelpers(await forwardTask(clientNumber, userId, item.id, { person_id: personId, note }, gate, timezone)));
   const r = await applyFollowUp(clientNumber, userId, { actionId: item.id, update: 'note', note: note || 'Created through Suzi', timezone });
-  return withItem(r.ok ? { ok: true, item: r.action } : { ok: true, item: { id: item.id, title } });
+  return withItem(await withHelpers(r.ok ? { ok: true, item: r.action } : { ok: true, item: { id: item.id, title } }));
 }
 
 /** F-2.4 proof (a): the claim key for one rule forward of one message to one person. */
@@ -218,8 +372,21 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
   if (!row) return;
   const inp: any = row.input ?? {};
   const told = { delegationEmailedAt: new Date(), delegationEmailMessageId: messageId } as any;
+  // T33 P4: the thread of every task email that went (forward, helper, follow-up) is linked to the task.
+  const link = async (itemId: string) => {
+    if (!messageId) return;
+    const { threadOfMessage } = await import('../gmailService');
+    const { linkThread } = await import('./suziTaskTrail');
+    await linkThread(itemId, await threadOfMessage(row.userId as any, messageId), new Date()).catch(() => undefined);
+  };
   if (inp.tellOpenItemId) {
     await prisma.openItem.updateMany({ where: { id: String(inp.tellOpenItemId), clientNumber: row.clientNumber, userId: row.userId as any }, data: told });
+    await link(String(inp.tellOpenItemId)).catch(() => undefined);
+    return;
+  }
+  if (inp.tellTaskThreadOf) {
+    const mine = await prisma.openItem.findFirst({ where: { id: String(inp.tellTaskThreadOf), clientNumber: row.clientNumber, userId: row.userId as any }, select: { id: true } });
+    if (mine) await link(mine.id).catch(() => undefined);
     return;
   }
   const d = inp.delegate;
@@ -245,6 +412,7 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
   if (String(item.status ?? '').toUpperCase() === 'NEW') await changeStatus(item.id, row.clientNumber, 'TRIAGED' as any, `Delegating to ${d.person_name}`, actor);
   await delegateItem(item.id, row.clientNumber, null, d.person_name, d.person_email, d.note || 'Delegated through Suzi', actor);
   await prisma.openItem.update({ where: { id: item.id }, data: told });
+  await link(item.id).catch(() => undefined);
   await prisma.$executeRawUnsafe(
     `UPDATE agent_actions SET output = jsonb_set(output, '{send}', (output->'send') || $2::jsonb), updated_at = now() WHERE id = $1`,
     draftId, JSON.stringify({ task_id: item.id }),

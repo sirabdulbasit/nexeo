@@ -24,14 +24,14 @@ import { audit } from '../auditLogService';
 import { applyFollowUp } from './suziActions';
 import { EMAIL_OPS, runEmailOp } from './suziEmail';
 import { GAP_OPS, runGapOp } from './suziGaps';
-import { emailDelegate, taskCreate, taskForward } from './suziDelegate';
+import { emailDelegate, taskCreate, taskFollowup, taskForward, taskHelper } from './suziDelegate';
 import { CALENDAR_OPS, runCalendarOp } from './suziCalendar';
 import { MEETING_OPS, runMeetingOp } from './suziMeetings';
 import { W1_OPS, runW1Op } from './suziW1';
 import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 
-export const ACT_OPS = ['task.update', 'task.create', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS] as const;
+export const ACT_OPS = ['task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -73,12 +73,18 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   if ((W1_OPS as readonly string[]).includes(req.op)) return runW1Op(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, { ...gate, deviceId: req.device_id ?? null });
   if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
-  if (req.op === 'task.update' && req.args?.update === 'forward') return taskForward(clientNumber, userId, req.args, req.confirmed_by_user === true, gate, req.timezone);
+  // T37: `action` is accepted as another name for `update` (Suzi's rename proposal used it).
+  const upd = String(req.args?.update ?? req.args?.action ?? '');
+  if (req.op === 'task.update' && upd === 'forward') return taskForward(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
+  // T33 P2-P3 (both AGREE 17 Nov): helpers and follow-ups.
+  if (req.op === 'task.update' && (upd === 'helper_add' || upd === 'helper_remove')) return taskHelper(clientNumber, userId, { ...(req.args ?? {}), update: upd }, req.confirmed_by_user === true, gate, req.timezone);
+  if (req.op === 'task.followup') return taskFollowup(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'task.update') {
     const a = req.args ?? {};
     const r = await applyFollowUp(clientNumber, userId, {
       actionId: String(a.id ?? ''),
-      update: String(a.update ?? ''),
+      update: upd,
+      title: typeof a.title === 'string' ? a.title : undefined,
       due: typeof a.due === 'string' ? a.due : undefined,
       note: typeof a.note === 'string' ? a.note : undefined,
       personId: typeof a.person_id === 'string' ? a.person_id : undefined,

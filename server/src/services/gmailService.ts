@@ -524,6 +524,17 @@ export async function sendGmailDraft(userId: number, draftId: string): Promise<{
   }
 }
 
+/** T33 P4: the Gmail thread a sent message belongs to, so replies on it reach the task. Null when it can't be read. */
+export async function threadOfMessage(userId: number, messageId: string): Promise<string | null> {
+  const { client } = await getAuthenticatedClient(userId);
+  if (!client || !messageId) return null;
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    const r = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'minimal' });
+    return r.data.threadId ?? null;
+  } catch { return null; }
+}
+
 /**
  * F-2.4 proof (c): the receipt. Reads a just-sent message back from his mailbox; it counts as delivered only when
  * Gmail lists it with the SENT label. `unknown` = it could not be read (try again), never "delivered".

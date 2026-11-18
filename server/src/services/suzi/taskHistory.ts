@@ -14,13 +14,14 @@
  * can't appear. Notes and follow-ups are kept bounded, so the oldest of a long history may be gone.
  */
 import prisma from '../../db/prisma';
+import { trailOf, taskReplies, REPLY_NOTE_MAX, type TrailEntry } from './suziTaskTrail';
 
 export const HISTORY_MAX = 20;
 /** T33 Q1 (both AGREE 17 Nov): the whole trail on request (`all`), at most this many; `asc` = oldest first. */
 export const HISTORY_ALL_MAX = 500;
 const NOTE_MAX = 300;
 
-export interface HistoryEntry { at: string; who: string; change: string; note?: string }
+export interface HistoryEntry { at: string; who: string; change: string; note?: string; thread_id?: string; email_id?: string }
 export interface StatusRow { at: Date; from: string; to: string; actor: string | null; reason: string | null }
 type Item = { createdAt?: Date | null; notes?: unknown; delegationTrail?: unknown; metadata?: unknown; delegateeName?: string | null };
 type Ev = HistoryEntry & { real: boolean; ms: number };
@@ -43,13 +44,17 @@ function whoOfActor(actor: string | null, userId: number): string {
   return 'Nexeo';
 }
 
-function events(item: Item, status: StatusRow[], userId: number): Ev[] {
+function events(item: Item, status: StatusRow[], userId: number, extra: TrailEntry[] = []): Ev[] {
   const out: Ev[] = [];
-  const push = (at: unknown, who: string, change: string, real: boolean, note?: string) => {
+  const push = (at: unknown, who: string, change: string, real: boolean, note?: string, link?: { thread_id?: string; email_id?: string }) => {
     const t = ms(at);
     if (!Number.isFinite(t)) return;
-    out.push({ at: new Date(t).toISOString(), ms: t, who, change, real, ...(note ? { note } : {}) });
+    out.push({ at: new Date(t).toISOString(), ms: t, who, change, real, ...(note ? { note } : {}), ...(link?.thread_id ? { thread_id: link.thread_id } : {}), ...(link?.email_id ? { email_id: link.email_id } : {}) });
   };
+  // T33 P2-P4 + T37: helpers, follow-ups and renames (metadata.suziTrail), and replies on the task's threads (read by
+  // the caller from the Wiki's email sources). All are real changes.
+  for (const e of trailOf(item.metadata)) push(e.at, e.who, e.change, true, cut(e.note));
+  for (const r of extra) push(r.at, r.who, r.change, true, r.note ? r.note.replace(/\s+/g, ' ').trim().slice(0, REPLY_NOTE_MAX) : undefined, r);
 
   push(item.createdAt, 'Nexeo', 'Created', true);
 
@@ -100,8 +105,8 @@ function events(item: Item, status: StatusRow[], userId: number): Ev[] {
  * everything that really happened), so the same Nexeo step is folded into one line with a count, at its
  * latest time; real events are never folded.
  */
-export function historyOf(item: Item, status: StatusRow[], userId: number, opts: { all?: boolean; asc?: boolean } = {}): HistoryEntry[] {
-  const sorted = events(item, status, userId).sort((a, b) => b.ms - a.ms);
+export function historyOf(item: Item, status: StatusRow[], userId: number, opts: { all?: boolean; asc?: boolean; replies?: TrailEntry[] } = {}): HistoryEntry[] {
+  const sorted = events(item, status, userId, opts.replies).sort((a, b) => b.ms - a.ms);
   const out: Array<HistoryEntry & { n: number; key?: string }> = [];
   const folded = new Map<string, HistoryEntry & { n: number }>();
   for (const e of sorted) {
@@ -113,7 +118,8 @@ export function historyOf(item: Item, status: StatusRow[], userId: number, opts:
       folded.set(key, entry);
       out.push(entry);
     } else {
-      out.push({ at: e.at, who: e.who, change: e.change, ...(e.note ? { note: e.note } : {}), n: 1 });
+      const { real: _r, ms: _m, ...h } = e;
+      out.push({ ...h, n: 1 });
     }
   }
   const kept = out.slice(0, opts.all ? HISTORY_ALL_MAX : HISTORY_MAX).map(({ n, ...h }) => (n > 1 ? { ...h, change: `${h.change} (${n} times)` } : h));
@@ -121,8 +127,8 @@ export function historyOf(item: Item, status: StatusRow[], userId: number, opts:
 }
 
 /** The latest real change, or null when nothing is recorded. */
-export function changedAt(item: Item, status: StatusRow[], userId: number): Date | null {
-  const real = events(item, status, userId).filter((e) => e.real);
+export function changedAt(item: Item, status: StatusRow[], userId: number, replies: TrailEntry[] = []): Date | null {
+  const real = events(item, status, userId, replies).filter((e) => e.real);
   return real.length ? new Date(Math.max(...real.map((e) => e.ms))) : null;
 }
 
@@ -158,5 +164,6 @@ export async function taskHistory(clientNumber: string, userId: number, id: stri
   if (!item) return { ok: false, error: 'not_found', detail: 'no such task' };
   let checked = true;
   const status = await statusRowsFor(clientNumber, userId, [id]).catch(() => { checked = false; return new Map<string, StatusRow[]>(); });
-  return { ok: true, history: historyOf(item as Item, status.get(id) ?? [], userId, opts), checked };
+  const replies = await taskReplies(clientNumber, userId, [{ id, metadata: (item as any).metadata }]).catch(() => { checked = false; return new Map<string, TrailEntry[]>(); });
+  return { ok: true, history: historyOf(item as Item, status.get(id) ?? [], userId, { ...opts, replies: replies.get(id) ?? [] }), checked };
 }

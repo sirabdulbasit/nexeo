@@ -4,6 +4,7 @@
  * miss here costs a delay, never data. `wiki` joins the list when wiki slices are in the pack: pages change all day,
  * so reporting it now would make every tick fetch.
  */
+import { REPLY_CHANGED_SQL } from './suziTaskTrail';
 import prisma from '../../db/prisma';
 import { rulesDocument } from './suziRules';
 
@@ -25,7 +26,7 @@ export async function changesSince(clientNumber: string, userId: number, since: 
   await rulesDocument(clientNumber, userId).catch(() => null);
   const rows = await prisma.$queryRawUnsafe<Array<Record<ChangeType, boolean>>>(
     `SELECT
-       EXISTS (SELECT 1 FROM open_items WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) AS actions,
+       (EXISTS (SELECT 1 FROM open_items WHERE client_number = $1 AND user_id = $2 AND updated_at > $3) OR ${REPLY_CHANGED_SQL}) AS actions,
        (EXISTS (SELECT 1 FROM feed_events WHERE client_number = $1 AND user_id = $2 AND source_type IN ${CALENDAR_SOURCES} AND created_at > $3)
         -- suzi-b5 AGREE 16 Nov: one of his meeting records really changed (status/reason, notes, items; changed_at is set
         -- only on a real change, so a write that moves updated_at alone flags nothing). His leave (his_choice) flags too.
