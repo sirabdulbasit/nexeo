@@ -1022,3 +1022,9 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - Totally free, held in code: the central Claude loop (`operator/start`) answers `{status: "local", reason: "central_off"}` unless the server has `OPERATOR_CENTRAL=on`.
 - Limits are the customer's, so `used` counts the customer's runs. The desktop enforces the limits from the pack; Nexeo still records a run reported over the limit.
 - Tests: `tests/t41Operator.test.ts`, 16, each rule mutation-checked (6 mutations, each caught).
+
+**Live and agreed further, 18 Nov 2026 (D-301 16:48:48 PKT; Suzi-Builder 16:51:07 PKT):**
+- Until C1 ships, "Operate the computer" on the Mac rules as today. **From C1 on the Mac follows the pack:** `operator.enabled: false` means no run starts, and she says an admin must record consent and switch it on. So his customer needs consent recorded before C1 goes live, or the operator stops on his Mac.
+- The desktop refuses a new run when `used` reaches a limit (customer-wide) and says so; a report past the limit is still sent and kept.
+- Suzi writes charter row 13, B and the C6 line on 19 Nov (morning), with the T35 text; Nexeo mirrors it.
+- Suzi sends one real `operator.report` and one `operator.permission` from the Mac when C1 is in, with the frames.
