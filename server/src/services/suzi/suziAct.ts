@@ -71,7 +71,7 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
   if (req.op.startsWith('delegation.') || req.op.startsWith('instruction.')) return runDelegationOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   // W-1 (agreed 13 Nov): identity, profile and device reports go into the Wiki.
   if ((W1_OPS as readonly string[]).includes(req.op)) return runW1Op(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, { ...gate, deviceId: req.device_id ?? null });
-  if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
+  if (req.op.startsWith('meeting.')) return runMeetingOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op.startsWith('calendar.')) return runCalendarOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   // T37: `action` is accepted as another name for `update` (Suzi's rename proposal used it).
   const upd = String(req.args?.update ?? req.args?.action ?? '');

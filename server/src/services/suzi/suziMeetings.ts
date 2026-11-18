@@ -49,7 +49,7 @@ function lines(v: unknown): TranscriptLine[] {
 }
 
 export async function runMeetingOp(
-  clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: { signatureVerified: boolean },
+  clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: { signatureVerified: boolean }, timezone?: string,
 ): Promise<Result> {
   // Way A (16 Nov): meeting.attend {event_id, way:"google_transcript"} switches his hosted Meet's transcription on.
   if (op === 'meeting.attend' && text(a.way) === 'google_transcript') {
@@ -63,8 +63,18 @@ export async function runMeetingOp(
   if (op === 'meeting.leave' && text(a.event_id) && text(a.meeting_id)) return fail('bad_args', 'exactly one of event_id or meeting_id');
   if (op === 'meeting.attend' || op === 'meeting.leave') return fail('not_yet', 'joining as a participant (Way B) is not built yet');
   if (op === 'meeting.list') {
-    const from = text(a.from) ? new Date(text(a.from)) : undefined;
-    const to = text(a.to) ? new Date(text(a.to)) : undefined;
+    // T39 r3 (18 Nov): a bare date is his local day; `to` includes the whole of it (to: "2026-11-16" found nothing).
+    const { localDayStart } = await import('./zonedTime');
+    const { safeTimezone } = await import('./dayBriefFacts');
+    const tz = safeTimezone(timezone);
+    const DAY = /^\d{4}-\d{2}-\d{2}$/;
+    const at = (v: string, end: boolean) => {
+      if (!DAY.test(v)) return new Date(v);
+      const next = end ? new Date(Date.parse(`${v}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10) : v;
+      return localDayStart(next, tz) ?? new Date(NaN);
+    };
+    const from = text(a.from) ? at(text(a.from), false) : undefined;
+    const to = text(a.to) ? at(text(a.to), true) : undefined;
     if ((from && isNaN(from.getTime())) || (to && isNaN(to.getTime()))) return fail('bad_date');
     const rows = await listRecords(clientNumber, userId, { from, to, person: text(a.person) || undefined });
     return { ok: true, item: { meetings: rows.map((r) => toWire(r, false)) } };

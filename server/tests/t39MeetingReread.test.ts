@@ -45,3 +45,17 @@ describe('meeting.reread', () => {
     expect(ingest).not.toHaveBeenCalled();
   });
 });
+
+describe('meeting.list dates (T39 r3)', () => {
+  it('a bare date is his local day; to includes the whole day', async () => {
+    const { localDayStart } = await import('../src/services/suzi/zonedTime');
+    expect(localDayStart('2026-11-16', 'Asia/Karachi')?.toISOString()).toBe('2026-11-15T19:00:00.000Z');
+    expect(localDayStart('2026-03-29', 'Europe/London')?.toISOString()).toBe('2026-03-29T00:00:00.000Z');
+    expect(localDayStart('2026-07-01', 'Europe/London')?.toISOString()).toBe('2026-06-30T23:00:00.000Z');
+    expect(localDayStart('16 Nov', 'Asia/Karachi')).toBeNull();
+    const store = await import('../src/services/meetings/meetingRecordStore');
+    const spy = vi.spyOn(store, 'listRecords').mockResolvedValue([]);
+    await runMeetingOp('T', 2, 'meeting.list', { from: '2026-11-16', to: '2026-11-16' }, false, G, 'Asia/Karachi');
+    expect(spy.mock.calls[0][2]).toMatchObject({ from: new Date('2026-11-15T19:00:00.000Z'), to: new Date('2026-11-16T19:00:00.000Z') });
+  });
+});
