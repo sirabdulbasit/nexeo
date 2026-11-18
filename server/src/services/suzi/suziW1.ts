@@ -31,6 +31,10 @@ async function userName(clientNumber: string, userId: number): Promise<string> {
   return String(u?.name || u?.email || `User ${userId}`);
 }
 export const profileTitle = (name: string) => `How to work with ${name}`;
+/** T36 (18 Nov): raw habit data Suzi sends for Nexeo's learning curve. Stored and returned in profile{} exactly as
+ *  sent, but never printed as a line of the readable note (they are not sentences about him). */
+export const RAW_PROFILE_KEYS = ['brief.history', 'speech.counts'] as const;
+const isRawKey = (k: string) => (RAW_PROFILE_KEYS as readonly string[]).includes(k);
 
 /** His profile note's facts, for the pack's profile{} (key -> value). null when there is none or it cannot be read. */
 export async function profileOf(clientNumber: string, userId: number): Promise<Record<string, unknown> | null> {
@@ -113,7 +117,7 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
       });
     }
     const keys = Object.keys(merged).filter((k) => k.startsWith('profile.')).sort();
-    const lines = keys.map((k) => { const v: any = merged[k]; return `- **${k.slice(8)}**: ${typeof v?.value === 'string' ? v.value : JSON.stringify(v?.value)} (seen ${v?.evidence_count ?? 0} times)`; });
+    const lines = keys.filter((k) => !isRawKey(k.slice(8))).map((k) => { const v: any = merged[k]; return `- **${k.slice(8)}**: ${typeof v?.value === 'string' ? v.value : JSON.stringify(v?.value)} (seen ${v?.evidence_count ?? 0} times)`; });
     // Only sources the Wiki holds are cited (a key learned before sources were kept has none yet).
     const { sourcesHeld } = await import('../wiki/wikiSources');
     const heldMap = await sourcesHeld(clientNumber, userId, keys.map((k) => keySource(k.slice(8)))).catch(() => new Map<string, unknown>());

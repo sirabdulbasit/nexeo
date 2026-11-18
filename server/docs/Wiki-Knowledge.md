@@ -700,6 +700,23 @@ Verdict given: architecture progressing; identity no longer circling but under e
 
 **Held until the founder answers §0.24:** no new note type is started. The five groups still outside the Wiki (§0.23) stay listed, not built.
 
+### 0.26 His habits live in the Wiki: Suzi's raw habit data (T36, 18 Nov 2026, founder via Suzi-Builder; Nexeo-Builder)
+
+The founder (18 Nov): when Suzi starts she fetches what she knows of him from Nexeo, and Nexeo keeps building a learning
+curve from it. Suzi sends two new `profile.update` keys: `brief.history` (his last 8 answers per brief part: details,
+acted, skipped, stopped) and `speech.counts` (utterances, English and Urdu word counts, his most used English words).
+
+- **Built (D-294):** both keys are stored in the note "How to work with <user>" and returned in the pack's `profile{}`
+  exactly as sent (objects). They are **not printed as lines** of the note's readable body (`RAW_PROFILE_KEYS`,
+  `suziW1.ts`); each still has its own source, so the trail holds them. Other keys are unchanged.
+- **Already true, now pinned by a test:** an unknown or malformed key does not refuse the call; it is dropped, and only a
+  call with no good key is refused (`bad_notes`).
+- **Proposed, not built (waits on Suzi's AGREE):** the learning curve. From `brief.history`, the parts he skips or stops
+  most move later and get shorter, the parts he opens get more detail; from `speech.counts`, his English share week by
+  week. Counting only, no AI call, so no cost. Written into the same note as readable `brief.<part>` advice, which Suzi
+  already reads.
+- **Not verified live:** Suzi's first real send comes at his next restart on the Mac.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

@@ -64,6 +64,28 @@ describe('profile and device report', () => {
     expect(notes[0].body).not.toContain('memory.tea');
     expect(notes[0].body).toContain('- **brief.length**: short');
   });
+  it('T36: brief.history and speech.counts are stored and returned as sent, never printed as note lines', async () => {
+    const hist = { summary: ['details', 'skipped'], meetings: ['acted'], actions: [], emails: ['stopped'] };
+    const counts = { utterances: 12, english_words: 80, urdu_words: 20, english: { meeting: 4 } };
+    const r = await runW1Op('T', 2, 'profile.update', { notes: [
+      { key: 'brief.history', value: hist, evidence_count: 4 }, { key: 'speech.counts', value: counts, evidence_count: 12 },
+      { key: 'brief.summary', value: 'keep it to two lines', evidence_count: 3 }] }, true, signed);
+    expect(r).toMatchObject({ ok: true, item: { keys: ['brief.history', 'speech.counts', 'brief.summary'] } });
+    expect(notes[0].properties['profile.brief.history'].value).toEqual(hist);
+    expect(notes[0].properties['profile.speech.counts'].value).toEqual(counts);
+    expect(notes[0].body).toContain('- **brief.summary**: keep it to two lines');
+    expect(notes[0].body).not.toContain('brief.history');
+    expect(notes[0].body).not.toContain('speech.counts');
+    have.props = notes[0].properties;
+    const { profileOf } = await import('../src/services/suzi/suziW1');
+    expect(await profileOf('T', 2)).toMatchObject({ 'brief.history': hist, 'speech.counts': counts });
+    have.props = null;
+  });
+  it('T36 item 4: an unknown or bad key does not refuse the call; only a call with no good key is refused', async () => {
+    const r = await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'some.new_key', value: { a: 1 } }, { key: 'bad key!', value: 1 }] }, true, signed);
+    expect(r).toMatchObject({ ok: true, item: { keys: ['some.new_key'] } });
+    expect(await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'bad key!', value: 1 }] }, true, signed)).toMatchObject({ error: 'bad_notes' });
+  });
   it('device.report is one record per device per day', async () => {
     await runW1Op('T', 2, 'device.report', { settings: { voice: 'on' }, audit: [{ op: 'x' }], usage: { minutes: 3 } }, false, unsigned);
     expect(saved[0]).toMatchObject({ kind: 'record', details: { type: 'device_report', device_id: 'dev-1', settings: { voice: 'on' }, usage: { minutes: 3 } } });
