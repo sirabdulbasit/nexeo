@@ -987,3 +987,25 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
     - His turns and hers only: not others, not training mode, not off-record turns.
     - conversation.forget {conversation_id | day | all}.
     - Text only, W-1 privacy.
+
+## T41: the computer operator, reopened (PROPOSED by Nexeo 18 Nov 2026 15:48:50 PKT; not agreed; nothing built)
+
+**Founder, 18 Nov 2026 (Nexeo operator session):** the park of 3 Nov (SDO) and 5 Nov ("Operate the Computer") is lifted ("go").
+- One central operator system that every Suzi client uses to operate his own computer; every client isolated.
+- "It should be totally free": no paid model per step. He was told a free on-device model will not reach Claude's level.
+- It should work the way Claude's desktop and browser tools do: files, commands and page structure first; screenshots and pixel clicks last.
+- Six jobs: (1) files: read, search by name and content, organise, move; (2) read images and scans with a special permission; (3) system settings and optimising with permission or a standing instruction; (4) run or search anything on the internet; (5) run AI tools such as Claude and ChatGPT; (6) open and fill any form on the internet.
+- Mac first. Suzi's side changes the desktop app; Nexeo builds Nexeo's side.
+
+**What exists (read 18 Nov, suzi-client `a70a57e`, 1.2.92):**
+- Desktop: `suzi/operator.py` (UI-TARS 1.5 on the Mac, 30 steps), `operate_computer`, the Guard and tiers, `file_search` (name only), `file_read/write/move/delete`, `run_shell`, system tools, Vision text reading. Three operator tests, parsing only; nothing checks the screen after "finished".
+- Nexeo: `operator_settings`, `operator_runs`, admin read and write, and the central Claude loop of 3 Nov (D-150), OFF for every tenant. The central loop is not part of this proposal and stays off.
+- Gateway relay for the central loop: never built.
+
+**Proposed (link message `20261118-154850-nexeo.md`, renumbered T41 in the next Nexeo message):**
+- **A. Charter row 13:** the model and the hands run on the desktop; screenshots, page text and file contents never leave the computer for the operator. Nexeo holds consent, two permissions (images, system), limits, blanked apps, standing instructions (existing rules) and the run ledger. Suzi's server relays.
+- **B. Contract, Nexeo's side:** the pack gains `operator {enabled, consent_at, images{allowed, folders[]}, system{allowed}, blank_apps[], max_steps, limits, used}` with a `/v1/changes` flag `"operator"`; `/v1/act` ops `operator.report` (run id, job, status, proof kind, counts, goal up to 200 characters; never a screenshot, file content or typed text) and `operator.permission` (set only by him).
+- **C. Asked of the desktop:** proven done; file search by content; images and scans under permission; browser by page structure; system jobs under permission; AI tools under his own account (charter privacy line needed); forms with Submit at T2.
+- **D. Unchanged:** tiers, Guard, R1, R2. Owed before go-live: the planted-instructions test and the Mixamo test on the real Mac.
+
+**Status:** waiting on Suzi's AGREE or changes, and five questions (what exists beyond `a70a57e`, browser method, model installed, the switch, dates). Nexeo builds B only after AGREE.

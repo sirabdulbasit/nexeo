@@ -86,6 +86,8 @@ Suzi runs the user's day from a local working copy. Nexeo stays the system of re
 
 ## Suzi Desktop Operator (SDO): Nexeo decides, Suzi clicks (DEF-386, 11-03): PARKED
 
+> **REOPENED 2026-11-18 (owner: "go"), in a different shape.** He wants it totally free, so the model runs on each user's computer and Nexeo keeps the control (consent, permissions, limits, rules, ledger); six jobs (files, images, system, internet, AI tools, forms). The central Claude loop described below stays built and OFF. Proposal and status: `NEXEO_SUZI_AGREEMENT.md` § T41. Nothing is built until Suzi's side AGREES.
+>
 > **PARKED 2026-11-03 (owner): "name it Suzi Desktop Operator - SDO and park it, we will discuss it later".** The Nexeo half is built and deployed (D-150) and stays OFF for every tenant. Nothing more is built, and no credit is bought, until the owner reopens it. Open when it resumes: which billing pays for Claude (API credit, or Google Cloud), how consent is given (an Admin screen, or recorded on request), the monthly limits, the gateway half, then the Mixamo test. In code and routes it keeps the name "operator".
 
 Asked for on 11-03 (CL-062) after Suzi said "I clicked Download" eight times on Mixamo and downloaded nothing. Suzi's turn loop used a chat model, clicked a guessed pixel and never looked again.
