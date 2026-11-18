@@ -9,6 +9,7 @@ import LlmSpendTab from './admin/LlmSpendTab';
 import OrchestratorSpendTab from './admin/OrchestratorSpendTab';
 import ConnectorsAdminTab from './admin/ConnectorsAdminTab';
 import IntegrationsTab from './admin/integrations/IntegrationsTab';
+import OperatorTab from './admin/OperatorTab';
 
 /**
  * Admin surface — grouped by WHAT A SETTING APPLIES TO.
@@ -98,6 +99,8 @@ export default function AdminPage() {
     { key: 'connectors', label: 'Connectors' },
     { key: 'integrations', label: 'Integrations' },
     { key: 'sources',    label: 'Knowledge Sources' },
+    // Link T41 (founder, 18 Nov 2026): consent, switch and limits for Suzi's computer operator.
+    { key: 'operator',   label: 'Computer Operator' },
     ...(user?.isSuperAdmin ? [{ key: 'licenses', label: 'Licence' }] : []),
   ];
 
@@ -185,6 +188,9 @@ export default function AdminPage() {
         )}
         {activeTab === 'client' && clientSub === 'sources' && (
           <ClientManagementTab user={user} msg={msg} setMsg={setMsg} section="connectors" />
+        )}
+        {activeTab === 'client' && clientSub === 'operator' && (
+          <OperatorTab user={user} setMsg={setMsg} />
         )}
         {activeTab === 'client' && clientSub === 'licenses' && user?.isSuperAdmin && (
           <LicensesTab msg={msg} setMsg={setMsg} />

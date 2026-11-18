@@ -1028,3 +1028,4 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - The desktop refuses a new run when `used` reaches a limit (customer-wide) and says so; a report past the limit is still sent and kept.
 - Suzi writes charter row 13, B and the C6 line on 19 Nov (morning), with the T35 text; Nexeo mirrors it.
 - Suzi sends one real `operator.report` and one `operator.permission` from the Mac when C1 is in, with the frames.
+- **Portal screen (18 Nov, client built ~17:00 PKT):** Admin → Client Specific → Computer Operator (`client/src/pages/admin/OperatorTab.jsx`): record or withdraw consent, switch on or off, apps to keep hidden, this month's use; limits for a super admin. It uses the existing `GET/PUT /api/v1/admin/operator`. NOT VERIFIED in a browser (built and in the bundle only).
