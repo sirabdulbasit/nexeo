@@ -183,6 +183,12 @@ Read as:
 
 This answers (b): rules and tasks also live in the vault. Voiceprint, faceprint and learning stay in Nexeo (ruled earlier).
 
+**Owner, 19 Nov: two models of Suzi.**
+1. **Nexeo Owned Data:** the wiki is the Nexeo wiki. This is how everything works today.
+2. **Client Owned Data:** the wiki is the client's Obsidian vault, and Suzi uses it.
+
+The per-user wiki kind is the choice between these two models.
+
 **Owner, 19 Nov (g): "obviously when mac is off nothing could be run".** For an Obsidian user, Nexeo keeps no working
 copy of rules, tasks or contacts. While the Mac is off, no rule runs, no reminder fires, and the Action Center and the
 brief say "Obsidian is unreachable".
