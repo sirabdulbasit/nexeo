@@ -58,7 +58,7 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
   const [availableTiers, setAvailableTiers] = useState([]);
 
   // ─── New User form ───────────────────────────────────────────
-  const [newUser, setNewUser] = useState({ empcode: '', name: '', email: '', password: '', userType: 'ST', department: '', clientNumber: '', expiresAt: '' });
+  const [newUser, setNewUser] = useState({ empcode: '', name: '', email: '', password: '', userType: 'ST', department: '', clientNumber: '', expiresAt: '', knowledgeModel: 'nexeo' });
   // "Is this a demo user?" toggle. When ON, expiresAt becomes required
   // and the date picker is revealed. demoExpirySuspendJob auto-suspends
   // the user at the chosen time.
@@ -161,7 +161,7 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
       } else {
         setMsg(isDemo ? 'Demo user created — will auto-suspend at expiry' : 'User created');
       }
-      setNewUser({ empcode: '', name: '', email: '', password: '', userType: 'ST', department: '', clientNumber: '', expiresAt: '' });
+      setNewUser({ empcode: '', name: '', email: '', password: '', userType: 'ST', department: '', clientNumber: '', expiresAt: '', knowledgeModel: 'nexeo' });
       setIsDemo(false);
       setDemoExpiryDate('');
       setDemoDays(7);
@@ -326,6 +326,20 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
                   </select>
                 </div>
                 <div className="settings-field"><label>Department</label><input value={newUser.department} onChange={e => setNewUser(u => ({ ...u, department: e.target.value }))} placeholder="Optional" /></div>
+              </div>
+              {/* Nexeo Owned Data or Client Owned Data (founder, 19 Nov 2026). Chosen here, once:
+                   the server has no way to change it afterwards. */}
+              <div className="settings-field" style={{ marginTop: 8 }}>
+                <label>Knowledge</label>
+                <select value={newUser.knowledgeModel} onChange={e => setNewUser(u => ({ ...u, knowledgeModel: e.target.value }))}>
+                  <option value="nexeo">Nexeo Owned Data — knowledge is kept in the Nexeo wiki</option>
+                  <option value="external">Client Owned Data — knowledge stays in the user's own Obsidian vault</option>
+                </select>
+                {newUser.knowledgeModel === 'external' && (
+                  <div style={{ fontSize: 12, color: 'var(--n-bbbbbb)', marginTop: 4 }}>
+                    Nexeo fetches and stores nothing for this user and works only while the user's Mac is on. This cannot be changed after the user is created.
+                  </div>
+                )}
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--n-bbbbbb)', marginTop: 8 }}>
                 <input

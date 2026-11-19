@@ -37,6 +37,7 @@
  *     moved so `unmergeNote` can put it back.
  */
 import prisma from '../../db/prisma';
+import { assertNoteMayBeStored } from './knowledgeModel';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
 import { citeSources, assertCitable } from './wikiSources';
 
@@ -277,6 +278,8 @@ const WRITE_RETRIES = 4;
 export async function writeNote(input: NoteInput): Promise<WriteResult> {
   if (!cleanTitle(input.title)) throw new Error('wikiStore.writeNote: a note needs a title');
   if (!input.type) throw new Error('wikiStore.writeNote: a note needs a type');
+  // Client Owned Data (founder, 19 Nov): only his profile note and learned notes are stored here.
+  await assertNoteMayBeStored(input);
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await prisma.$transaction((tx: any) => writeNoteIn(tx, input), { timeout: 30_000 });

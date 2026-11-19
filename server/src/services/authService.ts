@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
+import { isKnowledgeModel, type KnowledgeModel } from './wiki/knowledgeModel';
 import prisma from '../db/prisma';
 import { getUserTypeConfig } from '../config/userTypes';
 import { getConfig } from './configService';
@@ -61,9 +62,17 @@ export async function createUser(data: {
   /** Optional ISO-8601 string for demo accounts. demoExpirySuspendJob
    *  auto-suspends the user once this passes. NULL = permanent. */
   expiresAt?: string | null;
+  /** Nexeo Owned Data (default) or Client Owned Data. Chosen here, once; there is no setter afterwards
+   *  (founder, 19 Nov 2026; services/wiki/knowledgeModel.ts). */
+  knowledgeModel?: KnowledgeModel;
 }) {
+  const model = data.knowledgeModel ?? 'nexeo';
+  if (!isKnowledgeModel(model)) throw new Error('createUser: knowledgeModel must be nexeo or external');
   const passwordHash = await bcrypt.hash(data.password, SALT_ROUNDS);
-  return prisma.user.create({
+  // The user and his model are written together: a Client Owned Data user never exists as a Nexeo one,
+  // not even for a moment, so no job can fetch his mail in between.
+  return prisma.$transaction(async (tx: any) => {
+    const user = await tx.user.create({
     data: {
       clientNumber: data.clientNumber,
       empcode: data.empcode,
@@ -74,6 +83,12 @@ export async function createUser(data: {
       department: data.department,
       expiresAt: data.expiresAt ? new Date(data.expiresAt) : null,
     },
+    });
+    if (model !== 'nexeo') {
+      const n = await tx.$executeRawUnsafe(`UPDATE users SET knowledge_model = $1 WHERE id = $2`, model, user.id);
+      if (n !== 1) throw new Error('createUser: the knowledge model could not be set');
+    }
+    return { ...user, knowledgeModel: model };
   });
 }
 

@@ -25,6 +25,7 @@ import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { writeNote, retireNote, mergeNotes, listSources, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
 import { prunedAndUnchanged, unchangedNote, citationsOf } from './wikiSync';
+import { isExternalKnowledge } from './knowledgeModel';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
@@ -737,6 +738,8 @@ export interface RebuildResult {
   learned?: { rows: number; written: number; retired: number } | { error: string } | null;
   conversations?: { notes: number; written: number; retired: number } | { error: string } | null;
   upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
+  /** A Client Owned Data user: only what was learned from him is built; nothing else is read or written. */
+  external?: true;
 }
 
 /** A step of the build that must not undo the steps before it: its failure is reported, not thrown. */
@@ -755,6 +758,16 @@ export async function rebuildWikiForUser(
   userId: number,
   opts: { dryRun?: boolean } = {},
 ): Promise<RebuildResult> {
+  // Client Owned Data (founder, 19 Nov): his knowledge is in his own vault. Nothing of his is read or built
+  // here except what Nexeo and Suzi learned about how he works, which stays in Nexeo.
+  if (await isExternalKnowledge(clientNumber, userId)) {
+    const learned = opts.dryRun ? null : await step(async () => {
+      const { rebuildLearnedForUser } = await import('./wikiLearned');
+      const l = await rebuildLearnedForUser(clientNumber, userId);
+      return { rows: l.rows, written: l.written, retired: l.retired };
+    });
+    return { items: 0, notes: [], written: 0, created: 0, unchanged: 0, retired: 0, renamed: 0, merged: 0, byType: {}, rules: null, meaning: null, companies: null, documents: null, upkeep: null, learned, conversations: null, external: true };
+  }
   // A company's real name is read before the build that titles it (at most a few new companies per run).
   let companies: RebuildResult['companies'] = null;
   if (!opts.dryRun) {

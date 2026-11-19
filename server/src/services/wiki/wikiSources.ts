@@ -14,6 +14,7 @@
  */
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
+import { assertSourceMayBeStored } from './knowledgeModel';
 
 export type SourceKind =
   | 'email' | 'calendar' | 'chat' | 'whatsapp' | 'task'
@@ -124,6 +125,9 @@ export function keepsHeldText(held: HeldText | null, incoming: { hash: string | 
 export async function saveSource(input: SourceInput): Promise<{ id: string; created: boolean; textReplaced: boolean }> {
   const externalId = String(input.externalId ?? '').trim();
   if (!externalId) throw new Error('wikiSources.saveSource: a source needs its own id');
+  // Client Owned Data (founder, 19 Nov): only his identity and learning are stored here. Refused at the door,
+  // so a caller that forgot to ask the guard still stores nothing.
+  await assertSourceMayBeStored(input);
   const id = sourceId(input.clientNumber, input.userId, input.kind, externalId);
   const text = textOf(input.body);
   const hash = text ? textHash(text) : null;

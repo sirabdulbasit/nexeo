@@ -37,6 +37,7 @@ import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
+import { isExternalKnowledge, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -138,6 +139,8 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+  // Client Owned Data (charter, 19 Nov): his knowledge is in his vault; Suzi reads it on the Mac.
+  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; }
   if (!q) { res.status(400).json({ error: 'q is required' }); return; }
   try {
     const results = await searchKnowledge(who.tenantId, who.userId, q);

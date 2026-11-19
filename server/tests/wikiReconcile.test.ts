@@ -25,6 +25,14 @@ const t = vi.hoisted(() => ({
   scribed: true,
 }));
 
+// These tests are about the store itself: every user here is a Nexeo Owned Data user (the door for
+// Client Owned Data users is tested in knowledgeModel.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  isExternalKnowledge: async () => false,
+  assertSourceMayBeStored: async () => undefined,
+  assertNoteMayBeStored: async () => undefined,
+}));
 vi.mock('../src/db/prisma', () => {
   const p: any = {
     feedEvent: {

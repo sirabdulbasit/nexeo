@@ -26,6 +26,8 @@ export const createUserSchema = z.object({
   // auto-suspend (is_active=false) at this time. ISO-8601 string;
   // the route parses to Date before persisting. NULL = permanent account.
   expiresAt: z.string().datetime().optional().nullable(),
+  // Nexeo Owned Data (default) or Client Owned Data: chosen at creation, never changed afterwards.
+  knowledgeModel: z.enum(['nexeo', 'external'], { message: 'Invalid knowledgeModel. Must be: nexeo or external' }).optional(),
 });
 
 export const setupPasswordSchema = z.object({

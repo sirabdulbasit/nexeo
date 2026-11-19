@@ -139,8 +139,11 @@ export function buildSystemNotes(
 
 /** The user who writes a client's shared notes: its first active user (as the rule notes). */
 export async function sharedWriter(clientNumber: string): Promise<number | null> {
-  const u = await prisma.user.findFirst({ where: { clientNumber, isActive: true } as any, orderBy: { id: 'asc' }, select: { id: true } }).catch(() => null);
-  return u?.id ?? null;
+  // Never a Client Owned Data user: his company knowledge is in his vault, and the door would refuse him.
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
+    `SELECT id FROM users WHERE client_number = $1 AND is_active = true AND knowledge_model = 'nexeo' ORDER BY id LIMIT 1`, clientNumber,
+  ).catch(() => []);
+  return rows[0]?.id != null ? Number(rows[0].id) : null;
 }
 
 /** Write a client's system, KPI and business-unit notes from its integrations. */

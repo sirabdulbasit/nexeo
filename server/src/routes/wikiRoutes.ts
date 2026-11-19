@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import prisma from '../db/prisma';
+import { isExternalKnowledge, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
 import {
   upsertPage,
   readPage,
@@ -30,6 +31,15 @@ function resolveTargetUser(req: Request): { clientNumber: string; userId: number
   if (!user.id) return null;
   return { clientNumber: user.clientNumber, userId: user.id };
 }
+
+// Client Owned Data (founder, 19 Nov; knowledgeModel.ts): his knowledge is in his own vault. Every Wiki
+// route answers the one agreed body for him, reads and writes alike, and nothing is looked up.
+router.use(async (req: Request, res: Response, next) => {
+  const ctx = resolveTargetUser(req);
+  if (!ctx) return res.status(401).json({ error: 'unauthenticated' });
+  if (await isExternalKnowledge(ctx.clientNumber, ctx.userId)) return res.json(externalKnowledgeBody());
+  next();
+});
 
 /**
  * POST /api/v1/wiki/pages — upsert (create or update) a wiki page.

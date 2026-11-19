@@ -12,6 +12,14 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// These tests are about the store itself: every user here is a Nexeo Owned Data user (the door for
+// Client Owned Data users is tested in knowledgeModel.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  isExternalKnowledge: async () => false,
+  assertSourceMayBeStored: async () => undefined,
+  assertNoteMayBeStored: async () => undefined,
+}));
 vi.mock('../src/db/prisma', async () => {
   const { prismaFake } = await import('./helpers/wikiPrismaFake');
   return { __esModule: true, default: prismaFake, prisma: prismaFake };

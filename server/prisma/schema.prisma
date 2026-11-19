@@ -165,6 +165,10 @@ model User {
   //   briefWindowDays      — Brief audit trail window (1..30, default 7)
   // Future flags for narrator voice, autonomy thresholds etc. live here.
   preferences             Json?   @map("preferences")
+  // Nexeo Owned Data ('nexeo') or Client Owned Data ('external': knowledge in the user's own Obsidian
+  // vault). Chosen at creation, no setter (founder, 19 Nov 2026). Read ONLY through
+  // services/wiki/knowledgeModel.ts. Migration 20261119_users_knowledge_model.
+  knowledgeModel          String  @default("nexeo") @map("knowledge_model") @db.VarChar(20)
   killSwitchEnabled       Boolean @default(false) @map("kill_switch_enabled") // allow this user to trigger tenant kill switch
 
   createdAt DateTime @default(now()) @map("created_at")
