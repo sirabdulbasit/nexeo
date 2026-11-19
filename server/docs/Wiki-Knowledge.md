@@ -207,7 +207,14 @@ Nexeo for a Client Owned Data user while the Mac is off is not held.
 2. For that user, the wiki intake, scribe and builders are skipped.
 3. Connectors stay available for actions such as sending email.
 
-Not built.
+Built by both sessions. The Wiki half is live as D-302: one guard (`services/wiki/knowledgeModel.ts`) and Wiki tables that refuse external rows.
+The Nexeo-Builder half is D-303 (3186c2ab):
+- every per-user job and poller skips the user, and skips its whole cycle (logged) when the list can't be read;
+- the fetch points `ingest`, email body, scribe backfill, cognitive tick, entity, ask side effects and connector scribe return early;
+- day-pack and changes answer the agreed body.
+
+`tests/externalKnowledgeGates.test.ts` fails when a new job neither asks the guard nor is listed as exempt with a reason.
+Live acceptance is owed: the Nexeo Wiki session runs the agreed test case after D-303.
 
 **Owner, 19 Nov (g): "obviously when mac is off nothing could be run".** For an Obsidian user, Nexeo keeps no working
 copy of rules, tasks or contacts. While the Mac is off, no rule runs, no reminder fires, and the Action Center and the
