@@ -92,7 +92,7 @@ export async function mirrorOdooForTenant(clientNumber: string): Promise<MirrorR
   // — page_type='project'/'entity' are tenant-shared so all users still
   // read them. If the tenant has zero users we skip.
   const sysRows = await prisma.$queryRawUnsafe<Array<{ id: number }>>(
-    `SELECT id FROM users WHERE client_number = $1 AND is_active = TRUE ORDER BY id ASC LIMIT 1`,
+    `SELECT id FROM users WHERE client_number = $1 AND is_active = TRUE AND knowledge_model = 'nexeo' ORDER BY id ASC LIMIT 1`,
     clientNumber,
   );
   const systemUserId = sysRows[0]?.id;

@@ -13,6 +13,7 @@
  * tenant_log.
  */
 import { Router, Request, Response } from 'express';
+import { isExternalKnowledge, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
 import { wikiHandshakeOnly } from '../middleware/wikiHandshake';
 import { toastSafeSnippet } from '../db/toastSafeText';
 import prisma from '../db/prisma';
@@ -44,6 +45,13 @@ router.use((req: Request, res: Response, next) => {
 // The Wiki handshakes only with Nexeo and Suzi (Wiki-Knowledge.md §0.8): the
 // wiki routes below refuse a caller holding a machine token.
 router.use('/wiki', wikiHandshakeOnly);
+// Client Owned Data (founder, 19 Nov; knowledgeModel.ts): the portal's Wiki screens read these routes.
+// For him every one answers the agreed body and looks nothing up.
+router.use('/wiki', async (req, res, next) => {
+  const u = (req as any).user;
+  if (await isExternalKnowledge(String(u?.clientNumber ?? ''), Number(u?.id))) return res.json(externalKnowledgeBody());
+  next();
+});
 
 // #14 (2026-07-14) — the user's OWN in-flight / unconfirmed / failed
 // actions with honest wording. Strictly user+tenant scoped; retry is

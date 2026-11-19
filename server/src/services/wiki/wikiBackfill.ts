@@ -18,7 +18,7 @@
  * before it deletes a row: the feed store may let go only of what the Wiki holds.
  */
 import prisma from '../../db/prisma';
-import { isExternalKnowledge } from './knowledgeModel';
+import { skipsWikiWork } from './knowledgeModel';
 import { landEmailText, sourceFromFeedItem, type FeedItem } from './wikiIntake';
 import { saveSource, sourceId, sourcesHeld, textHash, textOf, type HeldText, type SourceInput } from './wikiSources';
 
@@ -130,7 +130,7 @@ async function landMissingEmailTexts(
 export async function reconcileSources(clientNumber: string, userId: number): Promise<ReconcileResult> {
   const out: ReconcileResult = { feedItems: 0, missing: 0, landed: 0, emailTexts: 0, failed: 0, errors: [] };
   // Client Owned Data: nothing of his is landed (founder, 19 Nov; knowledgeModel.ts).
-  if (await isExternalKnowledge(clientNumber, userId)) return { ...out, external: true };
+  if (await skipsWikiWork(clientNumber, userId)) return { ...out, external: true };
   const fail = (what: string, err: unknown) => {
     out.failed += 1;
     if (out.errors.length < 3) out.errors.push(`${what}: ${err instanceof Error ? err.message.replace(/\s+/g, ' ').slice(0, 200) : String(err)}`);

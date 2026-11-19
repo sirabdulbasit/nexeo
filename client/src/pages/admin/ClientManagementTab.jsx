@@ -153,7 +153,8 @@ function ClientManagementTab({ user, msg, setMsg, section }) {
       }
       const res = await api.post('/user/users', {
         ...newUser, password, clientNumber: targetClient,
-        ...(expiresAt ? { expiresAt } : {}),
+        // null for a permanent user: the form's own '' is not a date and the server refuses it.
+        expiresAt,
       });
       if (shouldInvite && res.data.user?.id) {
         await api.post(`/user/users/${res.data.user.id}/invite`, { baseUrl: window.location.origin }).catch(() => {});

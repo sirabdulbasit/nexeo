@@ -66,18 +66,28 @@ describe('createUser and the knowledge model', () => {
 describe('there is no setter after creation', () => {
   it('nothing in src writes knowledge_model except createUser', async () => {
     const fs = await import('fs'); const path = await import('path');
-    const hits: string[] = [];
+    const sql: string[] = [];
+    const field: string[] = [];
     const walk = (dir: string) => {
       for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
         const p = path.join(dir, f.name);
         if (f.isDirectory()) walk(p);
         else if (/\.ts$/.test(f.name)) {
           const code = fs.readFileSync(p, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-          if (/SET\s+knowledge_model|knowledgeModel\s*:\s*(?!z\.)[^;,)]*\}\s*\)?\s*,?\s*where|update[^;]{0,200}knowledgeModel/i.test(code)) hits.push(path.relative(path.join(__dirname, '../src'), p));
+          // The column in SQL, and the field used as a property (never the module's import path). A new file
+          // on either list fails this test and has to be looked at: a read is added below, a write is not allowed.
+          const rel = path.relative(path.join(__dirname, '../src'), p);
+          if (/knowledge_model/.test(code)) sql.push(rel);
+          if (/\bknowledgeModel\s*[:,}?]/.test(code)) field.push(rel);
         }
       }
     };
     walk(path.join(__dirname, '../src'));
-    expect(hits).toEqual(['services/authService.ts']);
+    // SQL: one writer (authService, inside createUser) and three readers.
+    expect(sql.sort()).toEqual(['services/authService.ts', 'services/crm/odooWikiMirror.ts', 'services/wiki/knowledgeModel.ts', 'services/wiki/wikiSystems.ts']);
+    // The field: the create-user route, its schema and createUser. No update route carries it.
+    expect(field.sort()).toEqual(['routes/userAuthRoutes.ts', 'schemas/auth.ts', 'services/authService.ts']);
+    const auth = fs.readFileSync(path.join(__dirname, '../src/services/authService.ts'), 'utf8');
+    expect(auth.match(/knowledge_model/g)).toHaveLength(1); // the one UPDATE inside createUser's transaction
   });
 });

@@ -30,6 +30,7 @@ const t = vi.hoisted(() => ({
 vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
   ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
   isExternalKnowledge: async () => false,
+  skipsWikiWork: async () => false,
   assertSourceMayBeStored: async () => undefined,
   assertNoteMayBeStored: async () => undefined,
 }));

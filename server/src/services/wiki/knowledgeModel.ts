@@ -55,6 +55,16 @@ export async function isExternalKnowledge(clientNumber: string, userId: number):
 }
 
 /**
+ * For the Wiki's own hourly work: true = skip him, false = build. A model that cannot be read is an error
+ * here, reported in the run's result, so a database hiccup is never recorded as "he is Client Owned Data".
+ */
+export async function skipsWikiWork(clientNumber: string, userId: number): Promise<boolean> {
+  const model = await knowledgeModelOf(clientNumber, userId);
+  if (model === null) throw new Error(`knowledge model of user ${userId} could not be read; nothing was done`);
+  return model === 'external';
+}
+
+/**
  * The Client Owned Data users, for a job that loops over users: one query a
  * cycle. It throws when the list cannot be read, so the job skips the cycle
  * instead of treating everyone as Nexeo Owned Data.

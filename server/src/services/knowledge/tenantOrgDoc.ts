@@ -72,6 +72,9 @@ function queueEmbedding(pageId: string): void {
  */
 export async function upsertTenantOrgDoc(cn: string, doc: TenantOrgDocInput): Promise<{ id: string; changed: boolean }> {
   const lastUpdatedBy = doc.lastUpdatedBy ?? 'facl_scribe';
+  // Client Owned Data (founder, 19 Nov): nothing of his is stored, a company document in his name included.
+  const { isExternalKnowledge, ExternalKnowledgeRefused } = await import('../wiki/knowledgeModel');
+  if (await isExternalKnowledge(cn, doc.userId)) throw new ExternalKnowledgeRefused('org_doc');
   const existing = doc.existing !== undefined ? doc.existing : await findTenantOrgDoc(cn, doc.userId, doc.title);
 
   if (existing) {

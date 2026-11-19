@@ -28,6 +28,13 @@ const db = vi.hoisted(() => ({
   failTitle: null as string | null,
 }));
 
+// Every user in these tests is a Nexeo Owned Data user (Client Owned Data is tested in knowledgeModel.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  isExternalKnowledge: async () => false,
+  assertSourceMayBeStored: async () => undefined,
+  assertNoteMayBeStored: async () => undefined,
+}));
 vi.mock('../src/utils/logger', () => ({
   __esModule: true,
   default: () => ({ info: () => {}, warn: () => {}, error: () => {}, debug: () => {} }),

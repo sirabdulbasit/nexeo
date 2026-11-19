@@ -25,7 +25,7 @@ import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { writeNote, retireNote, mergeNotes, listSources, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
 
 import { prunedAndUnchanged, unchangedNote, citationsOf } from './wikiSync';
-import { isExternalKnowledge } from './knowledgeModel';
+import { skipsWikiWork } from './knowledgeModel';
 
 export const BUILDER_ACTOR = 'wiki_builder';
 const LIST_LIMIT = 15;
@@ -760,7 +760,7 @@ export async function rebuildWikiForUser(
 ): Promise<RebuildResult> {
   // Client Owned Data (founder, 19 Nov): his knowledge is in his own vault. Nothing of his is read or built
   // here except what Nexeo and Suzi learned about how he works, which stays in Nexeo.
-  if (await isExternalKnowledge(clientNumber, userId)) {
+  if (await skipsWikiWork(clientNumber, userId)) {
     const learned = opts.dryRun ? null : await step(async () => {
       const { rebuildLearnedForUser } = await import('./wikiLearned');
       const l = await rebuildLearnedForUser(clientNumber, userId);

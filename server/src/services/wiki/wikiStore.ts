@@ -494,6 +494,7 @@ export async function retireNote(noteId: string, actor: string): Promise<void> {
 export async function adoptAsNote(pageId: string): Promise<{ linked: number; unresolved: string[] } | null> {
   const page = await prisma.wikiPage.findUnique({ where: { id: pageId } });
   if (!page) return null;
+  await assertNoteMayBeStored({ clientNumber: page.clientNumber, userId: page.userId, type: page.pageType, ids: (page.metadata as any)?.ids });
   const { clientNumber, userId } = page;
   const links = await resolveLinks(prisma, clientNumber, userId, page.bodyMarkdown ?? '', pageId, page.title);
   await prisma.wikiPage.update({

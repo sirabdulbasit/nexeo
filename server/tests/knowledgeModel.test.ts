@@ -159,6 +159,27 @@ describe('the hourly work skips him', () => {
     expect(db.writes).toEqual([]);
   });
 
+  it('a model that cannot be read is an error in the hourly work, never "he is Client Owned Data"', async () => {
+    const { skipsWikiWork } = await import('../src/services/wiki/knowledgeModel');
+    const { reconcileSources } = await import('../src/services/wiki/wikiBackfill');
+    const { rebuildWikiForUser } = await import('../src/services/wiki/wikiBuilder');
+    expect(await skipsWikiWork('T-1', 9)).toBe(true);
+    expect(await skipsWikiWork('T-1', 2)).toBe(false);
+    db.fail = true;
+    await expect(skipsWikiWork('T-1', 2)).rejects.toThrow('could not be read');
+    await expect(reconcileSources('T-1', 2)).rejects.toThrow('could not be read');
+    await expect(rebuildWikiForUser('T-1', 2, { dryRun: true })).rejects.toThrow('could not be read');
+    expect(db.writes).toEqual([]);
+  });
+
+  it('a page another writer stored is not adopted as his note', async () => {
+    const prisma: any = (await import('../src/db/prisma')).default;
+    prisma.wikiPage = { findUnique: async () => ({ id: 'p1', clientNumber: 'T-1', userId: 9, pageType: 'org_doc', metadata: {} }) };
+    const { adoptAsNote } = await import('../src/services/wiki/wikiStore');
+    await expect(adoptAsNote('p1')).rejects.toBeInstanceOf(ExternalKnowledgeRefused);
+    delete prisma.wikiPage;
+  });
+
   it('the company notes are never written in his name', async () => {
     const { sharedWriter } = await import('../src/services/wiki/wikiSystems');
     expect(await sharedWriter('T-1')).toBe(2);

@@ -268,8 +268,10 @@ export async function rebuildRuleNotesForUser(clientNumber: string, userId: numb
   }
   // A company or system rule is one note for the whole client, written by one user (the client's
   // first active user); every user reads it as a shared note. Two users must not write two copies.
-  const firstActive = await prisma.user.findFirst({ where: { clientNumber, isActive: true } as any, orderBy: { id: 'asc' }, select: { id: true } });
-  const writesShared = firstActive?.id === userId;
+  // The same writer as the company's other shared notes: never a Client Owned Data user, whose writes the
+  // Wiki refuses (a mixed client would otherwise lose its shared rule notes).
+  const { sharedWriter } = await import('./wikiSystems');
+  const writesShared = (await sharedWriter(clientNumber)) === userId;
   const notes = buildRuleNotes(rows, { personByEmail, companyByDomain }).filter((n) => n.scope !== 'tenant' || writesShared);
   const existing = await prisma.wikiPage.findMany({
     where: { clientNumber, userId, pageType: RULE_TYPE, lastUpdatedBy: RULE_ACTOR },
