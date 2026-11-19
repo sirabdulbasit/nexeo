@@ -322,38 +322,37 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
 - Unchanged: tiers T0 to T2, the Guard, R1, R2. Submitting a form or any outward button is T2; passwords, cards and robot
   checks end the run as `needs_user`.
 
-## Obsidian vault through Suzi on the Mac (link T42, both AGREE 19 Nov 2026)
+## Obsidian vault: Client Owned Data (link T42, both AGREE 19 Nov 2026; founder's final scope 19 Nov)
 
-- **Founder's rulings, 19 Nov 2026:** each user has one wiki, the Nexeo wiki or an Obsidian vault. For an Obsidian user all
-  knowledge and data lives in his vault (Obsidian Sync, his own); nothing goes to the Nexeo wiki; Nexeo keeps no index or copy
-  of the vault. Voiceprint, faceprint and learning (the profile note "How to work with <him>" included) stay in Nexeo. When
-  the Mac is off or the vault can't be reached, Suzi and Nexeo say "Obsidian is unreachable".
 - **Two models (founder, 19 Nov 2026):** `wiki_kind: "nexeo"` = **Nexeo Owned Data** (the Nexeo wiki; Suzi today) and
-  `wiki_kind: "obsidian"` = **Client Owned Data** (his Obsidian vault). For a Client Owned Data user nothing runs while the
-  Mac is off. **Everything Suzi does or is told goes into the vault as an update** (founder: "what Suzi does or gets any
-  instruction should be part of Obsidian as an update, so Obsidian as a knowledge and brain can work"): her actions in a
-  running day note `Conversations/YYYY-MM-DD.md`, his standing instructions as notes in `Rules/`; Nexeo writes tasks in `Tasks/`.
-- **Setting:** he picks the vault folder in Suzi; Nexeo stores only `wiki_kind: "obsidian"` and the vault's name.
-- **Transport:** Nexeo's requests are server-started `tool_call` frames on the live link, answered by `tool_result` within
-  10 s, else `unreachable`. Tool names (no dots): `vault_status`, `vault_list`, `vault_find`, `vault_read`, `vault_search`;
-  later `vault_write`, `vault_move`, `vault_delete`, `vault_changes`, `vault_get_file`, `vault_put_file`. Her desk AI uses the
-  same calls, so knowledge questions are answered on the Mac.
-- **Identity:** a note is known by the `id` in its frontmatter, never by its path. `vault_find {id | ids | type}`.
-- **Reading:** `vault_list {folder?, cursor?}` recursive and paged (path, hash SHA-256, modified, id, type); `vault_read
-  {path | id, part?}` in parts of 48 KB; `vault_search {q}` by words and [[links]] (macOS's own Spotlight may be used; it is the
-  Mac's index, nothing new is kept), at most 20 results with path, id, title, matching lines; `vault_status`.
-- **Writing (after the founder's scope answers):** Markdown notes with frontmatter in the Nexeo wiki's shapes; `written_by:
-  nexeo` and `written_at`; `if_match` (hash) / `if_none_match` (create only); every write returns the new hash, a mismatch
-  returns the current text. **His edit wins:** Nexeo writes only inside `<!-- nexeo:begin id=… -->` … `<!-- nexeo:end -->`, and
-  answers `conflict` (writing nothing) if he edited inside it. `vault_delete` only for notes `written_by: nexeo`, and only moves
-  the note to the vault's `.trash/`; Nexeo retires a note by writing `status: archived`. A permanent delete only on his own word.
-  Sizes: part 48 KB, note 2 MB, file 10 MB, files only into `Attachments/`, never executables. `vault_changes {cursor}`: the
-  Mac's clock as cursor, metadata only.
-- **Layout:** one folder per note type: People, Companies, Projects, Meetings, Tasks, Decisions, Topics, Documents, Rules,
-  Conversations, Company (shared notes), Sources, Inbox. He may move any note.
+  `wiki_kind: "obsidian"` = **Client Owned Data** (his Obsidian vault, synced by Obsidian Sync, his own).
+- **Only Suzi touches the vault, on his Mac.** Nexeo reads nothing from it, writes nothing to it, and makes no vault calls; the
+  vault tools are Suzi's own, used by her desk AI. Nexeo keeps no index or copy. Company knowledge stays in the vault; nothing
+  moves from the Nexeo wiki. Email and similar data reach the vault through feeds he runs himself (for example scheduled jobs in
+  the Claude desktop app). Voiceprint, faceprint and learning (the profile note included) stay in Nexeo.
+- **Nexeo's part for Client Owned Data:** `wiki_kind` arrives in `device.report`; `/v1/day-pack`, `/v1/changes` and the knowledge
+  routes answer `external_knowledge`, and Suzi answers from the vault instead. Nexeo still carries out actions he starts through
+  Suzi with its connectors (sending email and so on), and scribes none of it. None of Nexeo's own jobs run for him: no feed poll,
+  no scribe, no brief, no rule forwards, no reminders, no follow-ups, no meeting prep. Nothing runs while the Mac is off; when
+  Suzi is on and the vault folder isn't there she says "Obsidian is unreachable".
+- **Everything Suzi does or is told goes into the vault, written by Suzi** (founder: "what Suzi does or gets any instruction
+  should be part of Obsidian as an update, so Obsidian as a knowledge and brain can work"): her actions in a running day note
+  `Conversations/YYYY-MM-DD.md`; his standing instructions as notes in `Rules/`; tasks he creates through her as notes in
+  `Tasks/`; all `written_by: suzi`.
+- **Her vault tools** (no dots in names): `vault_status`, `vault_list {folder?, cursor?}` (recursive, paged: path, hash SHA-256,
+  modified, id, type), `vault_find {id | ids | type}`, `vault_read {path | id, part?}` (parts of 48 KB), `vault_search {q}` (words
+  and [[links]]; macOS's own Spotlight may be used, nothing new is kept; at most 20 results), `vault_write`; later
+  `vault_changes`, `vault_move`, `vault_delete`, files.
+- **Writing rules:** Markdown notes with frontmatter; a note is known by its frontmatter `id`, never its path; create-only
+  (`if_none_match`) or only over the hash last read (`if_match`), else `conflict` with the current text and nothing written;
+  **his edit wins**; Suzi's own notes carry `written_by: suzi` and `written_at`; a delete only moves a `written_by: suzi` note
+  to the vault's `.trash/`, and Suzi retires a note by `status: archived`; a permanent delete only on his own word. Sizes: part
+  48 KB, note 2 MB, file 10 MB, files only into `Attachments/`, never executables.
+- **Layout:** People, Companies, Projects, Meetings, Tasks, Decisions, Topics, Documents, Rules, Conversations, Company (shared
+  notes), Sources, Inbox. He may move any note.
 - **On the Mac:** paths relative to the vault root; `..`, absolute paths, `.obsidian/`, `.trash/`, hidden files and secrets are
-  refused; an audit line per write (path, size, hash), never content. Errors: `unreachable`, `vault_missing`, `conflict`,
-  `too_large`, `denied`, `not_found`.
+  refused; an audit line per write (path, size, hash), never content. Errors: `vault_missing`, `conflict`, `too_large`,
+  `denied`, `not_found`.
 
 ## 5. Credentials (Google project nexeo-tmc)
 
