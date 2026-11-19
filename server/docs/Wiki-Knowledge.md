@@ -147,6 +147,14 @@ What this needs, still to be decided or built:
 - **Switching:** moving a user from Nexeo Wiki to Obsidian exports his notes into the vault and then deletes them from
   Nexeo; moving back imports them.
 
+**Owner's ruling, 19 Nov 2026 (settles the above):** two kinds, exactly one configured per user at a time.
+1. **Nexeo:** the wiki stays inside Nexeo (today's store).
+2. **Obsidian:** kept outside Nexeo, connected to his Obsidian vault; ALL of the user's knowledge and data lives there.
+3. **Always in Nexeo, whichever kind:** voiceprint, faceprint and learning (what Nexeo and Suzi learn about how he works:
+   the profile note "How to work with <user>", learned preferences, `learned.*`).
+Still open: where the vault lives (Git repo recommended / Drive or Dropbox / his Mac through Suzi), and where company
+knowledge shared by the client's users goes for an Obsidian user. Not built; the Nexeo Wiki session builds it.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
