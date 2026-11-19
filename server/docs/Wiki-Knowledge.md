@@ -183,6 +183,10 @@ Read as:
 
 This answers (b): rules and tasks also live in the vault. Voiceprint, faceprint and learning stay in Nexeo (ruled earlier).
 
+**Owner, 19 Nov (g): "obviously when mac is off nothing could be run".** For an Obsidian user, Nexeo keeps no working
+copy of rules, tasks or contacts. While the Mac is off, no rule runs, no reminder fires, and the Action Center and the
+brief say "Obsidian is unreachable".
+
 Still open: what Nexeo itself receives while the Mac is off (a WhatsApp message, a meeting transcript), unless his overnight feed covers those.
 Not built; the Nexeo Wiki session builds it after the AGREE.
 
