@@ -328,6 +328,11 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
   knowledge and data lives in his vault (Obsidian Sync, his own); nothing goes to the Nexeo wiki; Nexeo keeps no index or copy
   of the vault. Voiceprint, faceprint and learning (the profile note "How to work with <him>" included) stay in Nexeo. When
   the Mac is off or the vault can't be reached, Suzi and Nexeo say "Obsidian is unreachable".
+- **Two models (founder, 19 Nov 2026):** `wiki_kind: "nexeo"` = **Nexeo Owned Data** (the Nexeo wiki; Suzi today) and
+  `wiki_kind: "obsidian"` = **Client Owned Data** (his Obsidian vault). For a Client Owned Data user nothing runs while the
+  Mac is off. **Everything Suzi does or is told goes into the vault as an update** (founder: "what Suzi does or gets any
+  instruction should be part of Obsidian as an update, so Obsidian as a knowledge and brain can work"): her actions in a
+  running day note `Conversations/YYYY-MM-DD.md`, his standing instructions as notes in `Rules/`; Nexeo writes tasks in `Tasks/`.
 - **Setting:** he picks the vault folder in Suzi; Nexeo stores only `wiki_kind: "obsidian"` and the vault's name.
 - **Transport:** Nexeo's requests are server-started `tool_call` frames on the live link, answered by `tool_result` within
   10 s, else `unreachable`. Tool names (no dots): `vault_status`, `vault_list`, `vault_find`, `vault_read`, `vault_search`;
