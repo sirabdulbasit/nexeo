@@ -29,7 +29,7 @@ Each user has their own Suzi, a personal assistant for the boss's clerical work.
 | 10 | Presentation | Data blocks with numbers filled in | Builds `present_report` from data-tool block ids (`present_blocks`); **a number never comes from the model** | The board and the presenter; narration written in the user's language when `say` is empty; Stop and Esc |
 | 11 | Follow-ups | Decides what to chase; reminds others; holds due items while the computer is off | — | Picks the moment, records answers, reports progress |
 | 12 | Meeting Assistant (F-4) | With the user's switch on: gets the transcript (Way A, later Way B), keeps the one meeting record per meeting, proposes action items, serves the reads | — | Asks which meetings, shows status, the meeting card and the brief line; taking notes on the computer stays opt-in per meeting; once taken, they go to his record (F-4.6, W-1) |
-| 13 | Operating the computer | — | Its model chooses tools step by step | Runs them locally under its safety tiers |
+| 13 | Operating the computer (link T41, both AGREE 18 Nov 2026) | Holds the control: consent, the images and system permissions, limits, blanked apps, standing instructions (as rules) and the run ledger (`operator`, `operator.report`, `operator.permission`) | Relays; its conversation model decides when to call `operate_computer` | The model and the hands run on the desktop, free (no paid model per step); screenshots, page text and file contents never leave the computer for the operator; a run counts as done only with proof |
 | 14 | Journal | Stores Suzi's reports | Forwards them | Sends follow-up answers, decisions and actions taken; meeting notes only with consent |
 | 15 | Devices | Marks the device in charge (`primary`): the founder's M5 Mac now, later a setting in the Nexeo portal, otherwise the first paired device | Puts `primary` in `welcome` | Only the device in charge runs follow-ups and actions |
 | 16 | Privacy | Per-user access; only the user's data in the pack | — | Idle speech never leaves the computer; only voice-verified requests go out for transcription; the camera stays off unless the user says yes |
@@ -127,6 +127,26 @@ Every brief, the morning brief or one section, starts with one summary line per 
 - **F-2.1 `task.create`:** fields {title, due?, person_id?, note?, source?: {email_id|meeting_id}}.
   - With a person_id, the task is assigned and that person is told (T21).
 - **F-2.2 `task.update` "forward":** fields {person_id, note?}. Reassigns the task and tells the person. "assign" stays silent.
+  - **Answered once assigned (link T35 (a), both AGREE, live D-293 17 Nov 2026):** the answer is the action plus `assigned: true`
+    and `told: "pending"`; the note to the person is written after. The action, in the pack and every read, then carries
+    `told: "pending" | "sent" | "drafted" | "failed"`, with `told_draft_id` when `"drafted"`, so "send it now" is
+    `email.send {draft_id: told_draft_id}`.
+  - **A repeat is folded (link T35 (b), live D-292):** the same task forwarded to the same person within 10 minutes makes no
+    second trail entry or note; the answer carries `repeat: true` and the first note's `told`.
+  - **Only on his word (founder's session, 18 Nov 2026):** Suzi forwards only on his clear spoken order in that turn, or his
+    yes on a card naming the task and the person.
+  - **`take_back` (link T37, live D-297):** `task.update {id, update: "take_back"}` makes a delegated task his own again
+    (owner "me", history `Taken back from <name>`); nobody is emailed. `bad_state` when it is already his.
+- **F-2.2b One owner, shared responsible people (link T33/T40, live D-295, founder 18 Nov 2026: "1. Owner 2. Shared
+  Responsible, so every responsible should be asked about the status"):** `task.create` takes `helpers: [person_id…]` (at most
+  10) beside the lead `person_id`; the answer carries `helpers_added: [{person_id, ok, error?}]`. Every note names the lead
+  owner, the other responsible people and the due date. `task.followup {id, all: true, note?}` asks the lead and every helper;
+  replies on a task's threads go into its history, and `helpers[].replied_at` shows who has answered. Suzi asks for the
+  deadline and who is responsible before creating a task. `task.update {id, update: "rename", title}` corrects his own open
+  task's title, with the old and new title in the history.
+- **F-2.2c Handled emails leave the list (DEF-509, both AGREE, live D-295):** an email ignored by his rule, with an open task
+  on its thread, or placed in a calendar event (T34) leaves `emails`; `emails_hidden: {ignored, tasked, calendar}` counts them;
+  a newer message in the thread brings it back.
 - **F-2.3 `email.delegate`:** fields {email_id, person_id, note?}.
   - Runs email.forward through the email.send gate: signed, voice_score, T22 switch, held 10 seconds.
   - The task is created only once the forward has gone out.
@@ -280,9 +300,55 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
 |---|---|---|
 | `meeting.upload` | F-4.6, sent when a meeting noted on the computer ends | no (confirmed) |
 | `identity.put` {kind: voiceprint \| faceprint \| voice_sample, data, model} / `identity.get` {kind} / `identity.delete` {kind} | S2; get answers only to the same user's device | put and delete |
-| `profile.update` {notes[{key, value, evidence_count, updated}]} | USER learning, one person note "How to work with <user>"; the pack returns `profile{}`. Keys: `brief.<part>` (brief habits, daily); `memory.<slug>` (her lasting memory of him, after each conversation; value "" = forgotten); `speech.english_share`, `speech.urdu_words` (how he speaks Urdu: his English share and top Urdu words with counts, weekly). Each value within 2,000 characters of JSON, at most 100 keys a call, his scope only (founder 16 Nov 2026: "if nexeo/suzi learn anything from me should also be part of wiki"; AGREED 16 Nov 2026) | no (confirmed) |
+| `profile.update` {notes[{key, value, evidence_count, updated}]} | USER learning, one person note "How to work with <user>"; the pack returns `profile{}`. Keys: `brief.<part>` (brief habits, daily); `memory.<slug>` (her lasting memory of him, after each conversation; value "" = forgotten); `speech.english_share`, `speech.urdu_words` (how he speaks Urdu: his English share and top Urdu words with counts, weekly); `brief.history` (his last answers per brief part, as they are) and `speech.counts` (his speech totals and top English words), on change; **home is Nexeo: Suzi fetches them at her first pack after a start and works from that copy** (link T36, both AGREE 18 Nov 2026). Nexeo's learning curve writes `learned.*` from them (a part is never removed). Each value within 2,000 characters of JSON, at most 100 keys a call, his scope only (founder 16 Nov 2026: "if nexeo/suzi learn anything from me should also be part of wiki"; AGREED 16 Nov 2026) | no (confirmed) |
 | `device.report` {settings, audit[], usage} | daily, extending /v1/usage, and again when the app version changes. `settings` also carries `user_name`, `assistant_name`, `sleep_phrases`, `wake_phrases`, `voice`, `accent`, `speed` (AGREED 16 Nov 2026); never a secret or token; private to him | no |
 | `learning.note` | GENERIC learning, relayed unread to Suzi Master (SuziUpgrade Charter) | yes, by the device |
+
+## Operating the computer (row 13, link T41, both AGREE 18 Nov 2026)
+
+- **Pack `operator`:** `{enabled, consent_at, images: {allowed, folders[]}, system: {allowed}, blank_apps[], max_steps,
+  limits: {tasks_month, steps_month}, used: {tasks, steps}}`. `enabled` is true only with the customer's switch and a recorded
+  consent. A missing block means the read failed: keep the last copy. The limits are the customer's; the desktop refuses a new
+  run when `used` reaches one. Until Suzi's C1 is live the desktop's own switch rules; from then the pack does.
+- **`operator.report`** (`/v1/act`, unsigned, idempotent on `run_id`) when a run ends: exactly `run_id, job, status, proof,
+  steps, actions, started, ended, goal` (`goal` at most 200 characters, private to him). Never a screenshot, file content or
+  typed text: any other field is refused. `status: "done"` with `proof: "none"` is stored as `"unverified"`.
+- **`operator.permission`** `{images?: {allowed, folders[]}, system?: {allowed}}`: set only by him, voice-verified or a click.
+- **Proven done:** a run counts as done only with proof (the file exists, the page shows it, or a fresh screen read agrees);
+  otherwise it is `unverified` and never spoken as done.
+- **AI tools under his account (C6):** what Suzi types into another AI tool, such as Claude or ChatGPT, leaves the computer
+  to that service, under his own account. She does it only when he asks, says where it is going, and never types his
+  passwords, card numbers or another person's private details there.
+- Unchanged: tiers T0 to T2, the Guard, R1, R2. Submitting a form or any outward button is T2; passwords, cards and robot
+  checks end the run as `needs_user`.
+
+## Obsidian vault through Suzi on the Mac (link T42, both AGREE 19 Nov 2026)
+
+- **Founder's rulings, 19 Nov 2026:** each user has one wiki, the Nexeo wiki or an Obsidian vault. For an Obsidian user all
+  knowledge and data lives in his vault (Obsidian Sync, his own); nothing goes to the Nexeo wiki; Nexeo keeps no index or copy
+  of the vault. Voiceprint, faceprint and learning (the profile note "How to work with <him>" included) stay in Nexeo. When
+  the Mac is off or the vault can't be reached, Suzi and Nexeo say "Obsidian is unreachable".
+- **Setting:** he picks the vault folder in Suzi; Nexeo stores only `wiki_kind: "obsidian"` and the vault's name.
+- **Transport:** Nexeo's requests are server-started `tool_call` frames on the live link, answered by `tool_result` within
+  10 s, else `unreachable`. Tool names (no dots): `vault_status`, `vault_list`, `vault_find`, `vault_read`, `vault_search`;
+  later `vault_write`, `vault_move`, `vault_delete`, `vault_changes`, `vault_get_file`, `vault_put_file`. Her desk AI uses the
+  same calls, so knowledge questions are answered on the Mac.
+- **Identity:** a note is known by the `id` in its frontmatter, never by its path. `vault_find {id | ids | type}`.
+- **Reading:** `vault_list {folder?, cursor?}` recursive and paged (path, hash SHA-256, modified, id, type); `vault_read
+  {path | id, part?}` in parts of 48 KB; `vault_search {q}` by words and [[links]] (macOS's own Spotlight may be used; it is the
+  Mac's index, nothing new is kept), at most 20 results with path, id, title, matching lines; `vault_status`.
+- **Writing (after the founder's scope answers):** Markdown notes with frontmatter in the Nexeo wiki's shapes; `written_by:
+  nexeo` and `written_at`; `if_match` (hash) / `if_none_match` (create only); every write returns the new hash, a mismatch
+  returns the current text. **His edit wins:** Nexeo writes only inside `<!-- nexeo:begin id=… -->` … `<!-- nexeo:end -->`, and
+  answers `conflict` (writing nothing) if he edited inside it. `vault_delete` only for notes `written_by: nexeo`, and only moves
+  the note to the vault's `.trash/`; Nexeo retires a note by writing `status: archived`. A permanent delete only on his own word.
+  Sizes: part 48 KB, note 2 MB, file 10 MB, files only into `Attachments/`, never executables. `vault_changes {cursor}`: the
+  Mac's clock as cursor, metadata only.
+- **Layout:** one folder per note type: People, Companies, Projects, Meetings, Tasks, Decisions, Topics, Documents, Rules,
+  Conversations, Company (shared notes), Sources, Inbox. He may move any note.
+- **On the Mac:** paths relative to the vault root; `..`, absolute paths, `.obsidian/`, `.trash/`, hidden files and secrets are
+  refused; an audit line per write (path, size, hash), never content. Errors: `unreachable`, `vault_missing`, `conflict`,
+  `too_large`, `denied`, `not_found`.
 
 ## 5. Credentials (Google project nexeo-tmc)
 
