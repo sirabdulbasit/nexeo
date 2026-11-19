@@ -188,6 +188,8 @@ This answers (b): rules and tasks also live in the vault. Voiceprint, faceprint 
 2. **Client Owned Data:** the wiki is the client's Obsidian vault, and Suzi uses it.
 
 The per-user wiki kind is the choice between these two models.
+**Owner, 19 Nov: "client owned data model will only run when mac is ON".** So (a) is answered too: anything that reaches
+Nexeo for a Client Owned Data user while the Mac is off is not held.
 
 **Owner, 19 Nov (g): "obviously when mac is off nothing could be run".** For an Obsidian user, Nexeo keeps no working
 copy of rules, tasks or contacts. While the Mac is off, no rule runs, no reminder fires, and the Action Center and the
