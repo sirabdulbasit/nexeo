@@ -175,6 +175,24 @@ Not built; the Nexeo Wiki session builds it after the AGREE.
 - Way 2 (Suzi on the Mac) keeps nothing on our server but is a contract change (Suzi's AGREE first), and the Wiki is unreachable whenever the Mac is off or asleep, including for Nexeo's own scheduled jobs.
 - Not accepted: community clients (Go `obsidian-headless`, `ob1`, `obsync`): unsupported by Obsidian, and they would hold his account and vault password.
 
+**The Wiki session's changes to the T42 shape, sent to Nexeo-Builder 19 Nov while the contract is open (PROPOSAL; nothing agreed or built):**
+1. **Identity is the note's id in its frontmatter, never its path.** He can rename or move a note in Obsidian; the path is a label (standard 2). So a lookup by id is needed: `vault.find {id | ids | type}`. The Mac may keep its own in-memory map; Nexeo keeps none.
+2. **`vault.list` must carry what a rebuild compares**: path, content hash, modified time, frontmatter id and type, recursive, paged with a cursor. Without it "a repeat run writes 0" would mean reading every note every hour.
+3. **Frames are small (parts under 14 KB today).** `vault.read` and `vault.write` need parts, and `vault.put_file` / `vault.get_file` for attachments, with a stated size ceiling.
+4. **Missing verbs:** `vault.move` (retire to an archive folder), `vault.delete` (forget: profile key, a conversation, a source), `vault.status` (reachable, vault name, note count, Obsidian running), `vault.changes {cursor}` (what he edited since, so his corrections are read).
+5. **Writes:** `if_match` on the content hash, `if_none_match` to create only; the answer returns the new hash; a mismatch returns the current text. Proposed conflict rule: **his edit wins.** Nexeo owns only a marked block in a note it wrote and never touches text outside it.
+6. **Errors are named:** unreachable, vault_missing, conflict, too_large, denied, not_found. Paths are relative to the vault; `..` and `.obsidian/` are refused on the Mac.
+7. **Suzi answers her own knowledge questions from the vault on the Mac**, without a round trip to Nexeo (today's knowledge route would go Mac → Nexeo → Mac).
+8. **Search is by words and links only** (no index, his ruling); results give path, id, title, the matching lines.
+
+**For the founder before any build (asked through Nexeo-Builder):**
+- **What arrives once while the Mac is off** (a WhatsApp message, a meeting transcript, a Suzi turn): "nothing queued on Nexeo" means it is lost. Gmail and Calendar can be fetched again later; these cannot. Allow a short encrypted waiting box with an expiry, or accept the loss.
+- **The working stores**: rules, tasks (Action Center), contacts. If they too live only in the vault, a rule cannot forward and the Action Center is empty whenever the Mac is asleep. Proposed: they stay in Nexeo as working copies, like learning.
+- **Sources**: the text of about 7,000 emails and 500 attachments written into the vault through the Mac, or a link back to Gmail and Drive only.
+- **Company knowledge** in one user's vault is invisible to the client's other users.
+- **Sensitive records** kept encrypted in Nexeo today would be plain files in the vault.
+- **Moving over**: his existing Wiki (about 1,600 notes, 9,700 sources) is exported to the vault and then deleted from Nexeo, or he starts empty.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
