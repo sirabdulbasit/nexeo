@@ -120,6 +120,20 @@ What this requires of everything built now:
   every user of the client, whichever source each chose.
 - **Existing start:** `obsidianVaultService.ts` already exports a vault to the user's Drive (export only).
 
+**Owner, 19 Nov 2026: "can we make it configuration for a user so we can use Nexeo Wiki or he can use obsidian as wiki
+(through integration etc)".** Nexeo-Builder's proposal; NOT built, waits on his choices:
+- **Setting per user:** `knowledge_source: nexeo | obsidian` (Settings → Knowledge), default `nexeo`.
+- **How the vault is reached** (Obsidian is files on his computer; the server cannot read them on its own). Options:
+  (a) a Git-backed vault (the Obsidian Git plugin, a private repo Nexeo pulls and pushes); (b) a synced cloud folder
+  (Google Drive or Dropbox, through the existing connectors); (c) Suzi on his Mac reads and writes the vault folder and
+  syncs it with Nexeo (needs Suzi's agreement). Recommended: (a), it is the only one with history and clean two-way merges.
+- **What "Obsidian as wiki" means.** Recommended: two-way mirror. Nexeo keeps its index (search, sources, marks,
+  encrypted identity, company knowledge shared by the client's users, Suzi's pack all read it at speed); every note is
+  written to his vault as Markdown with front matter and `[[links]]`, and his edits in Obsidian come back as edits
+  (his edit wins; a conflict becomes a note for him). The alternative, the vault as the ONLY store, would make every read
+  a file read and leaves encrypted sources and company-wide knowledge with nowhere to live.
+- **Owner of the build:** the Nexeo Wiki session (it owns the Wiki store); option (c) also needs Suzi Master's AGREE.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
