@@ -164,7 +164,9 @@ be end-to-end encrypted. So Nexeo can reach the vault in only two ways:
 1. a sync client on Nexeo's server, signed in to the user's Obsidian account (it needs his login and the vault
    password, if one is set);
 2. through Suzi on his Mac, reading the copy that Obsidian keeps there (unreachable when the Mac is off).
-Waiting on the owner's choice. Not built; the Nexeo Wiki session builds it.
+**Owner chose 2, 19 Nov 2026:** no vault files on Nexeo's server. The vault is read and written through Suzi on his Mac.
+It is unreachable whenever the Mac is off, for scheduled jobs too. Proposed to Suzi as link T42, waiting for its AGREE.
+Not built; the Nexeo Wiki session builds it after the AGREE.
 
 **Checked by the Wiki session, 19 Nov (web search of Obsidian's help pages and launch coverage; nothing installed or tried):**
 - **Still no public Sync API.** But Obsidian has shipped an official headless Sync client, **Obsidian Headless** (npm `obsidian-headless`, command `ob`, open beta since about February 2026, Node.js 22 or later). It signs in with an auth token (`OBSIDIAN_AUTH_TOKEN`), supports end-to-end encrypted vaults (the vault password is given at setup), and is meant for servers, pipelines and agents. So way 1 has an official tool; no reverse-engineered client is needed.
