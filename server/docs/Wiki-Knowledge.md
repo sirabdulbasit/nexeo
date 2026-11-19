@@ -134,6 +134,19 @@ What this requires of everything built now:
   a file read and leaves encrypted sources and company-wide knowledge with nowhere to live.
 - **Owner of the build:** the Nexeo Wiki session (it owns the Wiki store); option (c) also needs Suzi Master's AGREE.
 
+**Owner's ruling, 19 Nov 2026: "if wiki is obsedian then nothing should be recorded in Nexeo wiki everything should
+read/write on obsedian wiki".** So the mirror above is dropped: for a user on Obsidian, his vault is the ONLY store.
+Every read and write goes through the one door (`wikiStore`) to his vault; Nexeo keeps no copy of his notes or sources.
+What this needs, still to be decided or built:
+- **Reach:** the server must reach the vault at every read (a Git repo or a cloud folder; a vault only on his Mac is
+  reachable only while the Mac is on).
+- **Speed and search:** no Nexeo index, so search reads his files; slower, and a pack or brief waits on it.
+- **Things with no place in a plain vault:** encrypted identity (voiceprint, faceprint), rule marks on emails, company
+  knowledge shared by the client's users. Each needs a home in the vault (encrypted files, a folder per company), or
+  stays a stated exception.
+- **Switching:** moving a user from Nexeo Wiki to Obsidian exports his notes into the vault and then deletes them from
+  Nexeo; moving back imports them.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
