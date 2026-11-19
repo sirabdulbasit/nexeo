@@ -174,6 +174,16 @@ It is unreachable whenever the Mac is off, for scheduled jobs too. Proposed to S
 - search may use macOS Spotlight, which stays on the Mac.
 
 Suzi starts with the read-only calls. Writes, and the Nexeo side, wait for the owner's six scope answers.
+
+**Owner, 19 Nov 2026:** *"for those who has obsedian they already has mechanism to provide information to obsedian over the night so when suzi wakeup it connects obsedian, it will be updated. what suzi do or get any instruction that should be part of Obsedian as an update so Obsedian as a knowledge and brain can work."*
+
+Read as:
+- Obsidian users have their own overnight feed into the vault, so the vault is already current when Suzi wakes.
+- Everything Suzi does, and every instruction she gets, is written to the vault as an update. The vault is the user's knowledge and brain.
+
+This answers (b): rules and tasks also live in the vault. Voiceprint, faceprint and learning stay in Nexeo (ruled earlier).
+
+Still open: what Nexeo itself receives while the Mac is off (a WhatsApp message, a meeting transcript), unless his overnight feed covers those.
 Not built; the Nexeo Wiki session builds it after the AGREE.
 
 **Checked by the Wiki session, 19 Nov (web search of Obsidian's help pages and launch coverage; nothing installed or tried):**
