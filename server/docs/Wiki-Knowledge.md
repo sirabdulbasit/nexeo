@@ -166,6 +166,13 @@ be end-to-end encrypted. So Nexeo can reach the vault in only two ways:
 2. through Suzi on his Mac, reading the copy that Obsidian keeps there (unreachable when the Mac is off).
 Waiting on the owner's choice. Not built; the Nexeo Wiki session builds it.
 
+**Checked by the Wiki session, 19 Nov (web search of Obsidian's help pages and launch coverage; nothing installed or tried):**
+- **Still no public Sync API.** But Obsidian has shipped an official headless Sync client, **Obsidian Headless** (npm `obsidian-headless`, command `ob`, open beta since about February 2026, Node.js 22 or later). It signs in with an auth token (`OBSIDIAN_AUTH_TOKEN`), supports end-to-end encrypted vaults (the vault password is given at setup), and is meant for servers, pipelines and agents. So way 1 has an official tool; no reverse-engineered client is needed.
+- **It works by replicating the vault's files to the machine it runs on.** On Nexeo's server that is a full file copy of his vault on our disk. His ruling says Nexeo keeps no copy and never answers from one, so way 1 needs his word on that folder: allowed as a working mirror (and then "unreachable" means the sync is stale or signed out), or not allowed (then only way 2, Suzi on the Mac, fits).
+- Limits reported, not verified by us: it counts as one of the vault's connected devices; it must not run on a device that also runs the desktop app's Sync; it is beta. Node on this server is 20, so it would need Node 22 beside it.
+- Way 2 (Suzi on the Mac) keeps nothing on our server but is a contract change (Suzi's AGREE first), and the Wiki is unreachable whenever the Mac is off or asleep, including for Nexeo's own scheduled jobs.
+- Not accepted: community clients (Go `obsidian-headless`, `ob1`, `obsync`): unsupported by Obsidian, and they would hold his account and vault password.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
