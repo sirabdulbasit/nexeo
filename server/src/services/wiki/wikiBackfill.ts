@@ -199,9 +199,13 @@ export async function reconcileSourcesForAllUsers(): Promise<Array<ReconcileResu
   const users = await prisma.$queryRawUnsafe<Array<{ client_number: string; user_id: number }>>(
     `SELECT DISTINCT client_number, user_id FROM feed_events WHERE user_id IS NOT NULL ORDER BY 1, 2`,
   );
+  const { externalUsersForCycle } = await import('./knowledgeModel');
+  const external = await externalUsersForCycle('wikiReconcile');
+  if (!external) return [];
   const out: Array<ReconcileResult & { clientNumber: string; userId: number }> = [];
   for (const u of users) {
     const userId = Number(u.user_id);
+    if (external.has(userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       out.push({ clientNumber: u.client_number, userId, ...(await reconcileSources(u.client_number, userId)) });
     } catch (err: any) {

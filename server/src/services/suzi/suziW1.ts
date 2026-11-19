@@ -11,6 +11,7 @@
  *   device.report   {settings, audit[], usage}                         daily. One 'record' source per device per day.
  */
 import prisma from '../../db/prisma';
+import { ExternalKnowledgeRefused } from '../wiki/knowledgeModel';
 
 type Args = Record<string, unknown>;
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
@@ -190,11 +191,17 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     if (JSON.stringify(report).length > MAX_REPORT_BYTES) return fail('too_big', 'at most 256 KB');
     const day = new Date().toISOString().slice(0, 10);
     const device = String(gate.deviceId ?? 'unknown').slice(0, 60);
-    await saveSource({
-      clientNumber, userId, kind: 'record', externalId: `device-report:${device}:${day}`, title: `Suzi device report, ${day}`, occurredAt: new Date(),
-      body: `Suzi device ${device}, ${day}: ${report.audit.length} audit entries.`,
-      details: { type: 'device_report', device_id: device, day, ...report },
-    });
+    try {
+      await saveSource({
+        clientNumber, userId, kind: 'record', externalId: `device-report:${device}:${day}`, title: `Suzi device report, ${day}`, occurredAt: new Date(),
+        body: `Suzi device ${device}, ${day}: ${report.audit.length} audit entries.`,
+        details: { type: 'device_report', device_id: device, day, ...report },
+      });
+    } catch (e) {
+      // Client Owned Data: the Wiki's door refuses; the report is not kept, and Suzi is told so.
+      if (e instanceof ExternalKnowledgeRefused) return { ok: true, item: { day, stored: false } };
+      throw e;
+    }
     void writer;
     return { ok: true, item: { day, stored: true } };
   }

@@ -38,6 +38,7 @@
  * brainContactsUser. Never sends from the user's paired WhatsApp.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { brainContactsUser } from '../services/notifications/brainOutboundService';
 import { getRedis } from '../utils/redisClient';
@@ -88,6 +89,8 @@ export async function runDayBriefDispatch(): Promise<RunResult> {
   const result: RunResult = { scanned: 0, fired: 0, skipped: 0, errors: 0 };
   const now = new Date();
   const redis = getRedis();
+  const external = await externalUsersForCycle('dayBriefDispatch');
+  if (!external) return result;
 
   // Pull every user with outbound enabled. Filtering via JSON-path
   // would let Postgres prune, but the user count is small (<100 for
@@ -99,6 +102,7 @@ export async function runDayBriefDispatch(): Promise<RunResult> {
   });
 
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     const prefs = (u.notificationPreferences as any) ?? {};
     const bc = prefs.brain_channel ?? {};
     if (bc.outboundEnabled !== true) continue;

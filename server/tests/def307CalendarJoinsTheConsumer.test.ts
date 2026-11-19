@@ -19,6 +19,12 @@
  * a reviewed-and-skipped channel is honest, an unread one licenses fabrication.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
+// Every user here is Nexeo Owned Data (the Client Owned Data skip is tested in externalKnowledgeGates.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  externalUsersForCycle: async () => new Set<number>(),
+  isExternalKnowledge: async () => false,
+}));
 import { vi } from 'vitest';
 
 const state = {

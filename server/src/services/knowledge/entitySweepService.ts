@@ -191,6 +191,8 @@ export async function ensureEntityForSender(input: {
   const email = normalizeEmail(input.senderEmail ?? '');
   const phone = (input.senderPhone ?? '').trim();
   if (!email && !phone) return null;
+  const { isExternalKnowledge } = await import('../wiki/knowledgeModel');
+  if (await isExternalKnowledge(input.clientNumber, input.userId)) return null; // Client Owned Data: nothing fetched or stored for him
 
   // Self-filter: a user shouldn't appear as their own contact. This
   // happens when feed ingestion processes an event the user themselves

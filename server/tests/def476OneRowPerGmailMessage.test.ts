@@ -8,6 +8,12 @@
  *  - a lookup failure falls through to create (a dropped email is worse than a duplicate).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Every user here is Nexeo Owned Data (the Client Owned Data skip is tested in externalKnowledgeGates.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  externalUsersForCycle: async () => new Set<number>(),
+  isExternalKnowledge: async () => false,
+}));
 
 const s = vi.hoisted(() => ({ rows: [] as any[], updates: [] as any[], throwFind: false }));
 vi.mock('../src/db/prisma', () => {

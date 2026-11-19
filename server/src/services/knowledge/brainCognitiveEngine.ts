@@ -286,6 +286,8 @@ export interface RunResult {
 
 export async function runCognitiveTick(clientNumber: string, userId: number): Promise<RunResult> {
   const t0 = Date.now();
+  const { isExternalKnowledge } = await import('../wiki/knowledgeModel');
+  if (await isExternalKnowledge(clientNumber, userId)) return { observationsFiled: 0, mindStateUpdated: false, durationMs: Date.now() - t0 }; // Client Owned Data: nothing fetched or stored for him
   const candidates: Observation[] = [];
   try {
     const [a1, a2, a3, a4, a5, a6] = await Promise.all([

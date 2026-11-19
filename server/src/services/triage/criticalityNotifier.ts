@@ -231,8 +231,12 @@ export async function sweepCriticalBundles(): Promise<{ users: number; sent: num
     select: { id: true, clientNumber: true },
     take: 1000,
   }).catch(() => [] as Array<{ id: number; clientNumber: string }>);
+  const { externalUsersForCycle } = await import('../wiki/knowledgeModel');
+  const external = await externalUsersForCycle('criticalityNotifier');
+  if (!external) return { users: 0, sent: 0, skipped: 0, errors: 0 };
   let sent = 0, skipped = 0, errors = 0;
   for (const u of users) {
+    if (external.has(u.id)) { skipped++; continue; } // Client Owned Data: Nexeo runs nothing for him
     try {
       const { buildAttentionList } = await import('./triageSuggester');
       const items = await buildAttentionList(u.clientNumber, u.id, 30);

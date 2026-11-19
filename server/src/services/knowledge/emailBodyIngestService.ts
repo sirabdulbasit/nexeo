@@ -39,6 +39,8 @@ export interface IngestEmailBodyParams {
 }
 
 export async function ingestEmailBody(p: IngestEmailBodyParams): Promise<string | null> {
+  const { isExternalKnowledge } = await import('../wiki/knowledgeModel');
+  if (await isExternalKnowledge(p.clientNumber, p.userId)) return null; // Client Owned Data: nothing fetched or stored for him
   const { client, error } = await getAuthenticatedClient(p.userId);
   if (!client) { log.warn('no gmail auth', { userId: p.userId, error }); return null; }
 

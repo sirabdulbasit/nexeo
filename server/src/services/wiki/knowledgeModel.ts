@@ -76,6 +76,19 @@ export async function externalUserIds(clientNumber?: string): Promise<Set<number
   return new Set(rows.map((r) => Number(r.id)));
 }
 
+/**
+ * The same list for one cycle of a background job, or null when it cannot be
+ * read: the job then skips its whole cycle (never treats users as 'nexeo').
+ */
+export async function externalUsersForCycle(job: string, clientNumber?: string): Promise<Set<number> | null> {
+  try {
+    return await externalUserIds(clientNumber);
+  } catch (e: any) {
+    console.warn(`[${job}] knowledge model unreadable, cycle skipped: ${String(e?.message ?? e).slice(0, 160)}`);
+    return null;
+  }
+}
+
 /** Refused at the Wiki's own doors: a write for a Client Owned Data user that is not his identity or learning. */
 export class ExternalKnowledgeRefused extends Error {
   readonly code = EXTERNAL_KNOWLEDGE;

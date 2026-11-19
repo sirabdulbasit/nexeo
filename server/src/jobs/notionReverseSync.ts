@@ -1,4 +1,5 @@
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { listEditedSince, fetchPageContent } from '../services/connectors/NotionConnector';
 import { isFeatureEnabled } from '../services/featureFlagService';
 
@@ -39,6 +40,8 @@ export async function reverseSyncTenant(clientNumber: string): Promise<ReverseSy
     errors: 0,
   };
 
+  const external = await externalUsersForCycle('notionReverseSync', clientNumber);
+  if (!external) return result;
   let pages;
   try {
     pages = await listEditedSince(clientNumber, since);
@@ -63,6 +66,7 @@ export async function reverseSyncTenant(clientNumber: string): Promise<ReverseSy
         result.skippedNoLink += 1;
         continue;
       }
+      if (external.has(local.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
 
       const localEditedRecently = Date.now() - local.updatedAt.getTime() < 60_000;
       const bothEditedInSameMinute =

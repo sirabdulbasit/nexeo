@@ -27,6 +27,7 @@
  * job moves on to the next user.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { getAuthenticatedClient } from '../services/integrationService';
 
 export interface ReadStateSyncResult {
@@ -47,8 +48,11 @@ export async function syncAllActiveGmailUsers(): Promise<ReadStateSyncResult[]> 
     select: { id: true, clientNumber: true },
   });
 
+  const external = await externalUsersForCycle('gmailReadSync');
+  if (!external) return [];
   const results: ReadStateSyncResult[] = [];
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await syncForUser(u.id, u.clientNumber);
       results.push(r);

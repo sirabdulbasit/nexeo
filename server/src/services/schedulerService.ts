@@ -306,6 +306,8 @@ export function registerUserEngineCron(userId: number, clientNumber: string, sch
   // exactly one replica per tick, but different users can run in parallel.
   const job = cron.schedule(schedule, () => leaderOnly(`engine:${clientNumber}:${userId}`, async () => {
     try {
+      const { isExternalKnowledge } = await import('./wiki/knowledgeModel');
+      if (await isExternalKnowledge(clientNumber, userId)) return; // Client Owned Data: Nexeo runs nothing for him
       const { runForUser } = await import('./brainEngineService');
       log.info('Engine cron triggered', { userId, clientNumber });
       await runForUser(userId, clientNumber);
@@ -373,6 +375,8 @@ export function registerUserRiskRadarCron(
   if (!schedule || !cron.validate(schedule)) return;
   const job = cron.schedule(schedule, () => leaderOnly(`radar:${clientNumber}:${userId}`, async () => {
     try {
+      const { isExternalKnowledge } = await import('./wiki/knowledgeModel');
+      if (await isExternalKnowledge(clientNumber, userId)) return; // Client Owned Data: Nexeo runs nothing for him
       const { runForUser } = await import('./brain/riskRadarService');
       log.info('Risk radar cron triggered', { userId, clientNumber });
       await runForUser(clientNumber, userId);

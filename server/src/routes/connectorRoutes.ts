@@ -10,6 +10,7 @@ import crypto from 'crypto';
 import { requireAuth } from '../middleware/auth';
 import * as connectorService from '../services/connectorService';
 import prisma from '../db/prisma';
+import { isExternalKnowledge, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
 import {
   authorizeUrl as notionAuthorizeUrl,
   exchangeCode as notionExchangeCode,
@@ -247,6 +248,7 @@ export function reachOpts(body: any): { gmailDays?: number; gmailCap?: number; c
 // immediately with { queued: true } so the browser doesn't hang on a
 // long Gmail pull. UI polls /scribe-state to watch progress.
 async function runScribeInBackground(userId: number, clientNumber: string, ucId: string, slug: string, opts: any) {
+  if (await isExternalKnowledge(clientNumber, userId)) return; // Client Owned Data: nothing fetched or stored for him
   // Throttle progress writes — DB hit at most every 1.5s OR every 25 events.
   let lastWriteAt = 0;
   let lastWriteCount = 0;
@@ -326,6 +328,7 @@ async function runScribeInBackground(userId: number, clientNumber: string, ucId:
 router.post('/scribe/:connectorTypeId', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
+    if (await isExternalKnowledge(user.clientNumber, user.id)) return res.json(externalKnowledgeBody()); // Client Owned Data: nothing fetched or stored for him
     const connectorTypeId = String(req.params.connectorTypeId);
     const uc = await prisma.userConnector.findUnique({
       where: { userId_connectorTypeId: { userId: user.id, connectorTypeId } },

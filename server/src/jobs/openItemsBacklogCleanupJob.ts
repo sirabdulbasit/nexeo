@@ -65,6 +65,7 @@
  */
 import { createHash, randomUUID } from 'crypto';
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { planZombieLifecycle } from '../services/openItems/zombieItemPolicy';
 
@@ -260,6 +261,8 @@ export async function runOpenItemsBacklogCleanupForAllTenants(): Promise<Cleanup
 /** Clean ONE tenant's backlog. Every query below carries this clientNumber. */
 export async function runOpenItemsBacklogCleanup(clientNumber: string): Promise<CleanupStats> {
   const stats = emptyStats();
+  const external = await externalUsersForCycle('openItemsBacklogCleanup', clientNumber);
+  if (!external) return stats;
 
   const users = await prisma.openItem.findMany({
     where: { clientNumber, ...(CANDIDATE_WHERE as any) },
@@ -273,6 +276,7 @@ export async function runOpenItemsBacklogCleanup(clientNumber: string): Promise<
   });
 
   for (const u of users) {
+    if (external.has(u.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       await cleanupUserBacklog(clientNumber, u.userId, stats);
     } catch (err: any) {
@@ -528,6 +532,8 @@ async function dispatchOwedNotices(clientNumber: string, stats: CleanupStats): P
     return;
   }
 
+  const external = await externalUsersForCycle('openItemsWithdrawalNotices', clientNumber);
+  if (!external) return;
   const owedUsers = await prisma.openItem.findMany({
     where: { clientNumber, ...(OWED_WHERE as any) },
     select: { userId: true },
@@ -553,6 +559,7 @@ async function dispatchOwedNotices(clientNumber: string, stats: CleanupStats): P
   ])].sort((a, b) => a - b);
 
   for (const userId of userIds) {
+    if (external.has(userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       await processUserNotices(clientNumber, userId, stats);
     } catch (err: any) {

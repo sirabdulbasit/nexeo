@@ -1,4 +1,5 @@
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { listAll } from '../services/adapters/adapterRegistry';
 import { stampConnectorSync } from '../services/connectorSyncTracker';
 
@@ -41,6 +42,8 @@ export async function pollAllTenants(): Promise<PollSummary[]> {
     where: { isActive: true },
     select: { clientNumber: true },
   });
+  const external = await externalUsersForCycle('genericPoller');
+  if (!external) return [];
   const summaries: PollSummary[] = [];
   for (const t of tenants) {
     for (const adapter of listAll()) {
@@ -76,6 +79,7 @@ export async function pollAllTenants(): Promise<PollSummary[]> {
             select: { userId: true },
           }).catch(() => [] as Array<{ userId: number }>);
           for (const u of users) {
+            if (external.has(u.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
             await stampConnectorSync(u.userId, [adapter.sourceType]);
           }
         }

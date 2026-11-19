@@ -2,6 +2,7 @@
 // Syncs every user who has a personal_drive_folder_id configured.
 
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { syncUserDrive } from '../services/personalDriveService';
 import { isFeatureEnabled } from '../services/featureFlagService';
 import createLogger from '../utils/logger';
@@ -11,6 +12,8 @@ const log = createLogger('personalDriveSync');
 export async function runPersonalDriveSyncJob(): Promise<void> {
   const enabled = await isFeatureEnabled('GLOBAL', 'ff_personal_gdrive', false).catch(() => false);
   if (!enabled) return;
+  const external = await externalUsersForCycle('personalDriveSync');
+  if (!external) return;
 
   const users: any[] = await prisma.$queryRawUnsafe(
     `SELECT id FROM users
@@ -25,6 +28,7 @@ export async function runPersonalDriveSyncJob(): Promise<void> {
   log.info('Personal drive sync starting', { userCount: users.length });
 
   for (const user of users) {
+    if (external.has(Number(user.id))) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const result = await syncUserDrive(user.id);
       log.info('User sync done', { userId: user.id, ...result });

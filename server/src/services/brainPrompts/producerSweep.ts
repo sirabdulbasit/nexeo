@@ -50,6 +50,9 @@ export interface ProducerSweepResult {
 
 export async function runProducerSweep(): Promise<ProducerSweepResult> {
   const out: ProducerSweepResult = { scanned: 0, enqueued: 0, byKind: {}, errors: 0 };
+  const { externalUsersForCycle } = await import('../wiki/knowledgeModel');
+  const external = await externalUsersForCycle('producerSweep');
+  if (!external) return out;
 
   const since = new Date(Date.now() - LOOKBACK_MIN * 60 * 1000);
   // ── 1. CRITICAL_DECISION (highest priority — runs first so top
@@ -143,6 +146,7 @@ export async function runProducerSweep(): Promise<ProducerSweepResult> {
 
   // Process in priority order: critical first, then deadline, then owner.
   for (const c of criticalCandidates) {
+    if (external.has(c.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     const dueWhen = c.dueDate
       ? `due ${new Date(c.dueDate).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', hour12: true })}`
       : 'urgent';
@@ -154,6 +158,7 @@ export async function runProducerSweep(): Promise<ProducerSweepResult> {
     );
   }
   for (const d of deadlineCandidates) {
+    if (external.has(d.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     if (seenItem.has(d.id)) continue;
     const crit: Criticality = d.priority === 'critical' ? 'high' : 'routine';
     await enqueueOne(
@@ -164,6 +169,7 @@ export async function runProducerSweep(): Promise<ProducerSweepResult> {
     );
   }
   for (const o of ownerCandidates) {
+    if (external.has(o.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     if (seenItem.has(o.id)) continue;
     await enqueueOne(
       'owner_missing', o.user_id, o.client_number, o.id, o.title,

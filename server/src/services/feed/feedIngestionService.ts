@@ -57,7 +57,7 @@ export interface RawEventInput {
 }
 
 export interface IngestResult {
-  status: 'new' | 'duplicate' | 'error' | 'self_echo';
+  status: 'new' | 'duplicate' | 'error' | 'self_echo' | 'external_knowledge';
   feedEventId?: string;
   contentHash: string;
   publishedMessageId?: string;
@@ -76,6 +76,10 @@ export interface IngestResult {
  */
 export async function ingest(input: RawEventInput): Promise<IngestResult> {
   const contentHash = computeHash(input.sourceType, input.sourceId, input.payload);
+  if (input.userId != null) {
+    const { isExternalKnowledge } = await import('../wiki/knowledgeModel');
+    if (await isExternalKnowledge(input.clientNumber, input.userId)) return { status: 'external_knowledge', contentHash }; // Client Owned Data: nothing fetched or stored for him
+  }
 
   // ── DEF-287 — BRAIN MUST NOT INGEST ITS OWN OUTBOUND AS INBOUND ────────────────────────────
   //

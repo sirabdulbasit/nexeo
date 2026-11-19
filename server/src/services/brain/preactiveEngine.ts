@@ -312,8 +312,12 @@ export async function runPreactiveForAllUsers(): Promise<{ users: number; preps:
     where: { isActive: true },
     select: { id: true, clientNumber: true },
   }).catch(() => [] as Array<{ id: number; clientNumber: string }>);
+  const { externalUsersForCycle } = await import('../wiki/knowledgeModel');
+  const external = await externalUsersForCycle('preactive');
+  if (!external) return { users: 0, preps: 0, nudges: 0 };
   let preps = 0, nudges = 0;
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     const r = await runPreactiveTick(u.clientNumber, u.id).catch(() => ({ meetingPrepsSent: 0, dueNudgesSent: 0 }));
     preps += r.meetingPrepsSent;
     nudges += r.dueNudgesSent;

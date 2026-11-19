@@ -59,6 +59,8 @@ export async function backfillUserScribe(
   opts: { onProgress?: (s: BackfillStats) => void } = {},
 ): Promise<BackfillStats> {
   const stats: BackfillStats = { scanned: 0, alreadyScribed: 0, created: 0, errors: 0 };
+  const { isExternalKnowledge } = await import('../wiki/knowledgeModel');
+  if (await isExternalKnowledge(clientNumber, userId)) return stats; // Client Owned Data: nothing fetched or stored for him
 
   const PAGE = 200;
   let offset = 0;

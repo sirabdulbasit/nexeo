@@ -99,6 +99,8 @@ router.get('/day-brief', async (req: Request, res: Response) => {
 router.get('/day-pack', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
+  // Client Owned Data (charter, 19 Nov): no day pack is built from Nexeo's wiki for him.
+  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; }
   try {
     const timezone = await resolveUserTimezone(who.userId);
     const pack = await buildDayPack(who.tenantId, who.userId, { timezone });
@@ -156,6 +158,7 @@ router.get('/knowledge', async (req: Request, res: Response) => {
 router.get('/changes', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
+  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; } // Client Owned Data
   try {
     res.json(await changesSince(who.tenantId, who.userId, req.query.since));
   } catch (err: any) {

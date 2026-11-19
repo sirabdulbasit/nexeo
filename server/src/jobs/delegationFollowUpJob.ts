@@ -57,6 +57,7 @@
  * ours to change is not counted as chased, escalated or stale.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { sentRecord } from '../services/delegation/sentRecord';
 
@@ -118,6 +119,8 @@ export async function runDelegationFollowUpForTenant(clientNumber: string): Prom
   const t0 = Date.now();
   const summary: FollowUpRunSummary = { scanned: 0, sent: 0, held: 0, escalated: 0, marked_stale: 0, errors: 0, durationMs: 0 };
   const now = new Date();
+  const external = await externalUsersForCycle('delegationFollowUp', clientNumber);
+  if (!external) return summary;
 
   const items = await prisma.openItem.findMany({
     where: {
@@ -176,6 +179,7 @@ export async function runDelegationFollowUpForTenant(clientNumber: string): Prom
   };
 
   for (const item of items) {
+    if (external.has(item.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const meta: any = (item.metadata as any) ?? {};
       const fu = meta.followUp ?? {};

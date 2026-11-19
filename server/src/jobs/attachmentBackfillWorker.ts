@@ -17,6 +17,7 @@
  *     attachments live; backfill is a no-op for them.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { ingestMessageAttachments } from '../services/knowledge/attachmentWikiService';
 
@@ -182,7 +183,9 @@ async function processOneUser(
 export async function runAttachmentBackfillCycle(): Promise<{
   users: number; processed: number; messagesWithAttachments: number; completed: number;
 }> {
-  const users = await selectUsersForThisCycle();
+  const external = await externalUsersForCycle('attachmentBackfill');
+  if (!external) return { users: 0, processed: 0, messagesWithAttachments: 0, completed: 0 };
+  const users = (await selectUsersForThisCycle()).filter((u) => !external.has(u.userId)); // Client Owned Data: Nexeo runs nothing for him
   if (users.length === 0) return { users: 0, processed: 0, messagesWithAttachments: 0, completed: 0 };
 
   let totalProcessed = 0;

@@ -32,6 +32,7 @@
  */
 
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('inbound-noise-report');
@@ -109,11 +110,14 @@ export async function runInboundNoiseReportForTenant(clientNumber: string): Prom
     return [] as Array<{ id: number }>;
   });
 
+  const external = await externalUsersForCycle('inboundNoiseReport', clientNumber);
+  if (!external) return summary;
   const { summariseInboundNoise } = await import('../services/selfpruning/inboundNoiseLedger');
   const { renderInboundNoiseNotice } = await import('../services/notifications/proactiveMessageText');
   const { enqueueBrainPrompt } = await import('../services/brainPrompts/brainPromptQueueService');
 
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     summary.users += 1;
     try {
       const noise = await summariseInboundNoise({ clientNumber, userId: u.id, windowHours: WINDOW_HOURS });

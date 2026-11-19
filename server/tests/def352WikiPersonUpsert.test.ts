@@ -18,6 +18,12 @@
  *  - the SQL targets the composite index, not the id PK.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Every user here is Nexeo Owned Data (the Client Owned Data skip is tested in externalKnowledgeGates.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  externalUsersForCycle: async () => new Set<number>(),
+  isExternalKnowledge: async () => false,
+}));
 import fs from 'fs';
 import path from 'path';
 

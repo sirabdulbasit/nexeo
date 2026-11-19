@@ -18,6 +18,12 @@
  * dropping `clientNumber` from any query or write turns these tests red.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+// Every user here is Nexeo Owned Data (the Client Owned Data skip is tested in externalKnowledgeGates.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  externalUsersForCycle: async () => new Set<number>(),
+  isExternalKnowledge: async () => false,
+}));
 
 const mocks = vi.hoisted(() => {
   const state = {

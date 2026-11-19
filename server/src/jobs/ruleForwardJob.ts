@@ -14,6 +14,7 @@
  * pack shows it as by_rule {action: "delegated", rule_id, person_name, task_id, at}; rule.remove stops further ones.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('rule-forward');
@@ -88,7 +89,10 @@ export async function runRuleForward(now = new Date()): Promise<{ users: number;
   const skipped: Record<string, number> = {};
   const skip = (why: string) => { skipped[why] = (skipped[why] ?? 0) + 1; };
   let forwarded = 0;
+  const external = await externalUsersForCycle('ruleForward');
+  if (!external) return { users: 0, forwarded: 0, skipped };
   for (const u of users) {
+    if (external.has(u.id)) { skip('external_knowledge'); continue; } // Client Owned Data: Nexeo runs nothing for him
     try {
       await bounceSweep(u.clientNumber, u.id).catch((e: any) => log.warn('bounce check failed', { userId: u.id, error: String(e?.message ?? e).slice(0, 160) }));
       const rules = (await suziEmailRules(u.clientNumber, u.id)).filter((r) => r.kind === 'email_delegate');

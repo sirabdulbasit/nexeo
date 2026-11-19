@@ -7,6 +7,7 @@
  * meetings tile) works. Dedup by event.id via content hash.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { getEvents } from '../services/calendarService';
 import { stampConnectorSync } from '../services/connectorSyncTracker';
 import { ingest } from '../services/feed/feedIngestionService';
@@ -33,8 +34,11 @@ export async function pollAllActiveCalendarUsers(): Promise<GcalPollResult[]> {
     select: { id: true, clientNumber: true },
   });
 
+  const external = await externalUsersForCycle('gcalPoll');
+  if (!external) return [];
   const results: GcalPollResult[] = [];
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await pollUser(u.id, u.clientNumber);
       results.push(r);

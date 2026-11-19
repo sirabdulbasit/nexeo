@@ -10,6 +10,7 @@
  * up), then every 30 min.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { runCognitiveTick } from '../services/knowledge/brainCognitiveEngine';
 
@@ -35,7 +36,9 @@ async function selectUsers(): Promise<Array<{ id: number; clientNumber: string }
 
 export async function runCognitiveCycle(): Promise<{ users: number; observations: number; durationMs: number }> {
   const t0 = Date.now();
-  const users = await selectUsers();
+  const external = await externalUsersForCycle('brainCognitive');
+  if (!external) return { users: 0, observations: 0, durationMs: Date.now() - t0 };
+  const users = (await selectUsers()).filter((u) => !external.has(u.id)); // Client Owned Data: Nexeo runs nothing for him
   let observations = 0;
   for (const u of users) {
     try {

@@ -50,6 +50,7 @@
  * UTC-day check.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { brainContactsUser } from '../services/notifications/brainOutboundService';
 import { callLLM } from '../services/llmRouter';
@@ -357,6 +358,8 @@ function alreadyJudgedToday(item: any, now: Date): boolean {
 export async function runOpenItemFollowUp(): Promise<RunResult> {
   const result = newResult();
   const now = new Date();
+  const external = await externalUsersForCycle('openItemFollowUp');
+  if (!external) return result;
 
   // Pull owner's email separately via a join — we only need it to
   // address the user by first-name in the nudge text. Phone resolution
@@ -385,6 +388,7 @@ export async function runOpenItemFollowUp(): Promise<RunResult> {
   }
 
   for (const item of items) {
+    if (external.has(item.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     result.scanned += 1;
     // Shared self-pruning policy quarantines suspicious residue before it is
     // soft-closed. Never spend an LLM call or contact the owner for an item

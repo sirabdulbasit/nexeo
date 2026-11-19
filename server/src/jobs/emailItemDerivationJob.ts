@@ -37,6 +37,7 @@
  * item-derivation consumer.)
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('email-item-derivation');
@@ -209,6 +210,8 @@ export async function runEmailItemDerivation(): Promise<DerivationSummary> {
   // which owners are affected when none do (they receive the alarm).
   let judgementSuccesses = 0;
   const failedFor = new Map<number, string>();
+  const external = await externalUsersForCycle('emailItemDerivation');
+  if (!external) return out;
   try {
     const { getBehaviorValue } = await import('../services/behaviorConfig');
 
@@ -244,6 +247,7 @@ export async function runEmailItemDerivation(): Promise<DerivationSummary> {
     const perTenantSeen = new Map<string, number>();
     for (const row of candidates as any[]) {
       if (row.userId == null) continue; // no owner to derive FOR — leave for a future owner-mapping pass
+      if (external.has(row.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
       const tenantKey = `${row.clientNumber}:${row.userId}`;
       try {
         // DEF-253 — each channel keeps its own kill switch; the batch cap is

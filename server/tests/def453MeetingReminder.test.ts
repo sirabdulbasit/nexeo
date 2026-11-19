@@ -8,6 +8,12 @@
  *            the Meet link is appended verbatim; never the calendar page; dedup per event and start.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+// Every user here is Nexeo Owned Data (the Client Owned Data skip is tested in externalKnowledgeGates.test.ts).
+vi.mock('../src/services/wiki/knowledgeModel', async (orig) => ({
+  ...(await orig<typeof import('../src/services/wiki/knowledgeModel')>()),
+  externalUsersForCycle: async () => new Set<number>(),
+  isExternalKnowledge: async () => false,
+}));
 
 let reach: any = { adopted: false, alive: false, absentMs: 0 };
 let lastFrame: any[] = [];

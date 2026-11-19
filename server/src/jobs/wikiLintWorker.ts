@@ -13,6 +13,7 @@
  * without waking at 3am to look at logs.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { BRAIN_SCHEMA_VERSION } from '../services/knowledge/brainSchema';
 import { WIKI_STALE_MS, WIKI_STALE_DAYS } from '../services/wiki/wikiStaleness';
@@ -157,8 +158,11 @@ export async function runLintCycle(): Promise<{ users: number; orphans: number; 
     select: { id: true, clientNumber: true },
   }).catch(() => [] as any[]);
 
+  const external = await externalUsersForCycle('wikiLint');
+  if (!external) return { users: 0, orphans: 0, stale: 0, openGaps: 0 };
   let orphans = 0, stale = 0, openGaps = 0;
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const f = await runLintForUser(u.clientNumber, u.id);
       orphans += f.orphans; stale += f.stale; openGaps += f.openGaps;

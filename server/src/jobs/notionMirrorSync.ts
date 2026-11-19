@@ -16,6 +16,7 @@
  *   - Failures logged and retried on next tick — no hard failure.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { upsertViaNotion } from '../services/wiki/wikiNotionService';
 
 export interface NotionMirrorResult {
@@ -37,9 +38,12 @@ export async function mirrorAllTenants(): Promise<NotionMirrorResult[]> {
   });
   const notionConnectors = connectors.filter((c) => c.connectorType.slug === 'notion' || c.connectorType.slug === 'notion_personal');
   if (notionConnectors.length === 0) return [];
+  const external = await externalUsersForCycle('notionMirror');
+  if (!external) return [];
 
   const results: NotionMirrorResult[] = [];
   for (const uc of notionConnectors) {
+    if (external.has(uc.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     const t0 = Date.now();
     const res: NotionMirrorResult = { userId: uc.userId, clientNumber: uc.clientNumber, pushed: 0, skipped: 0, errors: 0, durationMs: 0 };
 

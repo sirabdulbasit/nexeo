@@ -8,6 +8,7 @@
  * or repeated non-response makes intervention necessary.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import {
   ActionLifecycleState,
@@ -274,6 +275,8 @@ async function claimAndRecord(item: any, plan: LifecyclePlan, channel: string, r
 export async function runActionLifecycleSweep(options: { dryRun?: boolean; now?: Date } = {}): Promise<ActionLifecycleRunResult> {
   const result: ActionLifecycleRunResult = { scanned: 0, contacted: 0, escalated: 0, held: 0, errors: 0 };
   const now = options.now ?? new Date();
+  const external = await externalUsersForCycle('actionLifecycle');
+  if (!external) return result;
   const allItems = await prisma.openItem.findMany({
     where: { status: { in: ACTIVE as any } },
     take: 500,
@@ -298,7 +301,7 @@ export async function runActionLifecycleSweep(options: { dryRun?: boolean; now?:
   const { isBrainOwned, isWatchOnly, BRAIN_OWNED_SKIP_REASON } = await import('../services/openItems/brainOwnership');
   const ownedOut = (allItems as any[]).filter((item) => !isBrainOwned(item));
   // CL-092: a watched item (someone else was asked) is never chased either.
-  const items = ownedOut.filter((item) => !isWatchOnly(item));
+  const items = ownedOut.filter((item) => !isWatchOnly(item) && !external.has(item.userId)); // Client Owned Data: Nexeo runs nothing for him
   const brainOwnedSkipped = (allItems as any[]).length - ownedOut.length;
   if (brainOwnedSkipped > 0) {
     log.info('skipped brain-owned items', { count: brainOwnedSkipped, reason: BRAIN_OWNED_SKIP_REASON });

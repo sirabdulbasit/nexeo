@@ -1,4 +1,5 @@
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { transitionStatus } from '../services/itemLifecycle/lifecycleService';
 
 /**
@@ -20,14 +21,17 @@ export interface UnblockResult {
 
 export async function wakeSnoozed(): Promise<UnblockResult> {
   const now = new Date();
+  const external = await externalUsersForCycle('snoozeUnblocker');
+  if (!external) return { scanned: 0, unblocked: 0, errors: 0 };
   const due = await prisma.openItem.findMany({
     where: { status: 'SNOOZED', dueDate: { lte: now } } as any,
-    select: { id: true, clientNumber: true, dueDate: true },
+    select: { id: true, clientNumber: true, userId: true, dueDate: true },
     take: 100,
   });
   let unblocked = 0;
   let errors = 0;
   for (const item of due) {
+    if (external.has(item.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await transitionStatus(item.id, 'TRIAGED' as any, {
         clientNumber: item.clientNumber,

@@ -251,6 +251,9 @@ export async function answerAsBrain(
   // Side effects (fire-and-forget — don't block the response on them)
   Promise.resolve().then(async () => {
     try {
+      // Client Owned Data: the answer is returned, but no gap, answer or log page is written for him.
+      const { isExternalKnowledge } = await import('../services/wiki/knowledgeModel');
+      if (await isExternalKnowledge(clientNumber, userId)) return;
       if (result.gaps.length > 0) {
         await recordGaps(clientNumber, userId, result.gaps, question);
       }

@@ -899,8 +899,15 @@ const MEANING_PER_RUN = 60;
 /** Build the notes for every active user, one after another. */
 export async function rebuildWikiForAllUsers(): Promise<Array<{ userId: number; written: number; created: number; unchanged: number; retired: number; renamed: number; merged: number; rules: RebuildResult['rules']; meaning: RebuildResult['meaning']; companies?: RebuildResult['companies']; documents?: RebuildResult['documents']; upkeep?: RebuildResult['upkeep']; systems?: unknown; error?: string }>> {
   const { forEachActiveUser } = await import('../maintenance/queueArchiveMaintenanceService');
+  const { externalUsersForCycle } = await import('./knowledgeModel');
+  const external = await externalUsersForCycle('wikiRebuild');
+  if (!external) return [];
   const clients = new Set<string>();
-  const results = await forEachActiveUser((clientNumber, userId) => { clients.add(clientNumber); return rebuildWikiForUser(clientNumber, userId); });
+  const results = (await forEachActiveUser(async (clientNumber, userId) => {
+    if (external.has(userId)) return null; // Client Owned Data: Nexeo runs nothing for him
+    clients.add(clientNumber);
+    return rebuildWikiForUser(clientNumber, userId);
+  })).filter((r) => !external.has(r.userId));
   // The company's own notes (systems, KPIs, business units), once per client.
   const systems = new Map<string, unknown>();
   for (const c of clients) {

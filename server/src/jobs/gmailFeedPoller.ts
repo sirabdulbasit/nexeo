@@ -1,4 +1,5 @@
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { getInbox, readEmail } from '../services/adapters/gmailAdapter';
 import { ingest } from '../services/feed/feedIngestionService';
 import { stampConnectorSync } from '../services/connectorSyncTracker';
@@ -39,8 +40,11 @@ export async function pollAllActiveUsers(): Promise<PollResult[]> {
     select: { id: true, clientNumber: true },
   });
 
+  const external = await externalUsersForCycle('gmailPoll');
+  if (!external) return [];
   const results: PollResult[] = [];
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await pollUser(u.id, u.clientNumber);
       results.push(r);

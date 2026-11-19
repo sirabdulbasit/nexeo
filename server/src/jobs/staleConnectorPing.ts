@@ -34,6 +34,7 @@
  * unexpectedly never suppresses the alert — fail toward telling him.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { ownerFacingCause } from '../services/connectors/providerErrorText';
 
@@ -89,12 +90,15 @@ export async function runStaleConnectorPing(opts: { dryRun?: boolean } = {}): Pr
     out.scanned = stale.length;
     if (out.scanned === 0) return out;
 
+    const external = await externalUsersForCycle('staleConnectorPing');
+    if (!external) return out;
     const { enqueueBrainPrompt } = await import('../services/brainPrompts/brainPromptQueueService');
     // DEF-244 — one heal attempt per USER per sweep (the Google family shares
     // one grant; refreshing it five times for five sibling connectors would
     // be noise in the token endpoint's logs and no extra healing).
     const healByUser = new Map<number, { outcome: HealOutcome; error?: string }>();
     for (const row of stale) {
+      if (external.has(Number(row.user_id))) { out.skipped += 1; continue; } // Client Owned Data: Nexeo runs nothing for him
       const connType = row.connector_type_id?.replace(/^ct_/, '').replace(/_personal$/, '').replace(/_/g, ' ') ?? 'a connector';
 
       // DEF-244 — attempt the repair BEFORE composing any nag.

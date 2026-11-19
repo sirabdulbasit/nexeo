@@ -12,6 +12,7 @@
  * 19 Aug: never a template); the join link is appended verbatim because it must be exact.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('meeting-reminder');
@@ -87,7 +88,9 @@ export async function runMeetingReminders(from: Date, to: Date): Promise<{ users
   const { brainContactsUser } = await import('../services/notifications/brainOutboundService');
   const { renderMarkerInBrainVoice } = await import('../services/knowledge/markerVoice');
   const { resolveUserTimezone } = await import('../services/userTimezoneService');
-  const users = await usersToCheck();
+  const external = await externalUsersForCycle('meetingReminder');
+  if (!external) return { users: 0, sent: 0, skipped: 0 };
+  const users = (await usersToCheck()).filter((u) => !external.has(u.id)); // Client Owned Data: Nexeo runs nothing for him
   let sent = 0; let skipped = 0;
   for (const u of users) {
     try {

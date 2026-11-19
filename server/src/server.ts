@@ -866,7 +866,10 @@ const server = app.listen(env.port, async () => {
     try {
       const { backfillUserScribe, forEachActiveUser } =
         await import('./services/maintenance/queueArchiveMaintenanceService');
-      const results = await forEachActiveUser((cn, uid) => backfillUserScribe(cn, uid));
+      const { externalUsersForCycle } = await import('./services/wiki/knowledgeModel');
+      const external = await externalUsersForCycle('scribeBackfill');
+      if (!external) return;
+      const results = (await forEachActiveUser(async (cn, uid) => (external.has(uid) ? null : backfillUserScribe(cn, uid)))).filter((r) => !external.has(r.userId)); // Client Owned Data: Nexeo runs nothing for him
       const totalCreated = results.reduce((s, r) => s + (r.result?.created ?? 0), 0);
       const totalErrors = results.reduce((s, r) => s + (r.result?.errors ?? 0), 0) +
         results.filter((r) => r.error).length;
@@ -1051,7 +1054,11 @@ const server = app.listen(env.port, async () => {
             select: { id: true },
           });
           const { composeBriefFor } = await import('./services/steering/morningBriefService');
+          const { externalUsersForCycle } = await import('./services/wiki/knowledgeModel');
+          const external = await externalUsersForCycle('morningBrief', t.clientNumber);
+          if (!external) continue;
           for (const u of users) {
+            if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
             try { await composeBriefFor(t.clientNumber, u.id); }
             catch (err: any) { console.warn(`[morningBrief] ${t.clientNumber}/${u.id} failed:`, err.message); }
           }

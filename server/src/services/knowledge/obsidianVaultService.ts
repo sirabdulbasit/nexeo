@@ -266,7 +266,11 @@ export async function exportVaultForAllUsers(): Promise<void> {
     where: { isActive: true, integrationProvider: 'google' } as any,
     select: { id: true, clientNumber: true },
   }).catch(() => [] as Array<{ id: number; clientNumber: string }>);
+  const { externalUsersForCycle } = await import('../wiki/knowledgeModel');
+  const external = await externalUsersForCycle('vaultExport');
+  if (!external) return;
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     await exportVaultForUser(u.clientNumber, u.id).catch((e) => log.warn('vault export failed', { userId: u.id, error: e?.message }));
   }
 }

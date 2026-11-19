@@ -12,6 +12,7 @@
  * processes normally. Same pattern as gtasksFeedPoller.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import { getAllRecentMessages } from '../services/googleChatPersonalService';
 import { ingest } from '../services/feed/feedIngestionService';
 import { stampConnectorSync } from '../services/connectorSyncTracker';
@@ -37,8 +38,11 @@ export async function pollAllActiveChatUsers(): Promise<GchatPollResult[]> {
     select: { id: true, clientNumber: true },
   });
 
+  const external = await externalUsersForCycle('gchatPoll');
+  if (!external) return [];
   const results: GchatPollResult[] = [];
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await pollUser(u.id, u.clientNumber);
       results.push(r);

@@ -8,6 +8,7 @@
  * Workspace Events (meetEvents.ts) only make records arrive sooner; this sweep alone is enough.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('meet-poll');
@@ -57,7 +58,9 @@ export async function runMeetPoll(now = new Date()): Promise<{ users: number; pr
   const { meetFor, meetingCodeOf } = await import('../services/meetings/meetTranscripts');
   const { trimOldTranscripts, scheduleReread } = await import('../services/meetings/meetingRecordStore');
   const { getEvents } = await import('../services/calendarService');
-  const users = await enabledUsers();
+  const external = await externalUsersForCycle('meetPoll');
+  if (!external) return { users: 0, processed: 0, rereads: 0, trimmed: 0 };
+  const users = (await enabledUsers()).filter((u) => !external.has(u.userId)); // Client Owned Data: Nexeo runs nothing for him
   let processed = 0; let rereads = 0;
   const { ensureSubscription } = await import('../services/meetings/meetEvents');
   for (const u of users) {

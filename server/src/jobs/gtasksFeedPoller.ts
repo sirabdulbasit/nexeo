@@ -15,6 +15,7 @@
  * Brief's auto-handled buckets.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import * as gtasks from '../services/adapters/googleTasksAdapter';
 import { ingest } from '../services/feed/feedIngestionService';
 import { stampConnectorSync } from '../services/connectorSyncTracker';
@@ -38,8 +39,11 @@ export async function pollAllActiveTasksUsers(): Promise<GtasksPollResult[]> {
     select: { id: true, clientNumber: true },
   });
 
+  const external = await externalUsersForCycle('gtasksPoll');
+  if (!external) return [];
   const results: GtasksPollResult[] = [];
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const r = await pollUser(u.id, u.clientNumber);
       results.push(r);

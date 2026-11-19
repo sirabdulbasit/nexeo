@@ -39,6 +39,7 @@
  * and does not retry within the window: it ends the pass (DEF-304).
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 import { brainContactsUser } from '../services/notifications/brainOutboundService';
 import { planZombieLifecycle } from '../services/openItems/zombieItemPolicy';
@@ -126,6 +127,8 @@ export async function runOpenItemDraftAsk(): Promise<RunResult> {
   };
   const now = new Date();
   const todayUtcDateStr = now.toISOString().slice(0, 10);
+  const external = await externalUsersForCycle('openItemDraftAsk');
+  if (!external) return result;
 
   // Pull all DRAFT items. Cap at 500 per run; daily cadence makes
   // this comfortably enough. Owner phone lookup happens inside
@@ -149,6 +152,7 @@ export async function runOpenItemDraftAsk(): Promise<RunResult> {
   drafts.sort(importanceOrder);
 
   for (const item of drafts) {
+    if (external.has(item.userId)) continue; // Client Owned Data: Nexeo runs nothing for him
     result.scanned += 1;
     try {
       // Self-pruning safety rail. Malformed residue is quarantined first, so it

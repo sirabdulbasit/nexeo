@@ -12,6 +12,7 @@
  * Bounded: at most 500 ids per box per day and 50 late landings per run; anything left is counted as still missing.
  */
 import prisma from '../db/prisma';
+import { externalUsersForCycle } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('mailbox-census');
@@ -165,6 +166,8 @@ export function daysToCheck(now: Date, tz: string): string[] {
 }
 
 export async function runMailboxCensus(now = new Date()): Promise<CensusResult[]> {
+  const external = await externalUsersForCycle('mailboxCensus');
+  if (!external) return [];
   const users = await prisma.user.findMany({
     where: { isActive: true, integrationProvider: 'google', integrationStatus: 'active' },
     select: { id: true, clientNumber: true },
@@ -176,6 +179,7 @@ export async function runMailboxCensus(now = new Date()): Promise<CensusResult[]
   const out: CensusResult[] = [];
   const budget: { late: number; judge?: number } = { late: MAX_LATE_PER_RUN };
   for (const u of users) {
+    if (external.has(u.id)) continue; // Client Owned Data: Nexeo runs nothing for him
     try {
       const { client } = await getAuthenticatedClient(u.id);
       if (!client) continue;
