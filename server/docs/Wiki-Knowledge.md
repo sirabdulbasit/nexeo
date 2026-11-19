@@ -274,6 +274,10 @@ Not built; the Nexeo Wiki session builds it after the AGREE.
 
 **Both halves live (D-302 Wiki session, D-303 Nexeo-Builder, 19 Nov 16:34 PKT). Probe of the whole path, 16:45 PKT, with a temporary Client Owned Data user (created by `createUser`, removed afterwards):** his email handed to the feed intake is refused (`external_knowledge`); the scribe backfill creates nothing; no contact is created; after reconcile and the hourly build he holds **0** Wiki pages, **0** sources, **0** feed items, **0** open items. **Still NOT run: the agreed acceptance case with a real mailbox** (a Client Owned Data user signs in and connects Gmail, two poll cycles, one hourly build, a send through the connector). It needs a real person and mailbox to sign in; I cannot connect one for him.
 
+**Owner's answers, 19 Nov 2026 (recorded by Nexeo-Builder):**
+1. **A user may switch models after creation: "yes".** NOT BUILT. Today `knowledge_model` is set only by `createUser` and the triggers treat it as fixed. Owed: a switch on the user (admin only), and what happens to rows already held in the Nexeo Wiki when a user moves to Client Owned Data (his earlier ruling "no wiki moves": they stay, unread and not added to), and the reverse (Nexeo starts from empty). Suzi learns the change through `wiki_kind` in `device.report` (T42), so the switch is a contract change: it is agreed with Suzi before it is built.
+2. **The real-mailbox acceptance case runs "through Nexeo connector":** the test user connects Gmail in Nexeo's own connector, and the send goes through that connector. Nothing outside Nexeo is used.
+
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
 Owner, 13 Nov: *"make sure 100% every feed/incoming knowledge/meetings/discussion anything should be land in wiki (through proper structure, links, and information as per obsidian); make sure 100% that every information will be derived through wiki which will provided to Nexeo or Suzi both; when it is build, tested, verified then we consider it done."*
