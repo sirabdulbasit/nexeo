@@ -158,7 +158,13 @@ What this needs, still to be decided or built:
   no index or embeddings are kept in Nexeo.
 - Sources (email text, calendar, attachments) are linked with the vault too, not kept in the Nexeo wiki.
 - Vault unreachable: Suzi and Nexeo say "Obsidian is unreachable". They do not answer from a copy.
-Still open: where the vault lives (re-explained to him 19 Nov). Not built; the Nexeo Wiki session builds it.
+- Where the vault lives: in Obsidian's own cloud (Obsidian Sync, bought by the user).
+**Open technical point (Nexeo-Builder, 19 Nov):** as far as we know, Obsidian Sync has no public API, and vaults can
+be end-to-end encrypted. So Nexeo can reach the vault in only two ways:
+1. a sync client on Nexeo's server, signed in to the user's Obsidian account (it needs his login and the vault
+   password, if one is set);
+2. through Suzi on his Mac, reading the copy that Obsidian keeps there (unreachable when the Mac is off).
+Waiting on the owner's choice. Not built; the Nexeo Wiki session builds it.
 
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
