@@ -165,7 +165,15 @@ be end-to-end encrypted. So Nexeo can reach the vault in only two ways:
    password, if one is set);
 2. through Suzi on his Mac, reading the copy that Obsidian keeps there (unreachable when the Mac is off).
 **Owner chose 2, 19 Nov 2026:** no vault files on Nexeo's server. The vault is read and written through Suzi on his Mac.
-It is unreachable whenever the Mac is off, for scheduled jobs too. Proposed to Suzi as link T42, waiting for its AGREE.
+It is unreachable whenever the Mac is off, for scheduled jobs too. Proposed to Suzi as link T42. **Both sides AGREED, 19 Nov 15:03 PKT (round 2)**:
+- notes are identified by the id in their frontmatter;
+- the Mac answers list, find, read, write, status, changes, search, get_file and put_file over the live link (10 s, then unreachable);
+- his edit wins, and Nexeo writes only inside its marked block;
+- delete moves a note to `.trash/` and never destroys it;
+- limits: 48 KB per part, 2 MB per note, 10 MB per file;
+- search may use macOS Spotlight, which stays on the Mac.
+
+Suzi starts with the read-only calls. Writes, and the Nexeo side, wait for the owner's six scope answers.
 Not built; the Nexeo Wiki session builds it after the AGREE.
 
 **Checked by the Wiki session, 19 Nov (web search of Obsidian's help pages and launch coverage; nothing installed or tried):**
