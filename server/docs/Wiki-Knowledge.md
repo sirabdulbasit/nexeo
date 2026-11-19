@@ -152,8 +152,13 @@ What this needs, still to be decided or built:
 2. **Obsidian:** kept outside Nexeo, connected to his Obsidian vault; ALL of the user's knowledge and data lives there.
 3. **Always in Nexeo, whichever kind:** voiceprint, faceprint and learning (what Nexeo and Suzi learn about how he works:
    the profile note "How to work with <user>", learned preferences, `learned.*`).
-Still open: where the vault lives (Git repo recommended / Drive or Dropbox / his Mac through Suzi), and where company
-knowledge shared by the client's users goes for an Obsidian user. Not built; the Nexeo Wiki session builds it.
+**Owner's answers, 19 Nov 2026 (for an Obsidian user):**
+- Company knowledge is part of the vault too.
+- The search index exists only for a Nexeo wiki. For Obsidian, Nexeo and Suzi fetch directly from the vault every time;
+  no index or embeddings are kept in Nexeo.
+- Sources (email text, calendar, attachments) are linked with the vault too, not kept in the Nexeo wiki.
+- Vault unreachable: Suzi and Nexeo say "Obsidian is unreachable". They do not answer from a copy.
+Still open: where the vault lives (re-explained to him 19 Nov). Not built; the Nexeo Wiki session builds it.
 
 ### 0.7 What "done" means, and the order of work (owner and review, 2026-11-13)
 
