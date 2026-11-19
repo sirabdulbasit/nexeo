@@ -191,6 +191,24 @@ The per-user wiki kind is the choice between these two models.
 **Owner, 19 Nov: "client owned data model will only run when mac is ON".** So (a) is answered too: anything that reaches
 Nexeo for a Client Owned Data user while the Mac is off is not held.
 
+**Owner's answers, 19 Nov, settling Client Owned Data (they supersede the Nexeo-side vault reads above):**
+- **(e) Nexeo reads nothing from the vault.** Only Suzi accesses it, locally on the Mac, and answers from it.
+  The `vault_*` calls are Suzi's own. Nexeo does not send them.
+- **(c) Email and other data are read through the vault.** Nexeo still sends email through its connectors, but a
+  Client Owned Data user's connectors are not scribed: the user is created as "external knowledge", so nothing from
+  them is written to the Nexeo wiki.
+- **(d) Company knowledge** stays outside Nexeo, in the vault.
+- **(f) No wiki moves.** Nexeo Owned Data users keep the Nexeo wiki.
+- **(h) The user feeds the vault themselves**, for example with scheduled jobs in the Claude desktop app.
+- Unchanged: voiceprint, faceprint and learning stay in Nexeo.
+
+**What Nexeo must build:**
+1. A per-user "external knowledge" setting, chosen when the user is created.
+2. For that user, the wiki intake, scribe and builders are skipped.
+3. Connectors stay available for actions such as sending email.
+
+Not built.
+
 **Owner, 19 Nov (g): "obviously when mac is off nothing could be run".** For an Obsidian user, Nexeo keeps no working
 copy of rules, tasks or contacts. While the Mac is off, no rule runs, no reminder fires, and the Action Center and the
 brief say "Obsidian is unreachable".
