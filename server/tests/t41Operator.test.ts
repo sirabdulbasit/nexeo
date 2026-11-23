@@ -121,6 +121,10 @@ describe('T41 operator.report', () => {
     expect(new Set([runRowId('A', 2, 'r-1'), runRowId('B', 2, 'r-1'), runRowId('A', 3, 'r-1')]).size).toBe(3);
     expect((await packOperator('B', 2)).used).toEqual({ tasks: 1, steps: 4 });
   });
+  it('a run that crashed before its first step (round 15) is kept as failed, 0 steps, not verified', async () => {
+    const r: any = await report('A', 2, { ...good, job: 'web', status: 'failed', proof: 'none', steps: 0, actions: 0, started: '2026-11-23T11:43:00.000Z', ended: '2026-11-23T11:43:00.100Z' });
+    expect(r).toMatchObject({ ok: true, item: { status: 'failed', verified: false, used: { tasks: 1, steps: 0 } } });
+  });
   it('refuses what it cannot read', async () => {
     expect(await report('A', 2, { ...good, run_id: 'has space' })).toMatchObject({ error: 'bad_run_id' });
     expect(await report('A', 2, { ...good, job: 'hack' })).toMatchObject({ error: 'bad_job' });
