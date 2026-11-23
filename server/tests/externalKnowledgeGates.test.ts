@@ -190,10 +190,12 @@ describe('(b) Suzi routes', () => {
       expect(r.body[EXTERNAL_KNOWLEDGE]).toBeUndefined();
       expect(p === 'day-pack' ? buildDayPack : changesSince).toHaveBeenCalledTimes(1);
     });
-    it(`${p}: guard unreadable fails closed`, async () => {
+    // T43 (Suzi AGREE 19 Nov): an unreadable model serves Nexeo Owned Data, so a failed read never looks like a switch.
+    it(`${p}: guard unreadable serves Nexeo Owned Data, never external`, async () => {
       state.guardDown = true;
       const r = await get(p, 1);
-      expect(r.body[EXTERNAL_KNOWLEDGE]).toBe(true);
+      expect(r.body[EXTERNAL_KNOWLEDGE]).toBeUndefined();
+      expect(p === 'day-pack' ? buildDayPack : changesSince).toHaveBeenCalledTimes(1);
     });
   }
 });

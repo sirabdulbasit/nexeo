@@ -37,7 +37,8 @@ import { readThread } from '../services/suzi/suziEmail';
 import { changesSince } from '../services/suzi/suziChanges';
 import { getAssistantName, heldItems, setAssistantName } from '../services/suzi/suziProfile';
 import { searchKnowledge } from '../services/suzi/suziKnowledge';
-import { isExternalKnowledge, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
+// T43 (Suzi AGREE 19 Nov): only a model READ as external answers external; an unreadable model serves Nexeo Owned Data, so a failed read never looks like a switch.
+import { knowledgeModelOf, externalKnowledgeBody } from '../services/wiki/knowledgeModel';
 import createLogger from '../utils/logger';
 
 const log = createLogger('suzi-gateway');
@@ -100,7 +101,7 @@ router.get('/day-pack', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
   // Client Owned Data (charter, 19 Nov): no day pack is built from Nexeo's wiki for him.
-  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; }
+  if ((await knowledgeModelOf(who.tenantId, who.userId)) === 'external') { res.json(externalKnowledgeBody()); return; }
   try {
     const timezone = await resolveUserTimezone(who.userId);
     const pack = await buildDayPack(who.tenantId, who.userId, { timezone });
@@ -142,7 +143,7 @@ router.get('/knowledge', async (req: Request, res: Response) => {
   if (!who) return;
   const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
   // Client Owned Data (charter, 19 Nov): his knowledge is in his vault; Suzi reads it on the Mac.
-  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; }
+  if ((await knowledgeModelOf(who.tenantId, who.userId)) === 'external') { res.json(externalKnowledgeBody()); return; }
   if (!q) { res.status(400).json({ error: 'q is required' }); return; }
   try {
     const results = await searchKnowledge(who.tenantId, who.userId, q);
@@ -158,7 +159,7 @@ router.get('/knowledge', async (req: Request, res: Response) => {
 router.get('/changes', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
-  if (await isExternalKnowledge(who.tenantId, who.userId)) { res.json(externalKnowledgeBody()); return; } // Client Owned Data
+  if ((await knowledgeModelOf(who.tenantId, who.userId)) === 'external') { res.json(externalKnowledgeBody()); return; } // Client Owned Data
   try {
     res.json(await changesSince(who.tenantId, who.userId, req.query.since));
   } catch (err: any) {

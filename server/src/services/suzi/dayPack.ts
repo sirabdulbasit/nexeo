@@ -23,6 +23,40 @@ import prisma from '../../db/prisma';
 import { buildDayBriefFacts, loadAttentionEmails, localDate, safeTimezone, type BriefBlock, type DayBriefFacts } from './dayBriefFacts';
 import { listPendingActions, type SuziAction } from './suziActions';
 import { toZonedIso } from './zonedTime';
+import createLogger from '../../utils/logger';
+
+const log = createLogger('day-pack');
+
+/**
+ * DEF-511 (19 Nov): Suzi waits 20 s for the pack, twice, then stays on the morning's copy. Usually the pack takes 2–5 s,
+ * but a slow outside read (Google Calendar, Gmail, the Wiki's emails) could hold the whole pack past her limit.
+ * Each such part now has its own cap: past it, the part answers as it does when its read fails (left out, or the feed
+ * copy, or emails_loading), and the pack goes on. Every pack logs its parts' times; one over PACK_SLOW_MS is a warning.
+ */
+export const PART_CAP_MS = 4000;
+export const ATTENTION_CAP_MS = 6000;
+export const PACK_SLOW_MS = 5000;
+
+export async function capped<T>(times: Record<string, number | string>, name: string, work: () => Promise<T>, fallback: T, capMs: number = PART_CAP_MS): Promise<T> {
+  const t0 = Date.now();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<typeof CAPPED>((res) => { timer = setTimeout(() => res(CAPPED), capMs); (timer as any).unref?.(); });
+  const p = work();
+  p.catch(() => undefined); // a part that loses the race must not become an unhandled rejection
+  try {
+    const out = await Promise.race([p, late]);
+    if (out === CAPPED) { times[name] = `capped>${capMs}`; return fallback; }
+    times[name] = Date.now() - t0;
+    return out as T;
+  } finally { clearTimeout(timer); }
+}
+const CAPPED = Symbol('capped');
+
+/** Our own database reads (the brief, the actions): timed, never capped — there is no fallback for them. */
+async function timed<T>(times: Record<string, number | string>, name: string, work: () => Promise<T>): Promise<T> {
+  const t0 = Date.now();
+  try { return await work(); } finally { times[name] = Date.now() - t0; }
+}
 import { packPeople, readableName as nameFromEmail, meetingsRecorded, type RecordedMeeting } from './packMeetings';
 import { noticeLinks, type EventUpdate, type NoticeLinks } from './suziCalendarNotices';
 
@@ -366,12 +400,14 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const now = opts.now ?? new Date();
   const today = localDate(now, tz);
 
-  const facts = await buildDayBriefFacts(clientNumber, userId, { timezone: tz, now });
+  const t0 = Date.now();
+  const times: Record<string, number | string> = {};
+  const facts = await timed(times, 'brief', () => buildDayBriefFacts(clientNumber, userId, { timezone: tz, now }));
 
   let events: RawPackEvent[] = [];
   // DEF-500 (16 Nov): his live Google Calendar first. The synced copy (feed_events) never learns of a cancel, so a
   // meeting he cancelled stayed in the pack and Suzi tried to cancel it again ("not_found"). Feed copy = fallback only.
-  const live = facts.sources.calendar ? await livePackEvents(userId, today) : null;
+  const live = facts.sources.calendar ? await capped(times, 'calendar', () => livePackEvents(userId, today), null) : null;
   if (live) events = live;
   else if (facts.sources.calendar) {
     const rows = await prisma.$queryRawUnsafe<Array<{ p: RawPackEvent }>>(
@@ -391,13 +427,32 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   // T34: his calendar notices placed on their events (a read that fails places nothing).
   const notices = await noticeLinks(clientNumber, userId, events, tz, people.names, people.own, now).catch((): NoticeLinks => ({ updates: new Map(), threads: new Map() }));
 
-  const { actions } = await listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now });
+  const { actions } = await timed(times, 'actions', () => listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now }));
   // The brief already waited up to the cap on this same list; a second wait would double it.
   const stillLoading = facts.missing.some((m) => m.source === 'email' && m.status === 'loading');
   const attention: Awaited<ReturnType<typeof loadAttentionEmails>> = !facts.sources.email ? { items: [], loading: false, fyi: [] }
     : stillLoading ? { items: [], loading: true, fyi: [] }
-    : await loadAttentionEmails(clientNumber, userId);
+    : await capped(times, 'emails', () => loadAttentionEmails(clientNumber, userId), { items: [], loading: true, fyi: [] }, ATTENTION_CAP_MS);
   const kpiBlock = facts.blocks.find((b): b is Extract<BriefBlock, { type: 'kpis' }> => b.type === 'kpis');
+
+  const opt = <T>(name: string, work: () => Promise<T>) => capped(times, name, work, {} as T);
+  const [phase2, drafts, meeting, recorded, profile, risks, operator] = await Promise.all([
+    (opts.phase2 ?? PHASE2_IN_PACK) ? opt('phase2', () => phase2Fields(clientNumber, userId)) : Promise.resolve({}),
+    // T32 (both AGREE 17 Nov): how many drafts wait (Suzi's and his own Gmail drafts); left out when Gmail is unreadable.
+    opt('drafts', () => import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
+    opt('meeting', () => import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
+    opt('recorded', () => meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
+    opt('profile', () => import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
+    // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
+    opt('risks', () => import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
+    // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.
+    opt('operator', () => import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
+  ]);
+  const attendFor = await capped(times, 'attend', () => attendOfFor(clientNumber, userId), undefined);
+  const withRulesOut = await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz);
+  const threadTasks = await taskOfThread(clientNumber, userId, attention.items);
+  const total = Date.now() - t0;
+  (total > PACK_SLOW_MS ? log.warn : log.info).call(log, total > PACK_SLOW_MS ? 'day pack slow' : 'day pack timed', { userId, totalMs: total, parts: times });
 
   return {
     version: DAY_PACK_VERSION,
@@ -405,26 +460,16 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     cursor: now.toISOString(),
     tz,
     date: today,
-    calendar: withUpdates(packCalendar(events, today, tz, prep, people, await attendOfFor(clientNumber, userId)), notices),
+    calendar: withUpdates(packCalendar(events, today, tz, prep, people, attendFor), notices),
     actions,
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
-    ...leaveHandled(await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz),
-      await taskOfThread(clientNumber, userId, attention.items), notices.threads, now),
+    ...leaveHandled(withRulesOut, threadTasks, notices.threads, now),
     emails_loading: attention.loading,
     ...(attention.fyi.length ? { fyi: attention.fyi.slice(0, PACK_FYI_MAX).map((i) => toPackFyi(i, tz)) } : {}),
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
-    ...((opts.phase2 ?? PHASE2_IN_PACK) ? await phase2Fields(clientNumber, userId) : {}),
-    // T32 (both AGREE 17 Nov): how many drafts wait (Suzi's and his own Gmail drafts); left out when Gmail is unreadable.
-    ...(await import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
-    ...(await import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
-    ...(await meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
-    ...(await import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
-    // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
-    ...(await import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
-    // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.
-    ...(await import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
+    ...phase2, ...drafts, ...meeting, ...recorded, ...profile, ...risks, ...operator,
   };
 }
 
