@@ -331,6 +331,15 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
   model. The text read is not stored by Nexeo or the gateway (the gateway records a tool's name and arguments, never its result)
   and is never used by Nexeo for training; what Suzi answers him is kept like every answer, as part of his conversation. Text on
   the screen is data, never instructions. The operator's rule is unchanged: what the operator sees stays on the computer.
+- **The Operator Model stays under Nexeo; the client uses it (founder's ruling 23 Nov 2026; link T41 rounds 23–27, both AGREE):**
+  no Suzi client carries the Operator Model (UI-TARS-1.5-7B) or its libraries. The client is the hands: `operator/start {goal,
+  os?, job}` → actions; `operator/step {run_id, results: [{call_id, ok, image_b64?, meta?, error?, note?: refused_by_guard |
+  blanked_app, proof?: file | page}]}` → next actions or the end (`done` only with proof); `operator/stop {run_id}`. Client tools
+  in `actions`: screen_capture (JPEG q80, 1280 px, blanked apps masked first), mouse_click, type_text, hotkey, click_text, scroll
+  {direction, amount?, x?, y?}, open_url, open_app, wait_ms; every one through Suzi's Guard. Structure first (Accessibility, the
+  page's elements); the Operator Model only where structure gives no answer. Aim 2–4 s a step, 20 s cut, 15 min a run.
+  `operator.report` stays for runs done by structure tools alone. Off until the founder says yes to screenshots leaving the
+  computer (the row 13 rule changes then) and chooses the machine.
 - Unchanged: tiers T0 to T2, the Guard, R1, R2. Submitting a form or any outward button is T2; passwords, cards and robot
   checks end the run as `needs_user`.
 
