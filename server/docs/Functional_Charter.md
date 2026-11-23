@@ -319,6 +319,12 @@ Founder, 13 Nov 2026: "nothing should be stored or saved outside of wiki", for t
 - **AI tools under his account (C6):** what Suzi types into another AI tool, such as Claude or ChatGPT, leaves the computer
   to that service, under his own account. She does it only when he asks, says where it is going, and never types his
   passwords, card numbers or another person's private details there.
+- **Scheduled standing instructions (C5, link T41, both AGREE 23 Nov 2026):** `instruction.add {text, scope?, schedule?}` and
+  `instruction.update {id, schedule | null}` (the schedule only, confirmed by him); `schedule: {every: day|week|month, on?:
+  mon..sun | 1..28, at?: "HH:MM"}` in the Mac's local time, `bad_schedule` otherwise. The pack's `rules.standing[]` carries
+  `schedule` only where there is one. Suzi runs a scheduled one only while the Mac is on and he isn't in a meeting; a run
+  missed while it was off is done once at the next start; never a schedule he didn't say; its `operator.report` has
+  `job: "scheduled"`.
 - Unchanged: tiers T0 to T2, the Guard, R1, R2. Submitting a form or any outward button is T2; passwords, cards and robot
   checks end the run as `needs_user`.
 
