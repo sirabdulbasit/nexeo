@@ -185,7 +185,7 @@ async function updateDraft(clientNumber: string, userId: number, a: Args): Promi
 }
 
 /** T22: how a send arrived. Only Suzi's server sets `signatureVerified`; the device can't. */
-export type SendGate = { signatureVerified: boolean; voiceScore: number | null; /** F-2.4 auto-forward (founder 13 Nov): sent by this rule, set only by ruleForwardJob. */ byRule?: string };
+export type SendGate = { signatureVerified: boolean; voiceScore: number | null; /** F-2.4 auto-forward (founder 13 Nov): sent by this rule, set only by ruleForwardJob. */ byRule?: string; /** click_confirm (founder 23 Nov): his click on a card is his yes, set only by suziAct for CLICK_CONFIRM_OPS. */ click?: true };
 const UNSIGNED: SendGate = { signatureVerified: false, voiceScore: null };
 const GOING = new Set(['held', 'sending', 'sent']);
 
@@ -201,7 +201,7 @@ const heldAnswer = (draftId: unknown, o: any) => ({
 /** E6: saved to Drafts; saving twice gives the same draft. T22: a verified send for a user on the switch is held, then sent. */
 export async function saveToGmailDrafts(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate): Promise<EmailOpResult> {
   if (!confirmed) return fail('needs_confirmation');
-  if (gate.signatureVerified && gate.voiceScore === null) return fail('no_voice_score', 'a signed send needs voice_score');
+  if (gate.signatureVerified && gate.voiceScore === null && !gate.click) return fail('no_voice_score', 'a signed send needs voice_score');
   const draft = await ownDraft(clientNumber, userId, a.draft_id);
   if (!draft) return fail('not_found');
   const o: any = draft.output ?? {};

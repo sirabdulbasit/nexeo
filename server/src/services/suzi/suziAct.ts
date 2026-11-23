@@ -42,6 +42,8 @@ export interface ActRequest {
   idempotency_key: string;
   confirmed_by_user?: boolean;
   voice_score?: number | null;
+  /** click_confirm: how he said yes. 'click' counts only for CLICK_CONFIRM_OPS (founder 23 Nov). */
+  confirmed_by?: string;
   timezone?: string;
   /** From the verified login on Suzi's server (Functional Charter, row 18). */
   device_id?: string | null;
@@ -63,8 +65,20 @@ function statusOf(error: string): 400 | 403 | 404 | 409 {
   return 400;
 }
 
-async function runOp(clientNumber: string, userId: number, req: ActRequest): Promise<{ ok: true; item: unknown } | { ok: false; error: string; detail?: string }> {
-  const gate = { signatureVerified: req.signature_verified === true, voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null };
+/**
+ * click_confirm (founder 23 Nov 2026, 16:12 "make sure while using manual, then no voice send required"; 17:51 "it should
+ * simply send email with showing content (not asking)"): on his own card, one click is his yes for these steps only.
+ * Still required: Suzi's server verified the device's signature. Every other op keeps the voiced yes.
+ */
+export const CLICK_CONFIRM_OPS = ['task.followup', 'email.send', 'email.delegate', 'delegation.remove'] as const;
+export function clickConfirmed(req: Pick<ActRequest, 'op' | 'confirmed_by' | 'signature_verified'>): boolean {
+  return req.confirmed_by === 'click' && req.signature_verified === true && (CLICK_CONFIRM_OPS as readonly string[]).includes(req.op);
+}
+
+async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): Promise<{ ok: true; item: unknown } | { ok: false; error: string; detail?: string }> {
+  const click = clickConfirmed(reqIn);
+  const req: ActRequest = click ? { ...reqIn, confirmed_by_user: true } : reqIn;
+  const gate = { signatureVerified: req.signature_verified === true, voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null, ...(click ? { click: true as const } : {}) };
   // F-2: create, forward (assign AND tell) and delegate an email. Telling goes through the send gate (suziDelegate).
   if (req.op === 'task.create') return taskCreate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'email.delegate') return emailDelegate(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate);
@@ -105,10 +119,7 @@ async function runOp(clientNumber: string, userId: number, req: ActRequest): Pro
     return r.sent ? { ok: true, item: { sent: true } } : { ok: false, error: 'rejected', detail: 'WhatsApp could not deliver it' };
   }
   if (req.op.startsWith('email.')) {
-    return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, {
-      signatureVerified: req.signature_verified === true,
-      voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
-    });
+    return runEmailOp(clientNumber, userId, req.op, req.args ?? {}, req.confirmed_by_user === true, gate);
   }
   // Link T28: build control. Signed, voiced and confirmed, from his own device only (suziGaps.ts).
   if (req.op.startsWith('gap.')) {
@@ -133,7 +144,7 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
     const row = await prisma.suziActLog.create({
       data: {
         clientNumber, userId, op: req.op, idempotencyKey: key, argsHash: fp, args: (req.args ?? {}) as any,
-        confirmedByUser: req.confirmed_by_user === true,
+        confirmedByUser: req.confirmed_by_user === true || clickConfirmed(req), // click_confirm: a card click is logged as his yes, with no voice_score
         voiceScore: typeof req.voice_score === 'number' ? req.voice_score : null,
         deviceId: req.device_id ? String(req.device_id).slice(0, 60) : null,
       },

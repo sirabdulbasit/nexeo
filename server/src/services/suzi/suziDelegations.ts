@@ -35,7 +35,7 @@ async function rulesVersion(clientNumber: string, userId: number): Promise<numbe
   return (await rulesDocument(clientNumber, userId).catch(() => null))?.rules_version;
 }
 
-const signedOk = (gate: SendGate, confirmed: boolean) => confirmed && gate.signatureVerified && gate.voiceScore !== null;
+const signedOk = (gate: SendGate, confirmed: boolean) => confirmed && gate.signatureVerified && (gate.voiceScore !== null || gate.click === true);
 
 export async function runDelegationOp(clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean, gate: SendGate): Promise<Result> {
   if (op === 'delegation.set' || op === 'delegation.remove') {
