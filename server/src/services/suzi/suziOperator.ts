@@ -19,7 +19,8 @@ import { getOperatorSettings } from '../operator/operatorService';
 
 export const OPERATOR_OPS = ['operator.report', 'operator.permission'] as const;
 
-export const OPERATOR_JOBS = ['files', 'images', 'system', 'web', 'form', 'ai_tool', 'screen'] as const;
+// `scheduled` (T41 round 9): a run started by a standing instruction's schedule, not by him at that moment.
+export const OPERATOR_JOBS = ['files', 'images', 'system', 'web', 'form', 'ai_tool', 'screen', 'scheduled'] as const;
 export const OPERATOR_STATUSES = ['done', 'unverified', 'needs_user', 'failed', 'step_limit', 'stopped', 'declined'] as const;
 export const OPERATOR_PROOFS = ['file', 'page', 'screen', 'none'] as const;
 export const GOAL_MAX = 200;

@@ -29,6 +29,7 @@ import prisma from '../../db/prisma';
 import createLogger from '../../utils/logger';
 import { callLLM } from '../llmRouter';
 import { BRAIN_SCHEMA_VERSION } from './brainSchema';
+import { type InstructionSchedule, parseSchedule, describeSchedule, withScheduleLine } from './instructionSchedule';
 
 const log = createLogger('instruction');
 
@@ -140,13 +141,15 @@ export async function createInstructionFromText(
   userId: number,
   text: string,
   scope: InstructionScope = 'user',
+  /** Link T41 round 9: when he said when ("every Friday"); already checked by parseSchedule. */
+  schedule: InstructionSchedule | null = null,
 ): Promise<{ id: string; structured: StructuredInstruction; scope: InstructionScope } | null> {
   const clean = text.trim();
   if (!clean) return null;
 
   const structured = await parseInstruction(clean, userId, clientNumber);
 
-  const body = [
+  const body = withScheduleLine([
     `# ${structured.title}`,
     '',
     `**Scope:** ${scope}`,
@@ -160,7 +163,7 @@ export async function createInstructionFromText(
     '',
     '## Original text',
     clean,
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean).join('\n'), schedule);
 
   const metadata = {
     schemaVersion: BRAIN_SCHEMA_VERSION,
@@ -173,6 +176,7 @@ export async function createInstructionFromText(
     condition: structured.condition,
     action: structured.action,
     originalText: clean,
+    ...(schedule ? { schedule } : {}),
     createdAt: new Date().toISOString(),
     lastFiredAt: null as string | null,
     fireCount: 0,
@@ -241,6 +245,8 @@ export interface ActiveInstructionRow {
    *  written before the field existed legitimately lack it — the renderer
    *  says so rather than guessing. */
   authoredBy?: string | null;
+  /** Link T41 round 9: present only on an instruction that has one. */
+  schedule?: InstructionSchedule | null;
 }
 
 /**
@@ -284,7 +290,8 @@ export async function getActiveInstructions(
             metadata->>'originalText' AS "originalText",
             metadata->>'createdAt' AS "createdAt",
             metadata->>'authoredBy' AS "authoredBy",
-            metadata->>'status' AS status
+            metadata->>'status' AS status,
+            metadata->'schedule' AS schedule
        FROM wiki_pages
       WHERE client_number = $1
         AND page_type = 'instruction'
@@ -300,6 +307,8 @@ export async function getActiveInstructions(
     clientNumber, userId, RULES_READ_CEILING, opts.includePaused ? ['active', 'paused'] : ['active'],
   ).catch((e: any) => { throw new RulesUnavailable(String(e?.message ?? e).slice(0, 120)); });
   if (rows.length >= RULES_READ_CEILING) log.warn('rules read hit its ceiling', { clientNumber, userId, ceiling: RULES_READ_CEILING });
+  // A stored schedule is read through the same checker as an arriving one: an unreadable one is no schedule.
+  for (const r of rows) r.schedule = r.schedule == null ? null : parseSchedule(r.schedule);
   return rows as ActiveInstructionRow[];
 }
 
@@ -347,6 +356,7 @@ export function renderInstructionsBlock(rows: ActiveInstructionRow[]): string {
     if (r.condition) extras.push(`condition: ${r.condition}`);
     if (r.action)    extras.push(`action: ${r.action}`);
     if (r.dueAt)     extras.push(`due: ${r.dueAt}`);
+    if (r.schedule)  extras.push(`runs on his computer ${describeSchedule(r.schedule)}`);
     // DEF-248 — the provenance travels WITH the rule. Date only: `authoredBy`
     // is a `user:<id>` key the model cannot pronounce, and DEF-199 proved a
     // bare key invites a borrowed name — scope (already in the section
@@ -422,6 +432,52 @@ export async function updateInstructionStatus(
     return { ok: true };
   } catch (err: any) {
     log.warn('updateInstructionStatus failed', { id, error: err.message });
+    return { ok: false, reason: err.message };
+  }
+}
+
+/**
+ * Link T41 round 9 (`instruction.update`): set or clear an instruction's schedule. Only the schedule: a new wording is
+ * remove + add. Same gate as a status change: the author of a personal rule, an admin for a company rule.
+ */
+export async function setInstructionSchedule(
+  clientNumber: string,
+  userId: number,
+  id: string,
+  schedule: InstructionSchedule | null,
+  opts: { isAdmin?: boolean } = {},
+): Promise<{ ok: boolean; reason?: string }> {
+  try {
+    const page = await prisma.wikiPage.findFirst({
+      where: { id, clientNumber, pageType: 'instruction', status: 'active' },
+      select: { id: true, metadata: true, userId: true, bodyMarkdown: true },
+    });
+    const meta: any = page?.metadata ?? {};
+    if (!page || meta.status === 'archived' || meta.status === 'fulfilled') return { ok: false, reason: 'not found' };
+    if (meta.scope === 'client') {
+      if (!opts.isAdmin) return { ok: false, reason: 'client-scope instructions require admin' };
+    } else if (page.userId !== userId) {
+      return { ok: false, reason: 'not your instruction' };
+    }
+    if (schedule) meta.schedule = schedule; else delete meta.schedule;
+    await prisma.wikiPage.update({
+      where: { id: page.id },
+      data: {
+        metadata: meta as any,
+        bodyMarkdown: withScheduleLine(page.bodyMarkdown ?? '', schedule),
+        lastUpdatedAt: new Date(),
+        lastUpdatedBy: 'instruction_service',
+      },
+    });
+    void (async () => {
+      try {
+        const { invalidate } = await import('../../utils/redisClient');
+        await invalidate(`instructions:${clientNumber}:*`);
+      } catch { /* best effort */ }
+    })();
+    return { ok: true };
+  } catch (err: any) {
+    log.warn('setInstructionSchedule failed', { id, error: err.message });
     return { ok: false, reason: err.message };
   }
 }

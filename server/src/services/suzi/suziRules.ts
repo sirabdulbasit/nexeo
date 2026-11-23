@@ -12,6 +12,7 @@
 import crypto from 'crypto';
 import prisma from '../../db/prisma';
 import { getActiveInstructions } from '../knowledge/instructionService';
+import { type InstructionSchedule, describeSchedule } from '../knowledge/instructionSchedule';
 
 export interface SuziRules {
   quiet_hours: { start: string; end: string };
@@ -19,7 +20,8 @@ export interface SuziRules {
   delegations: Array<{ area: string; owner: string; owner_email: string | null; escalate_to: string | null }>;
   /** kind (suzi-b5, 14 Nov, additive): the Suzi rule kind (meeting_attend, email_delegate, email_ignore), else the store's action type. */
   action_rules: Array<{ id: string; name: string; text: string; mode: string; scope: string; kind: string }>;
-  standing: Array<{ id: string; text: string }>;
+  /** schedule (T41 round 9, additive): only on an instruction that has one, so the others look as before. */
+  standing: Array<{ id: string; text: string; schedule?: InstructionSchedule }>;
 }
 export interface RulesDocument { rules_version: number; rules: SuziRules; rules_md: string }
 
@@ -52,7 +54,7 @@ export async function rulesContent(clientNumber: string, userId: number): Promis
     action_rules: actionRules.map((r) => ({ id: String(r.id), name: r.name, text: r.nl_original || r.name, mode: r.mode, scope: r.scope, kind: String(r.kind ?? '') })),
     // Sorted so the same instructions always give the same version, whatever order they were read in.
     standing: instructions
-      .map((i) => ({ id: i.id, text: i.originalText || i.title }))
+      .map((i) => ({ id: i.id, text: i.originalText || i.title, ...(i.schedule ? { schedule: i.schedule } : {}) }))
       .sort((a, b) => a.id.localeCompare(b.id)),
   };
 }
@@ -66,7 +68,7 @@ export function rulesMarkdown(r: SuziRules): string {
     `Language: ${r.language}`,
     ...section('Delegations', r.delegations.map((d) => `${d.area}: ${d.owner}${d.escalate_to ? `, escalates to ${d.escalate_to}` : ''}`)),
     ...section('Action rules', r.action_rules.map((a) => `${a.text} (${a.mode})`)),
-    ...section('Standing instructions', r.standing.map((s) => s.text)),
+    ...section('Standing instructions', r.standing.map((s) => (s.schedule ? `${s.text} (runs ${describeSchedule(s.schedule)})` : s.text))),
   ].join('\n');
 }
 

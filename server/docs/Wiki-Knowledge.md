@@ -878,6 +878,20 @@ acted, skipped, stopped) and `speech.counts` (utterances, English and Urdu word 
 - **Verified live:** Suzi's first send stored at 14:32:19; her fetch at a restart, 15:08:57 (Suzi's log). Not yet verified:
   the learned keys on his real note (they appear at her next send).
 
+### 0.27 A standing instruction's page says when it runs (link T41 round 9, 23 Nov 2026; operator session)
+
+Suzi proposed (11:56 PKT), Nexeo agreed (13:06), Suzi agreed the exact shape (13:07). For the computer operator's system
+jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
+
+- **Built (D-305):** the instruction's Wiki page (page type `instruction`) may hold `metadata.schedule`
+  `{every, on?, at?}` and the visible line `**Schedule:** every week on fri at 09:00 (the computer's own time)`. Both are
+  written together, by `createInstructionFromText` (from `instruction.add`) and `setInstructionSchedule` (from the new
+  `instruction.update`), and cleared together. Pause, resume and archive keep it (they keep the metadata).
+- **What reads it:** the pack's `rules.standing[]` (only where set), `rules_md`, and Brain's standing-instruction block.
+  A stored value that does not read as a schedule is treated as none.
+- **No new store:** the schedule is part of the instruction's own Wiki page (§0.3). Details: `Rules.md` §9.
+- **Not verified:** a real schedule set by Suzi and run on the Mac (Suzi's C5, by 27 Nov).
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

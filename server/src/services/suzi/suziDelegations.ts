@@ -6,8 +6,10 @@
  *                                                               confirmed, signed and voiced (presence = the voice
  *                                                               lock until F-2.9 adds other forms)
  *   delegation.remove  {area}                                  the same gate; the row is deactivated, history kept
- *   instruction.add    {text, scope?: user | client}           a standing instruction (instruction wiki page, the
+ *   instruction.add    {text, scope?: user | client, schedule?} a standing instruction (instruction wiki page, the
  *                                                               one Brain renders); confirmed; client scope is admin
+ *   instruction.update {id, schedule | null}                   T41 round 9: sets or clears WHEN it runs, nothing else;
+ *                                                               confirmed; only its author or an admin
  *   instruction.remove {id}                                    archived, never deleted; only its author or an admin
  *
  * Each answer carries the new rules_version, so Suzi refetches her rules document.
@@ -15,12 +17,13 @@
 import prisma from '../../db/prisma';
 import { personById } from './suziPeople';
 import type { SendGate } from './suziEmail';
+import { parseSchedule } from '../knowledge/instructionSchedule';
 
 type Args = Record<string, unknown>;
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
-export const DELEGATION_OPS = ['delegation.set', 'delegation.remove', 'instruction.add', 'instruction.remove'] as const;
+export const DELEGATION_OPS = ['delegation.set', 'delegation.remove', 'instruction.add', 'instruction.update', 'instruction.remove'] as const;
 
 async function isAdmin(clientNumber: string, userId: number): Promise<boolean> {
   const u = await prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { userType: true } as any }) as any;
@@ -61,13 +64,31 @@ export async function runDelegationOp(clientNumber: string, userId: number, op: 
   if (op === 'instruction.add') {
     const body = text(a.text).slice(0, 2000);
     if (!body) return fail('bad_text');
+    const schedule = a.schedule == null ? null : parseSchedule(a.schedule);
+    if (a.schedule != null && !schedule) return fail('bad_schedule');
     if (!confirmed) return fail('needs_confirmation');
     const scope = text(a.scope) === 'client' ? 'client' : 'user';
     if (scope === 'client' && !(await isAdmin(clientNumber, userId))) return fail('not_allowed', 'a company-wide instruction is set by an Admin or SuperAdmin');
     const { createInstructionFromText } = await import('../knowledge/instructionService');
-    const made = await createInstructionFromText(clientNumber, userId, body, scope);
+    const made = await createInstructionFromText(clientNumber, userId, body, scope, schedule);
     if (!made) return fail('bad_text');
-    return { ok: true, item: { id: made.id, title: made.structured.title, scope, rules_version: await rulesVersion(clientNumber, userId) } };
+    return { ok: true, item: { id: made.id, title: made.structured.title, scope, ...(schedule ? { schedule } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
+  }
+
+  if (op === 'instruction.update') {
+    const id = text(a.id);
+    if (!id) return fail('not_found');
+    // Only the schedule changes here; it must be sent, as a schedule or as null to clear it.
+    if (!('schedule' in a)) return fail('bad_schedule', 'schedule is required (null clears it)');
+    const extra = Object.keys(a).filter((k) => k !== 'id' && k !== 'schedule');
+    if (extra.length) return fail('bad_args', `only the schedule changes here: ${extra.slice(0, 5).join(', ')}`);
+    const schedule = a.schedule === null ? null : parseSchedule(a.schedule);
+    if (a.schedule !== null && !schedule) return fail('bad_schedule');
+    if (!confirmed) return fail('needs_confirmation');
+    const { setInstructionSchedule } = await import('../knowledge/instructionService');
+    const r = await setInstructionSchedule(clientNumber, userId, id, schedule, { isAdmin: await isAdmin(clientNumber, userId) });
+    if (!r.ok) return fail(/not found/i.test(r.reason ?? '') ? 'not_found' : 'not_allowed', r.reason);
+    return { ok: true, item: { id, schedule, rules_version: await rulesVersion(clientNumber, userId) } };
   }
 
   if (op === 'instruction.remove') {

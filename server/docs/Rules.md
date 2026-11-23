@@ -236,6 +236,20 @@ when it writes, so an outdated version number on `act` never causes a refusal. C
 fields changes the shared contract, so both sides must agree first (see
 `NEXEO_SUZI_AGREEMENT.md`).
 
+**When a standing instruction runs (link T41 round 9, both AGREE 23 Nov 2026 13:07 PKT; D-305).** A standing instruction
+may carry one optional `schedule`: `{every: "day" | "week" | "month", on?: "mon".."sun" (week) | 1..28 (month),
+at?: "HH:MM"}`, in the computer's own local time (no `at`: Suzi picks 10:00, moved if he has a meeting). It is set only
+when he says when ("clear caches every Friday"), never invented. Where it lives: the instruction's Wiki page, as
+`metadata.schedule` and a visible line `**Schedule:** every week on fri at 09:00 (the computer's own time)`; read by the one
+reader `parseSchedule` (`services/knowledge/instructionSchedule.ts`), so a stored schedule that does not read is no
+schedule. Who sets it: Suzi's `instruction.add {text, scope?, schedule?}` and the new `instruction.update {id, schedule |
+null}` (the schedule only; confirmed; its author, or an admin for a company rule; a new wording is remove + add). What
+Suzi reads: `rules.standing[]` carries `schedule` only on an instruction that has one, so nobody else's `rules_version`
+moves. Brain sees it as "runs on his computer every …" next to the rule. Who runs it: Suzi on the Mac (only while the
+Mac is on and he is not in a meeting; a run missed while it was off is done once at the next start), reported as
+`operator.report` with job `scheduled`; Nexeo never runs it. Not built: My Rules shows the schedule only inside the
+instruction's page text, not as its own field; a schedule cannot yet be set from My Rules.
+
 ---
 
 ## 10. Change log
@@ -278,6 +292,7 @@ fields changes the shared contract, so both sides must agree first (see
 | 2026-11-16 | What Suzi learns (W-1 `profile.update`): each key is kept with its own source and cited by his profile note; an empty value means he asked her to forget it, and the line and its source are removed (D-288). Agreed with Suzi the same evening: weekly `speech.*` keys and extra `device.report.settings` keys (`Wiki-Knowledge.md` §0.23). Learned things still only suggest | (this commit, Wiki session) |
 | 2026-11-17 | Learned preferences never learn from a rule's own runs (ninth review P1, DEF-506). A rule forward's decision row is written as the rule's (sessionType `rule`, actionTaken `rule:<id>`, no dedup hash); the rule miner and the triage suggester group by dedup_hash, so repeated runs of one rule cannot become evidence that he chose it. His own choices are recorded as before. Verified: unit tests. |
 | 2026-11-18 | Data only: his second, differently worded ignore instruction for the "Escalation unacknowledged, Vision Matrix" emails (`cmwlx07wm…`, saved by Suzi at 14:24:32 because the emails still showed) archived by Nexeo-Builder at 14:36 PKT; the first (13:38:18, `cmwlvcrsx…`) stays active with its email rule `uar_e0c4a22f90b0`. Reversible (row kept, status archived). DEF-509: ignored emails still listed, proposed to Suzi. |
+| 2026-11-23 | A standing instruction can say when it runs (link T41 round 9, both AGREE 13:07 PKT; operator session; D-305). Optional `schedule` on the instruction's Wiki page (metadata + a visible line); `instruction.add` takes it, new `instruction.update {id, schedule \| null}` changes only it (confirmed, author or admin); `rules.standing[]` carries it only where set; Brain sees it next to the rule; `operator.report` takes job `scheduled`. See §9. Verified: unit tests (`t41Schedule`, `f210DelegationsInstructions`), 5 mutations each caught. NOT verified: a real scheduled run from the Mac (Suzi's C5, by 27 Nov). |
 ---
 
 ## 11. Approved, not built yet (owner approved 13 Nov 2026, 13:44 PKT)
