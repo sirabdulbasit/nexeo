@@ -33,6 +33,9 @@ vi.mock('../src/services/gmailService', () => ({
   getEmailHeadersForReply: async () => ({ threadId: 'th1', rfcMessageId: '<m1>', references: null }),
   attachmentsOf: async () => ({ files: [{ filename: 'Budget.xlsx', mimeType: 'application/vnd.ms-excel', data: 'QUJD' }], left_out: 0 }),
 }));
+// Founder 23 Nov 18:58: a Gmail draft is made only for a send that goes. Tests that check the Gmail draft send signed.
+vi.mock('../src/services/suzi/suziSend', () => ({ maySendForReal: async () => true, scheduleRelease: () => undefined, SEND_HOLD_MS: 10_000 }));
+const SIGNED = { signatureVerified: true, voiceScore: 0.9 };
 const llm = vi.fn();
 vi.mock('../src/services/llmRouter', () => ({ callLLM: (...a: any[]) => llm(...a) }));
 const invalidate = vi.fn();
@@ -141,7 +144,7 @@ describe('a new draft, a new email, a forward', () => {
   });
   it('DEF-488: the Gmail draft of a forward carries the original attachments', async () => {
     find.mockResolvedValue({ id: 8, output: { to: 'b@y.org', subject: 'Fwd: Budget', body: 'FYI', mode: 'forward', forward_of: 'm1', attachments: 1 }, input: {} });
-    await runEmailOp('T', 2, 'email.send', { draft_id: '8' }, true);
+    await runEmailOp('T', 2, 'email.send', { draft_id: '8' }, true, SIGNED);
     expect(saveDraft.mock.calls[0][5].attachments.map((f: any) => f.filename)).toEqual(['Budget.xlsx']);
   });
   it('someone else\'s thread can\'t be forwarded', async () => {
@@ -151,7 +154,7 @@ describe('a new draft, a new email, a forward', () => {
   });
   it('a new email isn\'t threaded on anything when saved', async () => {
     find.mockResolvedValue({ id: 7, output: { to: 'a', subject: 's', body: 'b', mode: 'new' }, input: {} });
-    await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true);
+    await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED);
     expect(saveDraft.mock.calls[0][5]).toEqual({});
   });
 });
@@ -165,21 +168,21 @@ describe('"send", until signing exists', () => {
     expect(await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, false)).toEqual({ ok: false, error: 'needs_confirmation' });
     expect(find).not.toHaveBeenCalled();
   });
-  it('says plainly that it was saved and not sent, threaded on the original', async () => {
+  it('an unsigned send is held on Nexeo and says so: nothing is put in his Gmail Drafts (founder 23 Nov 18:58)', async () => {
     find.mockResolvedValue(draftRow());
     const r: any = await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true);
-    expect(r.item).toEqual({ draft_id: '7', saved_to_gmail_drafts: true, sent: false, gmail_draft_id: 'g1' });
-    expect(saveDraft.mock.calls[0][5]).toMatchObject({ threadId: 'th1', inReplyTo: '<m1>' });
+    expect(r.item).toEqual({ draft_id: '7', held: true, saved_to_gmail_drafts: false, sent: false });
+    expect(saveDraft).not.toHaveBeenCalled();
   });
   it('saving twice gives the same draft', async () => {
     find.mockResolvedValue(draftRow({ to: 'a', subject: 's', body: 'b', gmailDraftId: 'g1' }));
-    expect(((await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true)) as any).item.gmail_draft_id).toBe('g1');
+    expect(((await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED)) as any).item.gmail_draft_id).toBe('g1');
     expect(saveDraft).not.toHaveBeenCalled();
   });
   it('a Gmail failure is reported, not claimed', async () => {
     find.mockResolvedValue(draftRow());
     saveDraft.mockResolvedValue({ success: false, error: 'insufficient scope' });
-    expect(await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true)).toEqual({ ok: false, error: 'rejected', detail: 'insufficient scope' });
+    expect(await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, SIGNED)).toEqual({ ok: false, error: 'rejected', detail: 'insufficient scope' });
     expect(update).not.toHaveBeenCalled();
   });
   it('undo removes it; with nothing saved, it says so', async () => {

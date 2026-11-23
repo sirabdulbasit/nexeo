@@ -359,7 +359,7 @@ export async function emailDelegate(clientNumber: string, userId: number, a: Arg
     ok: true,
     item: i.sent
       ? { state: 'held', draft_id: draftId, undo_until: i.undo_until, person_name: person.name, attachments_left_out: (fwd.item as any).attachments_left_out }
-      : { state: 'saved', draft_id: draftId, saved_to_gmail_drafts: true, sent: false, person_name: person.name },
+      : { state: 'saved', draft_id: draftId, held: true, saved_to_gmail_drafts: false, sent: false, person_name: person.name }, // founder 23 Nov: held, not in Drafts
   };
 }
 

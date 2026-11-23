@@ -206,13 +206,16 @@ export async function saveToGmailDrafts(clientNumber: string, userId: number, a:
   if (!draft) return fail('not_found');
   const o: any = draft.output ?? {};
   if (GOING.has(o.send?.state)) return heldAnswer(draft.id, o);
-  const gmailDraftId = o.gmailDraftId ?? await saveDraftInGmail(clientNumber, userId, draft, o);
-  if (typeof gmailDraftId !== 'string') return gmailDraftId;
   const { maySendForReal, scheduleRelease, SEND_HOLD_MS } = await import('./suziSend');
   // A live signed yes, or (F-2.4, founder 13 Nov) one of his delegate rules acting by itself; both only when Nexeo can send.
+  // Founder 23 Nov 18:58: "none of email should stay at draft by Suzi: either sent it or not sent". A send that may not go
+  // now is HELD here on Nexeo's side (this row), never put in his Gmail Drafts; Suzi shows it with Send / Don't send.
   if (!(gate.signatureVerified || gate.byRule) || !(await maySendForReal(clientNumber, userId))) {
-    return { ok: true, item: { draft_id: String(draft.id), saved_to_gmail_drafts: true, sent: false, gmail_draft_id: gmailDraftId } };
+    return { ok: true, item: { draft_id: String(draft.id), held: true, saved_to_gmail_drafts: false, sent: false } };
   }
+  // The Gmail draft is made only for a send that goes: what is sent is exactly what was saved.
+  const gmailDraftId = o.gmailDraftId ?? await saveDraftInGmail(clientNumber, userId, draft, o);
+  if (typeof gmailDraftId !== 'string') return gmailDraftId;
   const at = new Date(Date.now() + SEND_HOLD_MS).toISOString();
   const output = { ...o, gmailDraftId, send: { state: 'held', send_at: at, undo_until: at, voice_score: gate.voiceScore } };
   if (gate.byRule) {
