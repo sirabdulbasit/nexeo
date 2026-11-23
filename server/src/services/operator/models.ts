@@ -135,7 +135,7 @@ export class ClaudeOperator implements OperatorModel {
         role: 'user',
         content: [
           { type: 'text', text: `Goal: ${this.goal}` },
-          ...(opening?.image ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: opening.image } }] : []),
+          ...(opening?.image ? [{ type: 'image', source: { type: 'base64', media_type: imageMime(opening.image), data: opening.image } }] : []),
         ],
       });
     } else {
@@ -143,7 +143,7 @@ export class ClaudeOperator implements OperatorModel {
       for (const [id, inToolset] of this.pending) {
         const r = byId.get(id);
         const content = r?.image
-          ? [{ type: 'image', source: { type: 'base64', media_type: 'image/png', data: r.image } }]
+          ? [{ type: 'image', source: { type: 'base64', media_type: imageMime(r.image), data: r.image } }]
           : [{ type: 'text', text: r ? (r.text || (r.ok ? 'OK' : 'failed')) : NOT_EXECUTED }];
         blocks.push({ type: 'tool_result', tool_use_id: id, ...(inToolset ? { toolset_name: TOOLSET } : {}), content, ...(r?.ok ? {} : { is_error: true }) });
       }
@@ -229,6 +229,33 @@ export function pngSize(b64: string): { width: number; height: number } | null {
   } catch { return null; }
 }
 
+/** Link T41 round 24: Suzi sends JPEG (q80, 1280 px wide). PNG stays readable. */
+export function imageMime(b64: string): 'image/jpeg' | 'image/png' {
+  return b64.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+}
+
+/** Width and height from a base64 JPEG's frame header (SOF0..SOF15, not DHT/JPG/DAC). */
+export function jpegSize(b64: string): { width: number; height: number } | null {
+  try {
+    const buf = Buffer.from(b64, 'base64');
+    if (buf.length < 4 || buf[0] !== 0xff || buf[1] !== 0xd8) return null;
+    let i = 2;
+    while (i + 9 < buf.length) {
+      if (buf[i] !== 0xff) return null;
+      const m = buf[i + 1];
+      if (m === 0xff) { i++; continue; }
+      if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { height: buf.readUInt16BE(i + 5), width: buf.readUInt16BE(i + 7) };
+      if (m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) { i += 2; continue; }
+      i += 2 + buf.readUInt16BE(i + 2);
+    }
+    return null;
+  } catch { return null; }
+}
+
+export function imageSize(b64: string): { width: number; height: number } | null {
+  return imageMime(b64) === 'image/jpeg' ? jpegSize(b64) : pngSize(b64);
+}
+
 /** Qwen2.5-VL's smart_resize: the pixel space UI-TARS 1.5 answers in. */
 export function smartResize(height: number, width: number, factor = 28, minPixels = 100 * 28 * 28, maxPixels = 16384 * 28 * 28): { height: number; width: number } {
   let h = Math.max(factor, Math.round(height / factor) * factor);
@@ -289,7 +316,7 @@ export class UiTarsOperator implements OperatorModel {
 
   async next(results: CallResult[], signal?: AbortSignal): Promise<ModelTurn> {
     const img = [...results].reverse().find((r) => r.image)?.image;
-    if (img) { this.lastImage = { b64: img, size: pngSize(img) }; this.history.push({ image: img }); this.needsLook = false; }
+    if (img) { this.lastImage = { b64: img, size: imageSize(img) }; this.history.push({ image: img }); this.needsLook = false; }
     // One action per screenshot: after acting, look before deciding again.
     if (this.needsLook || !this.lastImage) {
       this.needsLook = false;
@@ -299,7 +326,7 @@ export class UiTarsOperator implements OperatorModel {
     const imgIdx = this.history.map((h, i) => (h.image ? i : -1)).filter((i) => i >= 0);
     const keepFrom = imgIdx.length > UITARS_HISTORY_IMAGES ? imgIdx[imgIdx.length - UITARS_HISTORY_IMAGES] : 0;
     this.history.forEach((h, i) => {
-      if (h.image && i >= keepFrom) messages.push({ role: 'user', content: [{ type: 'image_url', image_url: { url: `data:image/png;base64,${h.image}` } }] });
+      if (h.image && i >= keepFrom) messages.push({ role: 'user', content: [{ type: 'image_url', image_url: { url: `data:${imageMime(h.image)};base64,${h.image}` } }] });
       if (h.reply) messages.push({ role: 'assistant', content: h.reply });
     });
     const r = await this.fetchImpl(`${this.baseUrl.replace(/\/$/, '')}/chat/completions`, {
@@ -346,7 +373,7 @@ export async function verifyOutcome(client: MessagesClient | null, model: string
       messages: [{
         role: 'user',
         content: [
-          { type: 'image', source: { type: 'base64', media_type: 'image/png', data: imageB64 } },
+          { type: 'image', source: { type: 'base64', media_type: imageMime(imageB64), data: imageB64 } },
           { type: 'text', text: `Goal: ${goal}\n\nDoes this screenshot show the goal reached? Judge only what is visible. "achieved" is true only if the screen itself shows it (for a download: the file is named in a downloads list or folder). "evidence": what on screen decides it, in one sentence.` },
         ],
       }],

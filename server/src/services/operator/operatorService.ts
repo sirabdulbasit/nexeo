@@ -89,13 +89,26 @@ export type StepResult =
   | { status: 'act'; run_id: string; actions: GatewayAction[]; step: number; max_steps: number; progress?: { step: number; max_steps: number; note: string } }
   | { status: TerminalStatus; run_id: string; summary: string; question?: string; reason?: string; evidence?: string; verified: boolean | null; step: number };
 
-export interface GatewayResult { call_id: string; ok: boolean; output?: string; image_b64?: string; meta?: CaptureMeta; error?: string }
+/**
+ * `note` and `proof` (link T41 round 25, both AGREE 23 Nov): `note` says why Suzi did not do an action, never content;
+ * `proof` on a screenshot's result says Suzi proved the outcome on the computer (a file that is there, the page).
+ */
+export interface GatewayResult { call_id: string; ok: boolean; output?: string; image_b64?: string; meta?: CaptureMeta; error?: string; note?: string; proof?: string }
+
+export const RESULT_NOTES: Record<string, string> = {
+  refused_by_guard: "Refused by the user's safety guard. Do not retry this action; find another way or call finish with needs_user.",
+  blanked_app: 'That app is hidden from you by the user. Do not try to read or use it.',
+};
+export const RESULT_PROOFS = ['file', 'page'] as const;
+export const CENTRAL_JOBS = ['files', 'images', 'system', 'web', 'form', 'ai_tool', 'screen', 'scheduled'] as const;
 
 interface Run {
   id: string; clientNumber: string; userId: number; goal: string;
   model: OperatorModel; modelName: string; settings: OperatorSettingsView;
   rounds: number; actions: number; usage: Usage;
   meta: CaptureMeta | null; lastImage: string | null; mutatedSinceLook: boolean;
+  /** Suzi's own proof, sent with the latest screenshot; an action after it clears it. */
+  proof: string | null;
   outstanding: ModelCall[]; local: CallResult[];
   checkRejections: number; busy: boolean; ended: StepResult | null;
   ac: AbortController; touched: number;
@@ -131,7 +144,7 @@ export function _runCount(): number { return runs.size; }
 function monthStart(now: number): Date { const d = new Date(now); return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1)); }
 
 export async function startRun(
-  p: { clientNumber: string; userId: number; goal: string; os?: string }, deps: OperatorDeps = defaultDeps,
+  p: { clientNumber: string; userId: number; goal: string; os?: string; job?: string }, deps: OperatorDeps = defaultDeps,
 ): Promise<StartResult> {
   sweep(deps);
   const goal = (p.goal ?? '').trim();
@@ -160,12 +173,14 @@ export async function startRun(
   const id = randomUUID();
   const run: Run = {
     id, clientNumber: p.clientNumber, userId: p.userId, goal, model, modelName: model.label, settings: s,
-    rounds: 0, actions: 0, usage: { ...ZERO_USAGE }, meta: null, lastImage: null, mutatedSinceLook: false,
+    rounds: 0, actions: 0, usage: { ...ZERO_USAGE }, meta: null, lastImage: null, mutatedSinceLook: false, proof: null,
     outstanding: [{ id: 'open', action: { kind: 'screenshot' } }], local: [],
     checkRejections: 0, busy: false, ended: null, ac: new AbortController(), touched: deps.now(),
   };
   runs.set(id, run);
-  await prisma.operatorRun.create({ data: { id, clientNumber: p.clientNumber, userId: p.userId, goal, model: model.label } });
+  // The job (link T41 round 25) is kept beside the model's name, as local reports keep it (`local:<job>`).
+  const job = (CENTRAL_JOBS as readonly string[]).includes(p.job ?? '') ? p.job : null;
+  await prisma.operatorRun.create({ data: { id, clientNumber: p.clientNumber, userId: p.userId, goal, model: job ? `${model.label}#${job}` : model.label } });
   log.info('operator run started', { runId: id, clientNumber: p.clientNumber, userId: p.userId, model: model.label });
   return { status: 'act', run_id: id, actions: [toGatewayAction(run.outstanding[0], null, s.blankApps)!], max_steps: s.maxSteps };
 }
@@ -254,14 +269,16 @@ function collect(run: Run, given: GatewayResult[]): CallResult[] {
     const g = byId.get(c.id);
     if (!g || failed) { out.push({ id: c.id, ok: false, text: NOT_EXECUTED }); failed = true; continue; }
     if (!g.ok) failed = true;
-    if (isMutating(c.action)) run.mutatedSinceLook = true; // tried counts: a failed click can still change the screen
+    if (isMutating(c.action)) { run.mutatedSinceLook = true; run.proof = null; } // tried counts: a failed click can still change the screen
     if (c.action.kind === 'screenshot' && g.ok && g.image_b64) {
       run.lastImage = g.image_b64;
       run.meta = g.meta ?? null;
       run.mutatedSinceLook = false;
+      run.proof = (RESULT_PROOFS as readonly string[]).includes(g.proof ?? '') ? g.proof! : null;
       out.push({ id: c.id, ok: true, image: g.image_b64 });
     } else {
-      out.push({ id: c.id, ok: g.ok, text: g.ok ? (g.output || 'OK') : (g.error || g.output || 'failed') });
+      const why = !g.ok && g.note ? RESULT_NOTES[g.note] : undefined;
+      out.push({ id: c.id, ok: g.ok, text: g.ok ? (g.output || 'OK') : (why || g.error || g.output || 'failed') });
     }
   }
   run.outstanding = [];
@@ -282,7 +299,11 @@ async function judgeFinish(run: Run, f: Finish, deps: OperatorDeps): Promise<Jud
   if (run.mutatedSinceLook || !run.lastImage) {
     return { kind: 'feedback', feedback: { id: f.id, ok: false, text: 'Not accepted: there is no screenshot since your last action, so its result is unseen. Take a screenshot, check it, then call finish.' } };
   }
-  // Rule 2: an independent check of the final screen.
+  // Rule 2a (link T41 round 25): Suzi proved it on the computer, on this same screen. No checker is called.
+  if (run.proof) return { kind: 'end', result: await end(run, 'done', f.summary, true, { evidence: `proof:${run.proof}` }) };
+  // Rule 2b: totally free. A run on the Operator Model never calls the paid checker: without proof it is unverified.
+  if (run.settings.model === 'uitars') return { kind: 'end', result: await end(run, 'unverified', f.summary, null, { evidence: 'no proof from the computer' }) };
+  // Rule 2c: an independent check of the final screen.
   const checker = deps.checker();
   const v = await verifyOutcome(checker?.client ?? null, checker?.model ?? DEFAULT_CLAUDE_MODEL, run.goal, run.lastImage, run.ac.signal);
   run.usage = addUsage(run.usage, v.usage);

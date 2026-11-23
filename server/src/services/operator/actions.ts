@@ -35,7 +35,7 @@ export interface CaptureMeta { scale?: number; origin_x?: number; origin_y?: num
 
 /** One instruction to the gateway: run a Suzi tool, or pause. */
 export type GatewayAction =
-  | { call_id: string; tool: 'screen_capture' | 'mouse_click' | 'click_text' | 'type_text' | 'hotkey' | 'read_screen'; args: Record<string, unknown> }
+  | { call_id: string; tool: 'screen_capture' | 'mouse_click' | 'click_text' | 'type_text' | 'hotkey' | 'read_screen' | 'scroll'; args: Record<string, unknown> }
   | { call_id: string; wait_ms: number };
 
 /** Actions that change the screen. A `done` needs a screenshot taken after the last one. */
@@ -95,8 +95,13 @@ export function toGatewayAction(call: ModelCall, meta: CaptureMeta | null, blank
     case 'key':
       return { call_id: call.id, tool: 'hotkey', args: { keys: normaliseKeys(a.keys) } };
     case 'scroll':
-      // Suzi has no wheel scroll: one page key per call is the honest equivalent.
-      return { call_id: call.id, tool: 'hotkey', args: { keys: a.direction === 'up' ? 'pageup' : a.direction === 'down' ? 'pagedown' : a.direction } };
+      // Link T41 round 26 (both AGREE 23 Nov): Suzi has a wheel `scroll {direction: up | down, amount 1–20}`.
+      // Sideways stays an arrow key: the agreed tool has no left or right.
+      if (a.direction === 'up' || a.direction === 'down') {
+        const n = Number.isFinite(a.amount) ? Math.round(a.amount) : 3;
+        return { call_id: call.id, tool: 'scroll', args: { direction: a.direction, amount: Math.min(20, Math.max(1, n)) } };
+      }
+      return { call_id: call.id, tool: 'hotkey', args: { keys: a.direction } };
     case 'wait':
       return { call_id: call.id, wait_ms: Math.round(Math.min(Math.max(a.seconds, 0), MAX_WAIT_SECONDS) * 1000) };
     case 'cursor':

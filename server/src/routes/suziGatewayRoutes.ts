@@ -121,7 +121,7 @@ router.post('/act', async (req: Request, res: Response) => {
     const timezone = await resolveUserTimezone(who.userId);
     const out = await act(who.tenantId, who.userId, {
       op: String(b.op ?? ''), args: b.args && typeof b.args === 'object' ? b.args : {},
-      idempotency_key: b.idempotency_key, confirmed_by_user: b.confirmed_by_user === true,
+      idempotency_key: b.idempotency_key, confirmed_by_user: b.confirmed_by_user === true, confirmed_by: typeof b.confirmed_by === 'string' ? b.confirmed_by : undefined,
       voice_score: typeof b.voice_score === 'number' ? b.voice_score : null, timezone,
       device_id: typeof b.device_id === 'string' ? b.device_id : null,
       // T22: only Suzi's server reaches this loopback route, and it sets this after checking the signature.
@@ -449,7 +449,7 @@ router.post('/operator/start', async (req: Request, res: Response) => {
   const who = await activeUser(req, res);
   if (!who) return;
   try {
-    res.json(await startRun({ clientNumber: who.tenantId, userId: who.userId, goal: String(req.body?.goal ?? ''), os: typeof req.body?.os === 'string' ? req.body.os : undefined }));
+    res.json(await startRun({ clientNumber: who.tenantId, userId: who.userId, goal: String(req.body?.goal ?? ''), os: typeof req.body?.os === 'string' ? req.body.os : undefined, job: typeof req.body?.job === 'string' ? req.body.job : undefined }));
   } catch (err: any) {
     log.warn('operator start failed', { userId: who.userId, error: err?.message });
     res.status(500).json({ error: 'operator could not start' });

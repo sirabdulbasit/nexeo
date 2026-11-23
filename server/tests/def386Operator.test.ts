@@ -251,7 +251,7 @@ describe('DEF-386 the Claude request and Suzi mapping', () => {
     expect(normaliseKeys('ctrl c')).toBe('ctrl+c');
     expect(toGatewayAction({ id: 'w', action: { kind: 'wait', seconds: 90 } }, null, [])).toEqual({ call_id: 'w', wait_ms: 10000 });
     expect(toGatewayAction({ id: 's', action: { kind: 'screenshot' } }, null, ['1Password'])).toEqual({ call_id: 's', tool: 'screen_capture', args: { blank_apps: ['1Password'] } });
-    expect(toGatewayAction({ id: 'p', action: { kind: 'scroll', direction: 'down', amount: 3 } }, null, [])).toMatchObject({ tool: 'hotkey', args: { keys: 'pagedown' } });
+    expect(toGatewayAction({ id: 'p', action: { kind: 'scroll', direction: 'down', amount: 3 } }, null, [])).toMatchObject({ tool: 'scroll', args: { direction: 'down', amount: 3 } }); // link T41 round 26: Suzi's wheel scroll
   });
 
   it('UI-TARS: coordinates come back from its resized space; finished/call_user end the task', () => {
