@@ -1043,3 +1043,31 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **23 Nov 2026, rounds 23 to 25:** Suzi-Builder tested the Operator Model on his Mac with nothing installed (17:37): complete (4.5 GB), loads in 3.5 s, one step 8.1 s, 5.6 GB memory, click correct to 6 px. Suzi **AGREE** the ruling (17:40): the four-library install is withdrawn as the product path, the local loop stays a builder's test tool only; per step one 1280 px JPEG (120–300 KB) with the screen block, aim 2–4 s, cut 20 s, run 15 min; C4/C7 work from the Accessibility tree with 0–3 model steps. Suzi proposed new routes; Nexeo (r25) proposed instead the existing `operator/start|step|stop` routes (DEF-386) plus three additions: `job` on start, a result `note` (refused_by_guard, blanked_app), a result `proof` (file, page) so `done` needs no paid checker. NOT agreed yet. Nothing goes live before the founder's yes on screenshots leaving the computer and his choice of machine.
 - **23 Nov 2026 17:44 to 17:55, rounds 26 to 28 (Suzi put the closed contract in the charter, mirrored by Nexeo): central contract CLOSED, both AGREE; Nexeo's half BUILT, not deployed, off.** Suzi AGREE the existing routes and the three additions, and asked for client tools in `actions`: `scroll {direction: up | down, amount?: 1–20, x?, y?}` (new), `click_text`, `open_url`, `open_app`; Nexeo AGREE (link `7b025a1`). Built in `services/operator/*`: `job` on `start` (kept as `<model>#<job>` in the ledger); a result `note` (`refused_by_guard`, `blanked_app`) reaches the model as a fixed sentence, never Suzi's text; `proof` (`file`, `page`) on the last screenshot ends the run `done` with no checker; **a run on the Operator Model never calls the paid checker** (without proof: `unverified`); scroll goes out as Suzi's `scroll`; Suzi's JPEG screenshots are read (the loop assumed PNG). Tests `t41Central.test.ts` (9) incl. "a screenshot never reaches the ledger or the log"; matrix tsc 0, vitest 503 files / 5601 passed / 0 failed, diff-check clean. Not built: `open_url` / `open_app` are allowed but never sent (the Operator Model does not ask for them); x,y on scroll. Still off: `OPERATOR_CENTRAL` unset, so `start` answers `local/central_off`. Deploy waits for the machine and the founder's yes on screenshots; charter row 13 changes then.
 - **23 Nov 2026 17:56, round 29 (Suzi-Builder):** round 28 noted for the client half (proof on the screenshot result, note on a failed result, job on start, scroll at the window's centre, JPEG). **Found by it: the gateway (`jarvis-gateway`) runs on the server under Suzi Master (Ubuntu), which the founder has put on hold; Suzi-Builder (Mac) cannot change it.** The central operator needs a gateway relay between the client and Nexeo's `operator/start|step|stop` (never built, spec `jarvis-gateway/docs/inbox-2026-11-03-operator.md`). So that relay has no builder today. Third open point for the founder, beside the machine and the screenshots yes: who changes the gateway.
+
+### T41 hand-over: state at the close of the operator session (24 Nov 2026, 09:45 PKT)
+
+**The ruling that governs everything (founder, 23 Nov):** the **Operator Model** (his name for UI-TARS-1.5-7B, ByteDance Seed, Apache-2.0, 4-bit, ~4.5 GB) stays under Nexeo; the Suzi client uses it and never carries it. The 18 Nov design (model on the Mac) is overruled. Charter: operator section, "The Operator Model stays under Nexeo; the client uses it".
+
+**Live on Nexeo**
+- D-301 (18 Nov): pack `operator`, `operator.report`, `operator.permission`, `/changes` type `operator`; admin screen Admin → Client Specific → Computer Operator. Operator ON for TMC-0001 since 19 Nov 18:07:22 (consent by user 2).
+- D-305 (23 Nov 13:19): `schedule` on standing instructions, `instruction.update`, report job `scheduled` (`Rules.md` §9, `Wiki-Knowledge.md` §0.27).
+
+**Built, committed, NOT deployed, off**
+- Central contract additions, commit `93a0043f` (`services/operator/{models,actions,operatorService}.ts`, `routes/suziGatewayRoutes.ts`, `tests/t41Central.test.ts`). D-306 and D-307 (Nexeo-Builder) left it out on purpose. `OPERATOR_CENTRAL` is unset, so `operator/start` answers `local/central_off`.
+
+**Waiting on the founder (three answers, asked 23 Nov, none given)**
+1. The machine that runs the Operator Model. This server has 8 CPUs, 31 GB, no GPU: it cannot. Recommended: a Mac mini he owns (one-time cost); the other way is a rented GPU server (monthly cost, against "totally free").
+2. His yes that each step's screenshot goes to Nexeo, used for that step only, never stored or logged.
+3. Who builds the operator's relay in the gateway (`jarvis-gateway`, under Suzi Master, on hold). Spec: `jarvis-gateway/docs/inbox-2026-11-03-operator.md`. Nexeo's operator session offered; not started, because Suzi's side is not changed without his word.
+
+**Then, in this order**
+1. Serve the Operator Model on the machine behind an OpenAI-style endpoint; for the customer set `operator_settings.model = 'uitars'` and `uitars_base_url` (key in env `UITARS_API_KEY`).
+2. Build the gateway relay (client ⇄ Nexeo `operator/start|step|stop`); the gateway's `ImageOutput` must keep `meta`.
+3. Deploy `93a0043f` (clean clone, changed files only) with its chart row; set `OPERATOR_CENTRAL=on`; announce the routes to Suzi-Builder for his account.
+4. First real run with him; check `operator_runs` (central rows: model `uitars:…#<job>`; local reports: id `loc_…`, model `local:<job>`).
+
+**Suzi-Builder's side (Mac):** client half being built behind a switch; C4 browser by 25 Nov, C7 forms by 26 Nov, C5 system jobs + C6 AI tools by 27 Nov, go-live tests with him 28 Nov (planted instructions, Mixamo); C3 scans after his images yes. The four-library install on his Mac is withdrawn; the local loop is a builder's test tool only.
+
+**Never verified:** any real operator run (0 reports ever received); the admin screen in a browser; `rules.standing[].schedule` on real data; the central loop against a real Operator Model.
+
+**Watching the link:** no watcher runs after this session. Use `[[ name > cut-off ]]` on the file names in `inbox/` and `archive/` (never `find -newer` on our own file: Suzi archives it). Last Suzi T41 file read: `20261123-175641-suzi.md`.
