@@ -107,6 +107,15 @@ store, sources, builder, linter, routes, what Nexeo or Suzi read from it) is wri
 `server/docs/Rules.md`, **in the SAME commit or the same turn**: what changed, what was verified,
 what was not. This includes data-only changes and proposals that are not built yet (marked as such).
 
+## Computer Operator doc (owner ruling, 2026-11-24)
+
+*"this should be documented and Computer_Operator.md, for all things related to computer operator."*
+`server/docs/Computer_Operator.md` is the one document for the computer operator: the founder's rulings, the
+Operator Model, the design, the contract with Suzi, the code map, what is live, what waits, how to continue, what was
+never verified. **Anything about the operator (code, contract, deploy, a founder decision, a finding, a proposal not
+built yet) is written there in the SAME commit or the same turn.** Read it first when the topic comes up. The round
+by round history with Suzi stays in `NEXEO_SUZI_AGREEMENT.md` § T41.
+
 ## Regression discipline (survives the pipeline removal)
 
 Every Brain bug reported from a real conversation gets BOTH:

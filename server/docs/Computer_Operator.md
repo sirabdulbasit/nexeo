@@ -3,6 +3,9 @@
 The one document for the computer operator: what it is, what the founder decided, what is live, what is built but
 off, what is waiting, and how to continue. Update it in the same commit as any change to the operator.
 
+Founder, 24 Nov 2026: *"this should be documented and Computer_Operator.md, for all things related to computer
+operator."* So everything about the operator goes here, by every session (rule in the project `CLAUDE.md`).
+
 Last updated: 24 Nov 2026, 09:55 PKT (close of the operator session).
 Link topic: **T41**. Full history, round by round: `NEXEO_SUZI_AGREEMENT.md` § T41.
 
