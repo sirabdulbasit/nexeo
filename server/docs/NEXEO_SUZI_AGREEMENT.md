@@ -1046,6 +1046,8 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 
 ### T41 hand-over: state at the close of the operator session (24 Nov 2026, 09:45 PKT)
 
+**The standing document for the operator is `server/docs/Computer_Operator.md`** (founder, 24 Nov: "this should be documented"). Keep it current in the same commit as any operator change; this section is the history.
+
 **The ruling that governs everything (founder, 23 Nov):** the **Operator Model** (his name for UI-TARS-1.5-7B, ByteDance Seed, Apache-2.0, 4-bit, ~4.5 GB) stays under Nexeo; the Suzi client uses it and never carries it. The 18 Nov design (model on the Mac) is overruled. Charter: operator section, "The Operator Model stays under Nexeo; the client uses it".
 
 **Live on Nexeo**
