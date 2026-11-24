@@ -1079,6 +1079,11 @@ const server = app.listen(env.port, async () => {
 // the DB pool shuts down cleanly.
 async function gracefulShutdown(signal: string) {
   console.log(`[shutdown] received ${signal}, draining...`);
+  // Hard-kill fallback after 8s (armed first, so a hung step still exits) so we never exceed the 10s SIGKILL window.
+  setTimeout(() => {
+    console.warn('[shutdown] forced exit after timeout');
+    process.exit(0);
+  }, 8000).unref();
 
   // Stop accepting new connections; in-flight requests finish.
   server.close(() => console.log('[shutdown] HTTP server closed'));
@@ -1107,11 +1112,12 @@ async function gracefulShutdown(signal: string) {
     console.warn('[shutdown] prisma disconnect error:', err.message);
   }
 
-  // Hard-kill fallback after 8s so we never exceed the 10s SIGKILL window.
-  setTimeout(() => {
-    console.warn('[shutdown] forced exit after timeout');
-    process.exit(0);
-  }, 8000).unref();
+  // Exit as soon as cleanup is done (PMO 24 Nov): hourly jobs' untracked
+  // intervals keep the event loop alive, so without this the process waited
+  // for pm2's 1.6 s kill_timeout and was SIGKILLed after every clean shutdown.
+  console.log('[shutdown] done, exiting');
+  process.exit(0);
+
 }
 
 process.on('SIGTERM', () => { void gracefulShutdown('SIGTERM'); });
