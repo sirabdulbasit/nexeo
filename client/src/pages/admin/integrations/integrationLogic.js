@@ -273,6 +273,19 @@ export function needsSecret(authScheme) {
 }
 
 /** "N records on this page (declared total M)" — spec §2b Connect. */
+/**
+ * DEF-513: whether a test (dry run) counts as passed for "Turn it on" — the SAME
+ * rule the server applies in mappingStore.activate (isCapOnlyPartial): a SUCCESS,
+ * or a PARTIAL whose read was complete and whose only shortfall is the knowledge-
+ * page cap (every live run applies the same cap, so the preview is what runs).
+ */
+export function testCountsAsPass(run) {
+  if (!run) return false;
+  if (run.status === 'SUCCESS') return true;
+  const r = run.result && typeof run.result === 'object' ? run.result : {};
+  return run.status === 'PARTIAL' && r.readComplete === true && r.context?.truncated === true;
+}
+
 export function pageCountText(result) {
   if (!result) return '';
   const n = Number(result.pageRecords ?? result.rows ?? 0);

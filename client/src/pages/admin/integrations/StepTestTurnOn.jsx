@@ -22,7 +22,7 @@ import {
   listSuggestions, listRuns, listRunChanges, runAndWait, activateIntegration, errorText,
 } from '../../../services/integrationsApi';
 import { runStageText } from './WorkingOverlay';
-import { runnableApprovedCount } from './integrationLogic';
+import { runnableApprovedCount, testCountsAsPass } from './integrationLogic';
 import {
   C, s, btn, InlineConfirm, ChangesList, KpiChangeSummary, RecordsView, formatPkt, scheduleText, previewNextRun, runResult,
 } from './integrationUi';
@@ -148,7 +148,8 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
   // (runEngine ContextRunSummary); absent when the version has no Context rows.
   const ctx = r?.context && typeof r.context === 'object' ? r.context : null;
   const hasFilter = !!integ.approvedFilter;
-  const passed = run?.status === 'SUCCESS';
+  // DEF-513: same pass rule as the server (a page-cap-only PARTIAL counts).
+  const passed = testCountsAsPass(run);
   const alreadyRunning = integ.status === 'ACTIVE' && integ.approvedVersionId === version.id;
   const canTurnOn = passed && approvedCount > 0 && !alreadyRunning;
   const next = previewNextRun(integ, integ.timezone);
@@ -178,6 +179,8 @@ export default function StepTestTurnOn({ integ, refresh, setMsg, signal, setWork
         <>
           {run.status === 'FAILED' || run.status === 'ABORTED' ? (
             <div style={s.error}>The test did not pass. {run.error || r?.error || ''}</div>
+          ) : run.status === 'PARTIAL' && passed ? (
+            <div style={s.warnBox}>The whole {integ.sourceKind === 'api' || integ.sourceKind === 'mcp' ? 'data' : 'sheet'} was read; only the knowledge-page limit cut the pages short. This counts as a pass, and every run applies the same limit. {(r?.anomalies || []).join(' ')}</div>
           ) : run.status === 'PARTIAL' ? (
             <div style={s.warnBox}>Only part of the {integ.sourceKind === 'api' || integ.sourceKind === 'mcp' ? 'data' : 'sheet'} could be read, so this test does not count as a pass. {(r?.anomalies || []).join(' ')}</div>
           ) : null}
