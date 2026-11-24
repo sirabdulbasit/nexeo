@@ -892,6 +892,14 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 - **No new store:** the schedule is part of the instruction's own Wiki page (§0.3). Details: `Rules.md` §9.
 - **Not verified:** a real schedule set by Suzi and run on the Mac (Suzi's C5, by 27 Nov).
 
+### 0.28 Wiki rows of deleted users (24 Nov 2026, founder "yes if it safe to delete"; Wiki session)
+
+- **Found 19 Nov:** 41 Wiki rows (26 pages, 15 sources) plus 6 page links and 15 citation rows belonged to users 1, 4 and 5, who no longer exist. None of the live users' pages linked to them.
+- **Done 24 Nov 06:55 UTC:** all 62 rows backed up to `/root/backups/wiki_orphans_users_1_4_5_20261124_0655.sql` (one JSON row per line, table name first), then deleted in one transaction. 0 orphans remain; 19,179 pages and 9,854 sources are left.
+- **Root cause:** the Wiki tables have no foreign key to `users`, and users were deleted by hand (no code path deletes a user).
+- **Prevention:** migration `20261124_wiki_rows_follow_user_delete`, a trigger `users_wiki_rows_follow_delete` (AFTER DELETE ON users) that removes that user's citations, links, pages and sources. Rehearsed in a rolled-back transaction (1 source before, 0 after) and applied to production twice, both clean.
+- **Not verified:** a real user deletion, because none has happened.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
