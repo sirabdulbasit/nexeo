@@ -454,7 +454,11 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     opt('drafts', () => import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
     opt('meeting', () => import('../meetings/meetingSwitch').then(({ isOn }) => isOn(userId)).then(async (on) => ({ meeting_assistant: { on, ...((await import('../meetings/meetingRecordStore')).PUSH_STATUS.on ? { status_push: true as const } : {}) } })).catch(() => ({}))),
     opt('recorded', () => meetingsRecorded(clientNumber, userId, now, tz).then((m) => ({ meetings_recorded: m })).catch(() => ({}))),
-    opt('profile', () => import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).then((p) => (p ? { profile: p } : {})).catch(() => ({}))),
+    // Suzi 25 Nov 15:36: his own address as profile.email, so Suzi never guesses which address is his.
+    opt('profile', () => Promise.all([
+      import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).catch(() => null),
+      prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { email: true } as any }).then((u: any) => (typeof u?.email === 'string' ? u.email.toLowerCase() : null)).catch(() => null),
+    ]).then(([p, email]) => (p || email ? { profile: { ...(p ?? {}), ...(email ? { email } : {}) } } : {}))),
     // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
     opt('risks', () => import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
     // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.
@@ -546,10 +550,26 @@ export function addressesIn(header: string | null | undefined): string[] {
 async function recipientsOf(clientNumber: string, feedIds: string[]): Promise<Map<string, { to: string[]; cc: string[] }>> {
   const out = new Map<string, { to: string[]; cc: string[] }>();
   if (!feedIds.length) return out;
-  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; to: string | null; cc: string | null }>>(
-    `SELECT id, raw_payload->>'to' AS to, raw_payload->>'cc' AS cc FROM feed_events WHERE client_number = $1 AND id = ANY($2::text[])`,
+  // The id is a feed row id, or (emails read from the Wiki) the Gmail message id: both are looked up, the feed first,
+  // then the Wiki's own copy of the email.
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; sid: string | null; to: string | null; cc: string | null }>>(
+    `SELECT id, source_id AS sid, raw_payload->>'to' AS to, raw_payload->>'cc' AS cc FROM feed_events
+      WHERE client_number = $1 AND (id = ANY($2::text[]) OR source_id = ANY($2::text[]))`,
     clientNumber, feedIds,
   );
-  for (const r of rows) out.set(r.id, { to: addressesIn(r.to), cc: addressesIn(r.cc) });
+  for (const r of rows) {
+    const v = { to: addressesIn(r.to), cc: addressesIn(r.cc) };
+    if (feedIds.includes(r.id)) out.set(r.id, v);
+    if (r.sid && feedIds.includes(r.sid)) out.set(r.sid, v);
+  }
+  const missing = feedIds.filter((f) => !out.has(f));
+  if (missing.length) {
+    const w = await prisma.$queryRawUnsafe<Array<{ ext: string; to: string | null; cc: string | null }>>(
+      `SELECT external_id AS ext, details->>'to' AS to, details->>'cc' AS cc FROM wiki_sources
+        WHERE client_number = $1 AND kind = 'email' AND external_id = ANY($2::text[])`,
+      clientNumber, missing,
+    ).catch(() => []);
+    for (const r of w) out.set(r.ext, { to: addressesIn(r.to), cc: addressesIn(r.cc) });
+  }
   return out;
 }
