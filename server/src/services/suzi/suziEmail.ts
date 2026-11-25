@@ -101,6 +101,9 @@ export async function signatureOf(clientNumber: string, userId: number): Promise
 /** His signature replaces whatever closing the writer put at the end, once. No signature set: the body as written. */
 export function withSignature(body: string, signature: string | null): string {
   if (!signature) return body;
+  // Suzi 25 Nov 14:28: never twice. A body that already ends with his signature is left as it is.
+  const norm = (t: string) => t.replace(/\s+/g, ' ').trim().toLowerCase();
+  if (norm(body).endsWith(norm(signature))) return body;
   const lines = body.replace(/\s+$/, '').split('\n');
   const closing = /^(regards|best|best regards|kind regards|warm regards|thanks|thank you|many thanks|cheers|sincerely|yours sincerely)[,!.]?\s*$/i;
   // Drop a trailing closing ("Regards," + an optional name line) the model added.

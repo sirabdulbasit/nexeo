@@ -14,3 +14,10 @@ describe('email signature', () => {
     expect(withSignature('Hi,\n\nRegards,\nBasit', null)).toBe('Hi,\n\nRegards,\nBasit');
   });
 });
+
+describe('email signature, never twice', () => {
+  it('SIGN: a body already ending with his signature is unchanged', () => {
+    const sig = 'Best,\nBasit Ahmed';
+    expect(withSignature('Hi,\n\nDone.\n\nBest,\n  Basit Ahmed \n', sig)).toBe('Hi,\n\nDone.\n\nBest,\n  Basit Ahmed \n');
+  });
+});
