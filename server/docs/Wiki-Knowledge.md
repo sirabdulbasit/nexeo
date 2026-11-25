@@ -910,7 +910,7 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 - Every integration set up in the wizard writes its records as `org_doc` notes, with the fields in `metadata.fields`.
 - On every hourly build, any record that carries an email address is attached to the People note holding that exact address (`email:` identifier).
 - **The match is the exact address, never a name** (§0.13.2, standard 2). "Abdul Rafay", "Rafay Rasheed" and "Muhammad Rafay" are three people until an address says otherwise.
-- The person note gets a `## From <integration>` section with every field except the matched address, pictures and empty values, plus a link to the record. Its properties get the same facts under `records`. The record's phone fills the person's phone only when no contact phone is known.
+- The person note gets a `## From <integration>` section with every field except the matched address, pictures, empty values and personal fields (§0.31), and cites the row's source. Its properties get the same facts under `records`. Since 25 Nov the rows are read from the Wiki's sources (§0.31), and a field naming a known person or business unit is a `[[link]]`. The record's phone fills the person's phone only when no contact phone is known.
 - **"Updating additional information if comes":** the People step rebuilds the note from the current records each hour.
   - A changed record field changes the note.
   - A record that disappears or is marked stale by its integration is removed from the note (`records: null`).
@@ -929,13 +929,51 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 **His words:** *"every integration should go to wiki as per its run, and which records should go where that should be decided by you (as per wiki standard structure)"*.
 
 **Where integration data goes (decided by the Integration session, following this document):**
-- Each record → an `org_doc` **Integration record** (every record, DEF-514: the cap is a 5000 safety ceiling, default = ceiling). The record is the shared source.
+- ~~Each record → an `org_doc` **Integration record**~~ **Superseded the same day by §0.31 (standard structure):** each record lands as a Wiki **source** (kind `record`), never a note (every record, DEF-514: the cap is a 5000 safety ceiling, default = ceiling).
 - A record with an email → attached to the People note with that exact address (§0.29). No People note is invented.
 - The integration → its **system** note; each KPI → its **kpi** note; each unit the figures name → its **business_unit** note (§6b, `wikiSystems.ts`).
 - **When:** records on every run (contextWriter); system, KPI and business-unit notes **now also after every real run** (`runJobs.refreshWikiAfterRun`, DEF-515), not only at the Wiki's own build. A test (dry run) never touches the Wiki; a Wiki failure never changes the run's result.
 - **Seen:** the Wiki screen lists every note type that has notes (DEF-515); before, a fixed list hid 362 of 2786 notes.
 
 **Not verified at writing:** a live run refreshing the KPI note; the screen showing Integrations / KPIs / Business units. §0.29 (People merge) is committed by the Wiki session (`392c83d5`) but not deployed.
+
+### 0.31 The Wiki's standard structure, and how every feed and integration lands (founder, 25 Nov 2026; Wiki session)
+
+**His words:** *"first make rule that Wiki should have standard structure (like obsedian) and all data will remain recorded/saved as per the structure, all other feeds and integration data will be landed accordingly. can you fix it at once and avoid this happending in future"*
+
+**What went wrong:** 1,114 integration rows (the Employee Directory) were stored as notes of their own type, "Integration records". Measured 25 Nov, each one failed every structural check:
+- titled by the source ("TMC Employee Directory · Name") instead of the person's name;
+- no outside identifier;
+- no properties;
+- no note linking to it;
+- 919 pointing "About" at a person note that did not exist;
+- personal fields shared with every user.
+
+Every other note type passed. Only 4 notes lack an identifier: 2 chat-only people and 2 recorded meetings, which have none to give.
+
+**The rule (also AGENTS.md invariant 10):**
+1. **A note is one thing, titled by its name**, of exactly one type from this list: `person`, `company`, `group`, `meeting`, `project`, `topic`, `decision`, `commitment`, `document`, `conversation`, `rule`, `learned`, `system`, `kpi`, `business_unit`.
+2. **Identity is outside identifiers** (`email:`, `domain:`, `event:`, `space:`, `business_unit:` …) wherever the source gives one; a name never decides identity (§0.13.2).
+3. **Facts are properties; relationships are `[[links]]`** to the note of the related thing (a manager, a business unit, a company). A link to a thing with no note yet stays unresolved, as in Obsidian.
+4. **What was fetched is a source, never a note.** Every feed (email, calendar, chat, WhatsApp, transcripts, documents) and every integration row lands in `wiki_sources` through `saveSource`; notes cite their sources. An integration row lands as kind `record`, scope `tenant`, `details.store = 'integration'`, with its integration and fields.
+5. **Notes are built from sources by the builder steps.** A row that carries a person's email adds its facts to that person's note (§0.29). The same applies to any integration set up in the wizard. A row about someone the user has never dealt with stays a source; no note is invented for it.
+6. **Personal data stays in the source.** Birth date, gender, salary, contract, national id, passport, religion, marital status and bank fields (`SENSITIVE_FIELD`) never reach a note. Showing them to admins needs the founder's word; he has not been asked yet.
+
+**How it is enforced, so it cannot happen again:**
+- **Code door:** `assertNoteStructure` in both note doors (`writeNote`, `adoptAsNote`) refuses a type outside `NOTE_TYPES` (`wikiStructure.ts`), telling the writer to land a source instead.
+- **Database door:** trigger `wiki_pages_standard_types` refuses any `wiki_pages` row marked as a Wiki note whose type is outside the same list, whoever writes it (migration `20261125_wiki_standard_structure`).
+- **Test:** `tests/wikiStructure.test.ts` fails if the code list, the trigger's lists and this section disagree, if a door stops checking, or if the integration writer goes back to adopting notes.
+- **Adding a type** means changing all three together, here first.
+
+**The fix for what is there:**
+- The integration writer (`contextWriter.landAsSource`) lands every row as a source on every run. The engine keeps its own page for its diff, outside the Wiki.
+- `src/scripts/wikiLandIntegrationSources.ts` lands the rows written before today; a second run changes nothing.
+- The migration then removes the Wiki marker and links from the 1,114 records and installs the trigger.
+- The People step (§0.29) now reads the record sources, cites them, links manager, department head, HR partner and business unit when the Wiki knows them, and leaves the personal fields out.
+
+**State:** built and tested 25 Nov; deploy waits on the founder's approval (D-312, with D-311). Not yet verified on production.
+
+**Not built:** a search over sources from the Wiki screen. Until it exists, an employee the user never dealt with is not found by the Wiki search; Brain and Suzi read sources directly.
 
 ## 1. Owner direction (2026-11-12)
 

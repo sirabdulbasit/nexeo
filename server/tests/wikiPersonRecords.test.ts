@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('../src/db/prisma', () => ({ __esModule: true, default: {}, prisma: {} }));
 
-import { buildNotes, recordsFor, recordFacts, type StoredItem, type PersonRecord } from '../src/services/wiki/wikiBuilder';
+import { buildNotes, recordsFor, recordFacts, factValue, type StoredItem, type PersonRecord } from '../src/services/wiki/wikiBuilder';
 import { extractWikiLinks } from '../src/services/wiki/wikiLinks';
 
 const at = (d: string) => new Date(`${d}T09:00:00+05:00`);
@@ -21,7 +21,7 @@ const ctxWith = (records?: Map<string, PersonRecord[]>) =>
 const person = (notes: ReturnType<typeof buildNotes>, email: string) =>
   notes.find((n) => n.type === 'person' && (n.ids ?? []).includes(`email:${email}`))!;
 
-const dir = record({ name: 'Abdul Rafay Hussain', email: 'abdul.rafay@tmcltd.com', designation: 'MTO', departmentName: 'SAP Controlling', phone: '923313301946', profilePicture: '/x.jpg', reportsTo: '' });
+const dir = { ...record({ name: 'Abdul Rafay Hussain', email: 'abdul.rafay@tmcltd.com', designation: 'MTO', departmentName: 'SAP Controlling', phone: '923313301946', profilePicture: '/x.jpg', reportsTo: '', dateOfBirth: '2000-04-18', gender: 'male', contractEndDate: '2026-10-30' }), sourceId: 'src_rafay' };
 
 describe('integration records merge into People', () => {
   it('a person whose email matches a record gets its facts, a link to it and its phone', () => {
@@ -30,9 +30,23 @@ describe('integration records merge into People', () => {
     expect(p.body).toContain('## From TMC Employee Directory');
     expect(p.body).toContain('- **designation:** MTO');
     expect(p.body).toContain('- **departmentName:** SAP Controlling');
-    expect(extractWikiLinks(p.body).map((l: any) => l.title)).toContain('TMC Employee Directory · Abdul Rafay Hussain');
+    expect(p.sourceIds).toContain('src_rafay');
     expect(p.properties!.phone).toBe('923313301946');
     expect((p.properties!.records as any[])[0]).toMatchObject({ integration: 'TMC Employee Directory', designation: 'MTO' });
+  });
+
+  it('a field naming a known person or business unit becomes a link; sensitive fields never reach the note', () => {
+    const boss = record({ name: 'Rai Sohaib Amjad', email: 'rai@tmcltd.com', reportsTo: 'Nobody' });
+    const withBoss = record({ ...dir.fields, reportsTo: 'Rai Sohaib Amjad', businessUnit: 'TMC Private Limited' });
+    const linkable = new Map([['rai sohaib amjad', 'Rai Sohaib Amjad'], ['tmc private limited', 'TMC Private Limited']]);
+    const notes = buildNotes(items, { ...ctxWith(new Map([['abdul.rafay@tmcltd.com', [withBoss]], ['rai@tmcltd.com', [boss]]])), linkable });
+    const p = person(notes, 'abdul.rafay@tmcltd.com');
+    expect(p.body).toContain('- **reportsTo:** [[Rai Sohaib Amjad]]');
+    expect(p.body).toContain('- **businessUnit:** [[TMC Private Limited]]');
+    expect(extractWikiLinks(p.body).map((l: any) => l.title)).toEqual(expect.arrayContaining(['Rai Sohaib Amjad', 'TMC Private Limited']));
+    expect(p.body).not.toMatch(/dateOfBirth|gender|contractEndDate|2000-04-18/);
+    expect(JSON.stringify(p.properties)).not.toMatch(/dateOfBirth|gender|contractEndDate/);
+    expect(factValue('Someone Unknown', linkable)).toBe('Someone Unknown');
   });
 
   it('leaves out the matching address, pictures and empty fields', () => {

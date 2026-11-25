@@ -107,6 +107,8 @@ const INVENTORY = [
  * exhaustive and a NEW script cannot join either group silently.
  */
 const UNTRIAGED_STILL_EMITTED = [
+  // Wiki standard structure (2026-11-25): one-off, repeat-safe; lands integration rows as Wiki sources.
+  'wikiLandIntegrationSources',
   'applyPendingMigrations', 'auditHardcodedBrainReplies', 'auditPerModelTenantScope',
   'auditTenantScopedQueries', 'backfillAttachments', 'backfillBasitGmail30d',
   'backfillConceptPages', 'backfillDevanagariToUrdu', 'backfillEmailBodies',

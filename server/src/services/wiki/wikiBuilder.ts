@@ -20,6 +20,7 @@
  * `buildNotes` is pure (stored items in, notes out) so it can be tested and
  * dry-run; `rebuildWikiForUser` loads the items and writes the notes.
  */
+import { SENSITIVE_FIELD } from './wikiStructure';
 import prisma from '../../db/prisma';
 import { cleanTitle, titleKey, wikiLink } from './wikiLinks';
 import { writeNote, retireNote, mergeNotes, listSources, IdentityConflict, WIKI_GENERATION, type NoteInput } from './wikiStore';
@@ -56,13 +57,17 @@ export interface BuildContext {
    * and always do the same where you can"). A person whose address matches gets the record's facts.
    */
   records?: Map<string, PersonRecord[]>;
+  /** Names a record field may link to (people in integration rows, business units, companies): lower case → title. */
+  linkable?: Map<string, string>;
 }
 
-/** One integration record about a person: which integration, its note title, and its fields. */
+/** One integration row about a person, as landed in the Wiki's sources: which integration, its name, its fields. */
 export interface PersonRecord {
   integration: string;
   title: string;
   fields: Record<string, string>;
+  /** The Wiki source the row is; the person note cites it. */
+  sourceId?: string;
 }
 
 /** Fields not repeated on the person note: the address it was matched by, and links that only work inside the source. */
@@ -80,8 +85,14 @@ export function recordsFor(emails: string[], records?: Map<string, PersonRecord[
 /** The fields a record adds to a person note, in the record's own order. */
 export function recordFacts(r: PersonRecord): Array<[string, string]> {
   return Object.entries(r.fields)
-    .filter(([k, v]) => !RECORD_FIELDS_LEFT_OUT.test(k) && typeof v === 'string' && v.trim() !== '')
+    .filter(([k, v]) => !RECORD_FIELDS_LEFT_OUT.test(k) && !SENSITIVE_FIELD.test(k) && typeof v === 'string' && v.trim() !== '')
     .map(([k, v]) => [k, v.trim()]);
+}
+
+/** A field's value as the note shows it: a link when it names a person, business unit or company the Wiki knows. */
+export function factValue(v: string, linkable?: Map<string, string>): string {
+  const t = linkable?.get(v.trim().toLowerCase());
+  return t ? wikiLink(t) : v;
 }
 
 export type BuiltNote = Omit<NoteInput, 'clientNumber' | 'userId' | 'actor'>;
@@ -618,8 +629,8 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
       }
     }
     for (const r of fromRecords) {
-      lines.push('', `## From ${r.integration}`, `Record: ${wikiLink(r.title)}`);
-      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${v}`);
+      lines.push('', `## From ${r.integration}`);
+      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${factValue(v, ctx.linkable)}`);
     }
     notes.push({
       type: 'person',
@@ -635,7 +646,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         records: fromRecords.length ? fromRecords.map((r) => ({ integration: r.integration, title: r.title, ...Object.fromEntries(recordFacts(r)) })) : null,
       },
       ids: emails.map((e) => `email:${e}`),
-      sourceIds: citedSources(p.sources),
+      sourceIds: [...citedSources(p.sources), ...fromRecords.map((r) => r.sourceId).filter((x): x is string => Boolean(x))],
     });
   }
 
@@ -750,32 +761,41 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
   }
   const { loadCompanyNames } = await import('./wikiCompanyNames');
   const companyNames = await loadCompanyNames(clientNumber, userId).catch(() => new Map<string, string>());
-  const records = await loadPersonRecords(clientNumber);
-  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames, records };
+  const { records, linkable } = await loadPersonRecords(clientNumber, userId);
+  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames, records, linkable };
 }
 
 /**
- * Every live integration record of the client that carries an email address, by that address. Any
- * integration set up in the wizard qualifies: the match is the exact address, never a name (§0.13.2).
+ * Every live integration row of the client (landed as a Wiki source, kind 'record', store 'integration') that
+ * carries an email address, by that address. Any integration set up in the wizard qualifies: the match is the
+ * exact address, never a name (§0.13.2). Also the names a fact may link to.
  */
-export async function loadPersonRecords(clientNumber: string): Promise<Map<string, PersonRecord[]>> {
-  const rows = await (prisma as any).wikiPage.findMany({
-    where: { clientNumber, pageType: 'org_doc', status: { notIn: ['superseded', 'archived'] }, metadata: { path: ['wiki'], equals: 2 } },
-    select: { title: true, metadata: true },
-  });
-  const out = new Map<string, PersonRecord[]>();
+export async function loadPersonRecords(clientNumber: string, userId?: number): Promise<{ records: Map<string, PersonRecord[]>; linkable: Map<string, string> }> {
+  const rows: Array<{ id: string; title: string | null; details: any }> = await (prisma as any).$queryRawUnsafe(
+    `SELECT id, title, details FROM wiki_sources
+      WHERE client_number = $1 AND kind = 'record' AND details->>'store' = 'integration'
+        AND COALESCE(details->>'stale', 'false') <> 'true'`, clientNumber);
+  const records = new Map<string, PersonRecord[]>();
+  const linkable = new Map<string, string>();
   for (const row of rows) {
-    const m = (row.metadata ?? {}) as any;
-    if (m.integrationStale === true || !m.fields || typeof m.fields !== 'object') continue;
+    const d = row.details ?? {};
+    if (!d.fields || typeof d.fields !== 'object') continue;
     const fields: Record<string, string> = {};
-    for (const [k, v] of Object.entries(m.fields)) if (typeof v === 'string') fields[k] = v;
-    const integration = String(row.title).split(' · ')[0] || 'Integration';
-    const rec: PersonRecord = { integration, title: row.title, fields };
-    for (const v of new Set(Object.values(fields).map((v) => v.trim().toLowerCase()).filter((v) => EMAIL_VALUE.test(v)))) {
-      out.set(v, [...(out.get(v) ?? []), rec]);
-    }
+    for (const [k, v] of Object.entries(d.fields)) if (typeof v === 'string') fields[k] = v;
+    const title = String(row.title ?? '').trim();
+    const rec: PersonRecord = { integration: String(d.integration ?? 'Integration'), title, fields, sourceId: row.id };
+    const emails = [...new Set(Object.values(fields).map((v) => v.trim().toLowerCase()).filter((v) => EMAIL_VALUE.test(v)))];
+    for (const e of emails) records.set(e, [...(records.get(e) ?? []), rec]);
+    if (emails.length && title) linkable.set(title.toLowerCase(), noteTitle(title));
   }
-  return out;
+  if (userId !== undefined) {
+    const notes = await (prisma as any).wikiPage.findMany({
+      where: { clientNumber, userId, pageType: { in: ['business_unit', 'company'] }, status: 'active', metadata: { path: ['wiki'], equals: 2 } },
+      select: { title: true },
+    });
+    for (const n of notes) linkable.set(String(n.title).toLowerCase(), n.title);
+  }
+  return { records, linkable };
 }
 
 export interface RebuildResult {

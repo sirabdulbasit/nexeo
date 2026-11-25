@@ -72,14 +72,15 @@ describe('wiki identity', () => {
     expect(note('Deal').metadata.ambiguousLinks).toEqual(['acme']);
   });
 
-  it('3. a title beats an alias, and a record page gives way to any other note', async () => {
+  it('3. a title beats an alias; a record page cannot be a note', async () => {
     const sam = await writeNote({ ...base, type: 'person', title: 'Sam', body: '' });
     await writeNote({ ...base, type: 'person', title: 'Samuel Green', body: '', aliases: ['Sam'] });
     expect((await writeNote({ ...base, type: 'topic', title: 'A', body: '[[Sam]]' })).linked).toBe(1);
     expect(linksTo(sam.id)).toHaveLength(1);
 
     const ali = await writeNote({ ...base, type: 'person', title: 'Ali Khan', body: '' });
-    await writeNote({ ...base, type: 'org_doc', title: 'Ali Khan', body: 'A record.', scope: 'tenant' });
+    // An integration record is a source, never a note (Wiki-Knowledge §0.31): the door refuses it.
+    await expect(writeNote({ ...base, type: 'org_doc', title: 'Ali Khan', body: 'A record.', scope: 'tenant' })).rejects.toThrow(/wiki_structure/);
     expect(await writeNote({ ...base, type: 'topic', title: 'B', body: '[[Ali Khan]]' })).toMatchObject({ linked: 1, ambiguous: [] });
     expect(linksTo(ali.id)).toHaveLength(1);
 

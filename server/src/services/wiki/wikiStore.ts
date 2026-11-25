@@ -36,6 +36,7 @@
  *   - two notes become one only through `mergeNotes`, which records what it
  *     moved so `unmergeNote` can put it back.
  */
+import { assertNoteStructure } from './wikiStructure';
 import prisma from '../../db/prisma';
 import { assertNoteMayBeStored } from './knowledgeModel';
 import { cleanTitle, extractWikiLinks, titleKey } from './wikiLinks';
@@ -280,6 +281,8 @@ export async function writeNote(input: NoteInput): Promise<WriteResult> {
   if (!input.type) throw new Error('wikiStore.writeNote: a note needs a type');
   // Client Owned Data (founder, 19 Nov): only his profile note and learned notes are stored here.
   await assertNoteMayBeStored(input);
+  // Standard structure (founder, 25 Nov): only the Wiki's note types; raw rows are sources (§0.31).
+  assertNoteStructure(input);
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await prisma.$transaction((tx: any) => writeNoteIn(tx, input), { timeout: 30_000 });
@@ -495,6 +498,7 @@ export async function adoptAsNote(pageId: string): Promise<{ linked: number; unr
   const page = await prisma.wikiPage.findUnique({ where: { id: pageId } });
   if (!page) return null;
   await assertNoteMayBeStored({ clientNumber: page.clientNumber, userId: page.userId, type: page.pageType, ids: (page.metadata as any)?.ids });
+  assertNoteStructure({ type: page.pageType });
   const { clientNumber, userId } = page;
   const links = await resolveLinks(prisma, clientNumber, userId, page.bodyMarkdown ?? '', pageId, page.title);
   await prisma.wikiPage.update({

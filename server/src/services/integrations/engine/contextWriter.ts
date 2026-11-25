@@ -123,13 +123,28 @@ function aboutLink(recordTitle: string): string {
   return t ? `[[${t}]]` : '';
 }
 
-/** Mark a stored page as a note of the wiki and rebuild its links. Never fails the run. */
-async function adopt(pageId: string, cn: string, integrationId: string): Promise<void> {
+/**
+ * Land an integration row in the Wiki as a SOURCE, never as a note (founder, 25 Nov: the Wiki keeps its
+ * standard structure; Wiki-Knowledge §0.31). Notes are built from it: a row carrying a person's email adds
+ * its facts to that person's note (wikiBuilder, People step). The engine keeps its page for its own diff.
+ * Never fails the run.
+ */
+export async function landAsSource(pageId: string, cn: string, integ: { id: string; name: string }): Promise<void> {
   try {
-    const { adoptAsNote } = await import('../../wiki/wikiStore');
-    await adoptAsNote(pageId);
+    const page = await prisma.wikiPage.findUnique({ where: { id: pageId } });
+    if (!page) return;
+    const m = metaOf(page as any) as any;
+    const fields: Record<string, string> = m.fields && typeof m.fields === 'object' ? m.fields : {};
+    const name = (m.titleField && fields[m.titleField]) || String(page.title).split(' · ').slice(1).join(' · ') || page.title;
+    const { saveSource } = await import('../../wiki/wikiSources');
+    await saveSource({
+      clientNumber: cn, userId: page.userId, kind: 'record', scope: 'tenant',
+      externalId: `integration:${m.recordKey ?? page.id}`,
+      title: name, body: page.bodyMarkdown ?? '',
+      details: { store: 'integration', integrationId: integ.id, integration: integ.name, fields, stale: m.integrationStale === true, enginePageId: page.id },
+    });
   } catch (err) {
-    log.warn('wiki adopt failed', { clientNumber: cn, integrationId, pageId, error: err instanceof Error ? err.message : String(err) });
+    log.warn('wiki source landing failed', { clientNumber: cn, integrationId: integ.id, pageId, error: err instanceof Error ? err.message : String(err) });
   }
 }
 
@@ -468,7 +483,7 @@ export async function applyContextDiff(
         });
         if (r.count === 0) { out.unchangedRace += 1; continue; }
         await prisma.integrationRunChange.create({ data: changeRow(cn, integ.id, opts.runId, o) });
-        await adopt(o.existing.id, cn, integ.id);
+        await landAsSource(o.existing.id, cn, integ);
         out.stale += 1;
         continue;
       }
@@ -493,7 +508,7 @@ export async function applyContextDiff(
       });
       if (!r.changed) { out.unchangedRace += 1; continue; }
       await prisma.integrationRunChange.create({ data: changeRow(cn, integ.id, opts.runId, o) });
-      await adopt(r.id, cn, integ.id);
+      await landAsSource(r.id, cn, integ);
       if (o.op === 'create') out.created += 1; else out.updated += 1;
     } catch (err) {
       out.failed += 1;
