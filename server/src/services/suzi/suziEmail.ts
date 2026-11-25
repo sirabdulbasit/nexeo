@@ -18,6 +18,7 @@
  */
 import prisma from '../../db/prisma';
 import { replyStateOf } from './suziReplied';
+import { threadMessages } from './suziEmailSearch';
 
 const MAX_BODY = 4000;
 const DRAFT_TYPE = 'draft_reply';
@@ -46,7 +47,8 @@ export async function latestMail(clientNumber: string, userId: number, threadId:
 
 export async function readThread(clientNumber: string, userId: number, threadId: string): Promise<unknown | null> {
   const mail = await latestMail(clientNumber, userId, threadId);
-  if (!mail) return null;
+  // T46: a thread only in his Sent (or found by email.search) has no feed row; read it from Gmail by its thread id.
+  if (!mail) return sentOnlyThread(userId, threadId);
   const { readEmail } = await import('../gmailService');
   // T23: asked live, so a reply sent a minute ago counts.
   const [r, reply] = await Promise.all([readEmail(userId, mail.sourceId), replyStateOf(userId, mail.gmailThreadId)]);
@@ -57,6 +59,17 @@ export async function readThread(clientNumber: string, userId: number, threadId:
     body_text: String(e.body ?? '').slice(0, MAX_BODY),
     attachments: (e.attachments ?? []).map((a) => a.filename),
     replied_at: reply.replied_at, reply_checked: reply.reply_checked,
+    messages: await threadMessages(userId, mail.gmailThreadId), // T46: both sides, oldest first
+  };
+}
+
+async function sentOnlyThread(userId: number, threadId: string): Promise<unknown | null> {
+  const messages = await threadMessages(userId, threadId);
+  const last = messages[messages.length - 1];
+  if (!last) return null;
+  return {
+    thread_id: threadId, from: last.from, to: last.to, cc: last.cc, subject: last.subject, received_at: last.date,
+    body_text: last.text.slice(0, MAX_BODY), attachments: [], replied_at: null, reply_checked: false, messages,
   };
 }
 
@@ -357,7 +370,7 @@ export async function markThread(clientNumber: string, userId: number, threadId:
   return { ok: true, item: { thread_id: threadId, state: text(a.state), emails: rows.length } };
 }
 
-export const EMAIL_OPS = ['email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark', 'email.drafts', 'email.discard_draft'] as const;
+export const EMAIL_OPS = ['email.search', 'email.draft', 'email.new', 'email.forward', 'email.update_draft', 'email.send', 'email.undo', 'email.mark', 'email.drafts', 'email.discard_draft'] as const;
 
 export async function runEmailOp(clientNumber: string, userId: number, op: string, args: Args, confirmed: boolean, gate: SendGate = UNSIGNED): Promise<EmailOpResult> {
   // T32: his own Gmail drafts ("g:<id>") are taken into Nexeo's draft record on their first change or send.
@@ -368,6 +381,10 @@ export async function runEmailOp(clientNumber: string, userId: number, op: strin
     args = { ...args, draft_id: id };
   }
   switch (op) {
+    case 'email.search': { // T46: Inbox and Sent alike
+      const { emailSearch } = await import('./suziEmailSearch');
+      return emailSearch(userId, args);
+    }
     case 'email.drafts': {
       const { listDrafts, openDraft } = await import('./suziDrafts');
       if (text(args.draft_id)) return openDraft(clientNumber, userId, text(args.draft_id));

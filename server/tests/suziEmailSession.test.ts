@@ -26,6 +26,7 @@ const saveDraft = vi.fn();
 const dropDraft = vi.fn();
 const read = vi.fn();
 vi.mock('../src/services/gmailService', () => ({
+  fetchEmailThreadContext: async () => [],
   readEmail: (...a: any[]) => read(...a),
   getSentSamples: async () => ({ samples: [] }),
   createGmailDraft: (...a: any[]) => saveDraft(...a),
@@ -68,7 +69,7 @@ beforeEach(() => {
 describe('reading', () => {
   it('has the agreed shape, cut at 4,000 characters, for this tenant and user', async () => {
     const e: any = await readThread('TMC-0001', 2, 'th1');
-    expect(Object.keys(e).sort()).toEqual(['attachments', 'body_text', 'cc', 'from', 'received_at', 'replied_at', 'reply_checked', 'subject', 'thread_id', 'to']);
+    expect(Object.keys(e).sort()).toEqual(['attachments', 'body_text', 'cc', 'from', 'messages', 'received_at', 'replied_at', 'reply_checked', 'subject', 'thread_id', 'to']);
     expect(e.body_text).toHaveLength(4000);
     expect(e.attachments).toEqual(['f.pdf']);
     expect(query.mock.calls[0].slice(1)).toEqual(['TMC-0001', 2, 'th1']);
