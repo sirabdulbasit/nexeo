@@ -286,6 +286,8 @@ export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
   calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number; calendar?: number }; emails_loading: boolean;
   risks?: PackRisk[];
+  /** D-323 (T47): suggestions on tasks not in actions[] (tasks he is watching). Absent = none. */
+  proposals?: import('./proposals').PackLevelProposal[];
   /** Link T41: the computer operator's control. Left out when it cannot be read; the desktop then keeps its last copy. */
   operator?: import('./suziOperator').PackOperator;
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
@@ -440,6 +442,8 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const notices = await noticeLinks(clientNumber, userId, events, tz, people.names, people.own, now).catch((): NoticeLinks => ({ updates: new Map(), threads: new Map() }));
 
   const { actions } = await timed(times, 'actions', () => listPendingActions(clientNumber, userId, { limit: 500, timezone: tz, now }));
+  // D-323 (T47): a read that fails leaves the list out, never the pack.
+  const levelProposals = await import('./proposals').then((m) => m.packLevelProposals(clientNumber, userId, new Set(actions.map((a) => a.id)))).catch(() => []);
   // The brief already waited up to the cap on this same list; a second wait would double it.
   const stillLoading = facts.missing.some((m) => m.source === 'email' && m.status === 'loading');
   const attention: Awaited<ReturnType<typeof loadAttentionEmails>> = !facts.sources.email ? { items: [], loading: false, fyi: [] }
@@ -478,6 +482,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     date: today,
     calendar: withUpdates(packCalendar(events, today, tz, prep, people, attendFor), notices),
     actions,
+    ...(levelProposals.length ? { proposals: levelProposals } : {}),
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
     ...leaveHandled(withRulesOut, threadTasks, notices.threads, now),
     emails_loading: attention.loading,

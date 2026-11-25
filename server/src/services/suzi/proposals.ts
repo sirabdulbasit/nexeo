@@ -94,3 +94,26 @@ export async function dismissProposal(clientNumber: string, userId: number, a: R
   await setState(rows[0].id, id, 'dismissed');
   return { ok: true, item: { id, dismissed: true } };
 }
+
+export type PackLevelProposal = PackProposal & { task: { id: string; title: string; watching: string } };
+
+/**
+ * D-323: proposals on tasks that are NOT in actions[] (watched tasks: he asked someone else, CL-092) go in the
+ * pack-level pack.proposals[], with the task they are about. Newest first, at most 10.
+ */
+export async function packLevelProposals(clientNumber: string, userId: number, shownIds: Set<string>): Promise<PackLevelProposal[]> {
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; title: string; status: string; metadata: any }>>(
+    `SELECT id, title, status, metadata FROM open_items
+      WHERE client_number = $1 AND user_id = $2 AND status = ANY($3::text[])
+        AND jsonb_array_length(COALESCE(metadata->'proposals', '[]'::jsonb)) > 0`,
+    clientNumber, userId, OPEN,
+  );
+  const out: Array<PackLevelProposal & { at: string }> = [];
+  for (const r of rows) {
+    if (shownIds.has(r.id)) continue;
+    const at = new Map<string, string>((Array.isArray(r.metadata?.proposals) ? r.metadata.proposals : []).map((p: StoredProposal) => [p.id, String(p.at)]));
+    const who = String(r.metadata?.watch?.person || r.metadata?.watch?.email || '').slice(0, 120);
+    for (const p of packProposals(r.id, r.status, r.metadata)) out.push({ ...p, task: { id: r.id, title: String(r.title ?? '').slice(0, 200), watching: who }, at: at.get(p.id) ?? '' });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(({ at: _at, ...p }) => p);
+}
