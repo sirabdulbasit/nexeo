@@ -95,7 +95,7 @@ export async function dismissProposal(clientNumber: string, userId: number, a: R
   return { ok: true, item: { id, dismissed: true } };
 }
 
-export type PackLevelProposal = PackProposal & { task: { id: string; title: string; watching: string } };
+export type PackLevelProposal = PackProposal & { task: { id: string; title: string; watching: string; watching_name?: string } };
 
 /**
  * D-323: proposals on tasks that are NOT in actions[] (watched tasks: he asked someone else, CL-092) go in the
@@ -109,11 +109,19 @@ export async function packLevelProposals(clientNumber: string, userId: number, s
     clientNumber, userId, OPEN,
   );
   const out: Array<PackLevelProposal & { at: string }> = [];
+  // Suzi 16:04: the person's name when known, so the card reads "You asked Aziz Masood". Known = his people, or a
+  // watch that already holds a name. Never guessed from the address.
+  const emails = rows.map((r) => String(r.metadata?.watch?.email ?? '').toLowerCase()).filter(Boolean);
+  const names = emails.length
+    ? await import('./packMeetings').then((m) => m.packPeople(clientNumber, userId, emails)).then((p) => p.names).catch(() => new Map<string, string>())
+    : new Map<string, string>();
   for (const r of rows) {
     if (shownIds.has(r.id)) continue;
     const at = new Map<string, string>((Array.isArray(r.metadata?.proposals) ? r.metadata.proposals : []).map((p: StoredProposal) => [p.id, String(p.at)]));
     const who = String(r.metadata?.watch?.person || r.metadata?.watch?.email || '').slice(0, 120);
-    for (const p of packProposals(r.id, r.status, r.metadata)) out.push({ ...p, task: { id: r.id, title: String(r.title ?? '').slice(0, 200), watching: who }, at: at.get(p.id) ?? '' });
+    const person = String(r.metadata?.watch?.person ?? '');
+    const name = names.get(String(r.metadata?.watch?.email ?? '').toLowerCase()) || (person && !person.includes('@') ? person : '');
+    for (const p of packProposals(r.id, r.status, r.metadata)) out.push({ ...p, task: { id: r.id, title: String(r.title ?? '').slice(0, 200), watching: who, ...(name ? { watching_name: name.slice(0, 120) } : {}) }, at: at.get(p.id) ?? '' });
   }
   return out.sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(({ at: _at, ...p }) => p);
 }
