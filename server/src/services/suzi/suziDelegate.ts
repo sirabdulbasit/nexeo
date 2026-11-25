@@ -444,9 +444,10 @@ export function watchOf(d: { person_name?: string; person_email?: string; rule_i
 
 /** Task context (Suzi 25 Nov 13:19): one line naming where the task came from, for the note. Null when unknown. */
 export async function originOf(clientNumber: string, userId: number, itemId: string): Promise<string | null> {
-  const { actionById } = await import('./suziActions');
-  const a: any = await actionById(clientNumber, userId, itemId).catch(() => null);
-  const s = a?.source;
+  const row = await prisma.openItem.findFirst({ where: { id: itemId, clientNumber, userId } as any, select: { id: true, sourceFeed: true, sourceRef: true, sourceFeedEventId: true, metadata: true, createdAt: true } as any }).catch(() => null);
+  if (!row) return null;
+  const { actionSources } = await import('./actionSource');
+  const s: any = (await actionSources(clientNumber, userId, [row as any], 'Asia/Karachi').catch(() => null))?.get(itemId);
   if (!s) return null;
   const date = typeof s.at === 'string' ? s.at.slice(0, 10) : '';
   const what = s.kind === 'meeting' ? `the meeting${s.title ? ` "${s.title}"` : ''}`
