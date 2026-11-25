@@ -32,7 +32,7 @@ async function ownerName(clientNumber: string, userId: number): Promise<string> 
 
 /** Who is on a task, for the note (founder 18 Nov 14:35: the person is told the lead, the others and the date). */
 export type Role = 'owner' | 'helper' | 'followup';
-export interface TellTask { itemId: string; title: string; due: string | null; note: string; person: { name: string; email: string }; role?: Role; lead?: string | null; helpers?: string[] }
+export interface TellTask { itemId: string; title: string; due: string | null; note: string; person: { name: string; email: string }; role?: Role; lead?: string | null; helpers?: string[]; origin?: string | null }
 
 /** The facts the model words the note from (never a canned sentence). Exported for the test. */
 export function tellPrompt(owner: string, t: TellTask): string {
@@ -47,8 +47,9 @@ export function tellPrompt(owner: string, t: TellTask): string {
     `${others.length ? `Also responsible: ${others.join(', ')}\n` : ''}` +
     `Due: ${t.due ?? 'no date set yet'}\n` +
     `${t.note ? `What ${owner} wants said: ${t.note}\n` : ''}` +
+    `${t.origin ? `Where this task came from: ${t.origin}\n` : ''}` +
     (role === 'owner' ? 'Say plainly that the task is now theirs. ' : '') +
-    'Name the lead owner, everyone else responsible and the due date. Add nothing that is not given here.';
+    'Say what the task is about and where it came from (the meeting or email and its date, when given), what is needed from this person, the lead owner, everyone else responsible and the due date. Never only the title. Add nothing that is not given here.';
 }
 
 /** The note to the person: an email from his mailbox, through the send gate. */
@@ -56,7 +57,8 @@ async function tell(
   clientNumber: string, userId: number, gate: SendGate, t: TellTask,
 ): Promise<{ told: boolean; draft_id?: string; undo_until?: string; error?: string }> {
   const owner = await ownerName(clientNumber, userId);
-  const body = await writeWithModel(clientNumber, userId, tellPrompt(owner, t));
+  const origin = t.origin ?? await originOf(clientNumber, userId, t.itemId).catch(() => null);
+  const body = await writeWithModel(clientNumber, userId, tellPrompt(owner, { ...t, origin }));
   const role = t.role ?? 'owner';
   const subject = role === 'followup' ? `Following up: ${t.title}` : `Task: ${t.title}`;
   // Only the owner's note marks the delegate as told (delegation_emailed_at); a helper's or a follow-up only links
@@ -279,7 +281,7 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
     ...(due ? { dueDate: new Date(`${due}T12:00:00Z`) } : {}),
     ...(note ? { description: note } : {}),
     sourceFeed: 'suzi',
-    metadata: { manualCreate: true, createdBy: 'suzi', ...(source ? { suziSource: source } : {}) },
+    metadata: { manualCreate: true, createdBy: 'suzi', ...(source ? { suziSource: source } : {}), ...(text(a.context) ? { context: text(a.context).slice(0, 300) } : {}) }, // task context: one line, Suzi 25 Nov 13:19
   } as any);
   if (!item?.id) return fail('rejected', 'the task was not created');
   let itemState: string | null = null;
@@ -438,4 +440,18 @@ export function watchOf(d: { person_name?: string; person_email?: string; rule_i
     person: String(d.person_name || d.person_email || 'colleague'), ...(d.person_email ? { email: String(d.person_email) } : {}),
     why: d.by_rule ? 'forwarded by your rule' : 'delegated through Suzi', since: new Date().toISOString(),
   };
+}
+
+/** Task context (Suzi 25 Nov 13:19): one line naming where the task came from, for the note. Null when unknown. */
+export async function originOf(clientNumber: string, userId: number, itemId: string): Promise<string | null> {
+  const { actionById } = await import('./suziActions');
+  const a: any = await actionById(clientNumber, userId, itemId).catch(() => null);
+  const s = a?.source;
+  if (!s) return null;
+  const date = typeof s.at === 'string' ? s.at.slice(0, 10) : '';
+  const what = s.kind === 'meeting' ? `the meeting${s.title ? ` "${s.title}"` : ''}`
+    : s.kind === 'email' ? (s.from_sent ? `his email${s.to ? ` to ${s.to}` : ''}` : `an email${s.from ? ` from ${s.from}` : ''}`) + (s.subject ? ` "${s.subject}"` : '')
+    : null;
+  const parts = [what ? `${what}${date ? ` on ${date}` : ''}` : null, s.context ? `context: ${s.context}` : null].filter(Boolean);
+  return parts.length ? parts.join('; ') : null;
 }

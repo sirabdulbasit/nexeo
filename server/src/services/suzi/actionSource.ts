@@ -21,7 +21,7 @@ import prisma from '../../db/prisma';
 import { toZonedIso } from './zonedTime';
 
 export type SourceKind = 'email' | 'meeting' | 'whatsapp' | 'manual' | 'suzi';
-export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string; email_id?: string; from_sent?: true; to?: string }
+export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string; email_id?: string; from_sent?: true; to?: string; title?: string; context?: string }
 
 type Row = { id: string; sourceFeed?: string | null; sourceRef?: string | null; sourceFeedEventId?: string | null; metadata?: any; createdAt?: Date | null };
 type Wiki = { feed_event_id: string | null; external_id: string; thread_key: string | null; title: string | null; from_raw: string | null; to_raw?: string | null; occurred_at: Date | null };
@@ -53,8 +53,11 @@ export async function actionSources(clientNumber: string, userId: number, rows: 
   const out = new Map<string, ActionSource>();
   if (!rows.length) return out;
   const ids = [...new Set(rows.map(feedIdOf).filter(Boolean) as string[])];
-  const refs = [...new Set(rows.map((r) => r.sourceRef).filter(Boolean) as string[])];
-  const threads = [...new Set(rows.map((r) => r.metadata?.derivedFrom?.threadId).filter(Boolean) as string[])];
+  const refs: string[] = [...new Set(rows.map((r) => r.sourceRef).filter(Boolean) as string[])];
+  // Task context (Suzi 25 Nov 13:19): a task made through Suzi names its email by suziSource.email_id (thread or message).
+  const threads = [...new Set(rows.flatMap((r) => [r.metadata?.derivedFrom?.threadId, r.metadata?.suziSource?.email_id]).filter(Boolean) as string[])];
+  const suziRefs = rows.map((r) => r.metadata?.suziSource?.email_id).filter(Boolean) as string[];
+  for (const x of suziRefs) if (!refs.includes(x)) refs.push(x);
   const wiki: Wiki[] = (ids.length || refs.length || threads.length) ? (await prisma.$queryRawUnsafe<Wiki[]>(
     `SELECT feed_event_id, external_id, thread_key, title, details->>'from' AS from_raw, details->>'to' AS to_raw, occurred_at
        FROM wiki_sources
@@ -74,7 +77,7 @@ export async function actionSources(clientNumber: string, userId: number, rows: 
     for (const f of got ?? []) feeds.set(f.id, f);
   }
   for (const r of rows) {
-    const s = sourceOf(r, wiki, feeds, tz);
+    const s = await withContext(clientNumber, userId, r, sourceOf(r, wiki, feeds, tz), tz);
     if (s) out.set(r.id, s);
   }
   return out;
@@ -130,10 +133,32 @@ function sourceOf(r: Row, wiki: Wiki[], feeds: Map<string, Feed>, tz: string): A
     return s;
   }
   if (r.sourceFeed === 'suzi' || r.sourceFeed === 'manual') {
+    // A task made from an email names it: the email is the source, not "suzi".
+    const ref = r.metadata?.suziSource?.email_id;
+    if (ref) { const w = wiki.find((x) => x.external_id === ref || x.thread_key === ref); if (w) return emailFrom(w, r, tz, true); }
     const s: ActionSource = { kind: r.sourceFeed };
     const at = iso(r.createdAt, tz);
     if (at) s.at = at;
     return s;
   }
   return null; // gmail/whatsapp with no readable feed row, commitment, erp, …: unknown, so left out
+}
+
+/**
+ * Task context (Suzi 25 Nov 13:19): every source says what it is. A meeting gets its title and date from the meeting
+ * record (metadata.source.meetingMinutesId or suziSource.meeting_id); an email's subject is its title; a one-line
+ * metadata.context, when the task carries one, goes with it.
+ */
+async function withContext(clientNumber: string, userId: number, r: Row, s: ActionSource | null, tz: string): Promise<ActionSource | null> {
+  const mid = r.metadata?.suziSource?.meeting_id;
+  if ((!s || s.kind === 'suzi' || s.kind === 'manual') && mid) s = { kind: 'meeting', meeting_id: String(mid) };
+  if (s?.kind === 'meeting' && s.meeting_id && !s.title) {
+    const { getRecord } = await import('../meetings/meetingRecordStore');
+    const m = await getRecord(clientNumber, userId, s.meeting_id).catch(() => null);
+    if (m?.title) s.title = clean(m.title).slice(0, 120);
+    if (m?.start_at && !s.at) { const at = iso(m.start_at, tz); if (at) s.at = at; }
+  }
+  const ctx = typeof r.metadata?.context === 'string' ? r.metadata.context.trim() : '';
+  if (s && ctx) s.context = ctx.slice(0, 300);
+  return s;
 }

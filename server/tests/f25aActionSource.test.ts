@@ -59,3 +59,11 @@ describe('F-2.5a actions[].source', () => {
     expect(m.get('b')).toEqual({ kind: 'email', subject: 'Re: Din Textile - Way forward', thread_id: '19e2a9d00b51a95a' });
   });
 });
+
+describe('task context (Suzi 25 Nov 13:19)', () => {
+  it('a Suzi task made from an email names the email, with its one-line context', async () => {
+    s.wiki = [{ feed_event_id: null, external_id: 'g9', thread_key: 'th9', title: 'Vision Metrics session', from_raw: 'Sofia Rana <sofia@x.com>', occurred_at: new Date('2026-11-16T09:51:00Z') }];
+    const m = await actionSources('TMC-0001', 2, [{ id: 'e', sourceFeed: 'suzi', createdAt: new Date('2026-11-16T09:52:00Z'), metadata: { suziSource: { email_id: 'th9' }, context: 'Agreed with Sofia to hold a separate session' } }], TZ);
+    expect(m.get('e')).toMatchObject({ kind: 'email', from: 'Sofia Rana', subject: 'Vision Metrics session', thread_id: 'th9', context: 'Agreed with Sofia to hold a separate session' });
+  });
+});

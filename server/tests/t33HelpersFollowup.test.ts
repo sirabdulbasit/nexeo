@@ -174,3 +174,11 @@ describe('EMAILS (DEF-509)', () => {
     expect(r.emails.map((x) => [x.thread_id, x.task_id])).toEqual([['t-new', 'i2'], ['t-del', undefined], ['t-plain', undefined]]);
   });
 });
+
+describe('task context in the note (Suzi 25 Nov 13:19)', () => {
+  it('the prompt carries where the task came from and asks for more than the title', () => {
+    const p = tellPrompt('Basit', { itemId: 'i1', title: 'Schedule a session', due: null, note: '', person: { name: 'Sofia Rana', email: 's@x.com' }, role: 'followup', origin: 'the meeting "Vision Metrics review" on 2026-11-16' });
+    expect(p).toContain('Where this task came from: the meeting "Vision Metrics review" on 2026-11-16');
+    expect(p).toContain('Never only the title');
+  });
+});
