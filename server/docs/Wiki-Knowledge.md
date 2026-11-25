@@ -971,7 +971,14 @@ Every other note type passed. Only 4 notes lack an identifier: 2 chat-only peopl
 - The migration then removes the Wiki marker and links from the 1,114 records and installs the trigger.
 - The People step (§0.29) now reads the record sources, cites them, links manager, department head, HR partner and business unit when the Wiki knows them, and leaves the personal fields out.
 
-**State:** built and tested 25 Nov; deploy waits on the founder's approval (D-312, with D-311). Not yet verified on production.
+**State: LIVE since D-313 (25 Nov, about 14:30 PKT; founder's "yes go ahead"), with §0.29 inside it.**
+- 1,114 rows are sources (1 stale); 0 `org_doc` notes remain.
+- The trigger is installed, and it refused a raw record on production (in a rolled-back transaction).
+- 221 of his People notes carry directory facts, each citing its source; 204 have the manager as a link; none shows a personal field.
+- A second rebuild wrote 0.
+- **Found while deploying and fixed the same hour (62778141):** linking a manager by name when no note existed left 50 notes with links that could never resolve, so each build rewrote them. A field now links only to a note that exists, found by the person's exact email or a business unit or company title (`tests/wikiPersonRecordsLinks.test.ts`).
+- **Not verified:** his own screen; the next real integration run landing sources by itself.
+- **Still rough:** `directReports` shows as raw JSON (it will be rendered as linked names).
 
 **Not built:** a search over sources from the Wiki screen. Until it exists, an employee the user never dealt with is not found by the Wiki search; Brain and Suzi read sources directly.
 
