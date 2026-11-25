@@ -1018,6 +1018,50 @@ complete trail of information."* Agreed with Suzi-Builder as T46.
   - D-315, sent mail in person and task history;
   - mail before 3 Apr (both boxes), which waits on the founder's decision.
 
+### 0.32 Every kind of integration lands in its part of the Wiki (founder, 25 Nov 2026; Wiki and Integration sessions, agreed)
+
+**His words:** *"now you (wiki) and integration both align and give me built solution where every kind of integration (where is it should be defined while configuring integration) should be run automatically or manual should goes it data into relevant part of wiki, so using this i can configure N numbers of integrations and fetch data from 3rd party and make it part of wiki"*.
+
+**The contract** (Wiki proposal; Integration AGREE with amendments A1–A3, 25 Nov):
+- **Where a row's kind is defined: in the integration wizard.**
+  - Each Context row of a mapping carries `entity`: `person`, `company`, `project`, `commitment`, `decision`, `document`, `topic`, `meeting`, or `none` (keep as source only). It may also carry `idField`.
+  - The proposer suggests the entity from the fields; the admin approves it with the other suggestions.
+  - Table-mode rows are `none`.
+- **The engine passes it on.** `contextWriter.landAsSource` writes `details.entity`, `idField` and `titleField` into each row's source, but only when the mapping sets them (A2).
+  - Setting or changing an entity rewrites and re-lands every row once, because the page hash covers it (A1). Mappings without an entity keep today's hash.
+  - After every real run (automatic or manual), `runJobs.refreshWikiAfterRun` calls `wikiIntegrationNotes.rebuildIntegrationNotesForClient` (A3: loaded dynamically, skipped with a log line if absent). The hourly build does the same for every user.
+- **The Wiki builds the matching note, never matching by name:**
+
+| Entity | Note | Identity | Built by |
+|---|---|---|---|
+| `person` (or an older row with an email) | People | exact email; existing note merges (§0.29), otherwise a new note (§0.29a) | `wikiBuilder` People step |
+| `company` | Companies | web domain (website field, else business email domain); existing note merges, otherwise a new note | `wikiBuilder` company step |
+| `project`, `commitment`, `decision`, `document`, `topic`, `meeting` | that type | `record:<integrationId>:<recordKey>` | `wikiIntegrationNotes` (actor `wiki_integration`) |
+| `none` | none; source only | n/a | n/a |
+
+- **For every kind:**
+  - titled by the row's name; another note already holding the name gets the integration's name added to the new title;
+  - facts are properties;
+  - a field naming an existing note becomes a `[[link]]` (never a link that cannot resolve);
+  - personal fields stay out (§0.31 rule 6);
+  - the note cites its source;
+  - a stale or removed row retires its note at the next build;
+  - a repeat build writes 0;
+  - the §0.31 type list, door, trigger and tests apply unchanged.
+- **Commitment notes from integrations are Wiki notes only.** Nothing turns them into action items (no reader outside the Wiki; checked 25 Nov). Putting them in My Attention would need the action-item gate and the founder's word.
+- **For a Client Owned Data user** nothing is built (§0.6).
+
+**So N integrations work the same way:** connect it, say in the wizard what each row is, approve, and every run (scheduled or Run now) lands the rows as sources and updates that part of the Wiki.
+
+**Code (Wiki half):**
+- `wikiBuilder.ts`: `entityOf`, `recordDomain`, company merge, `RECORD_ENTITIES`.
+- `wikiIntegrationNotes.ts`: `buildRowNotes`, `rebuildIntegrationNotesForUser` / `ForClient`.
+- Tests: `tests/wikiIntegrationNotes.test.ts` (9).
+
+**Integration half:** wizard entity, proposer, hash, details, after-run call (Integration session, DEF-517).
+
+**State:** Wiki half built 25 Nov and deployed with this commit (D-321w). Live proof waits on the Integration half and a test integration of projects (a CSV), which the Integration session creates.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
@@ -1253,8 +1297,3 @@ For TMC-0001 user 2 only, written by the rebuild script (`last_updated_by = 'wik
 - **Not yet seen on production:** the pruner's check on a real run (the daily job first runs 24 hours after a restart); a citation actually refused (none has been attempted; the three queries were run on the production database inside a rolled-back transaction).
 
 **Current state and next step (16 Nov 2026) — this line replaces every earlier "next step" in this document.** All 13 parts of the STRUCTURE (§0.13) are live: parts 1 to 10 and 12 since 13 Nov, parts 11 and 13 since 16 Nov (§0.13.8), and a build run twice writes nothing; the fifth to seventh reviews' provenance and identity findings are answered; identity is now judged by the model and never computed (§0.18 to §0.20, D-272 to D-279), unproven until a review fails to break it. **Wiki-first behaviour is PARTIAL:** the assistant's readers do not read these notes yet (§0.18). Left, none of it structure: the readers move to the notes (Action Center, brief, Suzi's pack, contacts, triage; Nexeo-Builder's), the Scribe reach setting (Nexeo-Builder's), then his re-scribe from the Connectors screen and the archiving of the old pages. *Earlier line, kept as the record of its day:* **(13 Nov 2026, 17:45 PKT)** Live: structure parts 1 to 8 (§0.13 checklist; identity and all-or-nothing writes §0.13.2, source versions §0.13.3, marks §0.12.1). Not built: rule notes (9), meaning notes (10), the rest of intake (11), the privacy proof (12), pruning (13); the readers have not moved to the Wiki; the rebuild has not run. **Next, in this order:** the privacy matrix (12, moved first by the fourth review, §0.15), then rule notes (9) with the "You" note, then the cost check and meaning notes (10). Sections §3 and §8 above this line are records of their day, not the current state.
-
-### 0.30a Each integration row says what it is (founder, 25 Nov 2026; Integration half of the Wiki ⇄ Integration contract, DEF-517)
-- In the integration wizard, a per-record Context row is approved with **"Each row is a: …"**: person, company, project, commitment, decision, document, topic, meeting, or none (source only). The landed source carries `details.entity`, `details.idField` and `details.titleField`. No entity = legacy: the Wiki treats a row with an email and a name as a person.
-- The Wiki builder files each row in the matching part of the Wiki. That half is the Wiki session's, written in its own section.
-- Built, not yet deployed or verified end to end. The proof is one non-people integration (a projects CSV).

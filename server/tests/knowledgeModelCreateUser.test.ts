@@ -83,8 +83,8 @@ describe('there is no setter after creation', () => {
       }
     };
     walk(path.join(__dirname, '../src'));
-    // SQL: one writer (authService, inside createUser) and three readers.
-    expect(sql.sort()).toEqual(['services/authService.ts', 'services/crm/odooWikiMirror.ts', 'services/wiki/knowledgeModel.ts', 'services/wiki/wikiSystems.ts']);
+    // SQL: one writer (authService, inside createUser) and four readers (wikiIntegrationNotes: Nexeo Owned Data users only).
+    expect(sql.sort()).toEqual(['services/authService.ts', 'services/crm/odooWikiMirror.ts', 'services/wiki/knowledgeModel.ts', 'services/wiki/wikiIntegrationNotes.ts', 'services/wiki/wikiSystems.ts']);
     // The field: the create-user route, its schema and createUser. No update route carries it.
     expect(field.sort()).toEqual(['routes/userAuthRoutes.ts', 'schemas/auth.ts', 'services/authService.ts']);
     const auth = fs.readFileSync(path.join(__dirname, '../src/services/authService.ts'), 'utf8');

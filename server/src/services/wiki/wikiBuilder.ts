@@ -59,6 +59,8 @@ export interface BuildContext {
   records?: Map<string, PersonRecord[]>;
   /** Names a record field may link to (people in integration rows, business units, companies): lower case → title. */
   linkable?: Map<string, string>;
+  /** Integration rows set as companies in the wizard, by web domain (§0.32). */
+  companyRecords?: Map<string, PersonRecord[]>;
 }
 
 /** One integration row about a person, as landed in the Wiki's sources: which integration, its name, its fields. */
@@ -68,6 +70,29 @@ export interface PersonRecord {
   fields: Record<string, string>;
   /** The Wiki source the row is; the person note cites it. */
   sourceId?: string;
+}
+
+/** What an integration row is, as set in the integration wizard (contract with the Integration session, §0.32). */
+export const RECORD_ENTITIES = ['person', 'company', 'project', 'commitment', 'decision', 'document', 'topic', 'meeting', 'none'] as const;
+export type RecordEntity = typeof RECORD_ENTITIES[number];
+
+/** A row's entity: the wizard's choice, else (rows landed before the wizard asked) a person when it carries an email. */
+export function entityOf(details: any, fields: Record<string, string>): RecordEntity {
+  const e = details?.entity;
+  if (typeof e === 'string' && (RECORD_ENTITIES as readonly string[]).includes(e)) return e as RecordEntity;
+  return Object.values(fields).some((v) => EMAIL_VALUE.test(v.trim())) ? 'person' : 'none';
+}
+
+/** A web domain a company row names: a website or domain field, else its email's domain. Lower case, no www. */
+export function recordDomain(fields: Record<string, string>): string | null {
+  for (const [k, v] of Object.entries(fields)) {
+    if (!/web|site|url|domain/i.test(k) || !v.trim()) continue;
+    const host = v.trim().toLowerCase().replace(/^[a-z]+:\/\//, '').split(/[\/?#:]/)[0].replace(/^www\./, '');
+    if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(host)) return host;
+  }
+  const email = Object.values(fields).map((v) => v.trim().toLowerCase()).find((v) => EMAIL_VALUE.test(v));
+  const d = email ? email.split('@')[1] : null;
+  return d && !GENERIC_DOMAINS.has(d) ? d : null;
 }
 
 /** Fields not repeated on the person note: the address it was matched by, and links that only work inside the source. */
@@ -616,18 +641,47 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     const t = namedTitle(domain);
     return t !== domain && claimed.get(titleKey(t)) === domain ? t : domain;
   };
+  // Integration rows set as companies (§0.32): matched by web domain, never by name.
+  const companyRecordsFor = (domains: string[]): PersonRecord[] =>
+    recordsFor(domains, ctx.companyRecords);
+  const recordSections = (recs: PersonRecord[]): string[] => recs.flatMap((r) =>
+    ['', `## From ${r.integration}`, ...recordFacts(r).map(([k, v]) => `- **${k}:** ${factValue(v, ctx.linkable)}`)]);
+  const recordProps = (recs: PersonRecord[]) =>
+    recs.length ? recs.map((r) => ({ integration: r.integration, title: r.title, ...Object.fromEntries(recordFacts(r)) })) : null;
+  const recordCites = (recs: PersonRecord[]) => recs.map((r) => r.sourceId).filter((x): x is string => Boolean(x));
+  const companyDomainsCovered = new Set<string>();
   for (const [domain, members] of companies) {
     const names = [...members].sort((a, b) => a.localeCompare(b));
     const domains = [...orgDomains.get(orgLabel(domain))!.keys()].sort();
+    domains.forEach((d) => companyDomainsCovered.add(d));
+    const recs = companyRecordsFor(domains);
     notes.push({
       type: 'company',
       title: companyTitle(domain),
       ...(companyTitle(domain) !== domain ? { aliases: [domain] } : {}),
-      body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`)].join('\n'),
+      body: [`Organisation behind the address ${domains.length === 1 ? 'domain' : 'domains'} ${domains.map((d) => `\`${d}\``).join(', ')}.`, '', '## People', ...names.map((n) => `- ${wikiLink(n)}`), ...recordSections(recs)].join('\n'),
       // `name: null` removes a name the note held before (a name no longer read, or given to another company).
-      properties: { domains, people: names.length, name: companyTitle(domain) !== domain ? companyTitle(domain) : null },
+      properties: { domains, people: names.length, name: companyTitle(domain) !== domain ? companyTitle(domain) : null, records: recordProps(recs) },
       ids: domains.map((d) => `domain:${d}`),
-      sourceIds: citedSources(companySources.get(domain) ?? []),
+      sourceIds: [...citedSources(companySources.get(domain) ?? []), ...recordCites(recs)],
+    });
+  }
+  // A company known only from an integration: a note of its own, by its domain.
+  const companyTitlesUsed = new Set(notes.filter((n) => n.type === 'company').map((n) => titleKey(n.title)));
+  for (const domain of [...(ctx.companyRecords?.keys() ?? [])].sort()) {
+    if (companyDomainsCovered.has(domain)) continue;
+    const recs = companyRecordsFor([domain]);
+    const name = recs.map((r) => noteTitle(r.title)).find(Boolean) || domain;
+    const title = companyTitlesUsed.has(titleKey(name)) ? domain : name;
+    companyTitlesUsed.add(titleKey(title));
+    notes.push({
+      type: 'company',
+      title,
+      ...(title !== domain ? { aliases: [domain] } : {}),
+      body: [`Organisation behind the domain \`${domain}\`.`, ...recordSections(recs)].join('\n'),
+      properties: { domains: [domain], people: 0, name: title !== domain ? title : null, records: recordProps(recs), knownFrom: ['integration'] },
+      ids: [`domain:${domain}`],
+      sourceIds: recordCites(recs),
     });
   }
 
@@ -828,8 +882,8 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
   }
   const { loadCompanyNames } = await import('./wikiCompanyNames');
   const companyNames = await loadCompanyNames(clientNumber, userId).catch(() => new Map<string, string>());
-  const { records, linkable } = await loadPersonRecords(clientNumber, userId);
-  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames, records, linkable };
+  const { records, linkable, companyRecords } = await loadPersonRecords(clientNumber, userId);
+  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames, records, linkable, companyRecords };
 }
 
 /**
@@ -837,12 +891,13 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
  * carries an email address, by that address. Any integration set up in the wizard qualifies: the match is the
  * exact address, never a name (§0.13.2). Also the names a fact may link to.
  */
-export async function loadPersonRecords(clientNumber: string, userId?: number): Promise<{ records: Map<string, PersonRecord[]>; linkable: Map<string, string> }> {
+export async function loadPersonRecords(clientNumber: string, userId?: number): Promise<{ records: Map<string, PersonRecord[]>; linkable: Map<string, string>; companyRecords: Map<string, PersonRecord[]> }> {
   const rows: Array<{ id: string; title: string | null; details: any }> = await (prisma as any).$queryRawUnsafe(
     `SELECT id, title, details FROM wiki_sources
       WHERE client_number = $1 AND kind = 'record' AND details->>'store' = 'integration'
         AND COALESCE(details->>'stale', 'false') <> 'true'`, clientNumber);
   const records = new Map<string, PersonRecord[]>();
+  const companyRecords = new Map<string, PersonRecord[]>();
   const linkable = new Map<string, string>();
   for (const row of rows) {
     const d = row.details ?? {};
@@ -851,6 +906,13 @@ export async function loadPersonRecords(clientNumber: string, userId?: number): 
     for (const [k, v] of Object.entries(d.fields)) if (typeof v === 'string') fields[k] = v;
     const title = String(row.title ?? '').trim();
     const rec: PersonRecord = { integration: String(d.integration ?? 'Integration'), title, fields, sourceId: row.id };
+    const entity = entityOf(d, fields);
+    if (entity === 'company') {
+      const dom = recordDomain(fields);
+      if (dom) companyRecords.set(dom, [...(companyRecords.get(dom) ?? []), rec]);
+      continue;
+    }
+    if (entity !== 'person') continue; // other kinds are built by wikiIntegrationNotes
     const emails = [...new Set(Object.values(fields).map((v) => v.trim().toLowerCase()).filter((v) => EMAIL_VALUE.test(v)))];
     for (const e of emails) records.set(e, [...(records.get(e) ?? []), rec]);
   }
@@ -872,7 +934,7 @@ export async function loadPersonRecords(clientNumber: string, userId?: number): 
       if (t) for (const r of recs) if (r.title) linkable.set(r.title.toLowerCase(), t);
     }
   }
-  return { records, linkable };
+  return { records, linkable, companyRecords };
 }
 
 export interface RebuildResult {
@@ -898,6 +960,7 @@ export interface RebuildResult {
   documents?: { notes: number; written: number; retired: number; judged?: { asked: number; same: number; failed: number; left: number } } | { error: string } | null;
   learned?: { rows: number; written: number; retired: number } | { error: string } | null;
   conversations?: { notes: number; written: number; retired: number } | { error: string } | null;
+  integrations?: { rows: number; notes: number; written: number; unchanged: number; retired: number; external?: true } | { error: string } | null;
   upkeep?: { archived: number; staled: number; freshened: number; restored: number } | { skipped: 'done today' } | { error: string } | null;
   /** A Client Owned Data user: only what was learned from him is built; nothing else is read or written. */
   external?: true;
@@ -1023,6 +1086,7 @@ export async function rebuildWikiForUser(
   let upkeep: RebuildResult['upkeep'] = null;
   let learned: RebuildResult['learned'] = null;
   let conversations: RebuildResult['conversations'] = null;
+  let integrations: RebuildResult['integrations'] = null;
   if (!opts.dryRun) {
     // What Nexeo and Suzi learned from him (owner, 16 Nov: all information is in the Wiki).
     learned = await step(async () => {
@@ -1034,6 +1098,11 @@ export async function rebuildWikiForUser(
       const { rebuildConversationsForUser } = await import('./wikiConversations');
       const c = await rebuildConversationsForUser(clientNumber, userId);
       return { notes: c.notes, written: c.written, retired: c.retired };
+    });
+    // Integration rows of every other kind (§0.32): projects, commitments, decisions, documents, topics, meetings.
+    integrations = await step(async () => {
+      const { rebuildIntegrationNotesForUser } = await import('./wikiIntegrationNotes');
+      return rebuildIntegrationNotesForUser(clientNumber, userId);
     });
     documents = await step(async () => {
       const { rebuildDocumentsForUser } = await import('./wikiDocuments');
@@ -1048,7 +1117,7 @@ export async function rebuildWikiForUser(
       return { archived: u.archived, staled: u.staled, freshened: u.freshened, restored: u.restored };
     });
   }
-  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep, learned, conversations };
+  return { items: items.length, notes, written, created, unchanged, retired, renamed, merged, byType, rules, meaning, companies, documents, upkeep, learned, conversations, integrations };
 }
 
 /** Company names read by the model per user per build, at most. */
