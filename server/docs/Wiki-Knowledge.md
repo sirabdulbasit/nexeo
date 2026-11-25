@@ -908,7 +908,8 @@ Founder searched People for "rafay" and found no note for the employee: *"integr
 - **The note:** address, phone, `## From <integration>` with the allowed facts (sensitive fields left out), `knownFrom: ['integration']`, and a citation of the record source. If another note already has the same name, the title gets the address added: `Name (email)`.
 - **Skipped:** the user's own address, role and no-reply addresses, and records without a name or without an email (those stay sources only). A record carrying two addresses gives one note.
 - **Code:** `wikiBuilder.ts` `recordOnlyPeople`, `recordName`. Record names link to these notes in the same build, so a repeat build writes 0. Tests: `tests/wikiPersonRecords.test.ts` (13).
-- **State:** committed, not deployed at writing.
+- **State: LIVE, D-320w (25 Nov, about 16:00 PKT).** As first deployed it created no notes: `recordName` read only the text after "Integration · ", and since D-313 sources are titled by the name alone. Fixed in `46c9f0fe` (`tests/wikiRecordName.test.ts`, on the real title shape). After the fix, his rebuild created 888 notes, his People count is 1,291, and "Rafay" finds four directory people. A second build wrote 0.
+- **Lesson:** a test's data must have the shape the store holds today. Here the fixtures still carried the old prefixed titles.
 
 ### 0.29 Integration records merge into People (founder, 24 Nov 2026; Wiki session)
 
