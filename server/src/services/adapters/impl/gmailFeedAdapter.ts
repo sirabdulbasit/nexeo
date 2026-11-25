@@ -36,12 +36,9 @@ export class GmailFeedAdapter extends FeedAdapter {
     // Historical backfill goes through Re-scribe All, NOT this path.
     // Dedup via contentHash means overlap on adjacent ticks is free.
     const perUserCap = Math.min(limit, 100);
-    // Sent-items cap is deliberately lower — the user's own outbound
-    // rate is a fraction of inbound, and we only need the recent tail
-    // for thread-state ("has user replied in last N days?"). 30 is
-    // enough to cover a busy user's daily outbound without eating
-    // Gmail quota.
-    const SENT_CAP = 30;
+    // Founder 25 Nov (T46): "Suzi/Nexeo should have same access of Inbox and Sent, because these 2 combine build the
+    // complete trail". Sent is read at the same cap as Inbox (was 30).
+    const SENT_CAP = perUserCap;
     for (const u of users) {
       // ── Inbox ──
       const inbox = await getInbox(u.id, perUserCap);

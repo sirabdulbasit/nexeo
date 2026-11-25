@@ -44,6 +44,8 @@ export interface PullOptions {
   gmailDays?: number;
   /** Gmail: absolute cap on messages (default 500). */
   gmailCap?: number;
+  /** Gmail: extra search terms, e.g. 'in:sent' for the Sent backfill (T46, founder 25 Nov: Sent up to Inbox). */
+  gmailQuery?: string;
   /** Calendar: days back (default 30). */
   calendarDaysBack?: number;
   /** Calendar: days forward (default 60). */
@@ -142,7 +144,7 @@ async function pullGmailHistory(
   // Re-scribe reach (founder 13 Nov: "30, 60, 90 or entire"): days <= 0 = the entire mailbox (no date filter).
   const after = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
   const afterStr = `${after.getFullYear()}/${after.getMonth() + 1}/${after.getDate()}`;
-  const q = days > 0 ? `after:${afterStr}` : undefined;
+  const q = [days > 0 ? `after:${afterStr}` : '', opts.gmailQuery ?? ''].filter(Boolean).join(' ') || undefined;
 
   let pageToken: string | undefined;
   let pulled = 0;
