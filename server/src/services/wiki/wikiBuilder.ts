@@ -85,7 +85,9 @@ export function recordsFor(emails: string[], records?: Map<string, PersonRecord[
 /** The name a record gives its person: a name field, else the record title after the integration prefix. */
 export function recordName(r: PersonRecord): string {
   const field = Object.entries(r.fields).find(([k, v]) => /^(full_?)?name$|^employee_?name$|^display_?name$/i.test(k) && v.trim())?.[1];
-  return noteTitle(field ?? r.title.split(' · ').slice(1).join(' · '));
+  // Sources are titled by the name alone (D-313); older record pages had the integration's name in front.
+  const title = r.title.includes(' · ') ? r.title.split(' · ').slice(1).join(' · ') : r.title;
+  return noteTitle(field ?? title);
 }
 
 /**
