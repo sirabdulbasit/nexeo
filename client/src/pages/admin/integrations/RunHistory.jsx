@@ -13,12 +13,14 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { listRuns, listRunChanges, errorText } from '../../../services/integrationsApi';
 import { s, btn, Pill, ChangesList, formatPkt, runResult } from './integrationUi';
+import { runMode } from './integrationLogic';
 
 function who(run) {
-  if (run.trigger === 'scheduled') return 'On schedule';
+  // DEF-516 (founder 25 Nov): every row says Auto or Manual.
+  if (runMode(run) === 'Auto') return 'Auto (schedule)';
   const by = run.triggeredByName || run.triggeredBy;
-  if (by && !String(by).startsWith('user:')) return `Run by ${by}`;
-  return by ? `Run by user ${String(by).slice(5)}` : 'Run by hand';
+  if (by && !String(by).startsWith('user:')) return `Manual, by ${by}`;
+  return by ? `Manual, by user ${String(by).slice(5)}` : 'Manual';
 }
 
 export default function RunHistory({ integrationId, integrationName, setMsg, onBack }) {

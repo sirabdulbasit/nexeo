@@ -7,10 +7,10 @@ const live = (o: any = {}) => ({ dryRun: false, status: 'SUCCESS', trigger: 'man
 
 describe('DEF-516 last run counts on the integration card', () => {
   it('shows read, written, unchanged and failed for the last live run', () => {
-    expect(lastRunCountsText([live()])).toBe('Manual (Run now) · read 1,113 records · wrote 616 · 497 unchanged · 0 failed');
+    expect(lastRunCountsText([live()])).toBe('Manual · read 1,113 records · wrote 616 · 497 unchanged · 0 failed');
   });
   it('says Scheduled for a scheduler run', () => {
-    expect(lastRunCountsText([live({ trigger: 'scheduled', triggeredBy: 'scheduler' })])).toMatch(/^Scheduled · /);
+    expect(lastRunCountsText([live({ trigger: 'scheduled', triggeredBy: 'scheduler' })])).toMatch(/^Auto · /);
   });
   it('skips tests (dry runs) and running rows', () => {
     const t = lastRunCountsText([live({ dryRun: true, result: { recordsRead: 5, writes: 1 } }), live({ status: 'RUNNING', result: null }), live()]);
@@ -19,5 +19,14 @@ describe('DEF-516 last run counts on the integration card', () => {
   it('returns null with no finished live run', () => {
     expect(lastRunCountsText([])).toBeNull();
     expect(lastRunCountsText([live({ dryRun: true })])).toBeNull();
+  });
+});
+
+describe('DEF-516 run history says Auto or Manual on every row', () => {
+  it('History uses runMode', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync(new URL('../../client/src/pages/admin/integrations/RunHistory.jsx', import.meta.url), 'utf8');
+    expect(src).toContain("runMode(run) === 'Auto'");
+    expect(src).toContain('Manual');
   });
 });

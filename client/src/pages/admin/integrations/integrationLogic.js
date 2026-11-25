@@ -395,11 +395,15 @@ export function lastRunCountsText(runs) {
   if (!run) return null;
   const r = run.result;
   const n = (v) => Number(v ?? 0).toLocaleString('en-US');
-  const who = run.trigger === 'scheduled' || run.triggeredBy === 'scheduler' ? 'Scheduled' : 'Manual (Run now)';
-  const parts = [who, `read ${n(r.recordsRead)} records`, `wrote ${n(r.writes)}`];
+  const parts = [runMode(run), `read ${n(r.recordsRead)} records`, `wrote ${n(r.writes)}`];
   const c = r.context && typeof r.context === 'object' ? r.context : null;
   if (c) parts.push(`${n(c.unchanged)} unchanged`);
   const failed = Number(c?.failed ?? 0);
   parts.push(`${n(failed)} failed`);
   return parts.join(' · ');
+}
+
+/** DEF-516: Auto (the schedule ran it) or Manual (someone pressed Run now / ran a test). */
+export function runMode(run) {
+  return run?.trigger === 'scheduled' || run?.triggeredBy === 'scheduler' ? 'Auto' : 'Manual';
 }
