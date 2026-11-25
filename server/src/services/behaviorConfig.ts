@@ -323,8 +323,8 @@ export const BEHAVIOR_SPECS: Record<string, BehaviorSpec> = {
     description: 'DEF-362. Most pages one REST read follows. A runaway cursor stops here and the read is reported as truncated, never as complete.',
   },
   'integrations.max_context_pages': {
-    key: 'integrations.max_context_pages', unit: 'count', def: 500, min: 1, max: 5000, scope: 'tenant',
-    description: 'DEF-362. Most per-record Brain knowledge pages one integration writes. Records beyond it are reported, not written.',
+    key: 'integrations.max_context_pages', unit: 'count', def: 5000, min: 1, max: 5000, scope: 'tenant',
+    description: 'DEF-362; DEF-514 (founder 25 Nov: "every record from integration should be part of wiki"): a safety ceiling, not a working limit, so the default is the ceiling. Most per-record Wiki records one integration writes; records beyond it are reported, not written.',
   },
   'integrations.doc_max_bytes': {
     key: 'integrations.doc_max_bytes', unit: 'bytes', def: 5 * 1024 * 1024, min: 64 * 1024, max: 20 * 1024 * 1024, scope: 'tenant',

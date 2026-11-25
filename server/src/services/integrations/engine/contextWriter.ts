@@ -509,9 +509,9 @@ export async function applyContextDiff(
   return out;
 }
 
-/** behavior integrations.max_context_pages (default 500). */
+/** behavior integrations.max_context_pages (default 5000, DEF-514: every record lands). */
 export async function maxContextPages(cn: string): Promise<number> {
-  return getBehaviorValue('integrations.max_context_pages', { clientNumber: cn }).catch(() => 500);
+  return getBehaviorValue('integrations.max_context_pages', { clientNumber: cn }).catch(() => 5000);
 }
 
 /** The whole contract call: plan, diff, write (or preview). `sourceComplete`

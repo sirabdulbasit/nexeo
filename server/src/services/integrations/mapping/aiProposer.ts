@@ -1014,7 +1014,7 @@ export async function runProposal(
 }
 
 /** Fallback when behavior integrations.max_context_pages cannot be read. */
-const DEFAULT_MAX_CONTEXT_PAGES = 500;
+const DEFAULT_MAX_CONTEXT_PAGES = 5000; // DEF-514: every record lands; same as behaviorConfig
 
 function idFieldOf(apiConfig: unknown): string | null {
   const v = (apiConfig as Record<string, unknown> | null)?.idField;
