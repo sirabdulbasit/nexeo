@@ -1,0 +1,74 @@
+/**
+ * Integration records merge into People by exact email (founder, 24 Nov 2026: "merge directory into people
+ * and always do the same where you can updating additional information if comes"). Wiki-Knowledge §0.29.
+ */
+import { describe, it, expect, vi } from 'vitest';
+
+vi.mock('../src/db/prisma', () => ({ __esModule: true, default: {}, prisma: {} }));
+
+import { buildNotes, recordsFor, recordFacts, type StoredItem, type PersonRecord } from '../src/services/wiki/wikiBuilder';
+import { extractWikiLinks } from '../src/services/wiki/wikiLinks';
+
+const at = (d: string) => new Date(`${d}T09:00:00+05:00`);
+const items: StoredItem[] = [
+  { id: 'm1', sourceType: 'gmail', at: at('2026-11-01'), payload: { threadId: 't1', subject: 'Budget', from: 'Abdul Rafay <abdul.rafay@tmcltd.com>', to: 'basit@tmcltd.com', userRepliedThread: true } },
+  { id: 'm2', sourceType: 'gmail', at: at('2026-11-02'), payload: { threadId: 't2', subject: 'Hello', from: 'Sara <sara@other.com>', to: 'basit@tmcltd.com', userRepliedThread: true } },
+];
+const record = (fields: Record<string, string>, name = 'Abdul Rafay Hussain'): PersonRecord =>
+  ({ integration: 'TMC Employee Directory', title: `TMC Employee Directory · ${name}`, fields });
+const ctxWith = (records?: Map<string, PersonRecord[]>) =>
+  ({ userName: 'Basit Ahmed', userEmail: 'basit@tmcltd.com', now: at('2026-11-12'), records });
+const person = (notes: ReturnType<typeof buildNotes>, email: string) =>
+  notes.find((n) => n.type === 'person' && (n.ids ?? []).includes(`email:${email}`))!;
+
+const dir = record({ name: 'Abdul Rafay Hussain', email: 'abdul.rafay@tmcltd.com', designation: 'MTO', departmentName: 'SAP Controlling', phone: '923313301946', profilePicture: '/x.jpg', reportsTo: '' });
+
+describe('integration records merge into People', () => {
+  it('a person whose email matches a record gets its facts, a link to it and its phone', () => {
+    const notes = buildNotes(items, ctxWith(new Map([['abdul.rafay@tmcltd.com', [dir]]])));
+    const p = person(notes, 'abdul.rafay@tmcltd.com');
+    expect(p.body).toContain('## From TMC Employee Directory');
+    expect(p.body).toContain('- **designation:** MTO');
+    expect(p.body).toContain('- **departmentName:** SAP Controlling');
+    expect(extractWikiLinks(p.body).map((l: any) => l.title)).toContain('TMC Employee Directory · Abdul Rafay Hussain');
+    expect(p.properties!.phone).toBe('923313301946');
+    expect((p.properties!.records as any[])[0]).toMatchObject({ integration: 'TMC Employee Directory', designation: 'MTO' });
+  });
+
+  it('leaves out the matching address, pictures and empty fields', () => {
+    expect(recordFacts(dir).map(([k]) => k)).toEqual(['name', 'designation', 'departmentName', 'phone']);
+  });
+
+  it('never merges on a name: a person without the address gets nothing', () => {
+    const notes = buildNotes(items, ctxWith(new Map([['abdul.rafay@tmcltd.com', [dir]]])));
+    const sara = person(notes, 'sara@other.com');
+    expect(sara.body).not.toContain('## From');
+    expect(sara.properties!.records).toBeNull();
+  });
+
+  it('updates when the record changes and clears when it is gone', () => {
+    const changed = record({ ...dir.fields, designation: 'Consultant' });
+    const after = person(buildNotes(items, ctxWith(new Map([['abdul.rafay@tmcltd.com', [changed]]]))), 'abdul.rafay@tmcltd.com');
+    expect(after.body).toContain('- **designation:** Consultant');
+    expect(after.body).not.toContain('- **designation:** MTO');
+    const gone = person(buildNotes(items, ctxWith(new Map())), 'abdul.rafay@tmcltd.com');
+    expect(gone.body).not.toContain('## From');
+    expect(gone.properties!.records).toBeNull();
+  });
+
+  it('a known contact phone still wins over the record phone', () => {
+    const notes = buildNotes(items, { ...ctxWith(new Map([['abdul.rafay@tmcltd.com', [dir]]])), knownPhones: new Map([['abdul.rafay@tmcltd.com', '0300']]) });
+    expect(person(notes, 'abdul.rafay@tmcltd.com').properties!.phone).toBe('0300');
+  });
+
+  it('records from several integrations are each listed once, matched case-insensitively', () => {
+    const crm = { integration: 'Odoo CRM', title: 'Odoo CRM · Rafay', fields: { email: 'Abdul.Rafay@tmcltd.com', stage: 'Won' } };
+    const m = new Map([['abdul.rafay@tmcltd.com', [dir, crm, dir]]]);
+    expect(recordsFor(['ABDUL.RAFAY@tmcltd.com'], m).map((r) => r.integration)).toEqual(['Odoo CRM', 'TMC Employee Directory']);
+  });
+
+  it('builds the same note twice from the same input (a repeat run writes 0)', () => {
+    const m = new Map([['abdul.rafay@tmcltd.com', [dir]]]);
+    expect(person(buildNotes(items, ctxWith(m)), 'abdul.rafay@tmcltd.com')).toEqual(person(buildNotes(items, ctxWith(m)), 'abdul.rafay@tmcltd.com'));
+  });
+});

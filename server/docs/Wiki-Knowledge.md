@@ -900,6 +900,30 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 - **Prevention:** migration `20261124_wiki_rows_follow_user_delete`, a trigger `users_wiki_rows_follow_delete` (AFTER DELETE ON users) that removes that user's citations, links, pages and sources. Rehearsed in a rolled-back transaction (1 source before, 0 after) and applied to production twice, both clean.
 - **Not verified:** a real user deletion, because none has happened.
 
+### 0.29 Integration records merge into People (founder, 24 Nov 2026; Wiki session)
+
+**His words:** *"yes merge directory into people and always do the same where you can updating additional information if comes"* and *"when any integration is being setup it is mentioned in integration setup wizard about it so considering this you will make it part of wiki."*
+
+**Why it was needed:** the Employee Directory landed as separate "Integration records" notes. A search for "Rafay" showed three directory rows and no person note, so the facts he needs about a colleague (role, department, manager, phone) sat apart from the person he deals with.
+
+**The rule (any integration, not only the directory):**
+- Every integration set up in the wizard writes its records as `org_doc` notes, with the fields in `metadata.fields`.
+- On every hourly build, any record that carries an email address is attached to the People note holding that exact address (`email:` identifier).
+- **The match is the exact address, never a name** (§0.13.2, standard 2). "Abdul Rafay", "Rafay Rasheed" and "Muhammad Rafay" are three people until an address says otherwise.
+- The person note gets a `## From <integration>` section with every field except the matched address, pictures and empty values, plus a link to the record. Its properties get the same facts under `records`. The record's phone fills the person's phone only when no contact phone is known.
+- **"Updating additional information if comes":** the People step rebuilds the note from the current records each hour.
+  - A changed record field changes the note.
+  - A record that disappears or is marked stale by its integration is removed from the note (`records: null`).
+  - Run twice with nothing changed, it writes 0.
+- The record note itself stays. It is the client's shared source and the citation. People who are in an integration but whom he has never dealt with keep only their record; no People note is invented for them.
+- For a Client Owned Data user nothing changes: the People step does not run for them (§0.6).
+
+**Code:** `wikiBuilder.ts`: `loadPersonRecords` (records by address), `recordsFor` and `recordFacts`, the People step. Tests: `tests/wikiPersonRecords.test.ts` (7), covering match, left-out fields, no name merge, update and clear, contact phone wins, several integrations once and case-insensitive, and identical repeat build.
+
+**Size on 24 Nov:** 107 of his 399 People notes matched a directory record by email. On 25 Nov the directory holds all 1,113 employees (D-310, Integration session), so the number will rise.
+
+**Not built:** a domain match into Companies (a record with a website or domain). Proposed only.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

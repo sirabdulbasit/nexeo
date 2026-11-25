@@ -51,6 +51,37 @@ export interface BuildContext {
   confirmedSame?: string[][];
   /** A company's real name by its address domain, where it is known (wikiCompanyNames). */
   companyNames?: Map<string, string>;
+  /**
+   * Integration records by the email address they carry (founder, 24 Nov: "merge directory into people
+   * and always do the same where you can"). A person whose address matches gets the record's facts.
+   */
+  records?: Map<string, PersonRecord[]>;
+}
+
+/** One integration record about a person: which integration, its note title, and its fields. */
+export interface PersonRecord {
+  integration: string;
+  title: string;
+  fields: Record<string, string>;
+}
+
+/** Fields not repeated on the person note: the address it was matched by, and links that only work inside the source. */
+const RECORD_FIELDS_LEFT_OUT = /^(e-?mail|email_?address|profile_?picture|photo|avatar|image)$/i;
+const EMAIL_VALUE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+/** The records that carry one of these addresses, each once, in a stable order. */
+export function recordsFor(emails: string[], records?: Map<string, PersonRecord[]>): PersonRecord[] {
+  if (!records) return [];
+  const seen = new Map<string, PersonRecord>();
+  for (const e of emails) for (const r of records.get(e.toLowerCase()) ?? []) seen.set(r.title, r);
+  return [...seen.values()].sort((a, b) => a.integration.localeCompare(b.integration) || a.title.localeCompare(b.title));
+}
+
+/** The fields a record adds to a person note, in the record's own order. */
+export function recordFacts(r: PersonRecord): Array<[string, string]> {
+  return Object.entries(r.fields)
+    .filter(([k, v]) => !RECORD_FIELDS_LEFT_OUT.test(k) && typeof v === 'string' && v.trim() !== '')
+    .map(([k, v]) => [k, v.trim()]);
 }
 
 export type BuiltNote = Omit<NoteInput, 'clientNumber' | 'userId' | 'actor'>;
@@ -555,7 +586,9 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
 
   for (const p of people) {
     const emails = [...p.emails.entries()].sort((a, b) => b[1] - a[1]).map(([e]) => e);
-    const phone = emails.map((e) => ctx.knownPhones?.get(e)).find(Boolean) ?? null;
+    const fromRecords = recordsFor(emails, ctx.records);
+    const recordPhone = fromRecords.map((r) => Object.entries(r.fields).find(([k]) => /phone|mobile/i.test(k))?.[1]).find(Boolean);
+    const phone = emails.map((e) => ctx.knownPhones?.get(e)).find(Boolean) ?? recordPhone ?? null;
     const company = companyOf(p);
     const lines: string[] = [];
     if (company) lines.push(`**Company:** ${wikiLink(companyTitle(company))}`);
@@ -584,6 +617,10 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         lines.push(`- ${wikiLink(groups.get(k)!.title)} — ${v.count} ${v.count === 1 ? 'message' : 'messages'}, last ${day(v.last)}`);
       }
     }
+    for (const r of fromRecords) {
+      lines.push('', `## From ${r.integration}`, `Record: ${wikiLink(r.title)}`);
+      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${v}`);
+    }
     notes.push({
       type: 'person',
       title: p.title,
@@ -594,6 +631,8 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
         emailThreads: p.threads.size, meetings: p.meetings.size,
         chatMessages: p.directChats + p.spaceMessages,
         knownFrom: [...p.reasons].sort(),
+        // null removes what an earlier build wrote once the record is gone or no longer matches.
+        records: fromRecords.length ? fromRecords.map((r) => ({ integration: r.integration, title: r.title, ...Object.fromEntries(recordFacts(r)) })) : null,
       },
       ids: emails.map((e) => `email:${e}`),
       sourceIds: citedSources(p.sources),
@@ -711,7 +750,32 @@ async function loadContext(clientNumber: string, userId: number): Promise<BuildC
   }
   const { loadCompanyNames } = await import('./wikiCompanyNames');
   const companyNames = await loadCompanyNames(clientNumber, userId).catch(() => new Map<string, string>());
-  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames };
+  const records = await loadPersonRecords(clientNumber);
+  return { userName: user?.name ?? null, userEmail: user?.email ?? null, knownNames, knownPhones, confirmedSame, companyNames, records };
+}
+
+/**
+ * Every live integration record of the client that carries an email address, by that address. Any
+ * integration set up in the wizard qualifies: the match is the exact address, never a name (§0.13.2).
+ */
+export async function loadPersonRecords(clientNumber: string): Promise<Map<string, PersonRecord[]>> {
+  const rows = await (prisma as any).wikiPage.findMany({
+    where: { clientNumber, pageType: 'org_doc', status: { notIn: ['superseded', 'archived'] }, metadata: { path: ['wiki'], equals: 2 } },
+    select: { title: true, metadata: true },
+  });
+  const out = new Map<string, PersonRecord[]>();
+  for (const row of rows) {
+    const m = (row.metadata ?? {}) as any;
+    if (m.integrationStale === true || !m.fields || typeof m.fields !== 'object') continue;
+    const fields: Record<string, string> = {};
+    for (const [k, v] of Object.entries(m.fields)) if (typeof v === 'string') fields[k] = v;
+    const integration = String(row.title).split(' · ')[0] || 'Integration';
+    const rec: PersonRecord = { integration, title: row.title, fields };
+    for (const v of new Set(Object.values(fields).map((v) => v.trim().toLowerCase()).filter((v) => EMAIL_VALUE.test(v)))) {
+      out.set(v, [...(out.get(v) ?? []), rec]);
+    }
+  }
+  return out;
 }
 
 export interface RebuildResult {
