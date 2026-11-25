@@ -129,7 +129,13 @@ export async function runAssistantStep(clientNumber: string, userId: number, llm
             );
           }
         } else if (s.act === 'propose') {
-          const p = { id: createHash('sha256').update(`${m.external_id}|${s.task_id}|${s.change}`).digest('hex').slice(0, 16), change: s.change, value: s.value, why: s.why, from: { email_id: m.external_id, direction }, at: new Date().toISOString() };
+          // D-322: one proposal per task + change + value (two emails saying "done" are one card); never again after a
+          // dismiss of the same change on this task; `why` names who, the date and the subject (Suzi condition 1).
+          const { evidenceWhy, wasDismissed } = await import('./proposals');
+          const task = tasks.find((t) => t.id === s.task_id);
+          if (task && wasDismissed(task.metadata, s.change)) continue;
+          const why = evidenceWhy({ sent: m.sent, fromRaw: m.from_raw, subject: m.title, date: m.occurred_at, quote: s.why });
+          const p = { id: createHash('sha256').update(`${s.task_id}|${s.change}|${s.value ?? ''}`).digest('hex').slice(0, 16), change: s.change, value: s.value, why, from: { email_id: m.external_id, direction }, at: new Date().toISOString() };
           await prisma.$executeRawUnsafe(
             `UPDATE open_items SET metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('proposals',
                (SELECT COALESCE(jsonb_agg(x), '[]'::jsonb) FROM (

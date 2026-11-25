@@ -16,6 +16,7 @@
  * Only the user's OWN items: an id from another user or tenant is "not found", never touched.
  * Facts only, no wording: Suzi's model says the one-sentence confirmation.
  */
+import { packProposals, type PackProposal } from './proposals';
 import prisma from '../../db/prisma';
 import { changeStatus, delegateItem } from '../openItemsService';
 import { recordActionLifecycleReply } from '../openItems/actionLifecycleService';
@@ -30,7 +31,7 @@ const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
 
 /** `updated_at` moves on every write, Nexeo's bookkeeping included; `changed_at` only on a real change (T25, DEF-406). */
-export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
+export interface SuziAction { proposals?: PackProposal[]; id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
   /** T35 (a) (both AGREE 17 Nov): the note to the person a task was forwarded to. */
   told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string;
   /** Suzi 25 Nov 15:17: the newest history entry, so a card needs no task-history call. */
@@ -53,7 +54,14 @@ function toSuziAction(r: any, tz: string, today: string, userId: number, status:
     ...toldOf(r.metadata),
     ...lastUpdateOf(r.metadata, tz),
     ...(helpers.length ? { helpers } : {}),
+    ...proposalsOf(r),
   };
+}
+
+/** D-322 (T47): what the assistant step suggests for this task, shown with Do it / Dismiss. */
+function proposalsOf(r: any): { proposals?: PackProposal[] } {
+  const p = packProposals(String(r.id), String(r.status ?? ''), r.metadata);
+  return p.length ? { proposals: p } : {};
 }
 
 /** Newest entry of the task's trail (metadata.suziTrail), or nothing. */

@@ -33,7 +33,7 @@ import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 import { OPERATOR_OPS, runOperatorOp } from './suziOperator';
 
-export const ACT_OPS = ['task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
+export const ACT_OPS = ['proposal.dismiss', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -97,8 +97,28 @@ async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): P
   // T33 P2-P3 (both AGREE 17 Nov): helpers and follow-ups.
   if (req.op === 'task.update' && (upd === 'helper_add' || upd === 'helper_remove')) return taskHelper(clientNumber, userId, { ...(req.args ?? {}), update: upd }, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'task.followup') return taskFollowup(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
+  if (req.op === 'proposal.dismiss') { // D-322: internal, no signature
+    const { dismissProposal } = await import('./proposals');
+    return dismissProposal(clientNumber, userId, req.args ?? {});
+  }
   if (req.op === 'task.update') {
     const a = req.args ?? {};
+    // D-322 (Suzi condition 2): Do it on a proposal carries proposal_id. A replay changes nothing; a task that changed
+    // since answers proposal_stale; after it is done the proposal is closed.
+    const proposalId = typeof a.proposal_id === 'string' ? a.proposal_id.trim() : '';
+    const P = proposalId ? await import('./proposals') : null;
+    if (P) {
+      const item = await P.loadItem(clientNumber, userId, String(a.id ?? ''));
+      if (!item) return { ok: false, error: 'not_found' };
+      const verdict = P.checkProposal(item, proposalId, upd);
+      if (verdict === 'stale') return { ok: false, error: 'proposal_stale', detail: 'that changed since, so nothing was done' };
+      if (verdict === 'unknown') return { ok: false, error: 'not_found', detail: 'no such proposal on this task' };
+      if (verdict === 'replay') {
+        const { actionById } = await import('./suziActions');
+        const now = await actionById(clientNumber, userId, item.id, req.timezone);
+        return now ? { ok: true, item: now } : { ok: false, error: 'not_found' };
+      }
+    }
     const r = await applyFollowUp(clientNumber, userId, {
       actionId: String(a.id ?? ''),
       update: upd,
@@ -108,6 +128,7 @@ async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): P
       personId: typeof a.person_id === 'string' ? a.person_id : undefined,
       timezone: req.timezone,
     });
+    if (r.ok && P) await P.markDone(String(a.id ?? ''), proposalId).catch(() => undefined);
     return r.ok ? { ok: true, item: r.action } : { ok: false, error: r.error, detail: r.detail };
   }
   // Founder, 5 Nov: online, Suzi sends through Nexeo. Row 19: only to the user themself, so there is no `to` to give.
