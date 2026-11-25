@@ -44,6 +44,9 @@ export interface PullOptions {
   gmailDays?: number;
   /** Gmail: absolute cap on messages (default 500). */
   gmailCap?: number;
+  /** Gmail: pause between messages, and on a quota error wait a minute and retry the same message (up to 3 times).
+   *  For long backfills that must not starve the live poll (D-312: 3 messages/s ran into Gmail's per-user quota). */
+  gmailDelayMs?: number;
   /** Gmail: extra search terms, e.g. 'in:sent' for the Sent backfill (T46, founder 25 Nov: Sent up to Inbox). */
   gmailQuery?: string;
   /** Calendar: days back (default 30). */
@@ -159,8 +162,14 @@ async function pullGmailHistory(
 
     if (!list?.data?.messages?.length) break;
 
-    for (const m of list.data.messages) {
+    const msgs = list.data.messages;
+    let retries = 0;
+    let retryK = -1;
+    for (let k = 0; k < msgs.length; k++) {
+      const m = msgs[k];
+      if (k !== retryK) retries = 0; // a new message starts with a fresh retry count
       if (pulled >= cap) break;
+      if (opts.gmailDelayMs) await new Promise((r) => setTimeout(r, opts.gmailDelayMs));
       try {
         const msg = await gmail.users.messages.get({ userId: 'me', id: m.id!, format: 'metadata', metadataHeaders: ['From', 'Subject', 'Date'] });
         // His sent mail: the feed drops his own outgoing mail, so it lands through the Wiki's intake (full text), marked
@@ -219,6 +228,14 @@ async function pullGmailHistory(
         else summary.errors += 1;
         opts.onProgress?.({ ...summary, phase: 'gmail' });
       } catch (err: any) {
+        if (opts.gmailDelayMs && /quota|rate limit/i.test(String(err?.message)) && retries < 3) {
+          retries += 1;
+          log.warn('gmail quota hit, waiting a minute', { id: m.id, retry: retries });
+          await new Promise((r) => setTimeout(r, 60_000));
+          retryK = k;
+          k -= 1; // the same message again
+          continue;
+        }
         summary.errors += 1;
         log.warn('gmail msg ingest failed', { id: m.id, error: err.message });
         opts.onProgress?.({ ...summary, phase: 'gmail' });

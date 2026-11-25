@@ -29,3 +29,22 @@ describe('T46', () => {
     expect(src).toMatch(/getInbox\(u\.id, SENT_CAP, 'in:sent'\)/);
   });
 });
+
+describe('T46 pacing (D-312)', () => {
+  it('PACE: a quota error waits and retries the same message; other errors count once', async () => {
+    vi.useFakeTimers();
+    const calls: string[] = [];
+    let quotaLeft = 1;
+    const gm = await import('googleapis');
+    (gm as any).google.gmail = () => ({ users: { messages: {
+      list: async () => ({ data: { messages: [{ id: 'a' }, { id: 'b' }] } }),
+      get: async ({ id }: any) => { calls.push(id); if (id === 'a' && quotaLeft-- > 0) throw new Error("Quota exceeded for quota metric 'Queries'"); throw new Error('stop here'); },
+    } } });
+    const p = pullHistoricalFeed('T', 2, 'gmail', { gmailDays: 1, gmailCap: 2, gmailDelayMs: 10 });
+    await vi.runAllTimersAsync();
+    const r = await p;
+    vi.useRealTimers();
+    expect(calls).toEqual(['a', 'a', 'b']);
+    expect(r.errors).toBe(2);
+  });
+});
