@@ -86,3 +86,45 @@ describe('integration records merge into People', () => {
     expect(person(buildNotes(items, ctxWith(m)), 'abdul.rafay@tmcltd.com')).toEqual(person(buildNotes(items, ctxWith(m)), 'abdul.rafay@tmcltd.com'));
   });
 });
+
+describe('a directory person he never dealt with still gets a People note (founder 25 Nov: "Rafay should be there")', () => {
+  const only = { ...record({ name: 'Abdul Rafay Hussain', email: 'rafay.h@tmcltd.com', designation: 'MTO', reportsTo: 'Rai Sohaib Amjad', gender: 'male' }), sourceId: 'src_r2' };
+  const boss = { ...record({ name: 'Rai Sohaib Amjad', email: 'rai@tmcltd.com' }, 'Rai Sohaib Amjad'), sourceId: 'src_rai' };
+  const m = new Map([['rafay.h@tmcltd.com', [only]], ['rai@tmcltd.com', [boss]], ['abdul.rafay@tmcltd.com', [dir]]]);
+
+  it('creates a person note titled by the record name, citing the record, sensitive fields left out', () => {
+    const notes = buildNotes(items, ctxWith(m));
+    const p = person(notes, 'rafay.h@tmcltd.com');
+    expect(p.title).toBe('Abdul Rafay Hussain');
+    expect(p.sourceIds).toEqual(['src_r2']);
+    expect(p.body).toContain('- **designation:** MTO');
+    expect(p.body).toContain('- **reportsTo:** [[Rai Sohaib Amjad]]');
+    expect(p.body).not.toMatch(/gender/);
+    expect(notes.filter((n) => n.title.toLowerCase().includes('rafay')).map((n) => n.title)).toContain('Abdul Rafay Hussain');
+  });
+
+  it('an address the user already dealt with keeps its one note (no duplicate)', () => {
+    const notes = buildNotes(items, ctxWith(m));
+    expect(notes.filter((n) => (n.ids ?? []).includes('email:abdul.rafay@tmcltd.com'))).toHaveLength(1);
+  });
+
+  it('a record with no name or no email stays a source only; a taken name gets the address', () => {
+    const noName = new Map([['x@tmcltd.com', [{ integration: 'Odoo', title: 'Odoo · ', fields: { email: 'x@tmcltd.com' } }]]]);
+    expect(buildNotes(items, ctxWith(noName)).some((n) => (n.ids ?? []).includes('email:x@tmcltd.com'))).toBe(false);
+    const twin = new Map([['sara2@tmcltd.com', [record({ name: 'Sara', email: 'sara2@tmcltd.com' }, 'Sara')]]]);
+    expect(person(buildNotes(items, ctxWith(twin)), 'sara2@tmcltd.com').title).toBe('Sara (sara2@tmcltd.com)');
+  });
+
+  it('is stable: the same input builds the same notes', () => {
+    expect(buildNotes(items, ctxWith(m))).toEqual(buildNotes(items, ctxWith(m)));
+  });
+});
+
+describe('record-only people skip the user and role addresses', () => {
+  it('no note for the user himself or a no-reply address', () => {
+    const m = new Map([['basit@tmcltd.com', [record({ name: 'Basit Ahmed', email: 'basit@tmcltd.com' }, 'Basit Ahmed')]], ['noreply@tmcltd.com', [record({ name: 'HR Bot', email: 'noreply@tmcltd.com' }, 'HR Bot')]]]);
+    const titles = buildNotes(items, ctxWith(m)).map((n) => n.title);
+    expect(titles).not.toContain('Basit Ahmed');
+    expect(titles).not.toContain('HR Bot');
+  });
+});

@@ -82,6 +82,40 @@ export function recordsFor(emails: string[], records?: Map<string, PersonRecord[
   return [...seen.values()].sort((a, b) => a.integration.localeCompare(b.integration) || a.title.localeCompare(b.title));
 }
 
+/** The name a record gives its person: a name field, else the record title after the integration prefix. */
+export function recordName(r: PersonRecord): string {
+  const field = Object.entries(r.fields).find(([k, v]) => /^(full_?)?name$|^employee_?name$|^display_?name$/i.test(k) && v.trim())?.[1];
+  return noteTitle(field ?? r.title.split(' · ').slice(1).join(' · '));
+}
+
+/**
+ * The people known only from integration records: every address carried by a named record that no person
+ * built from the user's own mail, meetings or chat already holds. One per address, titled by the record's
+ * name; a name already taken gets the address added so two people never share a note (§0.13.2).
+ */
+export function recordOnlyPeople(knownEmails: Iterable<string>, records: Map<string, PersonRecord[]> | undefined, usedTitles: Set<string>):
+    Array<{ email: string; title: string; records: PersonRecord[] }> {
+  if (!records) return [];
+  const known = new Set([...knownEmails].map((e) => e.toLowerCase()));
+  const out: Array<{ email: string; title: string; records: PersonRecord[] }> = [];
+  const taken = new Set(usedTitles);
+  // A record carrying two addresses is one person: once one address placed it, the other adds nothing.
+  const placed = new Set<string>();
+  for (const e of known) for (const r of records.get(e) ?? []) placed.add(r.sourceId ?? r.title);
+  for (const email of [...records.keys()].sort()) {
+    if (known.has(email) || isJunkAddress(email) || isRoleAddress(email)) continue;
+    const recs = recordsFor([email], records).filter((r) => !placed.has(r.sourceId ?? r.title));
+    if (!recs.length) continue;
+    recs.forEach((r) => placed.add(r.sourceId ?? r.title));
+    const name = recs.map(recordName).find(Boolean);
+    if (!name) continue;
+    const title = taken.has(titleKey(name)) ? `${name} (${email})` : name;
+    taken.add(titleKey(title));
+    out.push({ email, title, records: recs });
+  }
+  return out;
+}
+
 /** The fields a record adds to a person note, in the record's own order. */
 export function recordFacts(r: PersonRecord): Array<[string, string]> {
   return Object.entries(r.fields)
@@ -595,6 +629,37 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     });
   }
 
+  // A person known only from an integration record (founder 25 Nov: "Rafay should be there") gets a People
+  // note of their own, by the record's address (§0.29): a record that names someone and carries an email IS a
+  // person. Other records (no address, or no name) stay sources only.
+  const usedTitles = new Set([...notes.map((n) => titleKey(n.title)), ...people.map((p) => titleKey(p.title))]);
+  const recordPeople = recordOnlyPeople([...people.flatMap((p) => [...p.emails.keys()]), ...(ctx.userEmail ? [ctx.userEmail] : [])], ctx.records, usedTitles);
+  const linkable = new Map(ctx.linkable ?? []);
+  for (const rp of recordPeople) for (const r of rp.records) if (r.title) linkable.set(r.title.toLowerCase(), rp.title);
+  for (const rp of recordPeople) linkable.set(rp.title.toLowerCase(), rp.title);
+  for (const rp of recordPeople) {
+    const recordPhone = rp.records.map((r) => Object.entries(r.fields).find(([k]) => /phone|mobile/i.test(k))?.[1]).find(Boolean) ?? null;
+    const phone = ctx.knownPhones?.get(rp.email) ?? recordPhone;
+    const lines = [`**Email:** ${rp.email}`];
+    if (phone) lines.push(`**Phone:** ${phone}`);
+    for (const r of rp.records) {
+      lines.push('', `## From ${r.integration}`);
+      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${factValue(v, linkable)}`);
+    }
+    notes.push({
+      type: 'person',
+      title: rp.title,
+      body: lines.join('\n'),
+      properties: {
+        emails: [rp.email], phone, company: null, firstSeen: null, lastSeen: null,
+        emailThreads: 0, meetings: 0, chatMessages: 0, knownFrom: ['integration'],
+        records: rp.records.map((r) => ({ integration: r.integration, title: r.title, ...Object.fromEntries(recordFacts(r)) })),
+      },
+      ids: [`email:${rp.email}`],
+      sourceIds: rp.records.map((r) => r.sourceId).filter((x): x is string => Boolean(x)),
+    });
+  }
+
   for (const p of people) {
     const emails = [...p.emails.entries()].sort((a, b) => b[1] - a[1]).map(([e]) => e);
     const fromRecords = recordsFor(emails, ctx.records);
@@ -630,7 +695,7 @@ export function buildNotes(items: StoredItem[], ctx: BuildContext): BuiltNote[] 
     }
     for (const r of fromRecords) {
       lines.push('', `## From ${r.integration}`);
-      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${factValue(v, ctx.linkable)}`);
+      for (const [k, v] of recordFacts(r)) lines.push(`- **${k}:** ${factValue(v, linkable)}`);
     }
     notes.push({
       type: 'person',

@@ -900,6 +900,16 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 - **Prevention:** migration `20261124_wiki_rows_follow_user_delete`, a trigger `users_wiki_rows_follow_delete` (AFTER DELETE ON users) that removes that user's citations, links, pages and sources. Rehearsed in a rolled-back transaction (1 source before, 0 after) and applied to production twice, both clean.
 - **Not verified:** a real user deletion, because none has happened.
 
+### 0.29a Directory people get a People note (founder, 25 Nov 2026; Wiki session)
+
+Founder searched People for "rafay" and found no note for the employee: *"integration is not working correct Rafay should be there."*
+
+- **Rule:** every integration record that names someone and carries an email gets a People note. If a note already holds that exact address, the record merges into it (§0.29). Otherwise a new note is created, titled by the record's name. The match is never made on a name (§0.13.2).
+- **The note:** address, phone, `## From <integration>` with the allowed facts (sensitive fields left out), `knownFrom: ['integration']`, and a citation of the record source. If another note already has the same name, the title gets the address added: `Name (email)`.
+- **Skipped:** the user's own address, role and no-reply addresses, and records without a name or without an email (those stay sources only). A record carrying two addresses gives one note.
+- **Code:** `wikiBuilder.ts` `recordOnlyPeople`, `recordName`. Record names link to these notes in the same build, so a repeat build writes 0. Tests: `tests/wikiPersonRecords.test.ts` (13).
+- **State:** committed, not deployed at writing.
+
 ### 0.29 Integration records merge into People (founder, 24 Nov 2026; Wiki session)
 
 **His words:** *"yes merge directory into people and always do the same where you can updating additional information if comes"* and *"when any integration is being setup it is mentioned in integration setup wizard about it so considering this you will make it part of wiki."*
@@ -956,7 +966,7 @@ Every other note type passed. Only 4 notes lack an identifier: 2 chat-only peopl
 2. **Identity is outside identifiers** (`email:`, `domain:`, `event:`, `space:`, `business_unit:` …) wherever the source gives one; a name never decides identity (§0.13.2).
 3. **Facts are properties; relationships are `[[links]]`** to the note of the related thing (a manager, a business unit, a company). A link to a thing with no note yet stays unresolved, as in Obsidian.
 4. **What was fetched is a source, never a note.** Every feed (email, calendar, chat, WhatsApp, transcripts, documents) and every integration row lands in `wiki_sources` through `saveSource`; notes cite their sources. An integration row lands as kind `record`, scope `tenant`, `details.store = 'integration'`, with its integration and fields.
-5. **Notes are built from sources by the builder steps.** A row that carries a person's email adds its facts to that person's note (§0.29). The same applies to any integration set up in the wizard. A row about someone the user has never dealt with stays a source; no note is invented for it.
+5. **Notes are built from sources by the builder steps.** A row that carries a person's email adds its facts to that person's note (§0.29). The same applies to any integration set up in the wizard. ~~A row about someone the user has never dealt with stays a source; no note is invented for it.~~ **Superseded 25 Nov (founder: "integration is not working correct Rafay should be there"):** a record that names someone and carries an email IS a person and gets a People note of its own (§0.29a). Records without a name or an email stay sources only.
 6. **Personal data stays in the source.** Birth date, gender, salary, contract, national id, passport, religion, marital status and bank fields (`SENSITIVE_FIELD`) never reach a note. Showing them to admins needs the founder's word; he has not been asked yet.
 
 **How it is enforced, so it cannot happen again:**
