@@ -786,14 +786,24 @@ export async function loadPersonRecords(clientNumber: string, userId?: number): 
     const rec: PersonRecord = { integration: String(d.integration ?? 'Integration'), title, fields, sourceId: row.id };
     const emails = [...new Set(Object.values(fields).map((v) => v.trim().toLowerCase()).filter((v) => EMAIL_VALUE.test(v)))];
     for (const e of emails) records.set(e, [...(records.get(e) ?? []), rec]);
-    if (emails.length && title) linkable.set(title.toLowerCase(), noteTitle(title));
   }
+  // A value becomes a link only to a note that exists: a link that cannot resolve would keep the note
+  // "unfinished" and rewrite it on every build (found live 25 Nov: 50 notes rewritten each run).
   if (userId !== undefined) {
     const notes = await (prisma as any).wikiPage.findMany({
-      where: { clientNumber, userId, pageType: { in: ['business_unit', 'company'] }, status: 'active', metadata: { path: ['wiki'], equals: 2 } },
-      select: { title: true },
+      where: { clientNumber, userId, pageType: { in: ['business_unit', 'company', 'person'] }, status: 'active', metadata: { path: ['wiki'], equals: 2 } },
+      select: { title: true, pageType: true, metadata: true },
     });
-    for (const n of notes) linkable.set(String(n.title).toLowerCase(), n.title);
+    const personByEmail = new Map<string, string>();
+    for (const n of notes) {
+      if (n.pageType !== 'person') { linkable.set(String(n.title).toLowerCase(), n.title); continue; }
+      for (const id of ((n.metadata as any)?.ids ?? []) as string[]) if (typeof id === 'string' && id.startsWith('email:')) personByEmail.set(id.slice(6), n.title);
+    }
+    // A record's name links to the person note holding the record's address: evidence, not a matching name.
+    for (const [email, recs] of records) {
+      const t = personByEmail.get(email);
+      if (t) for (const r of recs) if (r.title) linkable.set(r.title.toLowerCase(), t);
+    }
   }
   return { records, linkable };
 }
