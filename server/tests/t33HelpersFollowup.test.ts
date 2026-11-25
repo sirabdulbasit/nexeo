@@ -54,7 +54,7 @@ import { historyOf, changedAt } from '../src/services/suzi/taskHistory';
 import { leaveHandled } from '../src/services/suzi/dayPack';
 
 const G = { signatureVerified: true, voiceScore: 0.9 };
-const flush = () => new Promise((r) => setTimeout(r, 0));
+const flush = async () => { for (let k = 0; k < 10; k++) await new Promise((r) => setTimeout(r, 5)); };
 beforeEach(() => {
   trail.length = 0; helpers = []; prompts.length = 0; drafts.length = 0;
   item.row = { title: 'SAP review', dueDate: new Date('2026-11-27T12:00:00Z'), status: 'DELEGATED', delegateeName: 'Salman Sohail', delegateeEmail: 'salman@x.com', metadata: {} };
