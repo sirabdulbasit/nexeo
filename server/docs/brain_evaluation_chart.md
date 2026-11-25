@@ -714,3 +714,5 @@ in §2 immediately.
   the tree was red. Re-run after the final change.
 - **Source-guard tests matching their own comments** — four times; strip comments before
   asserting on source.
+
+| D-322 | 2026-11-25 16:37 PKT | DEF-517 integration half of the Wiki contract (§0.32) | Predicted: a non-people integration lands as Project/Company/... notes; risk low (no entity = unchanged path; Employee Directory unaffected until re-mapped) | Observed: health 200, code and bundle served; no typed integration run yet | UNVERIFIED |
