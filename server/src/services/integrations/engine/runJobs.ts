@@ -35,7 +35,14 @@ export const startRun: RunJobsModule['startRun'] = (cn, integrationId, opts) =>
       ...opts,
       onStarted: (runId) => { started = true; resolve({ runId }); },
     })
-      .then((r) => { if (!started) resolve({ runId: r.runId }); })
+      .then((r) => {
+        if (!started) resolve({ runId: r.runId });
+        // DEF-515 (founder, 25 Nov: "every integration should go to wiki as per its run"):
+        // after a real run is saved, its system, KPI and business-unit notes are
+        // rebuilt at once, not only at the Wiki's own build. Best effort: a Wiki
+        // failure never changes the run's result.
+        if (!opts.dryRun) void refreshWikiAfterRun(cn, integrationId);
+      })
       .catch((err) => {
         // Before the row exists the caller gets the error (RunBusyError ⇒ 409,
         // IntegrationNotFoundError ⇒ 404). After, the engine closes the row
@@ -46,6 +53,17 @@ export const startRun: RunJobsModule['startRun'] = (cn, integrationId, opts) =>
         });
       });
   });
+
+/** DEF-515: the run's system, KPI and business-unit notes, rebuilt after every real run. */
+export async function refreshWikiAfterRun(cn: string, integrationId: string): Promise<void> {
+  try {
+    const { rebuildSystemsForClient } = await import('../../wiki/wikiSystems');
+    const r = await rebuildSystemsForClient(cn);
+    log.info('wiki notes refreshed after run', { clientNumber: cn, integrationId, notes: r.notes, written: r.written, kpis: r.kpis });
+  } catch (err) {
+    log.warn('wiki notes not refreshed after run', { clientNumber: cn, integrationId, error: err instanceof Error ? err.message : String(err) });
+  }
+}
 
 type RunRow = {
   id: string; integrationId: string; status: string; dryRun: boolean; trigger: string;

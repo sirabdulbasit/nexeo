@@ -56,9 +56,10 @@ const TYPE_ORDER = [
 // The new wiki (server/docs/Wiki-Knowledge.md): a note per person, company, meeting
 // and group, linked to each other. The older pages stay reachable behind a
 // switch until they are retired.
-const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment', 'org_doc'];
+const NOTE_TYPE_ORDER = ['person', 'company', 'meeting', 'group', 'project', 'topic', 'decision', 'commitment', 'system', 'kpi', 'business_unit', 'org_doc'];
 // In the new wiki an `org_doc` note is a record an integration brought in.
-const NOTE_TYPE_LABELS = { org_doc: 'Integration records' };
+// DEF-515: what integrations bring in, by its Wiki structure (wikiSystems): the integration, its KPIs, the units they name.
+const NOTE_TYPE_LABELS = { org_doc: 'Integration records', system: 'Integrations', kpi: 'KPIs', business_unit: 'Business units' };
 
 export default function WikiPage() {
   const [type, setType] = useState(null);
@@ -108,9 +109,12 @@ export default function WikiPage() {
 
   const orderedCounts = useMemo(() => {
     const map = new Map(counts.map((c) => [c.pageType, c.n]));
-    return (set === 'new' ? NOTE_TYPE_ORDER : TYPE_ORDER)
-      .filter((t) => map.has(t))
-      .map((t) => ({ pageType: t, n: map.get(t) }));
+    // DEF-515: every type that has notes is listed — known types in their order,
+    // any other type after them — so no note is ever hidden from the screen.
+    const order = set === 'new' ? NOTE_TYPE_ORDER : TYPE_ORDER;
+    const known = order.filter((t) => map.has(t));
+    const rest = [...map.keys()].filter((t) => !order.includes(t)).sort();
+    return [...known, ...rest].map((t) => ({ pageType: t, n: map.get(t) }));
   }, [counts, set]);
   const totalAllTypes = counts.reduce((s, c) => s + c.n, 0);
 
@@ -153,7 +157,7 @@ export default function WikiPage() {
             <TypeButton
               key={c.pageType}
               active={type === c.pageType}
-              label={(set === 'new' && NOTE_TYPE_LABELS[c.pageType]) || TYPE_LABELS[c.pageType] || c.pageType}
+              label={(set === 'new' && NOTE_TYPE_LABELS[c.pageType]) || TYPE_LABELS[c.pageType] || (c.pageType.charAt(0).toUpperCase() + c.pageType.slice(1)).replace(/_/g, ' ')}
               count={c.n}
               onClick={() => setType(c.pageType)}
             />

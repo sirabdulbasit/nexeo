@@ -924,6 +924,19 @@ jobs: "clear caches every Friday" says when, and the desktop needs that exactly.
 
 **Not built:** a domain match into Companies (a record with a website or domain). Proposed only.
 
+### 0.30 Integrations land in the Wiki on every run (founder, 25 Nov 2026; Integration session)
+
+**His words:** *"every integration should go to wiki as per its run, and which records should go where that should be decided by you (as per wiki standard structure)"*.
+
+**Where integration data goes (decided by the Integration session, following this document):**
+- Each record → an `org_doc` **Integration record** (every record, DEF-514: the cap is a 5000 safety ceiling, default = ceiling). The record is the shared source.
+- A record with an email → attached to the People note with that exact address (§0.29). No People note is invented.
+- The integration → its **system** note; each KPI → its **kpi** note; each unit the figures name → its **business_unit** note (§6b, `wikiSystems.ts`).
+- **When:** records on every run (contextWriter); system, KPI and business-unit notes **now also after every real run** (`runJobs.refreshWikiAfterRun`, DEF-515), not only at the Wiki's own build. A test (dry run) never touches the Wiki; a Wiki failure never changes the run's result.
+- **Seen:** the Wiki screen lists every note type that has notes (DEF-515); before, a fixed list hid 362 of 2786 notes.
+
+**Not verified at writing:** a live run refreshing the KPI note; the screen showing Integrations / KPIs / Business units. §0.29 (People merge) is committed by the Wiki session (`392c83d5`) but not deployed.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
