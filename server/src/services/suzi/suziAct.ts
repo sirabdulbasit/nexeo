@@ -70,7 +70,7 @@ function statusOf(error: string): 400 | 403 | 404 | 409 {
  * simply send email with showing content (not asking)"): on his own card, one click is his yes for these steps only.
  * Still required: Suzi's server verified the device's signature. Every other op keeps the voiced yes.
  */
-export const CLICK_CONFIRM_OPS = ['task.followup', 'email.send', 'email.delegate', 'delegation.remove'] as const;
+export const CLICK_CONFIRM_OPS = ['task.followup', 'email.send', 'email.delegate', 'delegation.remove', 'calendar.update', 'calendar.cancel'] as const;
 export function clickConfirmed(req: Pick<ActRequest, 'op' | 'confirmed_by' | 'signature_verified'>): boolean {
   return req.confirmed_by === 'click' && req.signature_verified === true && (CLICK_CONFIRM_OPS as readonly string[]).includes(req.op);
 }

@@ -41,6 +41,19 @@ export async function maySendForReal(clientNumber: string, userId: number): Prom
   return u?.integrationProvider === 'google' && u?.integrationStatus === 'active';
 }
 
+export type HoldReason = 'not_signed' | 'sends_off' | 'google_not_connected';
+/**
+ * Suzi 24 Nov 12:51: every held or failed answer says why. Null = nothing blocks the send. Same checks, same order, as the
+ * send gate in suziEmail.saveToGmailDrafts: an unsigned request first, then the off switch, then his Google connection.
+ */
+export async function sendBlockReason(clientNumber: string, userId: number, gate: { signatureVerified?: boolean; byRule?: unknown }): Promise<HoldReason | null> {
+  if (!(gate.signatureVerified || gate.byRule)) return 'not_signed';
+  const { getFlagValue } = await import('../featureFlagService');
+  const off = await getFlagValue(clientNumber, SEND_OFF_SWITCH, '').catch(() => '');
+  if (off.split(',').map((x) => x.trim()).filter(Boolean).includes(String(userId))) return 'sends_off';
+  return (await maySendForReal(clientNumber, userId)) ? null : 'google_not_connected';
+}
+
 let schedule: (fn: () => void, ms: number) => void = (fn, ms) => { setTimeout(fn, ms); };
 /** Tests run the timer by hand. */
 export function setSendScheduler(s: (fn: () => void, ms: number) => void): void { schedule = s; }

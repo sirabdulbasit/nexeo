@@ -78,7 +78,7 @@ describe('the gate', () => {
   });
   it('unsigned, even for a user on the switch: held on Nexeo, never put in Gmail Drafts (founder 23 Nov), not sent', async () => {
     const r: any = await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true, { signatureVerified: false, voiceScore: 0.92 });
-    expect(r.item).toEqual({ draft_id: '7', held: true, saved_to_gmail_drafts: false, sent: false });
+    expect(r.item).toEqual({ draft_id: '7', held: true, reason: 'not_signed', saved_to_gmail_drafts: false, sent: false });
     expect(timers).toHaveLength(0);
   });
   it('on the emergency OFF list: not sent', async () => {

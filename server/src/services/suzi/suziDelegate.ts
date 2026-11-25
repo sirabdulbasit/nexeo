@@ -219,6 +219,15 @@ export async function taskFollowup(clientNumber: string, userId: number, a: Args
     if (a.all === true) for (const h of helpers) to.push({ person_id: h.person_id, name: h.name, email: h.email, helper: true });
     if (!to.length) return fail('bad_state', helpers.length ? 'it is not delegated; give person_id, or all: true for the helpers' : 'it is not delegated to anyone; give person_id');
   }
+  // Suzi 24 Nov 12:17: when the note can't go, say so at once with the reason, never a silent "pending".
+  const { sendBlockReason } = await import('./suziSend');
+  const blocked = await sendBlockReason(clientNumber, userId, gate);
+  if (blocked) {
+    const { actionById } = await import('./suziActions');
+    const action = await actionById(clientNumber, userId, id, timezone);
+    const failed = to.map((t) => ({ name: t.name, ...(t.person_id ? { person_id: t.person_id } : {}), told: 'failed', reason: blocked }));
+    return action ? { ok: true, item: { ...action, told: 'failed', reason: blocked, followed_up: failed } } : fail('not_found');
+  }
   const note = text(a.note).slice(0, 300);
   const now = Date.now();
   const recent = trailOf(c.metadata).filter((e) => /^Followed up: /.test(e.change) && now - Date.parse(e.at) < REPEAT_FOLLOWUP_MS);
@@ -359,7 +368,7 @@ export async function emailDelegate(clientNumber: string, userId: number, a: Arg
     ok: true,
     item: i.sent
       ? { state: 'held', draft_id: draftId, undo_until: i.undo_until, person_name: person.name, attachments_left_out: (fwd.item as any).attachments_left_out }
-      : { state: 'saved', draft_id: draftId, held: true, saved_to_gmail_drafts: false, sent: false, person_name: person.name }, // founder 23 Nov: held, not in Drafts
+      : { state: 'saved', draft_id: draftId, held: true, ...(i.reason ? { reason: i.reason } : {}), saved_to_gmail_drafts: false, sent: false, person_name: person.name }, // founder 23 Nov: held, not in Drafts
   };
 }
 

@@ -34,7 +34,7 @@ vi.mock('../src/services/gmailService', () => ({
   attachmentsOf: async () => ({ files: [{ filename: 'Budget.xlsx', mimeType: 'application/vnd.ms-excel', data: 'QUJD' }], left_out: 0 }),
 }));
 // Founder 23 Nov 18:58: a Gmail draft is made only for a send that goes. Tests that check the Gmail draft send signed.
-vi.mock('../src/services/suzi/suziSend', () => ({ maySendForReal: async () => true, scheduleRelease: () => undefined, SEND_HOLD_MS: 10_000 }));
+vi.mock('../src/services/suzi/suziSend', () => ({ maySendForReal: async () => true, sendBlockReason: async (_c: string, _u: number, g: any) => (g.signatureVerified || g.byRule ? null : 'not_signed'), scheduleRelease: () => undefined, SEND_HOLD_MS: 10_000 }));
 const SIGNED = { signatureVerified: true, voiceScore: 0.9 };
 const llm = vi.fn();
 vi.mock('../src/services/llmRouter', () => ({ callLLM: (...a: any[]) => llm(...a) }));
@@ -171,7 +171,7 @@ describe('"send", until signing exists', () => {
   it('an unsigned send is held on Nexeo and says so: nothing is put in his Gmail Drafts (founder 23 Nov 18:58)', async () => {
     find.mockResolvedValue(draftRow());
     const r: any = await runEmailOp('T', 2, 'email.send', { draft_id: '7' }, true);
-    expect(r.item).toEqual({ draft_id: '7', held: true, saved_to_gmail_drafts: false, sent: false });
+    expect(r.item).toEqual({ draft_id: '7', held: true, reason: 'not_signed', saved_to_gmail_drafts: false, sent: false });
     expect(saveDraft).not.toHaveBeenCalled();
   });
   it('saving twice gives the same draft', async () => {

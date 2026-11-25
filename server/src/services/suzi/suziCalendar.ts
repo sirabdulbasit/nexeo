@@ -51,7 +51,8 @@ async function googleCalendar(userId: number): Promise<Gcal | string> {
 
 /** People other than him (and other than rooms). */
 const others = (attendees: any[] | undefined) => (attendees ?? []).filter((a) => a?.email && !a.self && !a.resource);
-const signedOk = (gate: SendGate, confirmed: boolean) => confirmed && gate.signatureVerified && gate.voiceScore !== null;
+// A signed yes: by voice (voice score) or, for update/cancel, by his click on the card (D-306 list, Suzi 24 Nov 09:22).
+const signedOk = (gate: SendGate, confirmed: boolean) => confirmed && gate.signatureVerified && (gate.voiceScore !== null || gate.click === true);
 
 async function addresses(clientNumber: string, userId: number, v: unknown): Promise<string[] | null> {
   if (v === undefined) return [];

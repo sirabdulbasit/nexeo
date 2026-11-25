@@ -72,7 +72,7 @@ export interface RawPackEvent {
 export interface PackAttendee { name: string; email: string; self?: true }
 export interface PackEvent {
   id: string; start: string; end: string | null; all_day: boolean; title: string;
-  attendees: PackAttendee[]; organizer_self: boolean; location: string | null; link: string | null; prep_notes: string | null;
+  attendees: PackAttendee[]; organizer_self: boolean; organizer: { name: string; email: string } | null; location: string | null; link: string | null; prep_notes: string | null;
   /** F-4.2: only on his hosted Meets while his switch is on; always = the space's transcription is really on. */
   attend?: { decision: 'always' | 'never' | 'ask'; rule_id?: string };
   /** T34 (both AGREE 17 Nov): the calendar notices about this event, newest first, at most 10. */
@@ -98,6 +98,13 @@ function packAttendees(raw: unknown[] | undefined, people: PackPeople): PackAtte
     if (out.length >= 50) break;
   }
   return out;
+}
+/** Suzi 24 Nov 09:31: who organised the event, so Suzi can write to them; null when it is him or unknown. */
+function organizerOf(raw: unknown, self: boolean, people: PackPeople): { name: string; email: string } | null {
+  const email = addrOf(raw);
+  if (self || !email) return null;
+  const given = String((raw as any)?.displayName ?? (raw as any)?.name ?? '').trim();
+  return { name: (people.names.get(email) || given || nameFromEmail(email) || email).slice(0, 120), email };
 }
 export interface PackCalendar { today: PackEvent[]; tomorrow: PackEvent[]; rest_of_week: Array<{ id: string; date: string; title: string }> }
 
@@ -148,6 +155,7 @@ export function packCalendar(events: RawPackEvent[], today: string, tz: string, 
         title: String(e.title || '(no title)').slice(0, 200),
         attendees: packAttendees(e.attendees, people),
         organizer_self: organizerSelf,
+        organizer: organizerOf(e.organizer, organizerSelf, people),
         location: e.location ?? null,
         link,
         prep_notes: prep.get(id) ?? null,

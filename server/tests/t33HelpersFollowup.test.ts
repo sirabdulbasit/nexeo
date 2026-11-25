@@ -32,6 +32,7 @@ vi.mock('../src/services/suzi/suziTaskTrail', async () => {
   };
 });
 const people: Record<string, any> = { p1: { id: 'p1', name: 'Salman Sohail', email: 'salman@x.com' }, p2: { id: 'p2', name: 'Sara Khan', email: 'sara@x.com' }, p3: { id: 'p3', name: 'No Mail', email: null } };
+vi.mock('../src/services/suzi/suziSend', () => ({ sendBlockReason: async (_c: string, _u: number, g: any) => (g.signatureVerified ? null : 'not_signed') }));
 vi.mock('../src/services/suzi/suziPeople', () => ({ personById: async (_c: string, _u: number, id: string) => people[id] ?? null }));
 vi.mock('../src/services/suzi/suziActions', () => ({
   applyFollowUp: async () => ({ ok: true, action: { id: 'i1', title: 'SAP review', due: '2026-11-27' } }),
@@ -121,6 +122,13 @@ describe('CREATE with helpers (founder 18 Nov 14:39)', () => {
 });
 
 describe('FOLLOWUP (T33 P3)', () => {
+  it('unsigned: fails at once with the reason, nothing written or sent (Suzi 24 Nov 12:17)', async () => {
+    const r: any = await taskFollowup('T', 2, { id: 'i1' }, true, { signatureVerified: false, voiceScore: null } as any);
+    expect(r.ok).toBe(true);
+    expect(r.item.told).toBe('failed');
+    expect(r.item.reason).toBe('not_signed');
+    expect(r.item.followed_up).toEqual([{ name: 'Salman Sohail', told: 'failed', reason: 'not_signed' }]);
+  });
   it('to the delegate by default; to the lead and every helper with all; a repeat is folded', async () => {
     expect(await taskFollowup('T', 2, { id: 'i1' }, false, G)).toMatchObject({ error: 'needs_confirmation' });
     const one: any = await taskFollowup('T', 2, { id: 'i1', note: 'by Friday' }, true, G);
