@@ -707,3 +707,5 @@ in §2 immediately.
   the tree was red. Re-run after the final change.
 - **Source-guard tests matching their own comments** — four times; strip comments before
   asserting on source.
+
+| D-318 | 2026-11-25 14:59 PKT | DEF-516 client: last-run counts + Auto/Manual on integrations card and History | Predicted: founder sees records and mode without asking; risk low (display only) | Observed: bundle served, text present; screen not yet seen by founder | UNVERIFIED |
