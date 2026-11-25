@@ -17,6 +17,8 @@ import IntegrationWizard from './IntegrationWizard';
 import RunHistory from './RunHistory';
 import WorkingOverlay, { runStageText } from './WorkingOverlay';
 import { C, s, btn, Pill, InlineConfirm, formatPkt, scheduleText, runResult, openStepFor } from './integrationUi';
+import { lastRunCountsText } from './integrationLogic';
+import { listRuns } from '../../../services/integrationsApi';
 
 const LAST_RUN_LABEL = {
   RUNNING: { text: 'Running…', color: C.info },
@@ -182,6 +184,16 @@ function IntegrationRow({ integ, busy, onOpen, onHistory, onRunNow, onPauseResum
   const stage = integ.stage;
   const stageColor = integ.status === 'ACTIVE' ? C.ok : integ.status === 'PAUSED' ? C.warn : C.accent;
   const canRun = !!integ.approvedVersionId;
+  // DEF-516: how much the last live run read and wrote, on the card itself.
+  const [counts, setCounts] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    if (!integ.lastRunAt) { setCounts(null); return undefined; }
+    listRuns(integ.id, { limit: 10 })
+      .then((runs) => { if (alive) setCounts(lastRunCountsText(runs)); })
+      .catch(() => { if (alive) setCounts(null); });
+    return () => { alive = false; };
+  }, [integ.id, integ.lastRunAt]);
   return (
     <div style={{ ...s.card, display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
       <div style={{ flex: '1 1 260px', minWidth: 0 }}>
@@ -198,6 +210,7 @@ function IntegrationRow({ integ, busy, onOpen, onHistory, onRunNow, onPauseResum
           Last run:{' '}
           {last ? <><Pill color={last.color}>{last.text}</Pill> {formatPkt(integ.lastRunAt)}</> : 'never'}
         </div>
+        {counts && <div style={{ ...s.hint, marginTop: 2 }}>{counts}</div>}
       </div>
       <div style={{ ...s.row, justifyContent: 'flex-end' }}>
         <button style={btn('outline', { small: true })} onClick={onOpen}>Open</button>

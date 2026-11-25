@@ -384,3 +384,22 @@ export function summariseReadings(changes) {
     return { ...k, periods, dims, first: periods[periods.length - 1], last: periods[0], total: k.added + k.updated };
   });
 }
+
+/**
+ * DEF-516 (founder, 25 Nov: "this should be showing"): the list card says how much the
+ * last live run read and wrote, so nobody has to ask. Dry runs (tests) are skipped.
+ * Returns null when there is no finished live run with a result.
+ */
+export function lastRunCountsText(runs) {
+  const run = (Array.isArray(runs) ? runs : []).find((r) => r && !r.dryRun && r.status !== 'RUNNING' && r.result);
+  if (!run) return null;
+  const r = run.result;
+  const n = (v) => Number(v ?? 0).toLocaleString('en-US');
+  const who = run.trigger === 'scheduled' || run.triggeredBy === 'scheduler' ? 'Scheduled' : 'Manual (Run now)';
+  const parts = [who, `read ${n(r.recordsRead)} records`, `wrote ${n(r.writes)}`];
+  const c = r.context && typeof r.context === 'object' ? r.context : null;
+  if (c) parts.push(`${n(c.unchanged)} unchanged`);
+  const failed = Number(c?.failed ?? 0);
+  parts.push(`${n(failed)} failed`);
+  return parts.join(' · ');
+}
