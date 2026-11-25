@@ -21,10 +21,10 @@ import prisma from '../../db/prisma';
 import { toZonedIso } from './zonedTime';
 
 export type SourceKind = 'email' | 'meeting' | 'whatsapp' | 'manual' | 'suzi';
-export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string; email_id?: string; from_sent?: true }
+export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string; email_id?: string; from_sent?: true; to?: string }
 
 type Row = { id: string; sourceFeed?: string | null; sourceRef?: string | null; sourceFeedEventId?: string | null; metadata?: any; createdAt?: Date | null };
-type Wiki = { feed_event_id: string | null; external_id: string; thread_key: string | null; title: string | null; from_raw: string | null; occurred_at: Date | null };
+type Wiki = { feed_event_id: string | null; external_id: string; thread_key: string | null; title: string | null; from_raw: string | null; to_raw?: string | null; occurred_at: Date | null };
 type Feed = { id: string; source_type: string; sender_name: string | null; sender_email: string | null; subject: string | null; from_raw: string | null; thread_id: string | null; event_at: Date | null; created_at: Date | null };
 
 /** The display name from `"Name" <a@b>` / `Name <a@b>`; else the bare address; else null. */
@@ -56,7 +56,7 @@ export async function actionSources(clientNumber: string, userId: number, rows: 
   const refs = [...new Set(rows.map((r) => r.sourceRef).filter(Boolean) as string[])];
   const threads = [...new Set(rows.map((r) => r.metadata?.derivedFrom?.threadId).filter(Boolean) as string[])];
   const wiki: Wiki[] = (ids.length || refs.length || threads.length) ? (await prisma.$queryRawUnsafe<Wiki[]>(
-    `SELECT feed_event_id, external_id, thread_key, title, details->>'from' AS from_raw, occurred_at
+    `SELECT feed_event_id, external_id, thread_key, title, details->>'from' AS from_raw, details->>'to' AS to_raw, occurred_at
        FROM wiki_sources
       WHERE client_number = $1 AND user_id = $2 AND kind = 'email'
         AND (feed_event_id = ANY($3::text[]) OR external_id = ANY($4::text[]) OR thread_key = ANY($5::text[]))
@@ -90,7 +90,10 @@ function emailFrom(w: Wiki, r: Row, tz: string, exact: boolean): ActionSource {
   if (exact) { const at = iso(w.occurred_at, tz); if (at) s.at = at; }
   const th = w.thread_key || r.metadata?.derivedFrom?.threadId; if (th) s.thread_id = String(th);
   // D-314 (T46): a task found in his sent mail says so, with the message, so the card reads "from your email to …".
-  if (r.metadata?.fromSent === true) { s.from_sent = true; s.email_id = w.external_id; }
+  if (r.metadata?.fromSent === true) {
+    s.from_sent = true; s.email_id = w.external_id;
+    const to = displayFrom(null, w.to_raw ?? null); if (to) s.to = to; // Suzi 25 Nov 14:02: who the email went to
+  }
   return s;
 }
 

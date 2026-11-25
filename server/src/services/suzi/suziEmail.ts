@@ -88,7 +88,26 @@ export async function writeWithModel(clientNumber: string, userId: number, task:
   );
   const body = r.text.trim();
   if (!body) throw new Error('the model wrote nothing');
-  return body;
+  return withSignature(body, await signatureOf(clientNumber, userId));
+}
+
+/** Founder 25 Nov: "every email suzi use signature as per settings". His Settings signature (profile email.signature). */
+export async function signatureOf(clientNumber: string, userId: number): Promise<string | null> {
+  const { profileOf } = await import('./suziW1');
+  const v = (await profileOf(clientNumber, userId).catch(() => null))?.['email.signature'];
+  return typeof v === 'string' && v.trim() ? v.trim().slice(0, 500) : null;
+}
+
+/** His signature replaces whatever closing the writer put at the end, once. No signature set: the body as written. */
+export function withSignature(body: string, signature: string | null): string {
+  if (!signature) return body;
+  const lines = body.replace(/\s+$/, '').split('\n');
+  const closing = /^(regards|best|best regards|kind regards|warm regards|thanks|thank you|many thanks|cheers|sincerely|yours sincerely)[,!.]?\s*$/i;
+  // Drop a trailing closing ("Regards," + an optional name line) the model added.
+  for (let k = Math.max(0, lines.length - 3); k < lines.length; k++) {
+    if (closing.test(lines[k].trim())) { lines.length = k; break; }
+  }
+  return `${lines.join('\n').replace(/\s+$/, '')}\n\n${signature}`;
 }
 
 const replyTask = async (userId: number, mail: Mail, instruction: string) => {

@@ -134,7 +134,9 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
 
   if (op === 'profile.update') {
     if (!confirmed) return fail('needs_confirmation');
-    const notes = Array.isArray(a.notes) ? (a.notes as any[]).slice(0, 100) : [];
+    // Suzi 25 Nov 13:25: one setting may come as {key, value} (e.g. email.signature from his Settings), not notes[].
+    const notes = Array.isArray(a.notes) ? (a.notes as any[]).slice(0, 100)
+      : typeof a.key === 'string' && a.value !== undefined ? [{ key: a.key, value: a.value, evidence_count: 0, updated: new Date().toISOString() }] : [];
     const clean = notes
       .map((n) => ({ key: text(n?.key).slice(0, 80), value: n?.value, evidence_count: Number(n?.evidence_count) || 0, updated: text(n?.updated) || new Date().toISOString() }))
       .filter((n) => /^[a-z0-9_.-]+$/i.test(n.key) && !n.key.startsWith('learned.') && n.value !== undefined && JSON.stringify(n.value).length <= 2000);
