@@ -205,6 +205,12 @@ tight — 2–3 sentences for casual questions"*. They are added to every chat a
 | `delegation_matrix` | Who owns which area, and who it escalates to | Elsewhere in Settings |
 | Quiet hours and language | `users.notification_preferences.brain_channel` | Settings |
 
+> **Suzi's email rules match on `sender`, `domain`, `subject` or `to` (D-320, 25 Nov 2026).** `to` (Suzi-Builder
+> 25 Nov 15:17, his request for rules on mail sent to a group address such as vm@tmcltd.com) matches when the
+> address is in the email's To or Cc, never the sender. **Applied today in the day pack only**, which now reads To/Cc
+> for each email. The rule-forward job, the Wiki email list and `email.delegate`'s rule lookup do not pass To/Cc yet,
+> so a `to` rule does not act there. Owed.
+>
 > **Suzi's email rules are shown (DEF-457, live D-224, 13 Nov 2026 13:04 PKT).** The Standing Instructions tab
 > has an "Email rules" section (`GET /brain/instructions` → `emailRules`, from `listEmailRules`) with **Remove**,
 > which is `rule.remove` (`DELETE /brain/email-rules/:id`), so the rule is gone on Suzi too. A rule read from one
@@ -306,3 +312,4 @@ From the third outside review of the Wiki and rules. Each point was checked agai
 | 3 | §8 above still said the email rules have no screen (DEF-457 added it, DEF-460 lists paused rules) | **Done 13 Nov** (§2.4, §8 corrected) |
 | 4 | §4 said an ACTIVE pattern "acts without asking" | **Ruled 13 Nov 17:10:** patterns only suggest; rules, delegations and standing instructions act by themselves. Code change owed (Nexeo-Builder): Activate turns a pattern into a rule. Deletion conflict of §6 stays as recorded |
 | 5 | Rules live in eleven stores | One rule note per rule in the Wiki (`Wiki-Knowledge.md` §0.10), marked instruction, learned suggestion, permission or system rule; this page stays the place rules are controlled **Built 13 Nov:** every rule of these stores is now also a `rule` note in the Wiki, saying whether it acts (`Wiki-Knowledge.md` §0.13.6); the stores still do the acting |
+| 2026-11-25 | D-320: Suzi email rules gain `match.by = "to"` (address in To or Cc; Suzi-Builder ask 15:17, AGREE from Nexeo the same day, additive to F-2.4); the pack's emails carry `to[]`/`cc[]`. Applied in the day pack only; the forward job, the Wiki email list and email.delegate do not pass To/Cc yet (owed). Verified: tests TO and ADDR; not exercised live | (this commit, Nexeo-Builder) |

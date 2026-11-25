@@ -1,7 +1,8 @@
 /**
  * F-2.4 / F-2.5 (Functional Charter, agreed 11 Nov 2026): his email rules, set by Suzi.
  *
- *   rule.set     {kind: email_delegate | email_ignore, match: {by: sender | domain | subject, value}, person_id?, note?}
+ *   rule.set     {kind: email_delegate | email_ignore, match: {by: sender | domain | subject | to, value}, person_id?, note?}
+ *                (`to`, Suzi 25 Nov 15:17: the address is in the email's To or Cc, e.g. a group address such as vm@tmcltd.com)
  *                → {rule_id, rules_version}
  *   rule.remove  {rule_id} → {removed: true, rules_version}
  *   pack         emails[].by_rule {action: ready | ignored | delegated, rule_id, person_name?, task_id?, at}
@@ -25,7 +26,7 @@ type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?:
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
 const KINDS = ['email_delegate', 'email_ignore'] as const;
-const BY = ['sender', 'domain', 'subject'] as const;
+const BY = ['sender', 'domain', 'subject', 'to'] as const;
 const ruleLog = createLogger('suzi-email-rules');
 
 /**
@@ -61,9 +62,10 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
   const m: any = a.match && typeof a.match === 'object' ? a.match : {};
   const by = text(m.by) as SuziEmailRule['by'];
   let value = text(m.value).toLowerCase().slice(0, 200);
-  if (!BY.includes(by) || !value) return fail('bad_rule', 'match is {by: sender|domain|subject, value}');
+  if (!BY.includes(by) || !value) return fail('bad_rule', 'match is {by: sender|domain|subject|to, value}');
   if (by === 'domain') value = value.replace(/^.*@/, '').replace(/^\./, '');
   if (by === 'sender' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return fail('bad_rule', 'a sender match is an email address');
+  if (by === 'to' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return fail('bad_rule', 'a to match is an email address');
   if (by === 'domain' && !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(value)) return fail('bad_rule', 'a domain match is a domain such as example.com');
   let person: Awaited<ReturnType<typeof personById>> = null;
   if (kind === 'email_delegate') {
@@ -72,10 +74,10 @@ export async function ruleSet(clientNumber: string, userId: number, a: Args, con
     if (!person.email) return fail('no_email', 'delegating needs the person\'s email on record');
   }
   const note = text(a.note).slice(0, 500);
-  const condition = by === 'sender' ? { sender: value } : by === 'domain' ? { senderDomain: value } : { subjectContains: value };
+  const condition = by === 'sender' ? { sender: value } : by === 'domain' ? { senderDomain: value } : by === 'to' ? { recipient: value } : { subjectContains: value };
   const what = kind === 'email_delegate'
-    ? `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ready to delegate to ${person!.name}`
-    : `Emails ${by === 'subject' ? `with "${value}" in the subject` : `from ${value}`}: ignore`;
+    ? `Emails ${by === 'subject' ? `with "${value}" in the subject` : by === 'to' ? `sent to ${value}` : `from ${value}`}: ready to delegate to ${person!.name}`
+    : `Emails ${by === 'subject' ? `with "${value}" in the subject` : by === 'to' ? `sent to ${value}` : `from ${value}`}: ignore`;
   // instruction_id: the standing instruction this rule was read from (DEF-457), so the two are one rule until A3.
   const instructionId = text(a.instruction_id).slice(0, 100);
   const payload = { suzi: { kind, by, value, ...(person ? { person_id: person.id, person_name: person.name, person_email: person.email } : {}), ...(note ? { note } : {}), ...(instructionId ? { instruction_id: instructionId } : {}) } };
@@ -169,7 +171,7 @@ const addressOf = (from: string | null | undefined) => {
 };
 
 /** The first rule that matches this email, or null. */
-export function ruleFor(rules: SuziEmailRule[], email: { from?: string | null; subject?: string | null }): SuziEmailRule | null {
+export function ruleFor(rules: SuziEmailRule[], email: { from?: string | null; subject?: string | null; to?: string[] | null; cc?: string[] | null }): SuziEmailRule | null {
   const addr = addressOf(email.from);
   const domain = addr.split('@')[1] ?? '';
   const subject = String(email.subject ?? '').toLowerCase();
@@ -177,6 +179,7 @@ export function ruleFor(rules: SuziEmailRule[], email: { from?: string | null; s
     if (r.by === 'sender' && addr && addr === r.value) return r;
     if (r.by === 'domain' && domain && (domain === r.value || domain.endsWith(`.${r.value}`))) return r;
     if (r.by === 'subject' && r.value && subject.includes(r.value)) return r;
+    if (r.by === 'to' && r.value && [...(email.to ?? []), ...(email.cc ?? [])].some((a) => a.toLowerCase() === r.value)) return r;
   }
   return null;
 }

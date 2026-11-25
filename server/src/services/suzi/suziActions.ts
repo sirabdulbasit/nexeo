@@ -33,6 +33,8 @@ const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2,
 export interface SuziAction { id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
   /** T35 (a) (both AGREE 17 Nov): the note to the person a task was forwarded to. */
   told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string;
+  /** Suzi 25 Nov 15:17: the newest history entry, so a card needs no task-history call. */
+  last_update?: { change: string; who: string; at: string };
   /** T33 P2 (both AGREE 17 Nov): the other people responsible; the lead owner is `owner`. */
   helpers?: Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string }> }
 
@@ -49,8 +51,19 @@ function toSuziAction(r: any, tz: string, today: string, userId: number, status:
     updated_at: r.updatedAt ? toZonedIso(r.updatedAt, tz) : null,
     changed_at: changed ? toZonedIso(changed, tz) : null,
     ...toldOf(r.metadata),
+    ...lastUpdateOf(r.metadata, tz),
     ...(helpers.length ? { helpers } : {}),
   };
+}
+
+/** Newest entry of the task's trail (metadata.suziTrail), or nothing. */
+function lastUpdateOf(meta: any, tz: string): { last_update?: SuziAction['last_update'] } {
+  const t = Array.isArray(meta?.suziTrail) ? meta.suziTrail : [];
+  let best: any = null;
+  for (const e of t) if (e?.at && e?.change && (!best || String(e.at) > String(best.at))) best = e;
+  if (!best) return {};
+  const d = new Date(best.at);
+  return { last_update: { change: String(best.change).slice(0, 160), who: String(best.who ?? '').slice(0, 80), at: isNaN(d.getTime()) ? String(best.at) : toZonedIso(d, tz) } };
 }
 
 /** T35 (a): metadata.suziTold {state, draft_id?} → the action's told / told_draft_id. */

@@ -390,14 +390,28 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
     const { linkThread } = await import('./suziTaskTrail');
     await linkThread(itemId, await threadOfMessage(row.userId as any, messageId), new Date()).catch(() => undefined);
   };
+  // Founder 25 Nov 15:09: "if any follow up or anything has done should be updated on it." A task's note that went
+  // is written on the task's history and its told state becomes sent (no parked draft is shown any more).
+  const recordSent = async (itemId: string, change: string) => {
+    const { trailPush } = await import('./suziTaskTrail');
+    const out: any = row.output ?? {};
+    const to = String(out.to ?? inp.tellEmail ?? '').slice(0, 200);
+    await trailPush(itemId, { who: 'you', change, ...(to ? { note: `to ${to}` } : {}) }).catch(() => undefined);
+  };
   if (inp.tellOpenItemId) {
     await prisma.openItem.updateMany({ where: { id: String(inp.tellOpenItemId), clientNumber: row.clientNumber, userId: row.userId as any }, data: told });
     await link(String(inp.tellOpenItemId)).catch(() => undefined);
+    await setTold(String(inp.tellOpenItemId), { state: 'sent', draft_id: String(draftId) });
+    await recordSent(String(inp.tellOpenItemId), 'Task note sent by email');
     return;
   }
   if (inp.tellTaskThreadOf) {
     const mine = await prisma.openItem.findFirst({ where: { id: String(inp.tellTaskThreadOf), clientNumber: row.clientNumber, userId: row.userId as any }, select: { id: true } });
-    if (mine) await link(mine.id).catch(() => undefined);
+    if (mine) {
+      await link(mine.id).catch(() => undefined);
+      if (inp.tellRole === 'followup') await setTold(mine.id, { state: 'sent', draft_id: String(draftId) });
+      await recordSent(mine.id, inp.tellRole === 'helper' ? 'Helper note sent by email' : 'Followed up by email');
+    }
     return;
   }
   const d = inp.delegate;

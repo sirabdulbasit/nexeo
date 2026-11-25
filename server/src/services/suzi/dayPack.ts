@@ -245,7 +245,7 @@ export function toPackRisks(doc: { flags?: unknown; runDate?: Date | string | nu
     }));
 }
 
-export interface PackEmail { summary?: string; point?: string; task_id?: string; event_id?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
+export interface PackEmail { to?: string[]; cc?: string[]; summary?: string; point?: string; task_id?: string; event_id?: string; thread_id: string; from: string; subject: string; preview: string; received_at: string; urgency: string; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 
 /** Mail snippets arrive HTML-escaped ("&lt;vm@tmcltd.com&gt;"); Suzi shows and speaks plain text. */
 function decodeEntities(t: string): string {
@@ -330,13 +330,17 @@ async function prepNotes(clientNumber: string, userId: number): Promise<Map<stri
  * his one signed yes); an ignore rule marks it "ignored". Emails delegated by a rule in the last day are added as
  * "delegated". Rules that can't be read leave the list as it was.
  */
-async function withRules(clientNumber: string, userId: number, items: Array<{ email: PackEmail; address: string }>, now: Date, tz: string): Promise<PackEmail[]> {
+async function withRules(clientNumber: string, userId: number, items: Array<{ email: PackEmail; address: string; feedEventId?: string }>, now: Date, tz: string): Promise<PackEmail[]> {
   const { suziEmailRules, ruleFor, delegatedByRule } = await import('./suziEmailRules');
+  // Suzi 25 Nov 15:17: to[] and cc[] on each email (addresses), so he can make rules on mail sent to a group address.
+  const recips = await recipientsOf(clientNumber, items.map((i) => i.feedEventId).filter(Boolean) as string[]).catch(() => new Map<string, { to: string[]; cc: string[] }>());
   const rules = await suziEmailRules(clientNumber, userId).catch(() => []);
   const at = toZonedIso(now, tz);
   const autoForward = (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED;
-  const out = items.map(({ email, address }) => {
-    const r = rules.length ? ruleFor(rules, { from: address, subject: email.subject }) : null;
+  const out = items.map(({ email: e0, address, feedEventId }) => {
+    const rc = feedEventId ? recips.get(feedEventId) : undefined;
+    const email: PackEmail = rc ? { ...e0, to: rc.to, cc: rc.cc } : e0;
+    const r = rules.length ? ruleFor(rules, { from: address, subject: email.subject, to: rc?.to, cc: rc?.cc }) : null;
     if (!r) return email;
     // F-2.4 (founder 13 Nov): delegate rules act by themselves, so nothing is held "ready"; the forward shows as a
     // "delegated" row once it has gone (delegatedByRule below).
@@ -457,7 +461,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     opt('operator', () => import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
   ]);
   const attendFor = await capped(times, 'attend', () => attendOfFor(clientNumber, userId), undefined);
-  const withRulesOut = await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from })), now, tz);
+  const withRulesOut = await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from, feedEventId: i.feedEventId })), now, tz);
   const threadTasks = await taskOfThread(clientNumber, userId, attention.items);
   const total = Date.now() - t0;
   (total > PACK_SLOW_MS ? log.warn : log.info).call(log, total > PACK_SLOW_MS ? 'day pack slow' : 'day pack timed', { userId, totalMs: total, parts: times });
@@ -526,4 +530,26 @@ export async function livePackEvents(
     eventId: e.id, title: e.title, start: e.start, end: e.end, isAllDay: e.isAllDay, attendees: e.attendees,
     organizer: e.organizer, link: e.link ?? null, location: e.location ?? null, status: e.status,
   }));
+}
+
+/** Addresses in a To/Cc header ("A <a@x>, b@y"), lower-case, at most 50. */
+export function addressesIn(header: string | null | undefined): string[] {
+  const out: string[] = [];
+  for (const m of String(header ?? '').matchAll(/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/g)) {
+    const a = m[0].toLowerCase();
+    if (!out.includes(a)) out.push(a);
+    if (out.length >= 50) break;
+  }
+  return out;
+}
+
+async function recipientsOf(clientNumber: string, feedIds: string[]): Promise<Map<string, { to: string[]; cc: string[] }>> {
+  const out = new Map<string, { to: string[]; cc: string[] }>();
+  if (!feedIds.length) return out;
+  const rows = await prisma.$queryRawUnsafe<Array<{ id: string; to: string | null; cc: string | null }>>(
+    `SELECT id, raw_payload->>'to' AS to, raw_payload->>'cc' AS cc FROM feed_events WHERE client_number = $1 AND id = ANY($2::text[])`,
+    clientNumber, feedIds,
+  );
+  for (const r of rows) out.set(r.id, { to: addressesIn(r.to), cc: addressesIn(r.cc) });
+  return out;
 }
