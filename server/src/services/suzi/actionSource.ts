@@ -21,7 +21,7 @@ import prisma from '../../db/prisma';
 import { toZonedIso } from './zonedTime';
 
 export type SourceKind = 'email' | 'meeting' | 'whatsapp' | 'manual' | 'suzi';
-export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string }
+export interface ActionSource { kind: SourceKind; from?: string; subject?: string; at?: string; thread_id?: string; meeting_id?: string; email_id?: string; from_sent?: true }
 
 type Row = { id: string; sourceFeed?: string | null; sourceRef?: string | null; sourceFeedEventId?: string | null; metadata?: any; createdAt?: Date | null };
 type Wiki = { feed_event_id: string | null; external_id: string; thread_key: string | null; title: string | null; from_raw: string | null; occurred_at: Date | null };
@@ -89,6 +89,8 @@ function emailFrom(w: Wiki, r: Row, tz: string, exact: boolean): ActionSource {
   const subj = clean(w.title); if (subj) s.subject = subj.slice(0, 120);
   if (exact) { const at = iso(w.occurred_at, tz); if (at) s.at = at; }
   const th = w.thread_key || r.metadata?.derivedFrom?.threadId; if (th) s.thread_id = String(th);
+  // D-314 (T46): a task found in his sent mail says so, with the message, so the card reads "from your email to …".
+  if (r.metadata?.fromSent === true) { s.from_sent = true; s.email_id = w.external_id; }
   return s;
 }
 

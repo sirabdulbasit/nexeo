@@ -531,6 +531,22 @@ const server = app.listen(env.port, async () => {
     setInterval(vault, 60 * 60 * 1000);
   }, 10 * 60 * 1000);
 
+  // D-314 (T46, founder 25 Nov): his sent mail becomes actions — his promises his tasks, his requests to others
+  // watched tasks. Hourly, first run 20 min after boot; each sent email is read once, last 14 days only.
+  setTimeout(() => {
+    const sent = () => protectedJob('sent_commitments', 'important', async () => {
+      const prisma = (await import('./db/prisma')).default;
+      const users = await prisma.user.findMany({ where: { integrationProvider: 'google', integrationStatus: 'active' } as any, select: { id: true, clientNumber: true } as any }) as any[];
+      const { runSentCommitments } = await import('./services/suzi/sentCommitments');
+      for (const u of users) {
+        const r = await runSentCommitments(u.clientNumber, u.id).catch((e: any) => ({ error: String(e?.message ?? e).slice(0, 120) }));
+        if ((r as any).error || (r as any).created) console.log(`[sentCommitments] ${JSON.stringify({ userId: u.id, ...r })}`);
+      }
+    });
+    sent();
+    setInterval(sent, 60 * 60 * 1000);
+  }, 20 * 60 * 1000);
+
   // Brain Wiki builder (2026-11-12, docs/Wiki-Knowledge.md) — turn what the feeds
   // stored into linked notes (person, company, meeting, group) for every
   // active user. No model; a note that is already current is skipped, so a

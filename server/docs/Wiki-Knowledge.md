@@ -975,6 +975,31 @@ Every other note type passed. Only 4 notes lack an identifier: 2 chat-only peopl
 
 **Not built:** a search over sources from the Wiki screen. Until it exists, an employee the user never dealt with is not found by the Wiki search; Brain and Suzi read sources directly.
 
+### 0.32 Sent mail has the same access as Inbox (founder, 25 Nov 2026; Nexeo-Builder, T46)
+
+The founder's rule: *"Suzi/Nexeo should have same access of Inbox and Sent, because these 2 combine build the
+complete trail of information."* Agreed with Suzi-Builder as T46.
+
+- **D-312 (live 25 Nov):**
+  - the feed reads Sent at the Inbox cap (100 per poll, was 30);
+  - a one-time Sent backfill to 3 Apr 2026 (where Inbox starts in the Wiki) landed his sent mail through the Sent
+    intake (`landEmailText`, `class: own`).
+  - Measured: Sent in `wiki_sources` went from 225 (oldest 15 Sep) to 537 (oldest 3 Apr). The run read 538, with
+    0 errors.
+  - The first, unpaced run hit Gmail's per-user quota. D-312b added `gmailDelayMs` pacing and a retry.
+- **D-313 (live 25 Nov):** `email.search` (Inbox, Sent or all, read live from Gmail) and two-way thread reads
+  (`messages[]` with `direction`).
+- **D-314:** sent mail from the last 14 days becomes actions, hourly:
+  - his promises become his tasks;
+  - his requests to others become watched tasks;
+  - one commitment = one task (`sentCommitmentKey`);
+  - each sent email is read once (`details.commitmentsChecked` on its `wiki_sources` row).
+
+  Older sent mail stays memory only.
+- **Not done yet:**
+  - D-315, sent mail in person and task history;
+  - mail before 3 Apr (both boxes), which waits on the founder's decision.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
