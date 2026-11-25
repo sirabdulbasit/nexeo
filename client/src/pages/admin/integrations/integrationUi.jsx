@@ -238,10 +238,19 @@ export function describeCondition(c) {
   return `${quote(c?.field ?? '')} ${words}${valueless ? '' : ` “${c?.value ?? ''}”`}`;
 }
 
+export const ENTITY_WORDS = {
+  person: 'Person (goes to People)', company: 'Company (goes to Companies)', project: 'Project (goes to Projects)',
+  commitment: 'Commitment (goes to Commitments)', decision: 'Decision (goes to Decisions)', document: 'Document (goes to Documents)',
+  topic: 'Topic (goes to Topics)', meeting: 'Meeting (goes to Meetings)', none: 'Record only (kept as a source, no note)',
+};
+
 export function describeTransform(tr) {
   if (!tr) return '';
   if (tr.mode === 'per_record') {
-    return `One knowledge page per record, titled by ${quote(tr.titleField)}${(tr.bodyFields || []).length ? `, holding ${listFields(tr.bodyFields)}` : ''}.`;
+    // DEF-517: what each row IS decides where it goes in the Wiki; change it in words ("each row is a project").
+    const kind = ENTITY_WORDS[tr.entity];
+    const where = kind ? ` Each row is a: ${kind}.` : '';
+    return `One knowledge page per record, titled by ${quote(tr.titleField)}${(tr.bodyFields || []).length ? `, holding ${listFields(tr.bodyFields)}` : ''}.${where}`;
   }
   if (tr.mode === 'table') return `One knowledge page with a table of ${listFields(tr.columns)}.`;
   if (Array.isArray(tr.conditions)) {

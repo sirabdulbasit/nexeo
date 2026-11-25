@@ -410,3 +410,10 @@ credentials, DEF-356 fix first) · 4 Qlik (loopback only for `source_kind='qlik'
 SuperAdmin-set per-tenant flag — the bridge has no tenant concept) and Odoo (reuse the per-tenant
 `odoo_*` config). ~~Excel upload once a safe parser is pinned~~ — done (DEF-368, §2b). MCP server
 inbound — done (DEF-447, §2d); outbound MCP held (owner 11-12).
+
+### DEF-517 (25 Nov) — every row says what it is (contract with the Wiki session)
+- A per_record Context row carries `entity`: person · company · project · commitment · decision · document · topic · meeting · none (none = source only), plus optional `idField`. The AI proposes it (or it is guessed from the field names) and the admin approves it with the row. The Map step shows "Each row is a: …". To change it, write it in the instructions ("each row is a project").
+- The engine page metadata and the landed Wiki source (`details.entity`, `details.idField`, `details.titleField`) carry it. The Wiki builder files the row by it (Wiki-Knowledge.md §0.32, Wiki session's half).
+- Setting or changing the entity is part of the page hash, so every row is re-landed once. A mapping with no entity keeps its old hash (no mass rewrite).
+- After every real run, runJobs also calls `wikiIntegrationNotes.rebuildIntegrationNotesForClient` when that module exists.
+- Not verified yet: an end-to-end run with a non-people integration (a projects CSV).

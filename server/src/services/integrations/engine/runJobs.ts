@@ -60,6 +60,15 @@ export async function refreshWikiAfterRun(cn: string, integrationId: string): Pr
     const { rebuildSystemsForClient } = await import('../../wiki/wikiSystems');
     const r = await rebuildSystemsForClient(cn);
     log.info('wiki notes refreshed after run', { clientNumber: cn, integrationId, notes: r.notes, written: r.written, kpis: r.kpis });
+    // DEF-517 (contract A3): the rows' own notes (people, companies, projects, ...) at once,
+    // not at the next hourly build. Optional: absent export = skipped, never an error.
+    const notesModule = '../../wiki/wikiIntegrationNotes'; // a variable: the Wiki session ships this file
+    const mod = (await import(notesModule).catch(() => null)) as
+      { rebuildIntegrationNotesForClient?: (c: string) => Promise<unknown> } | null;
+    if (typeof mod?.rebuildIntegrationNotesForClient === 'function') {
+      const n = await mod.rebuildIntegrationNotesForClient(cn);
+      log.info('wiki record notes refreshed after run', { clientNumber: cn, integrationId, result: n });
+    }
   } catch (err) {
     log.warn('wiki notes not refreshed after run', { clientNumber: cn, integrationId, error: err instanceof Error ? err.message : String(err) });
   }

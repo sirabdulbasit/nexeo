@@ -44,6 +44,7 @@ import crypto from 'crypto';
 import createLogger from '../../../utils/logger';
 import prisma from '../../../db/prisma';
 import { getBehaviorValue } from '../../behaviorConfig';
+import { CONTEXT_ENTITIES, type ContextEntity } from '../types';
 import { upsertTenantOrgDoc } from '../../knowledge/tenantOrgDoc';
 import type {
   ApprovedContextRow,
@@ -89,6 +90,9 @@ export interface PlannedContextPage extends ContextPagePlan {
   /** per_record: the row's title field, and whether that row owns the bare key. */
   titleField: string | null;
   keyOwner: boolean;
+  /** DEF-517: what the row is, and its id field, from the approved mapping. */
+  entity?: ContextEntity;
+  idField?: string;
 }
 
 export interface ContextPlanResult {
@@ -106,10 +110,46 @@ export function readContextTransform(raw: unknown): ContextTransform | null {
   const t = (raw ?? {}) as Record<string, unknown>;
   const strList = (x: unknown): x is string[] => Array.isArray(x) && x.length > 0 && x.every((c) => typeof c === 'string' && c);
   if (t.mode === 'per_record' && typeof t.titleField === 'string' && t.titleField && strList(t.bodyFields)) {
-    return { mode: 'per_record', titleField: t.titleField, bodyFields: t.bodyFields };
+    return {
+      mode: 'per_record', titleField: t.titleField, bodyFields: t.bodyFields,
+      ...(isContextEntity(t.entity) ? { entity: t.entity } : {}),
+      ...(typeof t.idField === 'string' && t.idField ? { idField: t.idField } : {}),
+    };
   }
   if (t.mode === 'table' && strList(t.columns)) return { mode: 'table', columns: t.columns };
   return null;
+}
+
+/**
+ * DEF-517 amend A1: an unchanged page is never re-landed, so the entity must be part of
+ * the hash: setting or changing it rewrites and re-lands every row once. No entity =
+ * the body hash exactly as before, so legacy mappings never mass-rewrite.
+ */
+function recordHash(body: string, t: { entity?: ContextEntity; idField?: string }): string {
+  return t.entity ? sha256(`${body}\u0000entity:${t.entity}\u0000id:${t.idField ?? ''}`) : sha256(body);
+}
+
+/** DEF-517: a known entity value. */
+export function isContextEntity(v: unknown): v is ContextEntity {
+  return typeof v === 'string' && (CONTEXT_ENTITIES as readonly string[]).includes(v);
+}
+
+/**
+ * DEF-517: the proposer's first guess at what a row IS, from its field names. The admin
+ * approves it with the rest of the mapping and can change it in words. Order matters:
+ * a person row often also has a company column.
+ */
+export function inferContextEntity(fields: string[]): ContextEntity {
+  const f = fields.map((x) => x.toLowerCase());
+  const has = (re: RegExp) => f.some((x) => re.test(x));
+  if (has(/e-?mail/) && has(/name|employee|staff|person|contact/)) return 'person';
+  if (has(/due|deadline/) && has(/owner|assignee|status/)) return 'commitment';
+  if (has(/decision|decided|resolution/)) return 'decision';
+  if (has(/meeting|attendee|agenda|minutes/)) return 'meeting';
+  if (has(/project|milestone/)) return 'project';
+  if (has(/website|domain|company|vendor|customer|client|supplier/)) return 'company';
+  if (has(/document|file|url|link|doc\b/)) return 'document';
+  return 'none';
 }
 
 /** Every source field a context transform reads (the run's header check). */
@@ -141,7 +181,13 @@ export async function landAsSource(pageId: string, cn: string, integ: { id: stri
       clientNumber: cn, userId: page.userId, kind: 'record', scope: 'tenant',
       externalId: `integration:${m.recordKey ?? page.id}`,
       title: name, body: page.bodyMarkdown ?? '',
-      details: { store: 'integration', integrationId: integ.id, integration: integ.name, fields, stale: m.integrationStale === true, enginePageId: page.id },
+      details: {
+        store: 'integration', integrationId: integ.id, integration: integ.name, fields, stale: m.integrationStale === true, enginePageId: page.id,
+        // DEF-517 (contract with the Wiki): what the row is, so the builder files it.
+        ...(typeof m.titleField === 'string' ? { titleField: m.titleField } : {}),
+        ...(isContextEntity(m.entity) ? { entity: m.entity } : {}),
+        ...(typeof m.idField === 'string' && m.idField ? { idField: m.idField } : {}),
+      },
     });
   } catch (err) {
     log.warn('wiki source landing failed', { clientNumber: cn, integrationId: integ.id, pageId, error: err instanceof Error ? err.message : String(err) });
@@ -250,7 +296,8 @@ export function planContextPages(
       titles.add(display);
       const body = renderRecordBody(integ.name, title, fields);
       pages.push({
-        recordKey, title: display, body, contentHash: sha256(body),
+        recordKey, title: display, body, contentHash: recordHash(body, t),
+        ...(t.entity ? { entity: t.entity } : {}), ...(t.idField ? { idField: t.idField } : {}),
         sourceKey: clip(`record ${i + 1} › ${idField ?? t.titleField}=${idVal}`, 255),
         targetKey: 'context:per_record', suggestionId: row.suggestionId, fields,
         integrationName: integ.name, recordTitle: title, altTitle, titleField: t.titleField, keyOwner,
@@ -374,7 +421,7 @@ export function diffContextPages(plan: ContextPlanResult, stored: StoredContextP
         const merged: Array<[string, string]> = planned.fields.map(([k, v]) =>
           [k, v !== '' ? v : (typeof prev[k] === 'string' ? prev[k] as string : '')]);
         const body = renderRecordBody(planned.integrationName, planned.recordTitle, merged);
-        page = { ...planned, fields: merged, body, contentHash: sha256(body) };
+        page = { ...planned, fields: merged, body, contentHash: recordHash(body, planned) };
       }
     }
     if (!ex) ops.push({ op: 'create', page });
@@ -499,6 +546,8 @@ export async function applyContextDiff(
         // Page-identity owner (see header); integrationStale is deliberately
         // absent, so a record that comes back is live again.
         ...(p.titleField ? { titleField: p.titleField, keyOwner: p.keyOwner } : {}),
+        ...(p.entity ? { entity: p.entity } : {}),
+        ...(p.idField ? { idField: p.idField } : {}),
         ...(p.fields ? { fields: Object.fromEntries(p.fields.filter(([, v]) => v !== '')) } : {}),
       };
       const r = await upsertTenantOrgDoc(cn, {

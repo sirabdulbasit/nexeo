@@ -62,6 +62,7 @@ import { buildFieldCoverage } from './fieldInventory';
 import { assessKpiRowRisk, transformFields, transformValueColumns } from './mappingRisk';
 import { readKpiRecipe } from '../engine/kpiRecipe';
 import { applyRecordFilter, validateRecordFilter } from '../engine/recordFilter';
+import { inferContextEntity, isContextEntity } from '../engine/contextWriter';
 import {
   FILTER_TARGET_KEY,
   usesApiConfig,
@@ -71,6 +72,7 @@ import {
   type AiProposerModule,
   type ContextTargetKey,
   type ContextTransform,
+  type ContextEntity,
   type FieldCoverage,
   type KpiTargetKey,
   type KpiTransform,
@@ -242,7 +244,7 @@ Each row has a "kind":
    A "long" or "wide" row COPIES a number already in the data. When the instruction asks for a count, total or ratio the data does not hold as a field, use a "recipe" row; NEVER force a "long" row onto unrelated fields (e.g. a salary as a value with a hire date as the period). If no field can date the records, a recipe cannot be built either: say so in a "not_used" row's "why".
 
 2. "context" — knowledge the assistant should be able to read and quote (descriptions, statuses, names, notes, terms):
-   - per record: {"kind":"context","targetKey":"context:per_record","transform":{"mode":"per_record","titleField":"<field naming the record>","bodyFields":["<field>", ...]}} — one knowledge page per record;
+   - per record: {"kind":"context","targetKey":"context:per_record","transform":{"mode":"per_record","titleField":"<field naming the record>","bodyFields":["<field>", ...],"entity":"<person|company|project|commitment|decision|document|topic|meeting|none>","idField":"<field that is the row's stable id, optional>"}} — one knowledge page per record; "entity" says what one row IS (a person, a company, a project, ...; "none" if it is none of these) so the Wiki files it in the right part;
    - one table: {"kind":"context","targetKey":"context:table","transform":{"mode":"table","columns":["<field>", ...]}} — one page holding the chosen fields of every record (small reference lists).
 
 3. "filter" — AT MOST ONE row, only when the administrator gave filter words: their words as conditions on REAL fields.
@@ -496,7 +498,10 @@ export function readContextProposal(raw: RawRow, headers: string[]):
     if (!has.has(titleField)) return `field "${titleField}" is not in the data`;
     const body = fieldList(t.bodyFields, 'body fields');
     if (typeof body === 'string') return body;
-    return { targetKey: 'context:per_record', transform: { mode: 'per_record', titleField, bodyFields: body } };
+    // DEF-517: what a row IS (the Wiki files it by this). The AI's value when valid, else a guess from the fields.
+    const entity: ContextEntity = isContextEntity(t.entity) ? t.entity : inferContextEntity([titleField, ...body]);
+    const idField = typeof t.idField === 'string' && has.has(t.idField) ? t.idField : undefined;
+    return { targetKey: 'context:per_record', transform: { mode: 'per_record', titleField, bodyFields: body, entity, ...(idField ? { idField } : {}) } };
   }
   if (mode === 'table') {
     const columns = fieldList(t.columns, 'columns');

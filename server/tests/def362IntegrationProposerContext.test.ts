@@ -165,7 +165,7 @@ describe('P2/P3 — Context rows', () => {
     const ctx = byKind('context');
     expect(ctx).toHaveLength(2);
     expect(ctx[0]).toMatchObject({ targetKey: 'context:per_record', sourceField: 'name', status: 'PENDING', followed: 'CONNECT: one page per customer', clientNumber: CN });
-    expect(ctx[0].transform).toEqual({ mode: 'per_record', titleField: 'name', bodyFields: ['status', 'notes'] });
+    expect(ctx[0].transform).toEqual({ mode: 'per_record', titleField: 'name', bodyFields: ['status', 'notes'], entity: 'none' }); // DEF-517: every per_record row says what it is
     expect(ctx[0].reason).toContain('10 knowledge page(s)');
     expect(ctx[1]).toMatchObject({ targetKey: 'context:table', sourceField: 'name', followed: 'REMARK' });
     expect(r.counts.pending).toBe(2);

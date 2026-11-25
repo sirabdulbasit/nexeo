@@ -398,8 +398,14 @@ export interface KpiRecipe {
  *    never written over a filled section). Capped at integrations.max_context_pages.
  *  - table: ONE page for the whole set, the chosen columns as a table.
  */
+/** DEF-517 (Wiki ⇄ Integration contract, 25 Nov): what one row IS, so the Wiki builder
+ *  files it in the right part of the Wiki. 'none' = keep as a source only. Absent = legacy
+ *  (the Wiki decides: a row with an email and a name is a person, otherwise none). */
+export const CONTEXT_ENTITIES = ['person', 'company', 'project', 'commitment', 'decision', 'document', 'topic', 'meeting', 'none'] as const;
+export type ContextEntity = typeof CONTEXT_ENTITIES[number];
+
 export type ContextTransform =
-  | { mode: 'per_record'; titleField: string; bodyFields: string[] }
+  | { mode: 'per_record'; titleField: string; bodyFields: string[]; entity?: ContextEntity; idField?: string }
   | { mode: 'table'; columns: string[] };
 
 /** DEF-362 — the structured filter the proposer makes from the admin's filter
