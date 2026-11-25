@@ -20,7 +20,7 @@ type Args = Record<string, unknown>;
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
-export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave', 'meeting.item', 'meeting.reread'] as const;
+export const MEETING_OPS = ['meeting.list', 'meeting.get', 'meeting.delete', 'meeting.upload', 'meeting.attend', 'meeting.leave', 'meeting.item', 'meeting.reread', 'meeting.transcript_edit'] as const;
 
 const iso = (d: Date | null | undefined) => (d ? new Date(d).toISOString() : null);
 
@@ -40,6 +40,8 @@ export function toWire(r: MeetingRecord, full: boolean): Record<string, unknown>
     transcript_from: r.way === 'google_transcript' ? ((r.sources ?? []).filter((s) => s.way === r.way).map((s) => s.text_from).filter(Boolean).pop() ?? 'google_entries') : r.way,
     minutes: r.minutes,
     ...(r.minutes_offered ? { minutes_offered: r.minutes_offered } : {}), decisions: r.decisions ?? [], action_items: r.action_items ?? [],
+    // Record standard (25 Nov): risks, open questions, chair, purpose, draft/approved; English transcript; corrections.
+    ...wireFields(r),
   };
 }
 
@@ -98,6 +100,14 @@ export async function runMeetingOp(
   // for his Google-transcript meetings of the last `days` (default 14, at most 30; at most 10 per call). The minutes and
   // proposed items are re-made only when the text changed; his decisions on items stay (mergeDerived).
   if (op === 'meeting.reread') return reread(clientNumber, userId, a);
+  if (op === 'meeting.transcript_edit') { // record standard (25 Nov): a correction is kept with who, when, before, after
+    if (!confirmed) return fail('needs_confirmation');
+    const { editTranscriptLine } = await import('../meetings/meetingRecordFields');
+    const r = await editTranscriptLine(clientNumber, userId, id, Number(a.index), text(a.text), 'you, through Suzi');
+    if (r !== 'ok') return fail(r, r === 'bad_line' ? 'index is a transcript line, text is the corrected words' : undefined);
+    const after = await getRecord(clientNumber, userId, id);
+    return after ? { ok: true, item: toWire(after, true) } : fail('not_found');
+  }
   if (op === 'meeting.delete') {
     if (!confirmed) return fail('needs_confirmation');
     if (!gate.signatureVerified) return fail('needs_signature', 'deleting a meeting record is irreversible and must be signed');
@@ -118,10 +128,13 @@ export async function runMeetingOp(
     });
     // The computer's own minutes stand only when its transcript is the best the record has.
     const minutes = text(a.minutes);
+    const { decisionsArg, actionItemsArg, recordFieldsArg, transcriptEnArg, saveRecordFields } = await import('../meetings/meetingRecordFields');
     if (derive && minutes) {
-      const items = Array.isArray(a.action_items) ? (a.action_items as any[]).filter((x) => x && text(x.title)).map((x) => ({ title: text(x.title), ...(text(x.owner_name) ? { owner_name: text(x.owner_name) } : {}), ...(text(x.due) ? { due: text(x.due) } : {}) })) : [];
-      await saveDerived(record.id, mergeDerived(record, { minutes, decisions: [], action_items: items }));
+      // Record standard (25 Nov): decisions, items with owner/date/dependency, as Suzi's minutes give them.
+      await saveDerived(record.id, mergeDerived(record, { minutes, decisions: decisionsArg(a.decisions), action_items: actionItemsArg(a.action_items) as any }));
     }
+    // Risks, open questions, chair, purpose, draft/approved, and the English transcript are kept on every upload.
+    await saveRecordFields(record.id, recordFieldsArg(a), transcriptEnArg(a.transcript_en)).catch(() => undefined);
     const after = await getRecord(clientNumber, userId, record.id);
     return { ok: true, item: toWire(after ?? record, false) };
   }
@@ -163,4 +176,15 @@ async function reread(clientNumber: string, userId: number, a: Args): Promise<Re
       : { meeting_id: r.id, error: 'not_read' });
   }
   return { ok: true, item: { meetings: out } };
+}
+
+function wireFields(r: MeetingRecord): Record<string, unknown> {
+  const f: any = r.record_fields ?? {};
+  return {
+    risks: Array.isArray(f.risks) ? f.risks : [], open_questions: Array.isArray(f.open_questions) ? f.open_questions : [],
+    ...(f.chair ? { chair: f.chair } : {}), ...(f.purpose ? { purpose: f.purpose } : {}),
+    record_status: f.record_status === 'approved' ? 'approved' : 'draft',
+    ...(Array.isArray(r.transcript_en) && r.transcript_en.length ? { transcript_en: r.transcript_en } : {}),
+    ...(Array.isArray(r.transcript_edits) && r.transcript_edits.length ? { transcript_edits: r.transcript_edits } : {}),
+  };
 }

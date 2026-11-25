@@ -22,13 +22,16 @@ export interface Participant { name: string; email?: string }
 export interface ActionItem {
   id: string; title: string; owner_name?: string; person_id?: string; due?: string;
   state: 'proposed' | 'accepted' | 'skipped'; task_id?: string;
+  /** Record standard (25 Nov): no owner given → owner_needed, never an invented owner; and where it was said. */
+  owner_needed?: true; dependency?: string; status?: string; source?: [string, string]; ref?: string;
 }
 export interface MeetingRecord {
   id: string; client_number: string; user_id: number; meeting_key: string; event_id: string | null;
   conference_record: string | null; space: string | null; title: string | null; platform: string;
   start_at: Date | null; end_at: Date | null; way: MeetingWay; sources: Array<{ way: MeetingWay; ref: string; received_at: string; text_from?: TextFrom }>;
   participants: Participant[]; transcript: TranscriptLine[]; minutes: string | null; minutes_offered: string | null;
-  minutes_edited: boolean; decisions: string[]; action_items: ActionItem[]; status: MeetingStatus;
+  minutes_edited: boolean; decisions: Array<string | { id: string; text: string; confirmed_by?: string; source?: [string, string] }>; action_items: ActionItem[]; status: MeetingStatus;
+  record_fields?: Record<string, unknown>; transcript_en?: TranscriptLine[] | null; transcript_edits?: unknown[];
   status_reason: string | null; updated_flag: boolean; reread_due_at: Date | null; created_at: Date; updated_at: Date; changed_at?: Date;
 }
 
@@ -187,10 +190,20 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(
  */
 export function mergeDerived(
   rec: Pick<MeetingRecord, 'minutes' | 'minutes_edited' | 'action_items' | 'status'>,
-  derived: { minutes: string; decisions: string[]; action_items: Array<Omit<ActionItem, 'id' | 'state'>> },
+  derived: { minutes: string; decisions: MeetingRecord['decisions']; action_items: Array<Omit<ActionItem, 'id' | 'state'>> },
   openTitles: string[] = [],
-): { minutes: string | null; minutes_offered: string | null; decisions: string[]; action_items: ActionItem[]; updated: boolean } {
-  const existing = Array.isArray(rec.action_items) ? rec.action_items : [];
+): { minutes: string | null; minutes_offered: string | null; decisions: MeetingRecord['decisions']; action_items: ActionItem[]; updated: boolean } {
+  // An item already on the record keeps his decision (state, task), but gains an owner, date or dependency it was
+  // missing when the same item arrives with them (25 Nov: the 13:21 record had lost its owner and "Fri 28 Nov").
+  const fill = new Map(derived.action_items.map((a) => [norm(a.title), a]));
+  const existing = (Array.isArray(rec.action_items) ? rec.action_items : []).map((e) => {
+    const d = fill.get(norm(e.title));
+    if (!d) return e;
+    const out: ActionItem = { ...e };
+    for (const k of ['owner_name', 'person_id', 'due', 'dependency', 'status', 'source'] as const) if ((out as any)[k] === undefined && (d as any)[k] !== undefined) (out as any)[k] = (d as any)[k];
+    if (out.owner_name || out.person_id) delete out.owner_needed;
+    return out;
+  });
   const seen = new Set([...existing.map((a) => norm(a.title)), ...openTitles.map(norm)]);
   const added: ActionItem[] = [];
   for (const a of derived.action_items) {
