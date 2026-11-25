@@ -19,6 +19,6 @@ delegated to, previously messaged by Brain, in contacts), never a manual whiteli
 Unknown senders: Suzi asks the owner ONCE ("reply or ignore?"); "ignore" persists until
 countermanded. Owner can give durable conditional instructions ("during office hours
 reply this contact with …") stated once and remembered.
-**Spec:** server/docs/section35_living_assistant.md (3 phases).
+**Spec:** retired 2026-11-25 (was server/docs/section35_living_assistant.md, in git history). Superseded: WhatsApp is user-only (one registered number per client; others are not read or messaged).
 **Reversibility:** [reversible later] — door policy is data (wa_sender_policy rows),
 scoped conversation is flag-gateable per tenant.

@@ -69,7 +69,7 @@ describe('NotifyUserRiskHandler', () => {
   //
   // The prior renderQuestion appended "Reply here or open the Day Brief
   // for details." — hardcoded English pretending to be Brain, violating
-  // NEXEO_SPEC.md rule 4 (every Brain-surface reply is LLM-generated OR
+  // the owner rule (every Brain-surface reply is LLM-generated OR
   // a bracketed system marker). The handler comment ALSO lied — it
   // claimed the summary was "LLM-narrated upstream", but riskRadar
   // built the summary via buildSummary()'s hardcoded template while
