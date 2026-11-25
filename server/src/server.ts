@@ -531,22 +531,6 @@ const server = app.listen(env.port, async () => {
     setInterval(vault, 60 * 60 * 1000);
   }, 10 * 60 * 1000);
 
-  // D-314 (T46, founder 25 Nov): his sent mail becomes actions — his promises his tasks, his requests to others
-  // watched tasks. Hourly, first run 20 min after boot; each sent email is read once, last 14 days only.
-  setTimeout(() => {
-    const sent = () => protectedJob('sent_commitments', 'important', async () => {
-      const prisma = (await import('./db/prisma')).default;
-      const users = await prisma.user.findMany({ where: { integrationProvider: 'google', integrationStatus: 'active' } as any, select: { id: true, clientNumber: true } as any }) as any[];
-      const { runSentCommitments } = await import('./services/suzi/sentCommitments');
-      for (const u of users) {
-        const r = await runSentCommitments(u.clientNumber, u.id).catch((e: any) => ({ error: String(e?.message ?? e).slice(0, 120) }));
-        if ((r as any).error || (r as any).created) console.log(`[sentCommitments] ${JSON.stringify({ userId: u.id, ...r })}`);
-      }
-    });
-    sent();
-    setInterval(sent, 60 * 60 * 1000);
-  }, 20 * 60 * 1000);
-
   // Brain Wiki builder (2026-11-12, docs/Wiki-Knowledge.md) — turn what the feeds
   // stored into linked notes (person, company, meeting, group) for every
   // active user. No model; a note that is already current is skipped, so a
@@ -576,6 +560,24 @@ const server = app.listen(env.port, async () => {
     build();
     setInterval(build, 60 * 60 * 1000);
   }, 15 * 60 * 1000);
+
+  // T47 assistant step (founder 25 Nov: "think/act like real assistant"): each new email, in or out, is read with his
+  // open tasks; internal steps only (link, follow-up, his own tasks from sent mail, proposals stored, never applied).
+  // Every 15 min; first run 20 min after boot, after the Wiki builder has landed the hour's mail.
+  setTimeout(() => {
+    const think = () => protectedJob('assistant_step', 'important', async () => {
+      const prisma = (await import('./db/prisma')).default;
+      const rows = await prisma.$queryRawUnsafe<Array<{ id: number; client_number: string }>>(
+        `SELECT id, client_number FROM users WHERE integration_provider = 'google' AND integration_status = 'active'`);
+      const { runAssistantStep } = await import('./services/suzi/assistantReasoner');
+      for (const u of rows) {
+        const r = await runAssistantStep(u.client_number, u.id).catch((e: any) => { console.warn(`[assistantStep] ${u.id} failed: ${e?.message}`); return null; });
+        if (r && r.read) console.log(`[assistantStep] ${JSON.stringify({ userId: u.id, ...r })}`);
+      }
+    });
+    think();
+    setInterval(think, 15 * 60 * 1000);
+  }, 20 * 60 * 1000);
 
   // Preactive engine (2026-07-14) — anticipation, not reaction: meeting
   // prep before each meeting with attendees + deadline nudges for open
