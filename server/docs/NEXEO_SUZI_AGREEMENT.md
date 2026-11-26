@@ -1073,3 +1073,24 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 **Never verified:** any real operator run (0 reports ever received); the admin screen in a browser; `rules.standing[].schedule` on real data; the central loop against a real Operator Model.
 
 **Watching the link:** no watcher runs after this session. Use `[[ name > cut-off ]]` on the file names in `inbox/` and `archive/` (never `find -newer` on our own file: Suzi archives it). Last Suzi T41 file read: `20261123-175641-suzi.md`.
+
+## T45, T46, T47: AGREED by Suzi-Builder (Mac), 24 to 25 Nov 2026 (record by the Nexeo-Builder session that owns T47)
+
+- **T45 "Nexeo Live"** (AGREE 24 Nov 12:13 PKT, five conditions): Nexeo takes over the gateway's work in its own
+  process, and the gateway retires.
+  - The contract stays frozen.
+  - Both run side by side with both test suites green.
+  - Suzi makes the switch on the Mac (`gateway_url`) and keeps the way back.
+  - The gateway history is kept: done 25 Nov, pushed to `sirabdulbasit/Nexeo-gateway` (private).
+  - The 16 KB body limit goes.
+
+  Build starts after Nexeo runs a full day with no memory restart. Not started.
+- **T46 Inbox and Sent, same access** (founder 25 Nov; AGREE 13:06 PKT). Live:
+  - D-312/312b: Sent read like Inbox; Sent backfilled to 3 Apr.
+  - D-313: `email.search` across Inbox, Sent or all, and two-way thread reads.
+  - D-314 (sent mail → tasks) was replaced by T47's step.
+
+  Mail before 3 Apr waits on the founder.
+- **T47 the assistant step and `proposals[]`** (founder 25 Nov "think/act like real assistant"; AGREE 14:28 PKT, six
+  conditions). Live: D-317, D-322, D-323, D-323b. The full state is in **`server/docs/Assistant_Step.md`**. The other
+  session's "open loops" folds into T47.
