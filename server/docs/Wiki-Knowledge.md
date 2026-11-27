@@ -1048,6 +1048,24 @@ complete trail of information."* Agreed with Suzi-Builder as T46.
   - a stale or removed row retires its note at the next build;
   - a repeat build writes 0;
   - the §0.31 type list, door, trigger and tests apply unchanged.
+
+### 0.33 Past decisions, and the advisor's notes (founder 26 and 27 Nov 2026; Nexeo-Builder, T49)
+
+Founder, 26 Nov: "Suzi will only be able to think correctly if it has Knowledge, Actionable Items, Rules, Delegations,
+Past Decisions, Instructions: Nexeo Wiki."
+
+- **Past decisions (D-327, live).** One note per user, type `decision`, title "Past decisions", id `decisions:user:<id>`.
+  - It lists the newest 200 decisions of the last 180 days, grouped by day: what he decided through Suzi, what a rule
+    forwarded, and tasks the assistant step made from his own mail.
+  - Nothing is stored twice. The note is written from where each decision was already recorded (`suzi_act_log`, the
+    forward's record, the task), by the 15-minute `assistant_step` job, and only when the text changed
+    (`properties.decisions_hash`).
+  - Suzi reads the newest 50 as `pack.decisions[]`. `GET /v1/knowledge` finds the note like any other.
+  - Code: `server/src/services/suzi/decisions.ts`. Test: `d327DecisionsDelegations`.
+  - Not verified: that a knowledge search on a person returns this note (it depends on the note being embedded).
+- **The advisor's notes (T49 Part B; built, deploy recorded in `Assistant_Step.md`).** All are `learned` notes, so they
+  stay in Nexeo for every kind of user: "Advisor: current advice", "Advisor: track record", "Weekly review, <Monday>"
+  and "Scorecard, week of <Monday>". Code: `server/src/services/suzi/advisor.ts`.
 - **Commitment notes from integrations are Wiki notes only.** Nothing turns them into action items (no reader outside the Wiki; checked 25 Nov). Putting them in My Attention would need the action-item gate and the founder's word.
 - **For a Client Owned Data user** nothing is built (§0.6).
 

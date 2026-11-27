@@ -123,6 +123,7 @@ async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): P
       actionId: String(a.id ?? ''),
       update: upd,
       title: typeof a.title === 'string' ? a.title : undefined,
+      context: typeof a.context === 'string' ? a.context : undefined,
       due: typeof a.due === 'string' ? a.due : undefined,
       note: typeof a.note === 'string' ? a.note : undefined,
       personId: typeof a.person_id === 'string' ? a.person_id : undefined,

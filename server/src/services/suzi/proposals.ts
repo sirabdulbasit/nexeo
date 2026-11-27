@@ -15,6 +15,9 @@ import prisma from '../../db/prisma';
 export type StoredProposal = { id: string; change: 'done' | 'due' | 'lead'; value: string | null; why: string; from: { email_id: string; direction: 'in' | 'out' }; at: string; state?: 'done' | 'dismissed' };
 export type PackProposal = { id: string; op: 'task.update'; args: Record<string, string>; why: string; from: { email_id: string; direction: 'in' | 'out' } };
 
+/** Today in his time zone (PKT), YYYY-MM-DD. */
+export const todayPkt = (d: Date = new Date()): string => d.toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
+
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED', 'SNOOZED'];
 export const MAX_SHOWN = 3;
 
@@ -27,12 +30,15 @@ export function evidenceWhy(p: { sent: boolean; fromRaw: string | null; subject:
   return `${who.slice(0, 60)} wrote${day} "${q}"${subj ? ` (${subj})` : ''}`;
 }
 
-/** The proposals an action shows: open ones only, done/due only, newest first, at most 3. */
-export function packProposals(taskId: string, status: string, meta: any): PackProposal[] {
+/**
+ * The proposals an action shows: open ones only, done/due only, newest first, at most 3. D-324 (Suzi 26 Nov 09:59):
+ * a due date before today is never shown, so one stored earlier is withdrawn by itself.
+ */
+export function packProposals(taskId: string, status: string, meta: any, today: string = todayPkt()): PackProposal[] {
   if (!OPEN.includes(String(status ?? '').toUpperCase())) return [];
   const list: StoredProposal[] = Array.isArray(meta?.proposals) ? meta.proposals : [];
   return list
-    .filter((p) => p && !p.state && (p.change === 'done' || (p.change === 'due' && /^\d{4}-\d{2}-\d{2}$/.test(String(p.value)))))
+    .filter((p) => p && !p.state && (p.change === 'done' || (p.change === 'due' && /^\d{4}-\d{2}-\d{2}$/.test(String(p.value)) && String(p.value) >= today)))
     .sort((a, b) => String(b.at).localeCompare(String(a.at)))
     .slice(0, MAX_SHOWN)
     .map((p) => ({
@@ -72,6 +78,7 @@ export function checkProposal(item: Item, proposalId: string, update: string): '
   if (!want || want !== update) return 'unknown';
   if (!OPEN.includes(String(item.status ?? '').toUpperCase())) return 'stale';
   if (p.change === 'due' && item.dueDate && item.dueDate.toISOString().slice(0, 10) === p.value) return 'stale';
+  if (p.change === 'due' && String(p.value) < todayPkt()) return 'stale'; // D-324: the date has passed
   return 'go';
 }
 

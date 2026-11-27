@@ -30,7 +30,7 @@ describe('T47 assistant step', () => {
       { act: 'propose', task_id: 't2', change: 'lead', value: '', why: 'w' },
       { act: 'propose', task_id: 't2', change: 'done', value: 'x', why: 'Sofia wrote "done"' },
     ]);
-    expect(parseSteps(raw, ids, false)).toEqual([
+    expect(parseSteps(raw, ids, false, '2026-11-25')).toEqual([
       { act: 'propose', task_id: 't1', change: 'due', value: '2026-12-01', why: 'Ali wrote on 24 Nov "Monday 1 Dec"' },
       { act: 'propose', task_id: 't2', change: 'done', value: null, why: 'Sofia wrote "done"' },
     ]);

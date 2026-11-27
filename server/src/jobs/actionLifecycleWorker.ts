@@ -144,6 +144,20 @@ async function contactOwner(item: any, plan: LifecyclePlan, body?: string): Prom
   return { sent: r.status !== 'duplicate', channel: 'brain_prompt' };
 }
 
+/** D-325: a week's rest after he was told that nobody can be reached. */
+export const REST_AFTER_TOLD_MS = 7 * 24 * 3600_000;
+
+/** D-325: he was already told this exact reason for this task. */
+export function alreadyTold(state: { interventionReason?: string | null; escalatedAt?: string | null } | null | undefined, reason: string): boolean {
+  return !!state?.escalatedAt && state?.interventionReason === reason;
+}
+
+/** D-325: he followed the task up himself within 3 days (metadata.lastFollowupAt, written by task.followup and T47). */
+export function followedUpRecently(meta: any, now: Date): boolean {
+  const t = Date.parse(String(meta?.lastFollowupAt ?? ''));
+  return !isNaN(t) && now.getTime() - t < 3 * 24 * 3600_000 && t <= now.getTime() + 60_000;
+}
+
 async function contactConcernedParty(item: any, body: string): Promise<{ sent: boolean; channel: string; receipt?: string }> {
   if (item.delegateeId) {
     // A queue row gives the internal delegatee's next WhatsApp reply an exact
@@ -335,6 +349,9 @@ export async function runActionLifecycleSweep(options: { dryRun?: boolean; now?:
       if (itemWithActivePrompt.has(item.id)) { result.held += 1; continue; }
       const plan = planActionLifecycle(item, now);
       if (plan.action === 'none') { result.held += 1; continue; }
+      // D-325 (Suzi 26 Nov 09:59): he followed it up himself in the last 3 days (task.followup / T47 sent mail), so
+      // nobody is chased and he is not told again.
+      if (followedUpRecently(item.metadata, now)) { result.held += 1; continue; }
       const ownerContacts = contactsByOwner.get(item.userId) ?? 0;
       if (contactsThisRun >= MAX_CONTACTS_GLOBAL_PER_RUN || ownerContacts >= MAX_CONTACTS_PER_USER_PER_RUN) {
         result.held += 1;
@@ -365,6 +382,17 @@ export async function runActionLifecycleSweep(options: { dryRun?: boolean; now?:
         if (!sent.sent) {
           const current = readActionLifecycle(item.metadata);
           const interventionReason = `No working WhatsApp or email route for ${item.delegateeName ?? 'the concerned party'}`;
+          // D-325: the route is missing by policy (WhatsApp is his only; email to others is off), so it does not
+          // come back by itself. He is told ONCE per task and reason, then it rests a week, never a daily repeat
+          // (owner: "you don't have to tell me about it repeatedly"). 17-26 Nov: ten identical notes on one task.
+          if (alreadyTold(current, interventionReason)) {
+            await prisma.openItem.update({
+              where: { id: item.id },
+              data: { metadata: { ...(item.metadata ?? {}), actionLifecycle: { ...current, nextFollowUpAt: new Date(now.getTime() + REST_AFTER_TOLD_MS).toISOString() } } as any },
+            });
+            result.held += 1;
+            continue;
+          }
           const interventionState: ActionLifecycleState = {
             ...current,
             needsUserIntervention: true,

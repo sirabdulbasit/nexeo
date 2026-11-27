@@ -24,10 +24,10 @@ describe('D-322 proposals', () => {
       P('e', 'done', null, '2026-11-25T08:00:00Z', 'dismissed'), P('f', 'due', '2026-12-02', '2026-11-25T03:00:00Z'),
       P('g', 'due', '2026-12-03', '2026-11-25T02:00:00Z'),
     ] };
-    const shown = packProposals('t1', 'TRIAGED', meta);
+    const shown = packProposals('t1', 'TRIAGED', meta, '2026-11-25');
     expect(shown.map((x) => x.id)).toEqual(['b', 'f', 'g']);
     expect(shown[0]).toMatchObject({ op: 'task.update', args: { id: 't1', update: 'move', due: '2026-12-01', proposal_id: 'b' } });
-    expect(packProposals('t1', 'TRIAGED', { proposals: [P('a', 'done', null, 'x')] })[0].args).toEqual({ id: 't1', update: 'done', proposal_id: 'a' });
+    expect(packProposals('t1', 'TRIAGED', { proposals: [P('a', 'done', null, 'x')] }, '2026-11-25')[0].args).toEqual({ id: 't1', update: 'done', proposal_id: 'a' });
     expect(packProposals('t1', 'COMPLETED', meta)).toEqual([]);
   });
   it('CHECK: go, replay, stale and unknown', () => {

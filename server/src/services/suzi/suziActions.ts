@@ -34,6 +34,8 @@ const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2,
 export interface SuziAction { proposals?: PackProposal[]; id: string; title: string; owner: string; priority: string; status: string; due: string | null; overdue: boolean; updated_at: string | null; changed_at: string | null; source?: ActionSource;
   /** T35 (a) (both AGREE 17 Nov): the note to the person a task was forwarded to. */
   told?: 'pending' | 'sent' | 'drafted' | 'failed'; told_draft_id?: string;
+  /** D-324 (Suzi 26 Nov 09:59): the task's one-line description, so the card shows it and Edit starts from it. */
+  context?: string;
   /** Suzi 25 Nov 15:17: the newest history entry, so a card needs no task-history call. */
   last_update?: { change: string; who: string; at: string };
   /** T33 P2 (both AGREE 17 Nov): the other people responsible; the lead owner is `owner`. */
@@ -51,11 +53,18 @@ function toSuziAction(r: any, tz: string, today: string, userId: number, status:
     priority: r.priority ?? '', status: r.status ?? '', due, overdue: !!due && due < today,
     updated_at: r.updatedAt ? toZonedIso(r.updatedAt, tz) : null,
     changed_at: changed ? toZonedIso(changed, tz) : null,
+    ...contextOf(r.metadata),
     ...toldOf(r.metadata),
     ...lastUpdateOf(r.metadata, tz),
     ...(helpers.length ? { helpers } : {}),
     ...proposalsOf(r),
   };
+}
+
+/** D-324: metadata.context (one line, at most 300), or nothing. */
+function contextOf(meta: any): { context?: string } {
+  const c = typeof meta?.context === 'string' ? meta.context.trim() : '';
+  return c ? { context: c.slice(0, 300) } : {};
 }
 
 /** D-322 (T47): what the assistant step suggests for this task, shown with Do it / Dismiss. */
@@ -100,8 +109,8 @@ export async function listPendingActions(clientNumber: string, userId: number, o
   return { total: actions.length, overdue: actions.filter((a) => a.overdue).length, actions: actions.slice(0, limit) };
 }
 
-export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign' | 'rename' | 'take_back';
-export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign', 'rename', 'take_back'];
+export type FollowUp = 'done' | 'cancel' | 'move' | 'not_yet' | 'note' | 'reopen' | 'assign' | 'rename' | 'describe' | 'take_back';
+export const FOLLOW_UPS: readonly FollowUp[] = ['done', 'cancel', 'move', 'not_yet', 'note', 'reopen', 'assign', 'rename', 'describe', 'take_back'];
 
 /** Back to the open list from these (R1). CANCELLED → TRIAGED was already there; CLOSED → TRIAGED came with R1. */
 const REOPENABLE = ['CLOSED', 'CANCELLED'];
@@ -114,11 +123,11 @@ export type FollowUpResult =
 
 export async function applyFollowUp(
   clientNumber: string, userId: number,
-  p: { actionId: string; update: string; due?: string; note?: string; personId?: string; title?: string; timezone?: string },
+  p: { actionId: string; update: string; due?: string; note?: string; personId?: string; title?: string; context?: string; timezone?: string },
 ): Promise<FollowUpResult> {
   const update = p.update as FollowUp;
   if (!FOLLOW_UPS.includes(update)) return { ok: false, error: 'bad_update' };
-  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true, title: true, delegateeName: true, delegateeEmail: true } as any }) as any;
+  const item = await prisma.openItem.findFirst({ where: { id: p.actionId, clientNumber, userId }, select: { id: true, notes: true, status: true, title: true, delegateeName: true, delegateeEmail: true, metadata: true } as any }) as any;
   if (!item) return { ok: false, error: 'not_found' };
   const status = String(item.status ?? '').toUpperCase();
   if (update === 'reopen' && !REOPENABLE.includes(status)) return { ok: false, error: 'bad_state', detail: 'it is already open' };
@@ -134,6 +143,9 @@ export async function applyFollowUp(
   if (update === 'note' && !String(p.note ?? '').trim()) return { ok: false, error: 'bad_update', detail: 'note text is required' };
   const newTitle = String(p.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (update === 'rename' && !newTitle) return { ok: false, error: 'bad_update', detail: 'title is required' };
+  // D-324: an empty description clears it; longer than 300 is cut, as on the card.
+  const newContext = String(p.context ?? '').replace(/\s+/g, ' ').trim().slice(0, 300);
+  if (update === 'describe' && typeof p.context !== 'string') return { ok: false, error: 'bad_update', detail: 'context is required' };
   const said = `Suzi follow-up from the owner: ${update}${p.due ? ` → ${p.due}` : ''}${p.note ? ` (${String(p.note).slice(0, 300)})` : ''}`;
   let dueDate: Date | null = null;
   if (update === 'move') {
@@ -156,6 +168,16 @@ export async function applyFollowUp(
       if (old !== newTitle) {
         await prisma.openItem.update({ where: { id: item.id }, data: { title: newTitle } });
         await trailPush(item.id, { who: 'you, through Suzi', change: 'Renamed', note: `${old.slice(0, 140)} → ${newTitle.slice(0, 140)}` });
+      }
+    } else if (update === 'describe') {
+      // D-324 (Suzi 26 Nov 09:59, Nexeo AGREE T49): his own tasks only, old and new text kept in the history.
+      const old = typeof item.metadata?.context === 'string' ? item.metadata.context : '';
+      if (old !== newContext) {
+        await prisma.$executeRawUnsafe(
+          `UPDATE open_items SET metadata = CASE WHEN $2 = '' THEN COALESCE(metadata, '{}'::jsonb) - 'context' ELSE jsonb_set(COALESCE(metadata, '{}'::jsonb), '{context}', to_jsonb($2::text)) END WHERE id = $1`,
+          item.id, newContext,
+        );
+        await trailPush(item.id, { who: 'you, through Suzi', change: 'Description changed', note: `${(old || '(none)').slice(0, 140)} → ${(newContext || '(none)').slice(0, 140)}` });
       }
     } else if (update === 'reopen') {
       await changeStatus(item.id, clientNumber, 'TRIAGED' as any, 'The owner reopened it through Suzi', actor);

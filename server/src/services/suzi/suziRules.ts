@@ -17,7 +17,12 @@ import { type InstructionSchedule, describeSchedule } from '../knowledge/instruc
 export interface SuziRules {
   quiet_hours: { start: string; end: string };
   language: string;
-  delegations: Array<{ area: string; owner: string; owner_email: string | null; escalate_to: string | null }>;
+  /**
+   * D-327 (Suzi 26 Nov 12:50, T49): additive. `source` "company" = the client's delegation table; "rule" = his own
+   * email_delegate rule (then `match` says which emails and `rule_id` names it). `person` is his own person record
+   * when there is one. His past delegations are decisions (pack.decisions[]), not rules.
+   */
+  delegations: Array<{ area: string; owner: string; owner_email: string | null; escalate_to: string | null; person: { id: string; name: string } | null; source: 'company' | 'rule'; match?: string; rule_id?: string }>;
   /** kind (suzi-b5, 14 Nov, additive): the Suzi rule kind (meeting_attend, email_delegate, email_ignore), else the store's action type. */
   action_rules: Array<{ id: string; name: string; text: string; mode: string; scope: string; kind: string }>;
   /** schedule (T41 round 9, additive): only on an instruction that has one, so the others look as before. */
@@ -47,16 +52,41 @@ export async function rulesContent(clientNumber: string, userId: number): Promis
     getActiveInstructions(clientNumber, userId),
   ]);
   const bc = user[0]?.bc ?? {};
+  // D-327: his own "always delegate these emails to X" rules, and the person record behind a company row.
+  const { suziEmailRules } = await import('./suziEmailRules');
+  const own = (await suziEmailRules(clientNumber, userId).catch(() => [])).filter((r) => r.kind === 'email_delegate' && r.person_name);
+  const emails = delegations.map((d) => String(d.owner_email ?? '').toLowerCase()).filter(Boolean);
+  const persons = emails.length
+    ? await prisma.$queryRawUnsafe<Array<{ email: string; id: string; name: string }>>(
+        `SELECT DISTINCT ON (lower(f.facet_value)) lower(f.facet_value) AS email, p.id, p.display_name AS name
+           FROM person_facets f JOIN persons p ON p.id = f.person_id
+          WHERE p.client_number = $1 AND p.user_id = $2 AND f.facet_type = 'email' AND lower(f.facet_value) = ANY($3::text[])
+          ORDER BY lower(f.facet_value), f.verified DESC`,
+        clientNumber, userId, emails,
+      ).catch(() => [])
+    : [];
+  const personOf = new Map(persons.map((p) => [p.email, { id: String(p.id), name: p.name }]));
   return {
     quiet_hours: { start: bc.quietStart || '22:00', end: bc.quietEnd || '08:00' },
     language: LANGUAGE_CODES[String(bc.replyLanguage ?? '').toLowerCase()] ?? 'en',
-    delegations: delegations.map((d) => ({ area: d.area, owner: d.owner_name, owner_email: d.owner_email, escalate_to: d.escalate_to_name })),
+    delegations: [
+      ...delegations.map((d) => ({ area: d.area, owner: d.owner_name, owner_email: d.owner_email, escalate_to: d.escalate_to_name, person: personOf.get(String(d.owner_email ?? '').toLowerCase()) ?? null, source: 'company' as const })),
+      ...own.map((r) => {
+        const match = delegationMatch(r.by, r.value);
+        return { area: `Emails ${match}`, owner: String(r.person_name), owner_email: r.person_email ?? null, escalate_to: null, person: r.person_id ? { id: String(r.person_id), name: String(r.person_name) } : null, source: 'rule' as const, match, rule_id: r.id };
+      }),
+    ],
     action_rules: actionRules.map((r) => ({ id: String(r.id), name: r.name, text: r.nl_original || r.name, mode: r.mode, scope: r.scope, kind: String(r.kind ?? '') })),
     // Sorted so the same instructions always give the same version, whatever order they were read in.
     standing: instructions
       .map((i) => ({ id: i.id, text: i.originalText || i.title, ...(i.schedule ? { schedule: i.schedule } : {}) }))
       .sort((a, b) => a.id.localeCompare(b.id)),
   };
+}
+
+/** D-327: which emails a delegate rule covers, in words. */
+export function delegationMatch(by: string, value: string): string {
+  return by === 'subject' ? `with "${value}" in the subject` : by === 'to' ? `sent to ${value}` : `from ${value}`;
 }
 
 export function rulesMarkdown(r: SuziRules): string {
@@ -66,7 +96,7 @@ export function rulesMarkdown(r: SuziRules): string {
     '',
     `Quiet hours: ${r.quiet_hours.start} to ${r.quiet_hours.end}`,
     `Language: ${r.language}`,
-    ...section('Delegations', r.delegations.map((d) => `${d.area}: ${d.owner}${d.escalate_to ? `, escalates to ${d.escalate_to}` : ''}`)),
+    ...section('Delegations', r.delegations.map((d) => `${d.area}: ${d.owner}${d.escalate_to ? `, escalates to ${d.escalate_to}` : ''}${d.source === 'rule' ? ' (his own rule)' : ''}`)),
     ...section('Action rules', r.action_rules.map((a) => `${a.text} (${a.mode})`)),
     ...section('Standing instructions', r.standing.map((s) => (s.schedule ? `${s.text} (runs ${describeSchedule(s.schedule)})` : s.text))),
   ].join('\n');

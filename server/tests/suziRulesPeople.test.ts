@@ -51,7 +51,7 @@ describe('the rules document', () => {
     const r = await rulesContent('T', 2);
     expect(r.quiet_hours).toEqual({ start: '23:00', end: '07:00' });
     expect(r.language).toBe('ur');
-    expect(r.delegations).toEqual([{ area: 'Finance', owner: 'A', owner_email: 'a@x', escalate_to: 'B' }]);
+    expect(r.delegations).toEqual([{ area: 'Finance', owner: 'A', owner_email: 'a@x', escalate_to: 'B', person: null, source: 'company' }]); // D-327
     expect(r.action_rules).toEqual([{ id: 'r1', name: 'Name', text: 'Name', mode: 'suggest', scope: 'user', kind: 'meeting_attend' }]); // kind: suzi-b5, 14 Nov
     expect(r.standing).toEqual([{ id: 'a', text: 'A words' }, { id: 'z', text: 'Z title' }]);
     const md = rulesMarkdown(r);

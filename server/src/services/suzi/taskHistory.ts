@@ -77,7 +77,9 @@ function events(item: Item, status: StatusRow[], userId: number, extra: TrailEnt
   for (const f of arr(lifecycle.followUpHistory)) {
     const ev = String(f?.event ?? '');
     if (!ev || ev === 'response_received') continue; // the answer itself is in the notes
-    const change = /escalat/i.test(ev) ? 'Nexeo escalated it' : `Nexeo followed up${f?.channel ? ` (${String(f.channel)})` : ''}`;
+    // D-325 (Suzi 26 Nov 09:59): escalate_user is a note to HIM, nothing sent to anyone; "escalated it (9 times)"
+    // read as chasing someone without end. Repeats fold into one line with a count (historyOf).
+    const change = ev === 'escalate_user' ? 'Nexeo told you' : /escalat/i.test(ev) ? 'Nexeo escalated it' : `Nexeo followed up${f?.channel ? ` (${String(f.channel)})` : ''}`;
     push(f?.at, 'Nexeo', change, false, cut(f?.summary));
   }
 

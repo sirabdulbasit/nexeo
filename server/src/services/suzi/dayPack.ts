@@ -267,7 +267,9 @@ export function toPackEmail(i: { threadId?: string | null; feedEventId: string; 
 }
 
 /** DEF-459 (Suzi Master AGREE 13 Nov): an email that needs nothing from him but he should know. Never a body. */
-export interface PackFyi { email_id: string; thread_id: string; from: string; subject: string; kind: string; why: string; point: string; urgency: string; received_at: string; preview: string }
+export interface PackFyi { email_id: string; thread_id: string; from: string; subject: string; kind: string; why: string; point: string; urgency: string; received_at: string; preview: string;
+  /** D-326 (Suzi 26 Nov 10:51, T49): the same facts as emails[], so Suzi reads no thread to answer "was it sent to me?". */
+  to?: string[]; cc?: string[]; to_me?: 'to' | 'cc' | 'group'; replied_at?: string | null; reply_checked?: boolean; by_rule?: PackByRule }
 export const PACK_FYI_MAX = 10;
 
 export function toPackFyi(i: { feedEventId: string; threadId?: string | null; fromDisplay?: string; from: string; subject: string; preview?: string; receivedAt: string; critical?: boolean; criticality?: { band?: string } | null; forYourKnowledge?: { kind: string; why: string } | null }, tz: string): PackFyi {
@@ -282,14 +284,45 @@ export function toPackFyi(i: { feedEventId: string; threadId?: string | null; fr
   };
 }
 
+/**
+ * D-326: the facts on each FYI and what leaves the list. An FYI he has answered is not FYI any more (out, counted
+ * `answered`); one his ignore rule covers is out (counted `ignored`), the vm@ "sent to" rule included; a delegate rule
+ * marks it ready. `to_me`: his address in To → "to", in Cc → "cc", in neither (a group address) → "group".
+ */
+export function fyiWithFacts(
+  items: Array<{ fyi: PackFyi; address: string }>,
+  f: { recips: Map<string, { to: string[]; cc: string[] }>; replies: Map<string, { replied_at: string | null; reply_checked: boolean }>; own: Set<string>;
+       ruleOf: (e: { from: string; subject: string; to?: string[]; cc?: string[] }) => { kind: string; id: string; person_name?: string | null } | null; at: string; autoForward: boolean },
+): { fyi: PackFyi[]; ignored: number; answered: number } {
+  const out: PackFyi[] = [];
+  let ignored = 0; let answered = 0;
+  for (const { fyi, address } of items) {
+    const rc = f.recips.get(fyi.email_id);
+    const rp = f.replies.get(fyi.thread_id);
+    if (rp?.replied_at) { answered += 1; continue; }
+    const r = f.ruleOf({ from: address, subject: fyi.subject, to: rc?.to, cc: rc?.cc });
+    if (r && r.kind !== 'email_delegate') { ignored += 1; continue; }
+    const has = (l?: string[]) => (l ?? []).some((a) => f.own.has(a.toLowerCase()));
+    out.push({
+      ...fyi,
+      ...(rc ? { to: rc.to, cc: rc.cc, to_me: has(rc.to) ? 'to' as const : has(rc.cc) ? 'cc' as const : 'group' as const } : {}),
+      ...(rp ? { replied_at: null, reply_checked: rp.reply_checked } : {}),
+      ...(r && !f.autoForward ? { by_rule: { action: 'ready' as const, rule_id: r.id, ...(r.person_name ? { person_name: r.person_name } : {}), at: f.at } } : {}),
+    });
+  }
+  return { fyi: out, ignored, answered };
+}
+
 export interface DayPack {
   version: number; generated_at: string; cursor: string; tz: string; date: string;
-  calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number; calendar?: number }; emails_loading: boolean;
+  calendar: PackCalendar; actions: SuziAction[]; emails: PackEmail[]; emails_hidden?: { ignored: number; tasked: number; calendar?: number; answered?: number }; emails_loading: boolean;
   risks?: PackRisk[];
   /** D-323 (T47): suggestions on tasks not in actions[] (tasks he is watching). Absent = none. */
   proposals?: import('./proposals').PackLevelProposal[];
   /** Link T41: the computer operator's control. Left out when it cannot be read; the desktop then keeps its last copy. */
   operator?: import('./suziOperator').PackOperator;
+  /** D-327 (T49): his past decisions, newest 50. Absent = could not be read. */
+  decisions?: import('./decisions').PackDecision[];
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
   fyi?: PackFyi[];
   kpis: ReturnType<typeof toDeviceKpis>; brief: { blocks: DeviceBlock[] }; missing: DayBriefFacts['missing'];
@@ -452,7 +485,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const kpiBlock = facts.blocks.find((b): b is Extract<BriefBlock, { type: 'kpis' }> => b.type === 'kpis');
 
   const opt = <T>(name: string, work: () => Promise<T>) => capped(times, name, work, {} as T);
-  const [phase2, drafts, meeting, recorded, profile, risks, operator] = await Promise.all([
+  const [phase2, drafts, meeting, recorded, profile, risks, operator, decisions] = await Promise.all([
     (opts.phase2 ?? PHASE2_IN_PACK) ? opt('phase2', () => phase2Fields(clientNumber, userId)) : Promise.resolve({}),
     // T32 (both AGREE 17 Nov): how many drafts wait (Suzi's and his own Gmail drafts); left out when Gmail is unreadable.
     opt('drafts', () => import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
@@ -467,10 +500,29 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     opt('risks', () => import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
     // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.
     opt('operator', () => import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
+    // D-327: a read that fails leaves `decisions` out, so Suzi keeps her last copy.
+    opt('decisions', () => import('./decisions').then(({ packDecisions }) => packDecisions(clientNumber, userId, tz)).then((d) => ({ decisions: d })).catch(() => ({}))),
   ]);
   const attendFor = await capped(times, 'attend', () => attendOfFor(clientNumber, userId), undefined);
   const withRulesOut = await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from, feedEventId: i.feedEventId })), now, tz);
   const threadTasks = await taskOfThread(clientNumber, userId, attention.items);
+  // D-326: a read that fails leaves the FYI list as it was, without the new facts.
+  const plainFyi = attention.fyi.slice(0, PACK_FYI_MAX * 2).map((i) => ({ fyi: toPackFyi(i, tz), address: String((i as any).fromEmail ?? i.from ?? '') }));
+  const fyiOut = plainFyi.length
+    ? await capped(times, 'fyi', async () => {
+        const [recips, replies, rules] = await Promise.all([
+          recipientsOf(clientNumber, plainFyi.map((x) => x.fyi.email_id)).catch(() => new Map<string, { to: string[]; cc: string[] }>()),
+          import('./suziReplied').then((m) => m.replyStates(userId, plainFyi.map((x) => x.fyi.thread_id))).catch(() => new Map()),
+          import('./suziEmailRules').then((m) => m.suziEmailRules(clientNumber, userId).then((rs) => ({ rs, ruleFor: m.ruleFor }))).catch(() => null),
+        ]);
+        return fyiWithFacts(plainFyi, {
+          recips, replies: replies as any, own: people.own, at: toZonedIso(now, tz),
+          ruleOf: (e) => (rules && rules.rs.length ? rules.ruleFor(rules.rs, e) as any : null),
+          autoForward: (await import('../../jobs/ruleForwardJob')).RULE_FORWARD_ENABLED,
+        });
+      }, { fyi: plainFyi.map((x) => x.fyi), ignored: 0, answered: 0 })
+    : { fyi: [] as PackFyi[], ignored: 0, answered: 0 };
+  const handled = leaveHandled(withRulesOut, threadTasks, notices.threads, now);
   const total = Date.now() - t0;
   (total > PACK_SLOW_MS ? log.warn : log.info).call(log, total > PACK_SLOW_MS ? 'day pack slow' : 'day pack timed', { userId, totalMs: total, parts: times });
 
@@ -484,13 +536,14 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     actions,
     ...(levelProposals.length ? { proposals: levelProposals } : {}),
     // T23: answered threads are already left out, so replied_at is null here; reply_checked says whether Gmail was asked.
-    ...leaveHandled(withRulesOut, threadTasks, notices.threads, now),
+    emails: handled.emails,
+    emails_hidden: { ...handled.emails_hidden, ignored: handled.emails_hidden.ignored + fyiOut.ignored, answered: fyiOut.answered },
     emails_loading: attention.loading,
-    ...(attention.fyi.length ? { fyi: attention.fyi.slice(0, PACK_FYI_MAX).map((i) => toPackFyi(i, tz)) } : {}),
+    ...(fyiOut.fyi.length ? { fyi: fyiOut.fyi.slice(0, PACK_FYI_MAX) } : {}),
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
-    ...phase2, ...drafts, ...meeting, ...recorded, ...profile, ...risks, ...operator,
+    ...phase2, ...drafts, ...meeting, ...recorded, ...profile, ...risks, ...operator, ...decisions,
   };
 }
 
