@@ -104,7 +104,7 @@ router.get('/installers', async (_req: Request, res: Response) => {
 
 router.post('/installers/:os/link', keyLimiter, (req: Request, res: Response) => {
   const os = String(req.params.os ?? '') as InstallerOs;
-  if (!(INSTALLER_OS as readonly string[]).includes(os)) { res.status(400).json({ error: 'os is macos or windows' }); return; }
+  if (!(INSTALLER_OS as readonly string[]).includes(os)) { res.status(400).json({ error: 'os is macos, windows or android' }); return; }
   const { token, expiresAt } = issueLink(os);
   res.json({ url: `/api/v1/suzi/download/${token}`, expiresAt });
 });

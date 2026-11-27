@@ -13,17 +13,19 @@ const PASS = ['content-type', 'content-length', 'content-range', 'accept-ranges'
 
 router.get('/:token', async (req: Request, res: Response) => {
   const os = redeemLink(String(req.params.token ?? ''));
-  if (!os) { res.status(410).json({ error: 'This download link has expired. Open Suzi Desktop again.' }); return; }
+  if (!os) { res.status(410).json({ error: 'This download link has expired. Open Suzi Apps again.' }); return; }
   try {
     const r = await installerFetch(os, 'GET', typeof req.headers.range === 'string' ? req.headers.range : undefined);
-    if (r.status === 404) { res.status(404).json({ error: 'Not available yet' }); return; }
+    if (r.status === 404 || r.status === 400) { res.status(404).json({ error: 'Not available yet' }); return; }
     if (!r.ok || !r.body) { res.status(502).json({ error: 'Suzi Master could not send the installer right now' }); return; }
     res.status(r.status);
     for (const h of PASS) { const v = r.headers.get(h); if (v) res.setHeader(h, v); }
     const cd = r.headers.get('content-disposition');
     // Suzi Master names the file in its signed description, not in Content-Disposition.
     const named = parseInstallerHeader(os, r.headers.get('x-installer'))?.file;
-    const file = named && /^[\w.-]{1,120}$/.test(named) ? named : os === 'macos' ? 'Suzi.dmg' : 'Suzi-Setup.exe';
+    const file = named && /^[\w.-]{1,120}$/.test(named) ? named : os === 'macos' ? 'Suzi.dmg' : os === 'android' ? 'Suzi.apk' : 'Suzi-Setup.exe';
+    // Android installs only a file it is told is a package.
+    if (os === 'android') res.setHeader('content-type', 'application/vnd.android.package-archive');
     res.setHeader('content-disposition', cd ?? `attachment; filename="${file}"`);
     res.setHeader('cache-control', 'no-store');
     const body = Readable.fromWeb(r.body as any);

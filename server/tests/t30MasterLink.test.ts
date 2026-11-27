@@ -92,3 +92,19 @@ describe('the installer', () => {
     await expect(installerFetch('macos', 'HEAD')).rejects.toBeInstanceOf(InstallerUnavailable);
   });
 });
+
+describe('T54: the Android package comes the same road', () => {
+  it('android is a known system; a server that does not know it yet means "not available", never an error', async () => {
+    const { INSTALLER_OS } = await import('../src/services/suzi/suziInstaller');
+    expect(INSTALLER_OS).toEqual(['macos', 'windows', 'android']);
+    const { token } = issueLink('android' as any, 1000);
+    expect(redeemLink(token, 2000)).toBe('android');
+    process.env.SUZI_GATEWAY_IN_TESTS = '1';
+    try {
+      const refused = (async () => new Response('{"error":"bad_request"}', { status: 400 })) as any;
+      expect(await installerInfo('android' as any, refused)).toBeNull();
+    } catch (e) {
+      expect(e).toBeInstanceOf(InstallerUnavailable); // no admin secret on a test box: still never "available"
+    } finally { delete process.env.SUZI_GATEWAY_IN_TESTS; }
+  });
+});

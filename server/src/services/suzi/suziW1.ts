@@ -82,7 +82,15 @@ export function learnCurve(merged: Record<string, any>, now = new Date()): Recor
   }
   return out;
 }
-const isRawKey = (k: string) => (RAW_PROFILE_KEYS as readonly string[]).includes(k);
+/**
+ * T55 (founder 27 Nov, the daily greeting: "how is your daughter", "how was your journey to Karachi"; agreed with
+ * Suzi-Builder 17:32): his personal matters are kept under `personal.<id>`. They are stored and returned to his own
+ * Suzi in profile{}, and nothing else: never a line of the note's text and never a source of their own, so the
+ * knowledge search, the on-open advice, the outlook and the Wiki's builder, which all read text, cannot find them.
+ */
+export const isPersonalKey = (k: string) => k.startsWith('personal.');
+/** A key that is kept and returned but never printed in the note's text. */
+export const isRawKey = (k: string) => (RAW_PROFILE_KEYS as readonly string[]).includes(k) || isPersonalKey(k);
 
 /** His profile note's facts, for the pack's profile{} (key -> value). null when there is none or it cannot be read. */
 export async function profileOf(clientNumber: string, userId: number): Promise<Record<string, unknown> | null> {
@@ -166,6 +174,7 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     const keySource = (key: string) => sourceId(clientNumber, userId, 'record', `profile:${key}`);
     for (const n of clean) {
       if (forgotten(n.value)) { await removeSource(writer, keySource(n.key)).catch(() => undefined); continue; }
+      if (isPersonalKey(n.key)) continue; // T55: no text of a personal matter outside the note's own properties
       const at = new Date(n.updated);
       await saveSource({
         clientNumber, userId, kind: 'record', externalId: `profile:${n.key}`, title: `Suzi learned: ${n.key}`,

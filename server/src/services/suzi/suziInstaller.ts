@@ -12,7 +12,9 @@ import { randomBytes } from 'crypto';
 import { promises as fs } from 'fs';
 import { env } from '../../config/env';
 
-export const INSTALLER_OS = ['macos', 'windows'] as const;
+// T54 (founder 27 Nov: "Settings -> Suzi Apps ... Laptop (mac or windows); Mobile (android or apple)", served "Through
+// Suzi Master"): the Android package comes the same road as the laptop installers. Apple is on hold (no package).
+export const INSTALLER_OS = ['macos', 'windows', 'android'] as const;
 export type InstallerOs = (typeof INSTALLER_OS)[number];
 export const LINK_TTL_MS = 10 * 60_000;
 
@@ -61,7 +63,8 @@ export function parseInstallerHeader(os: InstallerOs, h: string | null): Install
 export async function installerInfo(os: InstallerOs, fetchImpl: typeof fetch = fetch): Promise<InstallerInfo | null> {
   const r = await installerFetch(os, 'GET', 'bytes=0-0', fetchImpl, env.suziGatewayTimeoutMs);
   await r.body?.cancel().catch(() => undefined);
-  if (r.status === 404) return null;
+  // 400: Suzi's server does not know this system yet (android before its side is live): not available, not an error.
+  if (r.status === 404 || r.status === 400) return null;
   if (r.status === 503) throw new InstallerUnavailable('Suzi Master cannot be reached right now');
   if (!r.ok) throw new InstallerUnavailable('Suzi server returned an error');
   return parseInstallerHeader(os, r.headers.get('x-installer'));

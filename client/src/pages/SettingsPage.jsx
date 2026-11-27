@@ -72,7 +72,7 @@ export default function SettingsPage() {
     // belong here, not on personal Profile. Conditionally appended so
     // non-SA users never see it.
     ...(user?.isSuperAdmin ? [{ id: 'organisation', label: 'Organisation' }] : []),
-    { id: 'suzi',       label: 'Suzi desktop' },
+    { id: 'suzi',       label: 'Suzi Apps' },
     { id: 'security',   label: 'Security' },
   ];
 

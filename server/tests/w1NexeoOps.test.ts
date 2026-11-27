@@ -64,6 +64,21 @@ describe('profile and device report', () => {
     expect(notes[0].body).not.toContain('memory.tea');
     expect(notes[0].body).toContain('- **brief.length**: short');
   });
+  it('T55: a personal matter is kept and returned to his own Suzi, never printed and never a source of its own', async () => {
+    const note = { about: 'his daughter is not well', kind: 'family', said: '2026-11-27' };
+    const r = await runW1Op('T', 2, 'profile.update', { notes: [{ key: 'personal.9f1c', value: note }, { key: 'memory.tea', value: 'no sugar', evidence_count: 1 }] }, true, signed);
+    expect(r).toMatchObject({ ok: true, item: { keys: ['personal.9f1c', 'memory.tea'] } });
+    expect(notes[0].properties['profile.personal.9f1c'].value).toEqual(note);
+    expect(notes[0].body).not.toContain('daughter');
+    expect(notes[0].body).not.toContain('personal.');
+    expect(notes[0].body).toContain('- **memory.tea**: no sugar');
+    expect(saved.map((x) => x.externalId)).toEqual(['profile:memory.tea']);
+    expect(JSON.stringify(saved)).not.toContain('daughter');
+    have.props = notes[0].properties;
+    const { profileOf } = await import('../src/services/suzi/suziW1');
+    expect((await profileOf('T', 2))!['personal.9f1c']).toEqual(note);
+    have.props = null;
+  });
   it('T36: brief.history and speech.counts are stored and returned as sent, never printed as note lines', async () => {
     const hist = { summary: ['details', 'skipped'], meetings: ['acted'], actions: [], emails: ['stopped'] };
     const counts = { utterances: 12, english_words: 80, urdu_words: 20, english: { meeting: 4 } };

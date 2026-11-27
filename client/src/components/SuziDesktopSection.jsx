@@ -1,6 +1,6 @@
 // Suzi desktop (DEF-370) — give the Suzi desktop app the server URL + YOUR OWN API key (each Nexeo
 // user gets a different key), valid for the period chosen here, and see / disconnect the
-// computers using your keys. Lives in Settings → Suzi desktop.
+// computers using your keys. Lives in Settings → Suzi Apps (renamed from "Suzi desktop", founder 27 Nov, T54).
 import { useEffect, useState } from 'react';
 import { InlineConfirm, formatPkt } from '../pages/admin/integrations/integrationUi';
 import { createApiKey, disconnectDevice, errorText, installerLink, listDevices, listInstallers } from '../services/suziApi';
@@ -8,7 +8,9 @@ import { useAuth } from '../context/AuthContext';
 
 // Link T30: which installer fits this visitor's computer; both are always shown.
 const THIS_OS = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? 'macos' : /Win/i.test(navigator.platform || navigator.userAgent) ? 'windows' : null;
-const OS_NAME = { macos: 'Mac (.dmg)', windows: 'Windows (.exe)' };
+const OS_NAME = { macos: 'Mac (.dmg)', windows: 'Windows (.exe)', android: 'Android (.apk)' };
+// T54 (founder 27 Nov): Settings → Suzi Apps, with Laptop (Mac or Windows) and Mobile (Android or Apple) downloads.
+const ON_PHONE = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
 const VALIDITY = [7, 30, 90, 'never'];
 
@@ -189,38 +191,49 @@ function DownloadSuzi() {
       setBusy(null);
     }
   };
-  // Founder 11-11: show only the installer for this computer's system. Both only when the system is not
-  // recognised (Linux, a phone), so nobody is left without a choice.
-  const order = THIS_OS ? [THIS_OS] : ['macos', 'windows'];
+  // Founder 11-11: for a laptop, show only the installer for this computer's system. Both when the system is not
+  // recognised or the page is opened on a phone, so nobody is left without a choice.
+  const laptop = THIS_OS && !ON_PHONE ? [THIS_OS] : ['macos', 'windows'];
+  const row = (os) => {
+    const i = inst[os] ?? { available: false };
+    return (
+      <div key={os} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div>
+          <div style={{ fontWeight: 600 }}>{OS_NAME[os]}</div>
+          <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>
+            {i.available
+              ? <>version {i.version}{i.size ? ` · ${Math.round(i.size / 1048576)} MB` : ''} · sha256 <span style={{ fontFamily: 'monospace' }}>{String(i.sha256).slice(0, 16)}…</span></>
+              : i.error ? i.error : 'Not available yet'}
+          </div>
+        </div>
+        <button className="settings-btn" disabled={!i.available || busy === os} onClick={() => download(os)}>
+          {busy === os ? <><span className="btn-spinner" /> Preparing…</> : 'Download'}
+        </button>
+      </div>
+    );
+  };
+  const group = { fontSize: 12, fontWeight: 600, color: 'var(--n-666666)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 6 };
   return (
     <section className="settings-section">
-      <h2>Download Suzi</h2>
+      <h2>Downloads</h2>
       <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-        Install Suzi on your computer, then connect her below with your key. This is always the latest version.
+        Install Suzi on your laptop or your phone. This is always the latest version: to upgrade, download it again and
+        install it over the one you have.
       </p>
       {inst === null && <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>Loading…</div>}
       {inst && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {order.map((os) => {
-            const i = inst[os] ?? { available: false };
-            return (
-              <div key={os} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>
-                    {OS_NAME[os]}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>
-                    {i.available
-                      ? <>version {i.version}{i.size ? ` · ${Math.round(i.size / 1048576)} MB` : ''} · sha256 <span style={{ fontFamily: 'monospace' }}>{String(i.sha256).slice(0, 16)}…</span></>
-                      : i.error ? i.error : 'Not available yet'}
-                  </div>
-                </div>
-                <button className="settings-btn" disabled={!i.available || busy === os} onClick={() => download(os)}>
-                  {busy === os ? <><span className="btn-spinner" /> Preparing…</> : 'Download'}
-                </button>
-              </div>
-            );
-          })}
+          <div style={group}>Laptop</div>
+          {laptop.map(row)}
+          <div style={group}>Mobile</div>
+          {row('android')}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 600 }}>Apple (iPhone)</div>
+              <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>Coming later</div>
+            </div>
+            <button className="settings-btn" disabled>Download</button>
+          </div>
         </div>
       )}
       {err && <div style={{ fontSize: 12, color: 'var(--s-fca5a5)', marginTop: 8 }}>{err}</div>}
