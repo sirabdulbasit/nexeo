@@ -1129,3 +1129,20 @@ One correction recorded: Nexeo's two messages of 27 Nov carry file names 104000 
 and 10:32 PKT. The times inside this record are the real ones.
 
 The full description is in `Three_Roles.md`.
+
+## T51 and T52: AGREED by Suzi-Builder (Mac), 27 Nov 2026 11:44 PKT (record by Nexeo-Builder)
+
+**T51 `item.advise {kind, id}`** (founder 27 Nov 11:35: what to do and how when he opens an email or task, from complete
+related knowledge). AGREE with four conditions, all taken: answer within 3 s from the kept copy and prepare ahead for
+today's items; `suggest` never sends by itself (for `email.draft` Suzi opens her own draft); `how` in his terms, never a
+tool name, at most 4 steps; the real monthly cost in the scorecard (`advisor.cost`), and over PKR 1,000 a month goes to
+him first. Live as D-332.
+
+**T52 `outlook`** (founder 27 Nov 11:45: keep thinking about what is important, pending, the risks now and ahead, with
+forecasts). `pack.outlook {made_at, important, pending, risks_now, risks_ahead, forecast}`, at most 5 per list, each
+resting on a record or a counted pattern; predictions carry a date and are checked when it passes; the scorecard gains
+`predictions`. AGREE with four conditions: a prediction is never stated as fact (`likelihood` and `rests_on` always;
+no counted pattern, no line); `prevent` is one action with an owner; `prevented` only when that action was really
+done, otherwise `did_not`; at most one new risk raised to him unasked per day. To be built as D-333.
+
+Details: `Three_Roles.md`.

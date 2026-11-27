@@ -103,6 +103,8 @@ describe('D-328 feedback and goals', () => {
 describe('D-329 scorecard and week', () => {
   it('HONEST: held is held, failed is failed, unverified is unverified', async () => {
     query.mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM llm_spend')) return [{ week: 0.0412, month: 1.2345 }];
+      if (sql.includes("op = 'item.advise'")) return [{ n: 5 }];
       if (sql.includes('FROM suzi_act_log')) return [
         { status: 'ok', held: false, reason: null, n: 12 }, { status: 'ok', held: true, reason: 'not_signed', n: 4 }, { status: 'ok', held: true, reason: null, n: 1 }, { status: 'failed', held: false, reason: 'rejected', n: 3 },
       ];
@@ -115,6 +117,7 @@ describe('D-329 scorecard and week', () => {
     expect(s.operator).toEqual({ acts_ok: 12, acts_failed: 3, held: 5, held_by_reason: { not_signed: 4, not_said: 1 }, screen_runs: { done: 1, unverified: 2, failed: 1 } });
     expect(s.assistant).toEqual({ suggestions_made: 6, suggestions_done: 3, suggestions_dismissed: 1, tasks_from_his_mail: 4 });
     expect(s.from).toBe('2026-11-22T19:00:00.000Z'); // Monday 00:00 PKT
+    expect(s.advisor).toEqual({ cost: { week_usd: 0.041, month_usd: 1.235, month_pkr: 346 }, advice_given: 5, useful: 0, done: 0, not_useful: 0 }); // the real figure; advice on opened items counted
   });
   it('WEEK: Monday in PKT; due from Monday 07:00 PKT, once', () => {
     expect(weekOf(new Date('2026-11-27T06:00:00Z'))).toBe('2026-11-23');

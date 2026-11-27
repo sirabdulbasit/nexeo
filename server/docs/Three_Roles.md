@@ -139,6 +139,32 @@ Code: `services/suzi/scheduledJobs.ts`, `knowledge/instructionSchedule.ts`, `kno
 - **Reaching him at once:** the result is pushed to his live Suzi as a silent notice card. A dedicated `job.result`
   frame needs a gateway route and is not built.
 
+### 3.4a Advice on the item he opens (D-332; T51)
+
+Founder, 27 Nov 11:35 PKT: "when anything open to me like emails, tasks Suzi/Nexeo should also suggest what to do? and
+how to do. before suggesting Suzi/Nexeo should have complete related knowledge (Nexeo wiki)". Agreed with Suzi-Builder
+11:44 PKT, four conditions. Code: `services/suzi/itemAdvice.ts`. Test: `d332ItemAdvice`.
+
+- **`item.advise {kind: "email" | "task", id}`**, internal; it changes nothing.
+- **Knowledge first.** Before a word is written, Nexeo gathers: the whole thread, both directions (or the task with its
+  history, without Nexeo's own bookkeeping notes, and its source email); the Wiki notes on the people and the company;
+  notes found by the subject; his other open tasks with the same people or thread; how he decided before on them; his
+  rules, standing instructions and delegations; his goals. Each piece gets a reference.
+- **The answer:** `{id, about, what, how[≤4], suggest?, rests_on[], knowledge[≤6], missing[], complete, made_at}`.
+  - Only references that were shown are kept; advice without one is not given.
+  - `missing` says what was not on record (an unknown sender, an unreadable email), and then `complete` is false and
+    the advice is the careful step, never a guess.
+  - `suggest` is one button for an op Suzi already has, with real ids: `email.draft`, `email.delegate`, `email.mark`,
+    `task.create`, `task.followup`, `task.update` (done, move, assign). His click runs it, signed where needed.
+  - Steps are in his words: no tool names, no references inside the sentences, never "ask Nexeo".
+- **Speed (condition 1).** A copy younger than 45 minutes is answered at once. Every 15 minutes, and 3 minutes after
+  each start, Nexeo prepares advice for the emails needing him and the top of his to-do list (at most 22 items); an
+  unchanged item costs a read and no model call. The copy is kept in memory.
+- **Cost (condition 4).** `scorecard.advisor.cost {week_usd, month_usd, month_pkr}` from the spend record (rupees at
+  `USD_PKR`, 280 when unset, an estimate). Measured 27 Nov: about USD 0.0013 per item. Over PKR 1,000 a month goes to
+  him first (Costing Charter).
+- Feedback: `advice.feedback` with the advice's `item:<hash>` id; counted under the advisor.
+
 ### 3.5 What the scorecard read on 27 Nov, before any of this ran
 
 Week of 23 Nov so far: 26 actions done, 1 failed, 9 held; 6 suggestions made, 3 accepted, 1 dismissed; 0 screen runs;

@@ -582,12 +582,27 @@ const server = app.listen(env.port, async () => {
         if (adv?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, advice: adv.advice })}`);
         const rev = await A.runWeeklyReview(u.client_number, u.id).catch((e: any) => { console.warn(`[advisor] ${u.id} review failed: ${e?.message}`); return null; });
         if (rev?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, review: rev.items, week: rev.week })}`);
+        // D-332 (T51, Suzi's condition 1): advice prepared ahead for what he is likely to open, so a card answers at once.
+        const w = await import('./services/suzi/itemAdvice').then((m) => m.warmItemAdvice(u.client_number, u.id)).catch((e: any) => { console.warn(`[itemAdvice] ${u.id} warm failed: ${e?.message}`); return null; });
+        if (w && (w.prepared || w.failed)) console.log(`[itemAdvice] ${JSON.stringify({ userId: u.id, ...w })}`);
         await A.writeScorecard(u.client_number, u.id, A.weekOf(new Date())).catch((e: any) => console.warn(`[advisor] ${u.id} scorecard failed: ${e?.message}`));
       }
     });
     think();
     setInterval(think, 15 * 60 * 1000);
   }, 20 * 60 * 1000);
+
+  // D-332: the kept advice lives in memory, so it is prepared again 3 minutes after every start.
+  setTimeout(() => protectedJob('item_advice_warm', 'important', async () => {
+    const prisma = (await import('./db/prisma')).default;
+    const rows = await prisma.$queryRawUnsafe<Array<{ id: number; client_number: string }>>(
+      `SELECT id, client_number FROM users WHERE integration_provider = 'google' AND integration_status = 'active'`);
+    const { warmItemAdvice } = await import('./services/suzi/itemAdvice');
+    for (const u of rows) {
+      const w = await warmItemAdvice(u.client_number, u.id).catch(() => null);
+      if (w) console.log(`[itemAdvice] ${JSON.stringify({ userId: u.id, boot: true, ...w })}`);
+    }
+  }), 3 * 60 * 1000);
 
   // D-330 (T50, both AGREE 27 Nov): scheduled jobs. Every minute; one run per due slot is guaranteed by the claim on
   // the job's own page, not by this timer, so a restart or a second runner cannot run a slot twice.

@@ -28,7 +28,7 @@ export const REVIEW_KINDS = ['habit', 'process', 'management', 'relationship'] a
 
 export interface ReviewItem { id: string; kind: (typeof REVIEW_KINDS)[number]; what: string; why: string; suggest: string; rests_on: string[]; note_for_management?: string; goal?: string }
 export interface PackReview { week: string; made_at: string; items: ReviewItem[] }
-export interface FeedbackEntry { id: string; verdict: Verdict; what?: string; at: string; source: 'advice' | 'review' | 'suzi' }
+export interface FeedbackEntry { id: string; verdict: Verdict; what?: string; at: string; source: 'advice' | 'review' | 'suzi' | 'item' }
 export interface Fact { key: string; text: string }
 
 const TITLE = { advice: 'Advisor: current advice', record: 'Advisor: track record' };
@@ -90,7 +90,13 @@ export async function adviceFeedback(clientNumber: string, userId: number, a: Re
   const mine = id.startsWith('suzi:');
   let what = str(a.what, 300);
   let source: FeedbackEntry['source'] = mine ? 'suzi' : 'advice';
-  if (!mine) {
+  if (id.startsWith('item:')) {
+    // T51: advice on one opened item. Its words are kept in memory; after a restart Suzi's `what` stands in.
+    const { adviceText } = await import('./itemAdvice');
+    what = adviceText(id) ?? what;
+    if (!what) return { ok: false, error: 'not_found', detail: 'no such advice (send what it said)' };
+    source = 'item';
+  } else if (!mine) {
     const known = await knownAdvice(clientNumber, userId);
     const hit = known.get(id);
     if (!hit) return { ok: false, error: 'not_found', detail: 'no such advice' };
@@ -406,9 +412,15 @@ export interface Scorecard {
   week: string; from: string; to: string;
   operator: { acts_ok: number; acts_failed: number; held: number; held_by_reason: Record<string, number>; screen_runs: { done: number; unverified: number; failed: number } };
   assistant: { suggestions_made: number; suggestions_done: number; suggestions_dismissed: number; tasks_from_his_mail: number };
-  advisor: { advice_given: number; useful: number; done: number; not_useful: number };
+  /** `cost` (Suzi's condition, T51): what the advisor's model calls really cost, from the spend record. */
+  advisor: { advice_given: number; useful: number; done: number; not_useful: number; cost?: { week_usd: number; month_usd: number; month_pkr: number } };
   jobs?: { done: number; failed: number; missed: number };
 }
+
+/** The advisor's model calls, by their spend label. */
+export const ADVISOR_PURPOSES = ['advisor_advice', 'advisor_review', 'item_advice', 'outlook'];
+/** Rupees per dollar for the figure he reads (env USD_PKR; 280 when unset). An estimate, said as one. */
+export const USD_PKR = Number(process.env.USD_PKR) > 0 ? Number(process.env.USD_PKR) : 280;
 
 /** Ops that DO something (reads and bookkeeping are not counted). */
 export const DOING_OPS = ['task.update', 'task.create', 'task.followup', 'email.send', 'email.delegate', 'email.forward', 'email.mark', 'rule.set', 'rule.remove', 'instruction.add', 'instruction.update', 'instruction.remove', 'delegation.set', 'delegation.remove', 'calendar.create', 'calendar.update', 'calendar.cancel', 'job.run_now'];
@@ -455,9 +467,22 @@ export async function buildScorecard(clientNumber: string, userId: number, week:
   const inWeek = (at: string) => { const t = Date.parse(at); return t >= from.getTime() && t < to.getTime(); };
   const cur = await readProps(clientNumber, userId, TITLE.advice);
   const reviews = await recentReviews(clientNumber, userId);
-  const given = (Array.isArray(cur.history) ? cur.history : []).filter((h: any) => inWeek(String(h.at))).length + reviews.filter((r) => inWeek(r.made_at)).reduce((n, r) => n + r.items.length, 0);
+  // T51: advice given on an opened item, counted from the act log (one per item and change; a cached answer is the same advice).
+  const opened = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
+    `SELECT count(DISTINCT result->'item'->>'id')::int AS n FROM suzi_act_log WHERE client_number = $1 AND user_id = $2 AND op = 'item.advise' AND status = 'ok' AND created_at >= $3 AND created_at < $4`,
+    clientNumber, userId, from, to,
+  ).catch(() => [{ n: 0 }]);
+  const given = (Array.isArray(cur.history) ? cur.history : []).filter((h: any) => inWeek(String(h.at))).length + reviews.filter((r) => inWeek(r.made_at)).reduce((n, r) => n + r.items.length, 0) + (opened[0]?.n ?? 0);
   const fb = (await feedbackOf(clientNumber, userId)).filter((e) => inWeek(e.at));
-  const advisor = { advice_given: given, useful: fb.filter((e) => e.verdict === 'useful').length, done: fb.filter((e) => e.verdict === 'done').length, not_useful: fb.filter((e) => e.verdict === 'not_useful').length };
+  // The real figure, month to date, so he sees it; over PKR 1,000 a month goes to him first (Costing Charter).
+  const spend = await prisma.$queryRawUnsafe<Array<{ week: number | null; month: number | null }>>(
+    `SELECT COALESCE(sum(est_usd) FILTER (WHERE created_at >= $3 AND created_at < $4), 0)::float AS week,
+            COALESCE(sum(est_usd) FILTER (WHERE created_at >= date_trunc('month', $4::timestamp - interval '1 second')), 0)::float AS month
+       FROM llm_spend WHERE client_number = $1 AND user_id = $2 AND purpose = ANY($5::text[]) AND created_at >= $3::timestamp - interval '31 days' AND created_at < $4`,
+    clientNumber, userId, from, to, ADVISOR_PURPOSES,
+  ).catch(() => []);
+  const cost = spend[0] ? { week_usd: Math.round((spend[0].week ?? 0) * 1000) / 1000, month_usd: Math.round((spend[0].month ?? 0) * 1000) / 1000, month_pkr: Math.round((spend[0].month ?? 0) * USD_PKR) } : undefined;
+  const advisor = { ...(cost ? { cost } : {}), advice_given: given, useful: fb.filter((e) => e.verdict === 'useful').length, done: fb.filter((e) => e.verdict === 'done').length, not_useful: fb.filter((e) => e.verdict === 'not_useful').length };
   return { week, from: from.toISOString(), to: to.toISOString(), operator, assistant, advisor };
 }
 
@@ -469,6 +494,7 @@ export function scorecardBody(s: Scorecard): string {
     `- Screen runs: ${s.operator.screen_runs.done} done, ${s.operator.screen_runs.unverified} unverified, ${s.operator.screen_runs.failed} failed`, '',
     '## Assistant', `- Suggestions made: ${s.assistant.suggestions_made}; accepted ${s.assistant.suggestions_done}, dismissed ${s.assistant.suggestions_dismissed}`, `- Tasks made from his own mail: ${s.assistant.tasks_from_his_mail}`, '',
     '## Advisor', `- Advice given: ${s.advisor.advice_given}; useful ${s.advisor.useful}, done ${s.advisor.done}, not useful ${s.advisor.not_useful}`,
+    ...(s.advisor.cost ? [`- Cost of the advisor's thinking: about USD ${s.advisor.cost.week_usd} this week, USD ${s.advisor.cost.month_usd} this month (about PKR ${s.advisor.cost.month_pkr})`] : []),
     ...(s.jobs ? ['', '## Scheduled jobs', `- Done ${s.jobs.done}, failed ${s.jobs.failed}, missed ${s.jobs.missed}`] : []),
   ].join('\n');
 }

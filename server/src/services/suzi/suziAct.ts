@@ -33,7 +33,7 @@ import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 import { OPERATOR_OPS, runOperatorOp } from './suziOperator';
 
-export const ACT_OPS = ['proposal.dismiss', 'seen.update', 'advice.feedback', 'job.run_now', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
+export const ACT_OPS = ['proposal.dismiss', 'item.advise', 'seen.update', 'advice.feedback', 'job.run_now', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -102,6 +102,10 @@ async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): P
     const now = Date.now();
     const at = Number.isFinite(t) && t <= now + 60_000 && t > now - 30 * 86_400_000 ? new Date(Math.min(t, now)) : new Date(now);
     return { ok: true, item: { at: at.toISOString() } };
+  }
+  if (req.op === 'item.advise') { // T51: what to do with the item he opened, and how. Internal: it changes nothing.
+    const { itemAdvise } = await import('./itemAdvice');
+    return itemAdvise(clientNumber, userId, req.args ?? {});
   }
   if (req.op === 'advice.feedback') { // D-328 (T49 B2): internal, no signature
     const { adviceFeedback } = await import('./advisor');
