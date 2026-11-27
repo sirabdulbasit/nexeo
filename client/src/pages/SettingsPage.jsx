@@ -433,190 +433,88 @@ function BrainChannelSection({ user }) {
 
   const pingTarget = overrideOpen && whatsappNumberOverride ? whatsappNumberOverride : registeredNumber;
 
+  // Founder 27 Nov: "make it one Whatsapp Notifications". One section, one row per setting, one Save.
+  const row = { display: 'grid', gridTemplateColumns: '150px 1fr', alignItems: 'center', gap: 10, marginBottom: 10 };
+  const rowLabel = { fontSize: 13, color: 'var(--n-aaaaaa)' };
+  const small = { background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer', whiteSpace: 'nowrap' };
+  const check = { display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color: 'var(--n-eeeeee)', cursor: 'pointer', margin: '8px 0' };
   return (
-    <>
-      <section className="settings-section">
-        <h2>Notifications</h2>
-        <p style={{ color: 'var(--n-888888)', fontSize: 13, marginTop: -4, marginBottom: 12 }}>
-          Nexeo reaches you on WhatsApp from the company number. It never sends from your own number.
-        </p>
+    <section className="settings-section">
+      <h2>WhatsApp notifications</h2>
+      <p style={{ color: 'var(--n-888888)', fontSize: 12, marginTop: -4, marginBottom: 14 }}>
+        Sent from the company number, never from yours.
+      </p>
 
-        {msg && <div className="settings-msg" style={{ marginBottom: 10 }}>{msg}</div>}
-
-        <div className="settings-field">
-          <label>WhatsApp number</label>
-          {!overrideOpen ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'var(--n-1f1f1f)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
-              <span style={{ flex: 1, color: 'var(--n-eeeeee)', fontSize: 13 }}>
-                Pinging on <strong>{registeredNumber || '(no number on file)'}</strong> <span style={{ color: 'var(--n-666666)' }}>(your registered contact number)</span>
-              </span>
-              <button type="button" onClick={() => setOverrideOpen(true)}
-                style={{ background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>
-                Use different number
-              </button>
-            </div>
+      <div style={row}>
+        <span style={rowLabel}>Number</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {overrideOpen ? (
+            <>
+              <input value={whatsappNumberOverride} onChange={(e) => setWhatsappNumberOverride(e.target.value)}
+                placeholder={registeredNumber || '+92 300 1234567'} style={{ flex: 1 }} />
+              <button type="button" style={small} onClick={() => { setOverrideOpen(false); setWhatsappNumberOverride(''); }}>Use registered</button>
+            </>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <input
-                value={whatsappNumberOverride}
-                onChange={(e) => setWhatsappNumberOverride(e.target.value)}
-                placeholder={registeredNumber || '+92 300 1234567'}
-                style={{ flex: 1 }}
-              />
-              <button type="button" onClick={() => { setOverrideOpen(false); setWhatsappNumberOverride(''); }}
-                style={{ background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)', borderRadius: 6, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>
-                Use registered
-              </button>
-            </div>
+            <>
+              <span style={{ flex: 1, fontSize: 13 }}>{registeredNumber || 'No number on file'}</span>
+              <button type="button" style={small} onClick={() => setOverrideOpen(true)}>Change</button>
+            </>
           )}
         </div>
+      </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <div className="settings-field">
-            <label>Quiet hours start <span style={{ color: 'var(--n-666666)', fontWeight: 400 }}>(your timezone)</span></label>
-            <input type="time" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} />
-          </div>
-          <div className="settings-field">
-            <label>Quiet hours end</label>
-            <input type="time" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} />
-          </div>
+      <div style={row}>
+        <span style={rowLabel}>Day Brief at</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="time" value={dayBriefTime} onChange={(e) => setDayBriefTime(e.target.value)} style={{ width: 140 }} />
+          <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
+                  style={{ flex: 1, minWidth: 180, padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
+            <option value="Asia/Karachi">Asia/Karachi (PKT)</option>
+            <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+            <option value="Asia/Riyadh">Asia/Riyadh (AST)</option>
+            <option value="Europe/London">Europe/London</option>
+            <option value="America/New_York">America/New_York</option>
+            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            <option value="UTC">UTC</option>
+          </select>
         </div>
+      </div>
 
-        {/* Day Brief delivery — schedule, timezone, and on-demand send/preview.
-            Grouped into its own block so the "send now / preview" affordance
-            sits next to the schedule it's previewing, not buried under a
-            shared row with quiet hours. */}
-        <div style={{
-          marginTop: 8, padding: 14,
-          border: '1px solid var(--n-2f2f2f)', borderRadius: 10, background: 'var(--n-1a1a1a)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--n-eeeeee)', letterSpacing: 0.3, textTransform: 'uppercase' }}>
-              Day Brief delivery
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--n-666666)' }}>via WhatsApp · bypasses quiet hours</div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div className="settings-field">
-              <label>Scheduled time</label>
-              <input type="time" value={dayBriefTime} onChange={(e) => setDayBriefTime(e.target.value)} />
-            </div>
-            <div className="settings-field">
-              <label>Timezone</label>
-              <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
-                      style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
-                <option value="Asia/Karachi">Asia/Karachi (PKT, UTC+5)</option>
-                <option value="Asia/Dubai">Asia/Dubai (GST, UTC+4)</option>
-                <option value="Asia/Riyadh">Asia/Riyadh (AST, UTC+3)</option>
-                <option value="Europe/London">Europe/London (GMT/BST)</option>
-                <option value="America/New_York">America/New_York (ET)</option>
-                <option value="America/Los_Angeles">America/Los_Angeles (PT)</option>
-                <option value="UTC">UTC</option>
-              </select>
-            </div>
-          </div>
-
-          {/* On-demand send. Primary-styled button so it reads as a real
-              feature, not a secondary chip. After click, the composed body
-              is shown inline so the user can see what Brain sent (or would
-              have sent, if the notifier isn't paired yet). */}
-          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <button type="button" onClick={sendDayBriefNow} disabled={sendingBrief || !pingTarget}
-              style={{
-                background: pingTarget ? '#e94560' : 'var(--t-4a2730)',
-                border: 'none', color: '#fff',
-                borderRadius: 8, padding: '10px 18px', fontSize: 13, fontWeight: 600,
-                cursor: pingTarget && !sendingBrief ? 'pointer' : 'not-allowed',
-                opacity: sendingBrief ? 0.7 : 1,
-              }}>
-              {sendingBrief ? 'Composing & sending…' : 'Send Day Brief to my WhatsApp now'}
-            </button>
-            {!pingTarget && (
-              <span style={{ fontSize: 11, color: 'var(--n-888888)' }}>
-                Add a WhatsApp number above first.
-              </span>
-            )}
-            {briefMsg && (
-              <span style={{
-                fontSize: 12,
-                color: briefMsgKind === 'ok' ? 'var(--s-4ade80)' : briefMsgKind === 'err' ? 'var(--s-fca5a5)' : 'var(--n-aaaaaa)',
-              }}>{briefMsg}</span>
-            )}
-          </div>
-
-          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 8 }}>
-            Sends today's Day Brief now, the same one sent at {dayBriefTime || '08:30'}.
-          </div>
-
-          {/* Inline preview of the composed body. Renders below the button
-              so the user sees Brain's actual output without checking WA —
-              especially useful before the notifier is paired (sent=false
-              still returns preview content). */}
-          {briefPreview && (
-            <div style={{ marginTop: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                <div style={{ fontSize: 11, color: 'var(--n-888888)', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                  Preview
-                </div>
-                <button type="button" onClick={() => { setBriefPreview(''); setBriefMsg(''); }}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--n-888888)', fontSize: 11, cursor: 'pointer', padding: 0 }}>
-                  Hide
-                </button>
-              </div>
-              <pre style={{
-                margin: 0, padding: 12, background: 'var(--n-0f0f0f)', border: '1px solid var(--n-2a2a2a)',
-                borderRadius: 8, color: 'var(--n-dddddd)', fontSize: 12.5, lineHeight: 1.55,
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit',
-                maxHeight: 360, overflowY: 'auto',
-              }}>{briefPreview}</pre>
-            </div>
-          )}
+      <div style={row}>
+        <span style={rowLabel}>Quiet hours</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input type="time" value={quietStart} onChange={(e) => setQuietStart(e.target.value)} style={{ width: 140 }} />
+          <span style={{ fontSize: 13, color: 'var(--n-888888)' }}>to</span>
+          <input type="time" value={quietEnd} onChange={(e) => setQuietEnd(e.target.value)} style={{ width: 140 }} />
         </div>
+      </div>
 
-        <h3 style={{ fontSize: 13, color: 'var(--n-aaaaaa)', marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-          Messages during the day
-        </h3>
+      <label style={check}>
+        <input type="checkbox" checked={outboundEnabled} onChange={(e) => setOutboundEnabled(e.target.checked)} style={{ width: 16, height: 16 }} />
+        Message me during the day when something needs me <span style={{ color: 'var(--n-666666)', fontSize: 12 }}>(off: it waits for the Day Brief)</span>
+      </label>
+      <label style={check}>
+        <input type="checkbox" checked={outboundPaused} onChange={(e) => setOutboundPaused(e.target.checked)} style={{ width: 16, height: 16 }} />
+        Pause all messages
+      </label>
 
-        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundEnabled ? 'rgba(34,197,94,0.10)' : 'var(--n-1f1f1f)', border: `1px solid ${outboundEnabled ? 'rgba(34,197,94,0.5)' : 'var(--n-444444)'}`, borderRadius: 8 }}>
-          <input type="checkbox" id="outboundEnabled" checked={outboundEnabled} onChange={(e) => setOutboundEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
-          <label htmlFor="outboundEnabled" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
-            <div style={{ color: outboundEnabled ? 'var(--s-86efac)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
-              Message me on WhatsApp when something needs me
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
-              Off: everything waits for the Day Brief.
-            </div>
-          </label>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
+        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        <button type="button" style={small} onClick={sendTestPing} disabled={pinging || !pingTarget}>{pinging ? 'Sending…' : 'Send test message'}</button>
+        <button type="button" style={small} onClick={sendDayBriefNow} disabled={sendingBrief || !pingTarget}>{sendingBrief ? 'Sending…' : 'Send Day Brief now'}</button>
+        {msg && <span style={{ fontSize: 12, color: 'var(--s-4ade80)' }}>{msg}</span>}
+        {pingMsg && <span style={{ fontSize: 12, color: pingMsg.startsWith('Sent') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)' }}>{pingMsg}</span>}
+        {briefMsg && <span style={{ fontSize: 12, color: briefMsgKind === 'ok' ? 'var(--s-4ade80)' : briefMsgKind === 'err' ? 'var(--s-fca5a5)' : 'var(--n-aaaaaa)' }}>{briefMsg}</span>}
+      </div>
 
-        <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundPaused ? 'rgba(239,68,68,0.10)' : 'var(--n-1f1f1f)', border: `1px solid ${outboundPaused ? 'rgba(239,68,68,0.5)' : 'var(--n-333333)'}`, borderRadius: 8, marginTop: 8 }}>
-          <input type="checkbox" id="outboundPaused" checked={outboundPaused} onChange={(e) => setOutboundPaused(e.target.checked)} style={{ width: 18, height: 18 }} />
-          <label htmlFor="outboundPaused" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
-            <div style={{ color: outboundPaused ? 'var(--s-fca5a5)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
-              {outboundPaused ? 'Paused: no messages' : 'Pause all messages'}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
-              Stops every message until you turn it off.
-            </div>
-          </label>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-          <button className="settings-btn" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" onClick={sendTestPing} disabled={pinging || !pingTarget}
-            style={{
-              background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)',
-              borderRadius: 8, padding: '8px 14px', fontSize: 13, cursor: pingTarget ? 'pointer' : 'not-allowed',
-            }}>
-            {pinging ? 'Sending…' : 'Send test ping'}
-          </button>
-          {pingMsg && <span style={{ fontSize: 12, color: pingMsg.startsWith('Sent') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)' }}>{pingMsg}</span>}
-        </div>
-      </section>
-    </>
+      {briefPreview && (
+        <pre style={{
+          margin: '12px 0 0', padding: 12, background: 'var(--n-0f0f0f)', border: '1px solid var(--n-2a2a2a)',
+          borderRadius: 8, color: 'var(--n-dddddd)', fontSize: 12.5, lineHeight: 1.55,
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'inherit', maxHeight: 360, overflowY: 'auto',
+        }}>{briefPreview}</pre>
+      )}
+    </section>
   );
 }
 
