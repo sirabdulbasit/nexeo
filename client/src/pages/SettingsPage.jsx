@@ -211,7 +211,7 @@ export default function SettingsPage() {
         )}
 
         {tab === 'openItems' && (
-          <OpenItemsSection isSuperAdmin={!!user?.isSuperAdmin} clientNumber={user?.clientNumber} />
+          <OpenItemsSection />
         )}
 
         {tab === 'suzi' && <SuziDesktopSection />}
@@ -609,7 +609,7 @@ function DisplaySection({ fontScale, setFontScale, isOverride, resetToDefault })
  * a specific day or threshold. Brain decides "send today vs tomorrow";
  * the user decides "how often, max attempts, what's a stale item".
  */
-function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
+function OpenItemsSection() {
   const [s, setS] = useState({
     followUpDays: 3,
     autoArchiveClosedAfterDays: 30,
@@ -651,18 +651,12 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
       <section className="settings-section">
         <h2>Open items</h2>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-          <div className="settings-field">
-            <label>Follow up delegated items every (days)</label>
-            <input type="number" min="1" max="30" value={s.followUpDays}
-                   onChange={(e) => set('followUpDays', parseInt(e.target.value, 10) || 3)} />
-          </div>
-
-          <div className="settings-field">
-            <label>Ask "still alive?" after quiet days (0 = never)</label>
-            <input type="number" min="0" max="90" value={s.staleThresholdDays}
-                   onChange={(e) => set('staleThresholdDays', parseInt(e.target.value, 10) || 0)} />
-          </div>
+        {/* D-339c: "Follow up every N days" removed: the job that read it is not run; delegated tasks are followed
+            up by the chase rule (T53), one day before the deadline, from My Rules. */}
+        <div className="settings-field">
+          <label>Set aside items untouched for (days, 0 = never)</label>
+          <input type="number" min="0" max="90" value={s.staleThresholdDays} style={{ maxWidth: 140 }}
+                 onChange={(e) => set('staleThresholdDays', parseInt(e.target.value, 10) || 0)} />
         </div>
 
         <div style={{ fontSize: 13, marginTop: 14, marginBottom: 4 }}>Create items from</div>
@@ -688,78 +682,47 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
         <div className="settings-field" style={{ marginTop: 14 }}>
           <label>Only items at least this important</label>
           <select value={s.autoCreateCriticalityFloor} onChange={(e) => set('autoCreateCriticalityFloor', e.target.value)}
-                  style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
+                  style={{ maxWidth: 260, width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
             <option value="all">All</option>
             <option value="medium">Medium and above</option>
             <option value="high">High and critical only</option>
           </select>
         </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+          <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? 'var(--s-4ade80)' : 'var(--s-f87171)' }}>{msg}</span>}
+        </div>
       </section>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-        {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? 'var(--s-4ade80)' : 'var(--s-f87171)' }}>{msg}</span>}
-      </div>
-
-      <PurgePanel isSuperAdmin={isSuperAdmin} clientNumber={clientNumber} />
+      <PurgePanel />
     </>
   );
 }
 
 /**
- * PurgePanel — destructive cleanup with typed-phrase confirmation.
- *
- * Two-step: (1) user picks scope (closed / stale / expired-draft) and
- * hits Preview → server returns the count + the exact phrase the user
- * must type. (2) user types the phrase + hits Purge → server validates
- * both the phrase AND that the count still matches (so new items
- * arriving between preview and confirm can't get silently swept).
- *
- * No browser dialogs ([[feedback_no_browser_dialogs]]).
+ * PurgePanel — D-339c (founder 27 Nov, "keep it simple"): one choice, finished items or all items, then Preview,
+ * the exact phrase, Delete. The tenant-wide switch and the three separate "dead item" boxes are gone (the server
+ * still takes the old scopes). No browser dialogs ([[feedback_no_browser_dialogs]]).
  */
-function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
-  // Scope shape: three "dead-item" toggles + one "all" nuclear flag
-  // + (SA only) tenantWide flag. Default scope is the requester's
-  // own items. SA users can toggle tenantWide=true to operate across
-  // the whole tenant — server-side the confirmation phrase grows the
-  // " ACROSS TENANT" suffix so keystrokes match consequence.
-  const [scope, setScope] = useState({ closed: false, stale: false, expiredDraft: false, all: false, tenantWide: false });
+function PurgePanel() {
+  const [what, setWhat] = useState('finished');
   const [preview, setPreview] = useState(null);
   const [typed, setTyped] = useState('');
   const [working, setWorking] = useState(false);
   const [msg, setMsg] = useState('');
+  const scope = what === 'all' ? { all: true } : { finished: true };
 
-  const togglesEmpty = !scope.closed && !scope.stale && !scope.expiredDraft && !scope.all;
-  // Nuclear locks out the dead-item toggles — wiping "everything"
-  // includes them anyway, no point letting the user double-pick.
-  const deadDisabled = scope.all;
-
-  const flipDead = (k, v) => {
-    setScope((s) => ({ ...s, [k]: v }));
-    setPreview(null); setTyped('');
-  };
-  const flipNuclear = (v) => {
-    setScope((s) => v
-      ? { closed: false, stale: false, expiredDraft: false, all: true }
-      : { ...s, all: false });
-    setPreview(null); setTyped('');
-  };
-  const selectAllDead = () => {
-    setScope({ closed: true, stale: true, expiredDraft: true, all: false });
-    setPreview(null); setTyped('');
-  };
+  const choose = (v) => { setWhat(v); setPreview(null); setTyped(''); setMsg(''); };
 
   const runPreview = async () => {
     setWorking(true); setMsg(''); setPreview(null); setTyped('');
     try {
       const r = await api.post('/profile/open-items/purge/preview', { scope });
       setPreview(r.data);
-      if (r.data.count === 0) setMsg('Nothing matches the selected scope.');
-    } catch (e) {
-      setMsg('Preview failed.');
-    } finally {
-      setWorking(false);
-    }
+      if (r.data.count === 0) setMsg('Nothing to delete.');
+    } catch { setMsg('Could not count the items.'); }
+    setWorking(false);
   };
 
   const runPurge = async () => {
@@ -767,138 +730,45 @@ function PurgePanel({ isSuperAdmin = false, clientNumber = '' }) {
     setWorking(true); setMsg('');
     try {
       const r = await api.post('/profile/open-items/purge', { scope, phrase: typed });
-      setMsg(`Purged ${r.data.deleted} item${r.data.deleted === 1 ? '' : 's'}${r.data.tenantWide ? ' across the tenant' : ''}.`);
+      setMsg(`Deleted ${r.data.deleted} item${r.data.deleted === 1 ? '' : 's'}.`);
       setPreview(null); setTyped('');
-      setScope({ closed: false, stale: false, expiredDraft: false, all: false, tenantWide: false });
     } catch (e) {
       if (e.response?.status === 409) {
-        setMsg(`Count changed — phrase should now be "${e.response.data.expectedPhrase}". Re-preview to confirm.`);
-        setPreview(e.response.data ? { count: e.response.data.count, phrase: e.response.data.expectedPhrase } : null);
-      } else {
-        setMsg('Purge failed.');
-      }
-    } finally {
-      setWorking(false);
+        setMsg('The count changed. Type the new phrase.');
+        setPreview({ count: e.response.data.count, phrase: e.response.data.expectedPhrase });
+      } else setMsg('Delete failed.');
     }
+    setWorking(false);
   };
 
+  const radio = { display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0', fontSize: 13, cursor: 'pointer' };
   return (
-    <section className="settings-section" style={{ marginTop: 16, borderLeft: '3px solid var(--s-dc2626)', paddingLeft: 12 }}>
-      <h2 style={{ color: 'var(--s-fca5a5)' }}>Purge data — destructive</h2>
-      <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
-        Hard-deletes the selected open items. Cannot be undone. Pick a scope, hit
-        Preview to see the count, then type the confirmation phrase exactly to fire.
-      </p>
-
-      {/* SA-only tenant-wide toggle. Default OFF — must be explicit.
-          When on, every where-clause swaps from {userId: me} to
-          {clientNumber: my_tenant} and the confirmation phrase gets
-          " ACROSS TENANT" appended server-side so the keystrokes
-          reflect the consequence. */}
-      {isSuperAdmin && (
-        <div style={{
-          marginBottom: 14, padding: 10, borderRadius: 8,
-          background: scope.tenantWide ? 'rgba(204,107,74,0.15)' : 'rgba(204,107,74,0.05)',
-          border: `1px solid ${scope.tenantWide ? 'rgba(204,107,74,0.6)' : 'rgba(204,107,74,0.3)'}`,
-        }}>
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-            <input type="checkbox" checked={scope.tenantWide}
-                   onChange={(e) => { setScope({ ...scope, tenantWide: e.target.checked }); setPreview(null); setTyped(''); }}
-                   style={{ marginTop: 2 }} />
-            <div>
-              <div style={{ color: scope.tenantWide ? 'var(--s-fbbf24)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
-                Across the entire tenant ({clientNumber || 'this tenant'}) — SA only
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
-                Off: operate only on items you personally own. On: operate on
-                every user's items in this tenant. Use this to clean up data
-                created by other users or by background pollers.
-              </div>
-            </div>
-          </label>
-        </div>
-      )}
-
-      {/* Dead-item scopes — safe individually, safe combined */}
-      <div style={{ marginBottom: 14, opacity: deadDisabled ? 0.4 : 1 }}>
-        <div style={{ fontSize: 12, color: 'var(--n-aaaaaa)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
-          Dead items
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
-          <input type="checkbox" checked={scope.closed} disabled={deadDisabled}
-                 onChange={(e) => flipDead('closed', e.target.checked)} />
-          <span>All closed items</span>
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
-          <input type="checkbox" checked={scope.expiredDraft} disabled={deadDisabled}
-                 onChange={(e) => flipDead('expiredDraft', e.target.checked)} />
-          <span>Expired DRAFT items only</span>
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
-          <input type="checkbox" checked={scope.stale} disabled={deadDisabled}
-                 onChange={(e) => flipDead('stale', e.target.checked)} />
-          <span>Items marked stale</span>
-        </label>
-        <button type="button" onClick={selectAllDead} disabled={deadDisabled}
-          style={{
-            marginTop: 4, padding: '4px 10px', fontSize: 12,
-            background: 'transparent', border: '1px solid var(--n-444444)', color: 'var(--n-cccccc)',
-            borderRadius: 6, cursor: deadDisabled ? 'not-allowed' : 'pointer',
-          }}>
-          Select all dead
-        </button>
-      </div>
-
-      {/* Nuclear — fenced off visually and by a stronger phrase server-side */}
-      <div style={{
-        marginBottom: 14, padding: 10, borderRadius: 8,
-        background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.4)',
-      }}>
-        <div style={{ fontSize: 12, color: 'var(--s-fca5a5)', textTransform: 'uppercase', letterSpacing: '.5px', marginBottom: 6 }}>
-          Nuclear reset
-        </div>
-        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, margin: '4px 0' }}>
-          <input type="checkbox" checked={scope.all}
-                 onChange={(e) => flipNuclear(e.target.checked)}
-                 style={{ marginTop: 2 }} />
-          <div>
-            <div style={{ color: 'var(--s-fecaca)', fontWeight: 600 }}>
-              Everything — including active items
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--s-fca5a5)', marginTop: 2 }}>
-              ⚠ Deletes every open item for you, regardless of status.
-              Active delegations Brain is currently chasing, DRAFT items
-              awaiting your priority, NEW items not yet triaged — all gone.
-              Use this for a clean reset, not routine cleanup.
-            </div>
-          </div>
-        </label>
-      </div>
+    <section className="settings-section" style={{ marginTop: 16 }}>
+      <h2>Delete items</h2>
+      <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 10 }}>Deleted items cannot be brought back.</p>
+      <label style={radio}>
+        <input type="radio" name="purge" checked={what === 'finished'} onChange={() => choose('finished')} />
+        Finished items: closed, cancelled or set aside
+      </label>
+      <label style={{ ...radio, color: 'var(--s-fca5a5)' }}>
+        <input type="radio" name="purge" checked={what === 'all'} onChange={() => choose('all')} />
+        All items, including ones still open
+      </label>
 
       <div style={{ display: 'flex', gap: 10, marginTop: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <button className="settings-btn" onClick={runPreview} disabled={working || togglesEmpty}>
-          {working ? 'Working…' : 'Preview'}
-        </button>
-
+        <button className="settings-btn" onClick={runPreview} disabled={working}>{working && !preview ? 'Counting…' : 'Preview'}</button>
         {preview && preview.count > 0 && (
           <>
-            <div style={{ fontSize: 13, color: 'var(--s-fca5a5)' }}>
-              {preview.count} item{preview.count === 1 ? '' : 's'} will be deleted. Type{' '}
-              <code style={{ background: 'var(--n-2a2a2a)', padding: '2px 6px', borderRadius: 4 }}>{preview.phrase}</code>{' '}
-              to confirm.
-            </div>
-            <input type="text" value={typed} onChange={(e) => setTyped(e.target.value)}
-                   placeholder={preview.phrase}
-                   style={{ flex: '1 1 240px', minWidth: 200, padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--s-dc2626)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13, fontFamily: 'monospace' }} />
-            <button className="settings-btn danger" onClick={runPurge}
-                    disabled={working || typed !== preview.phrase}>
-              {working ? 'Purging…' : 'Purge'}
-            </button>
+            <span style={{ fontSize: 13, color: 'var(--s-fca5a5)' }}>
+              {preview.count} item{preview.count === 1 ? '' : 's'}. Type <code style={{ background: 'var(--n-2a2a2a)', padding: '2px 6px', borderRadius: 4 }}>{preview.phrase}</code>
+            </span>
+            <input type="text" value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={preview.phrase}
+                   style={{ flex: '1 1 220px', minWidth: 200, padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--s-dc2626)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13, fontFamily: 'monospace' }} />
+            <button className="settings-btn danger" onClick={runPurge} disabled={working || typed !== preview.phrase}>{working ? 'Deleting…' : 'Delete'}</button>
           </>
         )}
       </div>
-
-      {msg && <div style={{ fontSize: 12, color: msg.startsWith('Purged') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)', marginTop: 10 }}>{msg}</div>}
+      {msg && <div style={{ fontSize: 12, color: msg.startsWith('Deleted') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)', marginTop: 10 }}>{msg}</div>}
     </section>
   );
 }

@@ -544,6 +544,9 @@ router.put('/open-items', async (req: Request, res: Response) => {
 // must match every variant or counts come back as 0 even when data
 // exists.
 const CLOSED_STATUS_VARIANTS = ['CLOSED', 'closed', 'DONE', 'done', 'ARCHIVED', 'archived'];
+// D-339c (founder 27 Nov, "keep it simple"): Settings offers one cleanup choice, "finished items": closed, done,
+// archived, CANCELLED, and items marked stale. "All closed items" never matched CANCELLED (329 of his on 27 Nov).
+const CANCELLED_STATUS_VARIANTS = ['CANCELLED', 'cancelled'];
 
 // Build the where clause + confirmation phrase for a given purge scope.
 //
@@ -558,7 +561,7 @@ const CLOSED_STATUS_VARIANTS = ['CLOSED', 'closed', 'DONE', 'done', 'ARCHIVED', 
 //
 // Nuclear `all` overrides the dead-item togges but still respects the
 // userId-vs-tenant scoping decision above.
-function buildPurgeWhereAndPhrase(
+export function buildPurgeWhereAndPhrase(
   userId: number,
   clientNumber: string,
   isSuperAdmin: boolean,
@@ -578,11 +581,12 @@ function buildPurgeWhereAndPhrase(
       isTenantWide: tenantWide,
     };
   }
-  const wantClosed = scope?.closed === true;
+  const wantFinished = scope?.finished === true;
+  const wantClosed = scope?.closed === true || wantFinished;
   const wantExpiredDraft = scope?.expiredDraft === true;
-  const wantStale = scope?.stale === true;
+  const wantStale = scope?.stale === true || wantFinished;
   const where: any = { ...baseScope, OR: [] };
-  if (wantClosed) where.OR.push({ status: { in: CLOSED_STATUS_VARIANTS } });
+  if (wantClosed) where.OR.push({ status: { in: wantFinished ? [...CLOSED_STATUS_VARIANTS, ...CANCELLED_STATUS_VARIANTS] : CLOSED_STATUS_VARIANTS } });
   if (wantExpiredDraft) where.OR.push({
     AND: [
       { status: { in: CLOSED_STATUS_VARIANTS } },
