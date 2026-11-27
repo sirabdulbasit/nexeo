@@ -103,7 +103,7 @@ export async function profileOf(clientNumber: string, userId: number): Promise<R
 }
 
 export async function runW1Op(clientNumber: string, userId: number, op: string, a: Args, confirmed: boolean,
-  gate: { signatureVerified: boolean; deviceId?: string | null }): Promise<Result> {
+  gate: { signatureVerified: boolean; deviceId?: string | null; from?: 'settings' }): Promise<Result> {
   const { sourceId, saveSource, readSource } = await import('../wiki/wikiSources');
   const writer = { clientNumber, userId };
 
@@ -177,7 +177,7 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
       if (isPersonalKey(n.key)) continue; // T55: no text of a personal matter outside the note's own properties
       const at = new Date(n.updated);
       await saveSource({
-        clientNumber, userId, kind: 'record', externalId: `profile:${n.key}`, title: `Suzi learned: ${n.key}`,
+        clientNumber, userId, kind: 'record', externalId: `profile:${n.key}`, title: gate.from === 'settings' ? `His Settings: ${n.key}` : `Suzi learned: ${n.key}`,
         occurredAt: Number.isNaN(at.getTime()) ? new Date() : at, asOf: new Date(),
         body: typeof n.value === 'string' ? n.value : JSON.stringify(n.value),
         details: { type: 'profile', key: n.key, evidence_count: n.evidence_count, updated: n.updated, device_id: gate.deviceId ?? null },
@@ -190,7 +190,7 @@ export async function runW1Op(clientNumber: string, userId: number, op: string, 
     const heldMap = await sourcesHeld(clientNumber, userId, keys.map((k) => keySource(k.slice(8)))).catch(() => new Map<string, unknown>());
     const held = [...heldMap.keys()].map((id) => ({ id }));
     await writeNote({
-      clientNumber, userId, type: 'person', title, scope: 'user', actor: 'suzi',
+      clientNumber, userId, type: 'person', title, scope: 'user', actor: gate.from === 'settings' ? 'user:settings' : 'suzi',
       body: [`What Suzi has learned about how ${name} likes to work (W-1, his own; never shared).`, '', ...lines].join('\n'),
       properties: props, ids: [`profile:user:${userId}`], sourceIds: held.map((h) => h.id),
     });

@@ -505,7 +505,13 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     opt('profile', () => Promise.all([
       import('./suziW1').then(({ profileOf }) => profileOf(clientNumber, userId)).catch(() => null),
       prisma.user.findFirst({ where: { id: userId, clientNumber } as any, select: { email: true } as any }).then((u: any) => (typeof u?.email === 'string' ? u.email.toLowerCase() : null)).catch(() => null),
-    ]).then(([p, email]) => (p || email ? { profile: { ...(p ?? {}), ...(email ? { email } : {}) } } : {}))),
+      // T56 (founder 27 Nov): her name, what she calls him, wake and sleep phrases are set in Nexeo's Settings.
+      import('./assistantSettings').then(async (m) => m.packAssistant(await m.getAssistantSettings(clientNumber, userId))).catch(() => null),
+    ]).then(([p, email, assistant]) => {
+      const flat = Object.fromEntries(Object.entries(p ?? {}).filter(([k]) => !k.startsWith('assistant.')));
+      return Object.keys(flat).length || email || assistant
+        ? { profile: { ...flat, ...(email ? { email } : {}), ...(assistant ? { assistant } : {}) } } : {};
+    })),
     // T38: a radar that can't be read leaves `risks` out (never an empty list that says "no risks").
     opt('risks', () => import('../brain/riskRadarService').then(({ getLatestForUser }) => getLatestForUser(clientNumber, userId)).then((d: any) => ({ risks: toPackRisks(d) })).catch(() => ({}))),
     // T41 (both AGREE 18 Nov): consent, his permissions, limits and this month's use for the computer operator.

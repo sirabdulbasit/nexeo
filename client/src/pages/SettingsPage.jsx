@@ -6,13 +6,15 @@ import api from '../services/api';
 import SuziDesktopSection from '../components/SuziDesktopSection';
 
 export default function SettingsPage() {
-  const { user, logout, fontScale, appDefaultFontScale, fontScaleIsOverride, setFontScale, resetFontScaleToDefault } = useAuth();
+  const { user, logout, fontScale, fontScaleIsOverride, setFontScale, resetFontScaleToDefault } = useAuth();
   const navigate = useNavigate();
   // `gender` re-added 2026-06-10 — but with a different purpose than the
   // 2026-05-18 retired version. This is GRAMMATICAL gender (drives
   // English pronouns + Urdu verb endings in Brain's replies), not a
   // demographic profile field. Default 'female' per user request.
-  const [profile, setProfile] = useState({ city: '', contactNumber: '', aboutMe: '', instructions: '', preferredTitle: '', gender: 'female' });
+  const [profile, setProfile] = useState({ city: '', contactNumber: '', aboutMe: '', instructions: '', gender: 'female' });
+  // Standing instructions live in My Rules (one rule set, 13 Nov). The old free-text box is shown only while it still holds text.
+  const [hadInstructions, setHadInstructions] = useState(false);
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
@@ -20,7 +22,8 @@ export default function SettingsPage() {
   useEffect(() => {
     api.get('/profile').then(res => {
       const p = res.data.profile || {};
-      setProfile({ city: p.city || '', contactNumber: p.contactNumber || '', aboutMe: p.aboutMe || '', instructions: p.instructions || '', preferredTitle: p.preferredTitle || '', gender: p.gender || 'female' });
+      setProfile({ city: p.city || '', contactNumber: p.contactNumber || '', aboutMe: p.aboutMe || '', instructions: p.instructions || '', gender: p.gender || 'female' });
+      setHadInstructions(!!(p.instructions || '').trim());
     }).catch(() => {});
   }, []);
 
@@ -28,7 +31,9 @@ export default function SettingsPage() {
     setSaving(true);
     setMsg('');
     try {
-      await api.put('/profile', profile);
+      // What Suzi calls you is saved on the Assistant tab, so it is never sent (and overwritten) from here.
+      const { instructions, ...rest } = profile;
+      await api.put('/profile', hadInstructions ? profile : rest);
       setMsg('Profile saved');
     } catch (err) {
       setMsg(err.response?.data?.error || 'Failed to save');
@@ -64,14 +69,11 @@ export default function SettingsPage() {
   // Tone is auto-learned by AI from conversations — no manual setting needed
 
   const [tab, setTab] = useState('profile');
+  // Founder 27 Nov: "keep it simple". Organisation tab removed (it held only the tenant text size).
   const tabs = [
     { id: 'profile',    label: 'Profile' },
-    { id: 'brain',      label: 'Brain' },
+    { id: 'assistant',  label: 'Assistant' },
     { id: 'openItems',  label: 'Open Items' },
-    // Organisation tab is SA-only — the tenant-wide default settings
-    // belong here, not on personal Profile. Conditionally appended so
-    // non-SA users never see it.
-    ...(user?.isSuperAdmin ? [{ id: 'organisation', label: 'Organisation' }] : []),
     { id: 'suzi',       label: 'Suzi Apps' },
     { id: 'security',   label: 'Security' },
   ];
@@ -123,10 +125,7 @@ export default function SettingsPage() {
               <div className="settings-info">
                 <div><span className="info-label">Name</span><span>{user?.name}</span></div>
                 <div><span className="info-label">Email</span><span>{user?.email}</span></div>
-                <div><span className="info-label">Employee Code</span><span>{user?.empcode}</span></div>
-                <div><span className="info-label">Department</span><span>{user?.department || '—'}</span></div>
-                <div><span className="info-label">User Type</span><span className="badge-type">{user?.userType} — {user?.label}</span></div>
-                <div><span className="info-label">Client</span><span>{user?.clientNumber}</span></div>
+                {user?.department && <div><span className="info-label">Department</span><span>{user.department}</span></div>}
               </div>
             </section>
 
@@ -138,25 +137,10 @@ export default function SettingsPage() {
               </section>
             )}
 
-            {/* Brain name moved to Brain tab 2026-05-18 — it's a Brain
-                configuration choice, not personal info. */}
-
-            {/* Display — personal text-scale only. The SA-only tenant
-                default lives on the Organisation tab. */}
-            <DisplaySection
-              fontScale={fontScale}
-              setFontScale={setFontScale}
-              appDefaultFontScale={appDefaultFontScale}
-              isOverride={fontScaleIsOverride}
-              resetToDefault={resetFontScaleToDefault}
-            />
-
-            {/* Context Brain knows about you — what the LLM reads to
-                tailor outputs. Was "Personalization"; renamed 2026-05-18. */}
             <section className="settings-section">
-              <h2>Context Brain knows about you</h2>
+              <h2>About you</h2>
               <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-                Brain reads these when composing messages, drafting replies, or briefing your day.
+                Nexeo and Suzi read these when they write for you or brief your day.
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <div className="settings-field">
@@ -166,22 +150,15 @@ export default function SettingsPage() {
                 <div className="settings-field">
                   <label>Contact number</label>
                   <input value={profile.contactNumber} onChange={e => setProfile(p => ({ ...p, contactNumber: e.target.value }))} placeholder="e.g. +92 300 1234567" />
-                  <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-                    Brain pings you here by default. Override on the Brain tab if you want a different number.
-                  </div>
                 </div>
               </div>
               <div className="settings-field">
-                <label>How Brain should address you</label>
-                <input value={profile.preferredTitle} onChange={e => setProfile(p => ({ ...p, preferredTitle: e.target.value }))} placeholder="e.g. Sir, Boss, Ma'am, or your first name" />
-              </div>
-              <div className="settings-field">
-                <label>Gender (drives pronouns + Urdu verb endings)</label>
+                <label>Gender</label>
                 <div style={{ display: 'flex', gap: 16, marginTop: 4 }}>
                   {[
-                    { value: 'female', label: 'Female — she/her · feminine Urdu verbs (آئیں / آئی)' },
-                    { value: 'male',   label: 'Male — he/him · masculine Urdu verbs (آئے / آیا)' },
-                    { value: 'unspecified', label: 'Unspecified — they/them · plural Urdu forms (آپ ہیں)' },
+                    { value: 'female', label: 'Female' },
+                    { value: 'male',   label: 'Male' },
+                    { value: 'unspecified', label: 'Not specified' },
                   ].map(opt => (
                     <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
                       <input
@@ -196,24 +173,37 @@ export default function SettingsPage() {
                   ))}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 6 }}>
-                  Brain uses this to pick correct pronouns ("she" / "he") and Urdu verb endings ("aap aayi" / "aap aaye") when referring to you. Default: female.
+                  Used for pronouns and Urdu verb endings when Suzi speaks about you.
                 </div>
               </div>
               <div className="settings-field">
                 <label>Background</label>
-                <textarea rows={3} value={profile.aboutMe} onChange={e => setProfile(p => ({ ...p, aboutMe: e.target.value }))} placeholder="Tell Brain about yourself — role, working style, what you focus on day-to-day." />
+                <textarea rows={3} value={profile.aboutMe} onChange={e => setProfile(p => ({ ...p, aboutMe: e.target.value }))} placeholder="Your role, how you work, what you focus on." />
               </div>
-              <div className="settings-field">
-                <label>Standing orders</label>
-                <textarea rows={3} value={profile.instructions} onChange={e => setProfile(p => ({ ...p, instructions: e.target.value }))} placeholder="Preferences Brain should always follow — e.g. always flag project risks. Show amounts in PKR. Don't auto-acknowledge messages from external clients." />
-              </div>
-              <button className="settings-btn" onClick={saveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save Profile'}</button>
+              {hadInstructions && (
+                <div className="settings-field">
+                  <label>Standing orders (old)</label>
+                  <textarea rows={3} value={profile.instructions} onChange={e => setProfile(p => ({ ...p, instructions: e.target.value }))} />
+                  <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
+                    New standing instructions go in My Rules. Empty this box once they are there.
+                  </div>
+                </div>
+              )}
+              <button className="settings-btn" onClick={saveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             </section>
+
+            <DisplaySection
+              fontScale={fontScale}
+              setFontScale={setFontScale}
+              isOverride={fontScaleIsOverride}
+              resetToDefault={resetFontScaleToDefault}
+            />
           </>
         )}
 
-        {tab === 'brain' && (
+        {tab === 'assistant' && (
           <>
+            <AssistantSection />
             <BrainChannelSection user={user} />
             <MeetingAssistantSection />
             <BrainResetSection />
@@ -222,12 +212,6 @@ export default function SettingsPage() {
 
         {tab === 'openItems' && (
           <OpenItemsSection isSuperAdmin={!!user?.isSuperAdmin} clientNumber={user?.clientNumber} />
-        )}
-
-        {tab === 'organisation' && user?.isSuperAdmin && (
-          <OrganisationDefaultsSection
-            appDefaultFontScale={appDefaultFontScale}
-          />
         )}
 
         {tab === 'suzi' && <SuziDesktopSection />}
@@ -250,7 +234,7 @@ export default function SettingsPage() {
             <section className="settings-section">
               <h2>Sign out</h2>
               <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-                End this session on this device. You'll need to log in again to use Brain.
+                End this session on this device.
               </p>
               <button className="settings-btn danger" onClick={handleLogout}>Sign Out</button>
             </section>
@@ -270,6 +254,81 @@ export default function SettingsPage() {
  * decision, it messages you on the channel configured here. WhatsApp is the
  * default (and usually best) choice for Abdul.
  */
+/**
+ * T56 (founder 27 Nov): "Move Email Signature, Assistant settings to Nexeo and remove from both Suzi (Mob and
+ * Laptop)". One place for her name, what she calls you, wake and sleep phrases and the email signature. Every Suzi
+ * of yours (laptop, phone) reads them from Nexeo. A phrase left empty: Suzi keeps her own.
+ */
+function AssistantSection() {
+  const [f, setF] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState('');
+  const [err, setErr] = useState(false);
+
+  useEffect(() => {
+    api.get('/profile/assistant').then((r) => {
+      const d = r.data || {};
+      setF({
+        name: d.name || 'Suzi', user_name: d.user_name || '', wake_phrase: d.wake_phrase || '',
+        sleep_phrases: (d.sleep_phrases || []).join(', '), signature: d.signature || '',
+      });
+    }).catch(() => setF(null));
+  }, []);
+
+  const save = async () => {
+    setSaving(true); setMsg(''); setErr(false);
+    try {
+      const r = await api.put('/profile/assistant', f);
+      const d = r.data || {};
+      setF({ name: d.name, user_name: d.user_name, wake_phrase: d.wake_phrase || '', sleep_phrases: (d.sleep_phrases || []).join(', '), signature: d.signature || '' });
+      setMsg('Saved. Suzi on your laptop and phone picks it up on her next update.');
+    } catch (e) {
+      setErr(true);
+      setMsg(e?.response?.data?.error || 'Failed to save');
+    }
+    setSaving(false);
+  };
+
+  if (!f) return null;
+  const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
+  return (
+    <section className="settings-section">
+      <h2>Assistant</h2>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div className="settings-field">
+          <label>Her name</label>
+          <input value={f.name} onChange={set('name')} maxLength={40} />
+        </div>
+        <div className="settings-field">
+          <label>What she calls you</label>
+          <input value={f.user_name} onChange={set('user_name')} maxLength={40} placeholder="e.g. Basit, Sir" />
+        </div>
+        <div className="settings-field">
+          <label>Wake phrase</label>
+          <input value={f.wake_phrase} onChange={set('wake_phrase')} maxLength={40} placeholder="hey sue zee" />
+          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>Written the way it sounds.</div>
+        </div>
+        <div className="settings-field">
+          <label>Sleep phrases</label>
+          <input value={f.sleep_phrases} onChange={set('sleep_phrases')} placeholder="thank you suzi, that is all" />
+          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>Said to end a conversation. Comma-separated.</div>
+        </div>
+      </div>
+      <div className="settings-field">
+        <label>Email signature</label>
+        <textarea rows={4} value={f.signature} onChange={set('signature')} maxLength={500} placeholder={'Regards,\nYour name\nTitle | Company'} />
+        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
+          The only signature on every email Nexeo or Suzi sends for you. Empty: no signature.
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+        {msg && <span style={{ fontSize: 12, color: err ? 'var(--s-fca5a5)' : 'var(--s-4ade80)' }}>{msg}</span>}
+      </div>
+    </section>
+  );
+}
+
 function BrainChannelSection({ user }) {
   // Rewritten 2026-05-18 per user UX call:
   //   - Channel dropdown dropped (only WhatsApp; one-line note instead).
@@ -288,7 +347,6 @@ function BrainChannelSection({ user }) {
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [quietStart, setQuietStart] = useState('22:00');
   const [quietEnd, setQuietEnd] = useState('06:00');
-  const [boldness, setBoldness] = useState('cautious');
   const [outboundEnabled, setOutboundEnabled] = useState(false);
   const [outboundPaused, setOutboundPaused] = useState(false);
   const [dayBriefTime, setDayBriefTime] = useState('08:30');
@@ -311,7 +369,6 @@ function BrainChannelSection({ user }) {
       setOverrideOpen(!!d.whatsappNumber);
       setQuietStart(d.quietStart || '22:00');
       setQuietEnd(d.quietEnd || '06:00');
-      setBoldness(d.boldness || 'cautious');
       setOutboundEnabled(d.outboundEnabled === true);
       setOutboundPaused(!!d.outboundPaused);
       setDayBriefTime(d.dayBriefTime || '08:30');
@@ -327,7 +384,6 @@ function BrainChannelSection({ user }) {
       await api.put('/profile/brain-channel', {
         whatsappNumber: overrideOpen ? whatsappNumberOverride : '',
         quietStart, quietEnd,
-        boldness,
         outboundEnabled,
         outboundPaused,
         dayBriefTime,
@@ -379,25 +435,11 @@ function BrainChannelSection({ user }) {
 
   return (
     <>
-      <BrainNameSection />
-
       <section className="settings-section">
-        <h2>Brain notifications</h2>
+        <h2>Notifications</h2>
         <p style={{ color: 'var(--n-888888)', fontSize: 13, marginTop: -4, marginBottom: 12 }}>
-          Brain reaches you on WhatsApp via the company number. By default Brain runs silently and saves everything for the next Day Brief; only items above your boldness threshold ping you mid-day.
+          Nexeo reaches you on WhatsApp from the company number. It never sends from your own number.
         </p>
-
-        {/* Trust statement promoted to the top — the load-bearing
-            reassurance, no longer buried inside the opt-in box. */}
-        <div style={{
-          padding: 12, marginBottom: 14,
-          background: 'rgba(34,197,94,0.08)',
-          border: '1px solid rgba(34,197,94,0.4)',
-          borderRadius: 8,
-          fontSize: 12, lineHeight: 1.5, color: 'var(--s-d1fae5)',
-        }}>
-          <strong style={{ color: 'var(--s-86efac)' }}>Brain never replies as you.</strong> Brain cannot send messages from your personal WhatsApp number to anyone — not your colleagues, not your contacts, not on heuristic, not ever. Your contacts only hear from you when you explicitly send.
-        </div>
 
         {msg && <div className="settings-msg" style={{ marginBottom: 10 }}>{msg}</div>}
 
@@ -504,7 +546,7 @@ function BrainChannelSection({ user }) {
           </div>
 
           <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 8 }}>
-            Sends today's Day Brief immediately, same content the {dayBriefTime || '08:30'} cron will send. Skips the once-per-day gate so you can preview as many times as you want.
+            Sends today's Day Brief now, the same one sent at {dayBriefTime || '08:30'}.
           </div>
 
           {/* Inline preview of the composed body. Renders below the button
@@ -515,7 +557,7 @@ function BrainChannelSection({ user }) {
             <div style={{ marginTop: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
                 <div style={{ fontSize: 11, color: 'var(--n-888888)', textTransform: 'uppercase', letterSpacing: 0.3 }}>
-                  Preview · what Brain just composed
+                  Preview
                 </div>
                 <button type="button" onClick={() => { setBriefPreview(''); setBriefMsg(''); }}
                   style={{ background: 'transparent', border: 'none', color: 'var(--n-888888)', fontSize: 11, cursor: 'pointer', padding: 0 }}>
@@ -532,88 +574,18 @@ function BrainChannelSection({ user }) {
           )}
         </div>
 
-        <div className="settings-field">
-          <label>How bold should Brain be?</label>
-          <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 4, marginBottom: 10 }}>
-            Confidence threshold for Brain to ping you outside Day Brief. Same dial drives what enters <em>My Attention</em> vs <em>Brief</em>.
-          </div>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: 10,
-          }}>
-            {[
-              { v: 'cautious', t: 'Cautious', d: 'High-stakes items only. Quiet by default.',                       threshold: '≈ 95% confidence' },
-              { v: 'balanced', t: 'Balanced', d: 'Items Brain is reasonably confident need you today.',             threshold: '≈ 85% confidence' },
-              { v: 'eager',    t: 'Eager',    d: 'Maximum visibility. More pings, occasional false positives.',     threshold: '≈ 70% confidence' },
-            ].map((o) => {
-              const selected = boldness === o.v;
-              return (
-                <button
-                  key={o.v}
-                  type="button"
-                  onClick={() => setBoldness(o.v)}
-                  aria-pressed={selected}
-                  style={{
-                    textAlign: 'left',
-                    padding: '14px 14px 12px',
-                    background: selected ? 'rgba(204,107,74,0.16)' : 'var(--n-1f1f1f)',
-                    border: `1px solid ${selected ? 'var(--s-cc6b4a)' : 'var(--n-333333)'}`,
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    color: 'inherit',
-                    fontFamily: 'inherit',
-                    transition: 'border-color 0.15s ease, background 0.15s ease',
-                    display: 'flex', flexDirection: 'column', gap: 8,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {/* Selection indicator — filled gold when selected, hollow gray when not. */}
-                    <span
-                      aria-hidden="true"
-                      style={{
-                        display: 'inline-block',
-                        width: 14, height: 14, borderRadius: '50%',
-                        border: `2px solid ${selected ? 'var(--s-fbbf24)' : 'var(--n-555555)'}`,
-                        background: selected ? '#fbbf24' : 'transparent',
-                        boxShadow: selected ? '0 0 0 3px rgba(251,191,36,0.18)' : 'none',
-                        flexShrink: 0,
-                      }}
-                    />
-                    <span style={{
-                      color: selected ? 'var(--s-fbbf24)' : 'var(--n-eeeeee)',
-                      fontWeight: 600, fontSize: 14,
-                      letterSpacing: 0.2,
-                    }}>{o.t}</span>
-                  </div>
-                  <div style={{ fontSize: 11.5, color: 'var(--n-aaaaaa)', lineHeight: 1.5 }}>
-                    {o.d}
-                  </div>
-                  <div style={{
-                    fontSize: 10, color: selected ? 'var(--s-cc6b4a)' : 'var(--n-666666)',
-                    textTransform: 'uppercase', letterSpacing: 0.4,
-                    marginTop: 'auto',
-                  }}>
-                    {o.threshold}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
         <h3 style={{ fontSize: 13, color: 'var(--n-aaaaaa)', marginTop: 18, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.5px' }}>
-          Opt-in
+          Messages during the day
         </h3>
 
         <div className="settings-field" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, background: outboundEnabled ? 'rgba(34,197,94,0.10)' : 'var(--n-1f1f1f)', border: `1px solid ${outboundEnabled ? 'rgba(34,197,94,0.5)' : 'var(--n-444444)'}`, borderRadius: 8 }}>
           <input type="checkbox" id="outboundEnabled" checked={outboundEnabled} onChange={(e) => setOutboundEnabled(e.target.checked)} style={{ width: 18, height: 18 }} />
           <label htmlFor="outboundEnabled" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
             <div style={{ color: outboundEnabled ? 'var(--s-86efac)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
-              {outboundEnabled ? 'Brain may message me on WhatsApp' : 'Enable Brain to message me on WhatsApp'}
+              Message me on WhatsApp when something needs me
             </div>
             <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
-              When enabled, Brain pings you for items it judges substantive enough to interrupt your day. Default: <strong>off</strong> — Brain stays in Day Brief.
+              Off: everything waits for the Day Brief.
             </div>
           </label>
         </div>
@@ -622,10 +594,10 @@ function BrainChannelSection({ user }) {
           <input type="checkbox" id="outboundPaused" checked={outboundPaused} onChange={(e) => setOutboundPaused(e.target.checked)} style={{ width: 18, height: 18 }} />
           <label htmlFor="outboundPaused" style={{ flex: 1, cursor: 'pointer', margin: 0 }}>
             <div style={{ color: outboundPaused ? 'var(--s-fca5a5)' : 'var(--n-eeeeee)', fontWeight: 600 }}>
-              {outboundPaused ? 'Pause active — Brain is silent' : 'Temporarily pause (kill switch)'}
+              {outboundPaused ? 'Paused: no messages' : 'Pause all messages'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--n-888888)', marginTop: 2 }}>
-              Hard kill switch on top of the opt-in. Use during meetings, evenings, weekends — flip off when you want Brain back.
+              Stops every message until you turn it off.
             </div>
           </label>
         </div>
@@ -648,181 +620,6 @@ function BrainChannelSection({ user }) {
   );
 }
 
-function BrainAutonomyThresholds() {
-  const [cfg, setCfg] = useState({ occurrences: 10, agreement: 0.9 });
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    api.get('/profile/brain-autonomy')
-      .then((r) => setCfg({
-        occurrences: Number(r.data?.occurrences) || 10,
-        agreement: Number(r.data?.agreement) || 0.9,
-      }))
-      .catch(() => {});
-  }, []);
-
-  const persist = async (next) => {
-    setCfg(next); setSaving(true);
-    try { await api.put('/profile/brain-autonomy', next); } catch {}
-    setSaving(false);
-  };
-
-  return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      <div style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>Same decision repeated N times</div>
-          <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>
-            {cfg.occurrences} time{cfg.occurrences === 1 ? '' : 's'}
-          </div>
-        </div>
-        <input
-          type="range" min="3" max="30" step="1"
-          value={cfg.occurrences}
-          onChange={(e) => persist({ ...cfg, occurrences: parseInt(e.target.value, 10) })}
-          style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
-        />
-        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-          After you make the same decision this many times, Brain promotes the pattern so it can start handling it autonomously.
-        </div>
-      </div>
-      <div style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>Required consistency</div>
-          <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>{Math.round(cfg.agreement * 100)}%</div>
-        </div>
-        <input
-          type="range" min="0.7" max="1" step="0.01"
-          value={cfg.agreement}
-          onChange={(e) => persist({ ...cfg, agreement: parseFloat(e.target.value) })}
-          style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
-        />
-        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-          Brain won't auto-promote a pattern where your choices were inconsistent. Raise this to be more cautious; lower to let Brain learn faster.
-        </div>
-      </div>
-      {saving && <div style={{ fontSize: 11, color: 'var(--n-888888)' }}>Saving…</div>}
-    </div>
-  );
-}
-
-function PerChannelThresholds() {
-  const channels = [
-    { key: 'email', label: 'Email (inbound replies)', defaultFloor: 0.88, note: 'Mix of formal + external — mistakes reach customers' },
-    { key: 'whatsapp', label: 'WhatsApp', defaultFloor: 0.92, note: 'Informal, noisy — highest risk of misreading context' },
-    { key: 'delegation', label: 'Delegation to team', defaultFloor: 0.75, note: 'Internal, stable patterns, low blast radius' },
-    { key: 'calendar', label: 'Calendar (accept / decline / reschedule)', defaultFloor: 0.82, note: 'Medium — affects meetings with external people' },
-  ];
-  const [values, setValues] = useState({});
-
-  useEffect(() => {
-    api.get('/profile/brain-channel-thresholds')
-      .then((r) => setValues(r.data || {}))
-      .catch(() => setValues(Object.fromEntries(channels.map((c) => [c.key, c.defaultFloor]))));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const setVal = async (key, val) => {
-    const updated = { ...values, [key]: val };
-    setValues(updated);
-    await api.put('/profile/brain-channel-thresholds', updated).catch(() => {});
-  };
-
-  return (
-    <div style={{ display: 'grid', gap: 10 }}>
-      {channels.map((c) => {
-        const v = values[c.key] ?? c.defaultFloor;
-        return (
-          <div key={c.key} style={{ padding: 10, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-333333)', borderRadius: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 13, fontWeight: 500 }}>{c.label}</div>
-              <div style={{ fontSize: 12, color: 'var(--s-cc6b4a)', fontWeight: 600 }}>{Math.round(v * 100)}%</div>
-            </div>
-            <input
-              type="range"
-              min="0.5" max="1" step="0.01"
-              value={v}
-              onChange={(e) => setVal(c.key, parseFloat(e.target.value))}
-              style={{ width: '100%', marginTop: 6, accentColor: 'var(--s-cc6b4a)' }}
-            />
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>{c.note}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/** Rename your Brain — stored in users.notificationPreferences.brainName.
- *  Empty reverts to default "Brain". Applies immediately on next LLM call. */
-function BrainNameSection() {
-  const [name, setName] = useState('');
-  const [current, setCurrent] = useState('Brain');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  useEffect(() => {
-    api.get('/profile/brain-name').then((r) => {
-      setCurrent(r.data.name || 'Brain');
-      setName(r.data.isCustom ? r.data.name : '');
-    }).catch(() => {});
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    setMsg('');
-    try {
-      const { data } = await api.put('/profile/brain-name', { name });
-      setCurrent(data.name);
-      setMsg(`Saved. Call me ${data.name}.`);
-      setTimeout(() => setMsg(''), 3000);
-    } catch {
-      setMsg('Failed to save.');
-    }
-    setSaving(false);
-  };
-
-  return (
-    <section className="settings-section">
-      <h2>🧠 Your Brain</h2>
-      <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-        I'm <strong>{current}</strong> — your assistant. Give me a different name if you'd like; I'll answer to it everywhere.
-      </p>
-      <div className="settings-field">
-        <label>What should I call me?</label>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Jeeves, Adel, Sidekick — or leave blank for Brain"
-            maxLength={40}
-            style={{ flex: 1 }}
-          />
-          <button className="settings-btn" onClick={save} disabled={saving}>
-            {saving ? 'Saving…' : 'Save name'}
-          </button>
-        </div>
-        {msg && <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 6 }}>{msg}</div>}
-      </div>
-    </section>
-  );
-}
-
-/** Per-user font scale control. Persists to notificationPreferences.ui.fontScale.
- *  Applies immediately via the --fs-scale CSS variable on :root, so every
- *  typographic token across the app scales. Clamped 0.85–1.4 server-side too.
- *  Inherits from the organisation default; "Reset to organisation default"
- *  removes the personal override.
- *
- *  For SuperAdmins, a second control is rendered below so they can set
- *  the organisation-wide default from Settings without having to navigate
- *  to Admin → Application Configuration. */
-// PRESETS shared by DisplaySection and OrganisationDefaultsSection. The
-// continuous A-/A+ controls were dropped 2026-05-18 — they overlapped
-// with the discrete presets and the "Normal" preset rendered as an empty
-// button because its selected-state coloured the text the same as the
-// background. Selected state now uses a stronger border + background
-// swap so the label is always readable.
 const FONT_PRESETS = [
   { label: 'Small', value: 0.9 },
   { label: 'Normal', value: 1.0 },
@@ -849,10 +646,9 @@ function fontPresetButtonStyle(active) {
     : undefined;
 }
 
-function DisplaySection({ fontScale, setFontScale, appDefaultFontScale, isOverride, resetToDefault }) {
+/** Theme and text size, for this user. */
+function DisplaySection({ fontScale, setFontScale, isOverride, resetToDefault }) {
   const current = Number(fontScale ?? 1);
-  const clampedCurrent = Math.round(current * 100);
-  const orgPct = Math.round(Number(appDefaultFontScale ?? 1) * 100);
   const { preference: themePref, setPreference: setThemePref } = useTheme();
 
   return (
@@ -878,14 +674,8 @@ function DisplaySection({ fontScale, setFontScale, appDefaultFontScale, isOverri
         </div>
       </div>
 
-      <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-        Scale the interface text up or down. {isOverride
-          ? <>You're using a personal override; organisation default is <strong>{orgPct}%</strong>.</>
-          : <>You're using the organisation default (<strong>{orgPct}%</strong>).</>}
-      </p>
-
       <div className="settings-field">
-        <label>Your text size · {clampedCurrent}%{isOverride ? ' (personal)' : ' (org default)'}</label>
+        <label>Text size</label>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {FONT_PRESETS.map((p) => (
             <button
@@ -898,86 +688,12 @@ function DisplaySection({ fontScale, setFontScale, appDefaultFontScale, isOverri
           {isOverride && (
             <>
               <span style={{ width: 1, height: 22, background: 'var(--border)', margin: '0 4px' }} />
-              <button className="settings-btn" onClick={resetToDefault} title="Revert to the organisation default">
-                Reset to org default
+              <button className="settings-btn" onClick={resetToDefault}>
+                Reset
               </button>
             </>
           )}
         </div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
-          Preview — this sentence resizes with your setting.
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/**
- * OrganisationDefaultsSection — SA-only tenant-wide knobs. Moved out
- * of the personal Profile/Display tab 2026-05-18 because it's a tenant
- * concern, not a personal one. New tab "Organisation" only appears in
- * the nav for SA users; this component lives there.
- *
- * Currently holds just the org-default font scale; over time additional
- * tenant defaults (default boldness, default DRAFT expiry, etc.) can
- * live here.
- */
-function OrganisationDefaultsSection({ appDefaultFontScale }) {
-  const [appDefault, setAppDefault] = useState(Number(appDefaultFontScale ?? 1));
-  const [savingDefault, setSavingDefault] = useState(false);
-  const [defaultMsg, setDefaultMsg] = useState('');
-
-  useEffect(() => { setAppDefault(Number(appDefaultFontScale ?? 1)); }, [appDefaultFontScale]);
-
-  useEffect(() => {
-    api.get('/profile/app-defaults/font-scale').then((r) => {
-      if (typeof r.data?.fontScale === 'number') setAppDefault(r.data.fontScale);
-    }).catch(() => {});
-  }, []);
-
-  const saveAppDefault = async (next) => {
-    const clamped = Math.min(1.4, Math.max(0.85, Number(next) || 1));
-    setSavingDefault(true); setDefaultMsg('');
-    try {
-      await api.put('/profile/app-defaults/font-scale', { fontScale: clamped });
-      setAppDefault(clamped);
-      setDefaultMsg(`Organisation default set to ${Math.round(clamped * 100)}%. Users without a personal override will see this size.`);
-      setTimeout(() => setDefaultMsg(''), 4000);
-    } catch (err) {
-      setDefaultMsg(err.response?.data?.error || 'Failed to save');
-    }
-    setSavingDefault(false);
-  };
-
-  const appDefaultPct = Math.round(appDefault * 100);
-
-  return (
-    <section className="settings-section">
-      <h2>Organisation defaults</h2>
-      <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -4, marginBottom: 14 }}>
-        Tenant-wide settings that apply to every user. Individual users can
-        still override these from their own Profile / Brain tab where
-        applicable.
-      </p>
-
-      <div className="settings-field">
-        <label>Text size · {appDefaultPct}%</label>
-        <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: 2, marginBottom: 8 }}>
-          Default interface text size for every user. Users who set a personal
-          override (Profile → Display) keep their override.
-        </p>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {FONT_PRESETS.map((p) => (
-            <button
-              key={p.value}
-              className="settings-btn"
-              onClick={() => saveAppDefault(p.value)}
-              disabled={savingDefault}
-              style={fontPresetButtonStyle(Math.abs(appDefault - p.value) < 0.02)}
-            >{p.label}</button>
-          ))}
-        </div>
-        {defaultMsg && <div style={{ fontSize: 12, color: 'var(--s-4ade80)', marginTop: 8 }}>{defaultMsg}</div>}
       </div>
     </section>
   );
@@ -1035,87 +751,26 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
   return (
     <>
       <section className="settings-section">
-        <h2>Open Items — lifecycle</h2>
-        <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
-          How long items live, how often Brain chases delegations, when an item is
-          considered stale.
-        </p>
+        <h2>Open items</h2>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           <div className="settings-field">
-            <label>Follow-up cadence (days)</label>
+            <label>Follow up delegated items every (days)</label>
             <input type="number" min="1" max="30" value={s.followUpDays}
                    onChange={(e) => set('followUpDays', parseInt(e.target.value, 10) || 3)} />
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-              Default gap between delegation chase attempts. Brain may chase sooner
-              or later based on signals (deadline, recipient activity) — this is the
-              baseline.
-            </div>
           </div>
 
           <div className="settings-field">
-            <label>Auto-archive closed items after (days)</label>
-            <input type="number" min="0" max="365" value={s.autoArchiveClosedAfterDays}
-                   onChange={(e) => set('autoArchiveClosedAfterDays', parseInt(e.target.value, 10) || 0)} />
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-              0 = never. Closed items stay searchable but stop appearing in /open-items
-              + Day Brief after this many days.
-            </div>
-          </div>
-
-          <div className="settings-field">
-            <label>Stale threshold (days, 0 = off)</label>
+            <label>Ask "still alive?" after quiet days (0 = never)</label>
             <input type="number" min="0" max="90" value={s.staleThresholdDays}
                    onChange={(e) => set('staleThresholdDays', parseInt(e.target.value, 10) || 0)} />
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-              No activity for this many days → Brain surfaces "Is this still alive?"
-              instead of letting it sit indefinitely.
-            </div>
-          </div>
-
-          <div className="settings-field">
-            <label>DRAFT expiry (days)</label>
-            <input type="number" min="2" max="30" value={s.draftExpiryDays}
-                   onChange={(e) => set('draftExpiryDays', parseInt(e.target.value, 10) || 6)} />
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-              DRAFT items (missing priority or deadline) expire after N daily asks.
-              Default 6 — Brain asks days 0–4, warns on day 5, closes day 6.
-            </div>
-          </div>
-
-          <div className="settings-field">
-            <label>DRAFT ask channel</label>
-            <select value={s.draftAskChannel} onChange={(e) => set('draftAskChannel', e.target.value)}
-                    style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
-              <option value="whatsapp">WhatsApp only</option>
-              <option value="email">Email only</option>
-              <option value="both">Both</option>
-            </select>
-            <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-              Where Brain asks you to fill in missing priority/deadline.
-            </div>
-          </div>
-
-          <div className="settings-field">
-            <label>Default sort on /open-items</label>
-            <select value={s.defaultSort} onChange={(e) => set('defaultSort', e.target.value)}
-                    style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
-              <option value="priority">Priority</option>
-              <option value="deadline">Deadline</option>
-              <option value="recent">Most recent activity</option>
-              <option value="oldest">Oldest first</option>
-            </select>
           </div>
         </div>
-      </section>
 
-      <section className="settings-section">
-        <h2>Auto-creation — which sources Brain may create items from</h2>
-        <p style={{ fontSize: 12, color: 'var(--n-888888)', marginTop: -6, marginBottom: 14 }}>
-          When off, Brain still detects the item internally but parks it as a
-          suggestion in Day Brief for one-tap accept instead of creating it live.
-          Useful while you're earning trust on a source.
-        </p>
+        <div style={{ fontSize: 13, marginTop: 14, marginBottom: 4 }}>Create items from</div>
+        <div style={{ fontSize: 11, color: 'var(--n-666666)', marginBottom: 6 }}>
+          Off: found items wait in the Day Brief for your yes instead.
+        </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 0' }}>
           <input type="checkbox" checked={s.autoCreateFromEmail}
                  onChange={(e) => set('autoCreateFromEmail', e.target.checked)} />
@@ -1133,22 +788,18 @@ function OpenItemsSection({ isSuperAdmin = false, clientNumber = '' }) {
         </label>
 
         <div className="settings-field" style={{ marginTop: 14 }}>
-          <label>Criticality floor for auto-create</label>
+          <label>Only items at least this important</label>
           <select value={s.autoCreateCriticalityFloor} onChange={(e) => set('autoCreateCriticalityFloor', e.target.value)}
                   style={{ width: '100%', padding: 8, background: 'var(--n-2a2a2a)', border: '1px solid var(--n-444444)', color: 'var(--n-eeeeee)', borderRadius: 8, fontSize: 13 }}>
-            <option value="all">All — auto-create at any criticality</option>
+            <option value="all">All</option>
             <option value="medium">Medium and above</option>
             <option value="high">High and critical only</option>
           </select>
-          <div style={{ fontSize: 11, color: 'var(--n-666666)', marginTop: 4 }}>
-            Brain's criticality call is LLM-judged from the message's substance.
-            Below this floor, items become Day Brief suggestions instead of live items.
-          </div>
         </div>
       </section>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save settings'}</button>
+        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? 'var(--s-4ade80)' : 'var(--s-f87171)' }}>{msg}</span>}
       </div>
 
@@ -1430,9 +1081,9 @@ function BrainResetSection() {
   }, []);
 
   const tierDescriptions = {
-    quick:   { label: 'Quick Reset',       blurb: 'Clears stuck previews / confirmation loops. Nothing else touched.' },
-    refresh: { label: 'Brain Refresh',     blurb: 'Wipes working memory (pending actions, clarifications, reasoning traces, dispatch artifacts), then feeds Brain anew: re-reads your last 30 days of email and calendar and rebuilds what it knows about your people and topics. Takes a few minutes. Old emails are read for memory only and never become Action Center items. Your open items and contacts stay.' },
-    full:    { label: 'Full Brain Reset',  blurb: 'FACTORY RESET. Everything in Brain Refresh, and also wipes ALL your open items and ALL your contacts (entity rows + contact pages). Brain is fed anew from your last 30 days the same way. NEVER touches OAuth, stored feed events, FACL docs or your account.' },
+    quick:   { label: 'Quick reset',  blurb: 'Clears stuck confirmations. Nothing else changes.' },
+    refresh: { label: 'Refresh',      blurb: 'Clears working memory, then re-reads your last 30 days of email and calendar. Takes a few minutes. Your open items and contacts stay.' },
+    full:    { label: 'Full reset',   blurb: 'Everything in Refresh, and also deletes ALL your open items and contacts. Your account and connections stay.' },
   };
 
   function wipedForTier(t) {
@@ -1489,9 +1140,9 @@ function BrainResetSection() {
   const wipeMap = wipedForTier(tier);
   return (
     <section className="settings-section" style={{ marginTop: 20 }}>
-      <h2>Reset & Cleanup</h2>
+      <h2>Reset</h2>
       <p style={{ fontSize: 13, color: 'var(--n-aaaaaa)', marginTop: -6 }}>
-        Wipe Brain's working memory when iterations have left it confused. Open items, contacts, OAuth grants, and the foundation (prompt blocks, action definitions) are NEVER wiped. Archive tables retained for 7 days — restore via support if needed.
+        Use when Nexeo seems confused. Kept for 7 days so support can restore it.
       </p>
 
       <div style={{ marginTop: 12 }}>

@@ -695,4 +695,20 @@ router.put('/brain-name', async (req: Request, res: Response) => {
   res.json({ success: true, name: saved });
 });
 
+// T56 (founder 27 Nov): Settings -> Assistant. Her name, what she calls him, wake and sleep phrases, email signature.
+router.get('/assistant', async (req: Request, res: Response) => {
+  const { getAssistantSettings } = await import('../services/suzi/assistantSettings');
+  try { res.json(await getAssistantSettings(req.user!.clientNumber, req.user!.id)); }
+  catch { res.status(500).json({ error: 'Could not read the assistant settings' }); }
+});
+
+router.put('/assistant', async (req: Request, res: Response) => {
+  const { saveAssistantSettings } = await import('../services/suzi/assistantSettings');
+  try {
+    const r = await saveAssistantSettings(req.user!.clientNumber, req.user!.id, (req.body ?? {}) as Record<string, unknown>);
+    if (!r.ok) { res.status(400).json({ error: r.error, field: r.field }); return; }
+    res.json(r.settings);
+  } catch { res.status(500).json({ error: 'Could not save the assistant settings' }); }
+});
+
 export default router;
