@@ -1200,6 +1200,26 @@ No change to an agreed op's meaning; additions only.
 - T55 point 5, both AGREE 17:32: `profile.update {key: "personal.<id>", value}` is stored and returned, never printed
   and never a source. Live 18:17:49 PKT. His note carried no personal line when checked (18:08 PKT).
 
+## T54: the founder's rulings of 27 Nov 2026, about 19:05 to 19:10 PKT, to Nexeo-Builder (record)
+
+- On the code sign-in: "NO. Suzi mob will hae all settings options same like Suzi Laptop has, only one additional which
+  is "Dock Enabled". Suzi-mob will connect to nexeo so through which it can know me. Suzi-mob will also connect to LLM
+  so it can talk to me (same like Suzi Laptop does)". So: no 6-digit code and no code field in the portal; the phone
+  connects with the server address and his key, as the laptop does. Suzi-Builder read it the same way (19:06) and
+  withdrew package 0.2.0.
+- "Yes. Add "android" to the gateway (the two lines) and restart it once." Done 19:12:36 PKT: `os` takes `android` in
+  pair, redeem, hello and usage (gateway commit dcd9df2; running files changed by hand). Probe with a made-up key:
+  android now passes the `os` check exactly as macos does; `ios` is still refused.
+- Colleagues' faces: "on the phone only. The Wiki person note says only that a face is known. No face of another
+  person is stored in Nexeo."
+- "Suzi Master and the mobile master stay on hold. Right now the Mac builder builds both Suzi-Laptop and Suzi-Mob and
+  pushes everything to git. When I say both apps are mature, Suzi Master takes everything over, the mobile master is
+  set up beside it, and both apps build themselves from there. Until then Suzi Master only publishes a phone package
+  when I say yes."
+- Charter sentence, AGREED by Suzi-Builder 18:45 and written into both copies: "A user has at most one laptop (macOS or
+  Windows) and one phone (Android; iPhone later), each its own device."
+- Not answered: which signature rule to keep (his answer carried a blank).
+
 ## T54 (Suzi Mobile) and T55 (the dock greeting): OPEN, 27 Nov 2026 (record by Nexeo-Builder)
 
 Proposed by Suzi-Builder's mobile session, 27 Nov 16:58 to 17:26 PKT, on the founder's decisions of that afternoon.

@@ -5,7 +5,7 @@ Costs, budgets and the consumption record are in [Costing_Charter.md](Costing_Ch
 
 ## 1. The three parts and the principle
 
-- **The desktop app (Suzi, Mac or Windows):** runs the user's day from a local working copy. She listens, talks, briefs, presents, follows up, drafts, takes meeting notes, is the user's Meeting Assistant (F-4) and operates the computer. The `hello` frame's `os` field says which OS (`macos` | `windows`). A user is on one OS or the other, not both.
+- **The desktop app (Suzi, Mac or Windows):** runs the user's day from a local working copy. She listens, talks, briefs, presents, follows up, drafts, takes meeting notes, is the user's Meeting Assistant (F-4) and operates the computer. The `hello` frame's `os` field says which system (`macos` | `windows` | `android`). A user has at most one laptop (macOS or Windows) and one phone (Android; iPhone later), each its own device. The phone app (Suzi Mobile, T54, founder 27 Nov 2026) is the same Suzi: it connects with the user's own key like the laptop, has the laptop's settings plus "Dock Enabled", and does not operate a computer.
 - **Suzi's server (jarvis-gateway):** the live link to the desktop app. It runs the conversation model (answers requests, chooses tools, writes replies), verifies devices and signatures, and forwards operations to Nexeo.
 - **Nexeo:** the record. Knowledge, connectors, data, rules and delegations, the Action Center and the audit trail. It is the **only writer** to the outside world (email, calendar, tasks, other people), and it keeps the day going when the computer is off. It gets online meetings' transcripts as the user's Meeting Assistant and keeps the meeting record (F-4).
 
