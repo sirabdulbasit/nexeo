@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,27 +18,48 @@ export default function SettingsPage() {
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const profileLoaded = useRef(null);
 
   useEffect(() => {
     api.get('/profile').then(res => {
       const p = res.data.profile || {};
-      setProfile({ city: p.city || '', contactNumber: p.contactNumber || '', aboutMe: p.aboutMe || '', instructions: p.instructions || '', gender: p.gender || 'female' });
+      const loaded = { city: p.city || '', contactNumber: p.contactNumber || '', aboutMe: p.aboutMe || '', instructions: p.instructions || '', gender: p.gender || 'female' };
+      profileLoaded.current = JSON.stringify(loaded);
+      setProfile(loaded);
       setHadInstructions(!!(p.instructions || '').trim());
     }).catch(() => {});
   }, []);
 
+  // Founder 27 Nov: "there should be one save button for each tab". Every section of a tab registers its saver;
+  // the tab's one Save runs them all. A saver writes only what changed and returns { changed, error }.
+  const savers = useRef({});
+  const register = (key, fn) => { savers.current[key] = fn; };
+  const [tabSaving, setTabSaving] = useState(false);
+  const [tabMsg, setTabMsg] = useState({ text: '', err: false });
+  const saveTab = async () => {
+    setTabSaving(true); setTabMsg({ text: '', err: false });
+    const errors = []; let changed = 0;
+    for (const fn of Object.values(savers.current)) {
+      try { const r = await fn(); if (r?.error) errors.push(r.error); else if (r?.changed) changed++; }
+      catch { errors.push('Failed to save'); }
+    }
+    setTabSaving(false);
+    setTabMsg(errors.length ? { text: errors.join(' · '), err: true } : { text: changed ? 'Saved' : 'No changes', err: false });
+    if (!errors.length) setTimeout(() => setTabMsg({ text: '', err: false }), 3000);
+  };
+  const switchTab = (id) => { savers.current = {}; setTabMsg({ text: '', err: false }); setTab(id); };
+
   const saveProfile = async () => {
-    setSaving(true);
-    setMsg('');
+    if (JSON.stringify(profile) === profileLoaded.current) return { changed: false };
     try {
       // What Suzi calls you is saved on the Assistant tab, so it is never sent (and overwritten) from here.
       const { instructions, ...rest } = profile;
       await api.put('/profile', hadInstructions ? profile : rest);
-      setMsg('Profile saved');
+      profileLoaded.current = JSON.stringify(profile);
+      return { changed: true };
     } catch (err) {
-      setMsg(err.response?.data?.error || 'Failed to save');
+      return { error: err.response?.data?.error || 'Profile: failed to save' };
     }
-    setSaving(false);
   };
 
   const changePassword = async () => {
@@ -69,6 +90,7 @@ export default function SettingsPage() {
   // Tone is auto-learned by AI from conversations — no manual setting needed
 
   const [tab, setTab] = useState('profile');
+  if (tab === 'profile') register('profile', saveProfile);
   // Founder 27 Nov: "keep it simple". Organisation tab removed (it held only the tenant text size).
   const tabs = [
     { id: 'profile',    label: 'Profile' },
@@ -104,7 +126,7 @@ export default function SettingsPage() {
           {tabs.map((t) => (
             <button
               key={t.id}
-              onClick={() => setTab(t.id)}
+              onClick={() => switchTab(t.id)}
               style={{
                 padding: '8px 14px', background: 'transparent', border: 0, cursor: 'pointer',
                 color: tab === t.id ? 'var(--s-cc6b4a)' : 'var(--n-888888)',
@@ -189,7 +211,6 @@ export default function SettingsPage() {
                   </div>
                 </div>
               )}
-              <button className="settings-btn" onClick={saveProfile} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
             </section>
 
             <DisplaySection
@@ -203,15 +224,26 @@ export default function SettingsPage() {
 
         {tab === 'assistant' && (
           <>
-            <AssistantSection />
-            <BrainChannelSection user={user} />
-            <MeetingAssistantSection />
+            <AssistantSection register={register} />
+            <BrainChannelSection user={user} register={register} />
+            <MeetingAssistantSection register={register} />
             <BrainResetSection />
           </>
         )}
 
         {tab === 'openItems' && (
-          <OpenItemsSection />
+          <OpenItemsSection register={register} />
+        )}
+
+        {['profile', 'assistant', 'openItems'].includes(tab) && (
+          <div style={{
+            position: 'sticky', bottom: 0, zIndex: 5, marginTop: 16, padding: '12px 0',
+            background: 'var(--bg-1)', borderTop: '1px solid var(--n-333333)',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <button className="settings-btn" onClick={saveTab} disabled={tabSaving}>{tabSaving ? 'Saving…' : 'Save'}</button>
+            {tabMsg.text && <span style={{ fontSize: 12, color: tabMsg.err ? 'var(--s-fca5a5)' : 'var(--s-4ade80)' }}>{tabMsg.text}</span>}
+          </div>
         )}
 
         {tab === 'suzi' && <SuziDesktopSection />}
@@ -259,35 +291,39 @@ export default function SettingsPage() {
  * Laptop)". One place for her name, what she calls you, wake and sleep phrases and the email signature. Every Suzi
  * of yours (laptop, phone) reads them from Nexeo. A phrase left empty: Suzi keeps her own.
  */
-function AssistantSection() {
+function AssistantSection({ register }) {
   const [f, setF] = useState(null);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
-  const [err, setErr] = useState(false);
+  const loaded = useRef(null);
 
   useEffect(() => {
     api.get('/profile/assistant').then((r) => {
       const d = r.data || {};
-      setF({
+      const v = {
         name: d.name || 'Suzi', user_name: d.user_name || '', wake_phrase: d.wake_phrase || '',
         sleep_phrases: (d.sleep_phrases || []).join(', '), signature: d.signature || '',
-      });
+      };
+      loaded.current = v;
+      setF(v);
     }).catch(() => setF(null));
   }, []);
 
+  // Only the fields that changed are sent, so an unchanged phrase or signature is never rewritten in the Wiki.
   const save = async () => {
-    setSaving(true); setMsg(''); setErr(false);
+    if (!f || !loaded.current) return { changed: false };
+    const diff = Object.fromEntries(Object.entries(f).filter(([k, v]) => v !== loaded.current[k]));
+    if (!Object.keys(diff).length) return { changed: false };
     try {
-      const r = await api.put('/profile/assistant', f);
+      const r = await api.put('/profile/assistant', diff);
       const d = r.data || {};
-      setF({ name: d.name, user_name: d.user_name, wake_phrase: d.wake_phrase || '', sleep_phrases: (d.sleep_phrases || []).join(', '), signature: d.signature || '' });
-      setMsg('Saved. Suzi on your laptop and phone picks it up on her next update.');
+      const v = { name: d.name, user_name: d.user_name, wake_phrase: d.wake_phrase || '', sleep_phrases: (d.sleep_phrases || []).join(', '), signature: d.signature || '' };
+      loaded.current = v;
+      setF(v);
+      return { changed: true };
     } catch (e) {
-      setErr(true);
-      setMsg(e?.response?.data?.error || 'Failed to save');
+      return { error: `Assistant: ${e?.response?.data?.error || 'failed to save'}` };
     }
-    setSaving(false);
   };
+  register?.('assistant', save);
 
   if (!f) return null;
   const set = (k) => (e) => setF((p) => ({ ...p, [k]: e.target.value }));
@@ -321,15 +357,11 @@ function AssistantSection() {
           The only signature on every email Nexeo or Suzi sends for you. Empty: no signature.
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-        {msg && <span style={{ fontSize: 12, color: err ? 'var(--s-fca5a5)' : 'var(--s-4ade80)' }}>{msg}</span>}
-      </div>
     </section>
   );
 }
 
-function BrainChannelSection({ user }) {
+function BrainChannelSection({ user, register }) {
   // Rewritten 2026-05-18 per user UX call:
   //   - Channel dropdown dropped (only WhatsApp; one-line note instead).
   //   - WhatsApp number defaults to registered contact number; only
@@ -351,8 +383,7 @@ function BrainChannelSection({ user }) {
   const [outboundPaused, setOutboundPaused] = useState(false);
   const [dayBriefTime, setDayBriefTime] = useState('08:30');
   const [timezone, setTimezone] = useState('Asia/Karachi');
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
+  const loadedOnce = useRef(false);
   const [pingMsg, setPingMsg] = useState('');
   const [pinging, setPinging] = useState(false);
   const [briefMsg, setBriefMsg] = useState('');
@@ -364,6 +395,7 @@ function BrainChannelSection({ user }) {
     if (!user?.id) return;
     api.get(`/profile/brain-channel`).then((r) => {
       const d = r.data || {};
+      loadedOnce.current = true; // the next render takes the snapshot the Save compares against
       setRegisteredNumber(d.registeredContactNumber || user?.contactNumber || '');
       setWhatsappNumberOverride(d.whatsappNumber || '');
       setOverrideOpen(!!d.whatsappNumber);
@@ -378,24 +410,24 @@ function BrainChannelSection({ user }) {
     });
   }, [user?.id]);
 
-  const save = async () => {
-    setSaving(true); setMsg('');
-    try {
-      await api.put('/profile/brain-channel', {
-        whatsappNumber: overrideOpen ? whatsappNumberOverride : '',
-        quietStart, quietEnd,
-        outboundEnabled,
-        outboundPaused,
-        dayBriefTime,
-        timezone,
-      });
-      setMsg('Saved');
-      setTimeout(() => setMsg(''), 2000);
-    } catch (err) {
-      setMsg(err?.response?.data?.error || 'Failed to save');
-    }
-    setSaving(false);
+  const channelBody = {
+    whatsappNumber: overrideOpen ? whatsappNumberOverride : '',
+    quietStart, quietEnd, outboundEnabled, outboundPaused, dayBriefTime, timezone,
   };
+  const channelLoaded = useRef(null);
+  if (loadedOnce.current && channelLoaded.current === null) channelLoaded.current = JSON.stringify(channelBody);
+  const save = async () => {
+    // Not loaded (the read failed): never save the defaults over his real settings.
+    if (channelLoaded.current === null || channelLoaded.current === JSON.stringify(channelBody)) return { changed: false };
+    try {
+      await api.put('/profile/brain-channel', channelBody);
+      channelLoaded.current = JSON.stringify(channelBody);
+      return { changed: true };
+    } catch (err) {
+      return { error: `WhatsApp: ${err?.response?.data?.error || 'failed to save'}` };
+    }
+  };
+  register?.('whatsapp', save);
 
   const sendTestPing = async () => {
     setPinging(true); setPingMsg('');
@@ -499,10 +531,8 @@ function BrainChannelSection({ user }) {
       </label>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14, flexWrap: 'wrap' }}>
-        <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         <button type="button" style={small} onClick={sendTestPing} disabled={pinging || !pingTarget}>{pinging ? 'Sending…' : 'Send test message'}</button>
         <button type="button" style={small} onClick={sendDayBriefNow} disabled={sendingBrief || !pingTarget}>{sendingBrief ? 'Sending…' : 'Send Day Brief now'}</button>
-        {msg && <span style={{ fontSize: 12, color: 'var(--s-4ade80)' }}>{msg}</span>}
         {pingMsg && <span style={{ fontSize: 12, color: pingMsg.startsWith('Sent') ? 'var(--s-4ade80)' : 'var(--s-fca5a5)' }}>{pingMsg}</span>}
         {briefMsg && <span style={{ fontSize: 12, color: briefMsgKind === 'ok' ? 'var(--s-4ade80)' : briefMsgKind === 'err' ? 'var(--s-fca5a5)' : 'var(--n-aaaaaa)' }}>{briefMsg}</span>}
       </div>
@@ -609,7 +639,7 @@ function DisplaySection({ fontScale, setFontScale, isOverride, resetToDefault })
  * a specific day or threshold. Brain decides "send today vs tomorrow";
  * the user decides "how often, max attempts, what's a stale item".
  */
-function OpenItemsSection() {
+function OpenItemsSection({ register }) {
   const [s, setS] = useState({
     followUpDays: 3,
     autoArchiveClosedAfterDays: 30,
@@ -622,29 +652,27 @@ function OpenItemsSection() {
     autoCreateCriticalityFloor: 'all',
     defaultSort: 'priority',
   });
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState('');
+  const loaded = useRef(null);
 
   useEffect(() => {
     api.get('/profile/open-items')
-      .then((r) => setS((prev) => ({ ...prev, ...r.data })))
+      .then((r) => setS((prev) => { const v = { ...prev, ...r.data }; loaded.current = JSON.stringify(v); return v; }))
       .catch(() => {});
   }, []);
 
   const set = (k, v) => setS((prev) => ({ ...prev, [k]: v }));
 
   const save = async () => {
-    setSaving(true); setMsg('');
+    if (loaded.current === JSON.stringify(s)) return { changed: false };
     try {
       await api.put('/profile/open-items', s);
-      setMsg('Saved');
-      setTimeout(() => setMsg(''), 2000);
+      loaded.current = JSON.stringify(s);
+      return { changed: true };
     } catch {
-      setMsg('Failed to save');
-    } finally {
-      setSaving(false);
+      return { error: 'Open items: failed to save' };
     }
   };
+  register?.('openItems', save);
 
   return (
     <>
@@ -687,11 +715,6 @@ function OpenItemsSection() {
             <option value="medium">Medium and above</option>
             <option value="high">High and critical only</option>
           </select>
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
-          <button className="settings-btn" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-          {msg && <span style={{ fontSize: 12, color: msg === 'Saved' ? 'var(--s-4ade80)' : 'var(--s-f87171)' }}>{msg}</span>}
         </div>
       </section>
 
@@ -781,22 +804,26 @@ function PurgePanel() {
  * confirmation (per no-browser-dialogs rule).
  */
 // F-4.2 (agreed 12 Nov 2026): his own Meeting Assistant switch, off by default.
-function MeetingAssistantSection() {
+function MeetingAssistantSection({ register }) {
   const [state, setState] = useState(null);
+  const [want, setWant] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
-  useEffect(() => { api.get('/profile/meeting-assistant').then((r) => setState(r.data)).catch(() => setState(null)); }, []);
+  useEffect(() => { api.get('/profile/meeting-assistant').then((r) => { setState(r.data); setWant(!!r.data?.enabled); }).catch(() => setState(null)); }, []);
 
-  async function toggle(enabled) {
-    setBusy(true); setMsg('');
+  // Saved by the tab's one Save.
+  const save = async () => {
+    if (!state || want === null || want === !!state.enabled) return { changed: false };
     try {
-      const r = await api.put('/profile/meeting-assistant', { enabled });
+      const r = await api.put('/profile/meeting-assistant', { enabled: want });
       setState(r.data);
-      setMsg(enabled ? 'Meeting Assistant is on.' : 'Meeting Assistant is off. Your existing meeting records are kept; you can delete them yourself.');
+      setMsg(want ? '' : 'Your existing meeting records are kept; you can delete them yourself.');
+      return { changed: true };
     } catch (e) {
-      setMsg(e?.response?.data?.error ?? 'Could not change the setting');
-    } finally { setBusy(false); }
-  }
+      return { error: `Meeting Assistant: ${e?.response?.data?.error ?? 'could not change the setting'}` };
+    }
+  };
+  register?.('meeting', save);
 
   async function reconnect() {
     setBusy(true); setMsg('');
@@ -815,8 +842,8 @@ function MeetingAssistantSection() {
     <section className="settings-section" style={{ marginTop: 20 }}>
       <h2>Meeting Assistant</h2>
       <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: busy ? 'wait' : 'pointer' }}>
-        <input type="checkbox" checked={state.enabled} disabled={busy} onChange={(e) => toggle(e.target.checked)} />
-        <span style={{ fontSize: 14 }}>{state.enabled ? 'On' : 'Off'}</span>
+        <input type="checkbox" checked={!!want} disabled={busy} onChange={(e) => setWant(e.target.checked)} />
+        <span style={{ fontSize: 14 }}>{want ? 'On' : 'Off'}</span>
       </label>
       <p style={{ fontSize: 12, color: 'var(--n-999999)', marginTop: 6 }}>
         Google Meet meetings you host: after the meeting Nexeo reads Google's transcript and writes the minutes and proposed action items. Only you see them. Turning it off stops this; records already made are kept until you delete them.
