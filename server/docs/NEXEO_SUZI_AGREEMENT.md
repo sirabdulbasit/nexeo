@@ -1195,7 +1195,8 @@ No change to an agreed op's meaning; additions only.
   Suzi Master took `android` and published `Suzi-0.1.0.apk` (sha256 9876d716…2864) at 18:10:51 PKT on his yes there.
   Nexeo: Settings → "Suzi Apps", Laptop and Mobile downloads, `android` in the installer list (18:17:49 and 18:18:47
   PKT). Gateway: `INSTALLER_OS` takes `android` on disk (source and running file, no rebuild because the gateway's
-  source and build do not match); **its restart waits for the founder's yes.**
+  source and build do not match); restarted 18:24:12 PKT on the founder's word. First real request through Nexeo:
+  200, 73,363,359 bytes, sha256 as served equal to the builder's.
 - T55 point 5, both AGREE 17:32: `profile.update {key: "personal.<id>", value}` is stored and returned, never printed
   and never a source. Live 18:17:49 PKT. His note carried no personal line when checked (18:08 PKT).
 
