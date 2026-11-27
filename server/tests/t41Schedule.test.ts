@@ -116,7 +116,7 @@ describe('T41 schedule: what Suzi reads', () => {
     expect((await getActiveInstructions('T', 2)).map((r) => r.schedule)).toEqual([null, friday, null]);
     expect((await rulesContent('T', 2)).standing).toStrictEqual([
       { id: 'a', text: 'rule a' },
-      { id: 'b', text: 'rule b', schedule: friday },
+      { id: 'b', text: 'rule b', schedule: friday, runs_on: 'mac' }, // T50: where it runs; a schedule set before T50 stays a Mac job
       { id: 'c', text: 'rule c' },
     ]);
   });

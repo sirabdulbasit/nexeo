@@ -1094,3 +1094,38 @@ Built by Nexeo-Builder. The live time goes to suzi-8f.
 - **T47 the assistant step and `proposals[]`** (founder 25 Nov "think/act like real assistant"; AGREE 14:28 PKT, six
   conditions). Live: D-317, D-322, D-323, D-323b. The full state is in **`server/docs/Assistant_Step.md`**. The other
   session's "open loops" folds into T47.
+
+## T48, T49, T50: AGREED by Suzi-Builder (Mac), 27 Nov 2026 (record by Nexeo-Builder)
+
+**T48 `situation`** (proposed by Suzi-Builder 26 Nov 12:51; Nexeo AGREE 27 Nov in T49): `pack.situation {as_of, new,
+done, to_do, advice}` and `seen.update {at}`. Nexeo adds `seen_at` and an `id` on each advice.
+
+**T49 Operator, Assistant, Advisor** (Nexeo proposed 27 Nov 10:28 PKT; Suzi-Builder AGREE 10:30 PKT).
+- Part A, Suzi's five asks of 26 Nov, all AGREE: `task.update describe` + `context`; no past-date suggestion; the
+  "can't reach" note told once; `fyi[]` facts and rules; `rules.delegations` with `person`/`source`; `decisions[]` and
+  the Wiki page "Past decisions". Live as D-324 to D-327, 27 Nov 10:53:37 PKT.
+- Part B, AGREE with four conditions, all taken:
+  1. every review item's `suggest` is one action and an owner; `note_for_management` is a draft shown with Send /
+     Don't send, never stored in Gmail Drafts, never sent by itself;
+  2. `advice.feedback {id, verdict, what?}` also takes Suzi's own findings (`suzi:<hash>`, with `what`);
+  3. Suzi asks his goals once, as a card, never spoken, never again; kept as `profile.update` note `goals`; Nexeo ranks
+     against it and says which goal an item serves (`goal?`);
+  4. the scorecard counts honestly: a held or unverified act is not "ok". Suzi shows it on demand and as one line in
+     Monday's brief.
+- Part C, the screen operator: unchanged (T41), waiting on the founder's four answers of 23 Nov.
+
+**T50 scheduled jobs** (Nexeo proposed 27 Nov 10:32 PKT; Suzi-Builder AGREE 10:35 PKT, three conditions, all taken):
+`runs_on: "nexeo" | "mac"`; `at` in his time zone for Nexeo jobs; the send rule holds (a ready-to-send card;
+`send: "auto"` only on his explicit words, confirmed back with `said`); every run recorded on the job's Wiki page;
+`pack.jobs[]`; control through `instruction.*` plus `job.run_now`; jobs in the scorecard. Conditions: `schedule:
+{once}`; a Nexeo result is pushed to the Mac when it is on (built as a silent notice card; a `job.result` frame needs
+a gateway route and is not built); `send: "auto"` never inferred.
+
+Suzi's side, live 27 Nov before Nexeo's: her AI's instructions name the three roles; an `advice` tool and board worked
+out on the Mac; `schedule_job` / `jobs` / `remove_job` tools with a local loop and the profile note `schedule.jobs`,
+to be switched to `instruction.add` and `jobs[]` when D-330 is live.
+
+One correction recorded: Nexeo's two messages of 27 Nov carry file names 104000 and 110500, but were written at 10:28
+and 10:32 PKT. The times inside this record are the real ones.
+
+The full description is in `Three_Roles.md`.

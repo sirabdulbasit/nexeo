@@ -33,7 +33,7 @@ import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 import { OPERATOR_OPS, runOperatorOp } from './suziOperator';
 
-export const ACT_OPS = ['proposal.dismiss', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
+export const ACT_OPS = ['proposal.dismiss', 'seen.update', 'advice.feedback', 'job.run_now', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -97,6 +97,20 @@ async function runOp(clientNumber: string, userId: number, reqIn: ActRequest): P
   // T33 P2-P3 (both AGREE 17 Nov): helpers and follow-ups.
   if (req.op === 'task.update' && (upd === 'helper_add' || upd === 'helper_remove')) return taskHelper(clientNumber, userId, { ...(req.args ?? {}), update: upd }, req.confirmed_by_user === true, gate, req.timezone);
   if (req.op === 'task.followup') return taskFollowup(clientNumber, userId, req.args ?? {}, req.confirmed_by_user === true, gate, req.timezone);
+  if (req.op === 'seen.update') { // D-328 (T48): when he last looked, so situation.new means new to him. Internal.
+    const t = Date.parse(String(req.args?.at ?? ''));
+    const now = Date.now();
+    const at = Number.isFinite(t) && t <= now + 60_000 && t > now - 30 * 86_400_000 ? new Date(Math.min(t, now)) : new Date(now);
+    return { ok: true, item: { at: at.toISOString() } };
+  }
+  if (req.op === 'advice.feedback') { // D-328 (T49 B2): internal, no signature
+    const { adviceFeedback } = await import('./advisor');
+    return adviceFeedback(clientNumber, userId, req.args ?? {});
+  }
+  if (req.op === 'job.run_now') { // D-330 (T50): internal, no signature (it reaches nobody by itself)
+    const { runJobOp } = await import('./scheduledJobs');
+    return runJobOp(clientNumber, userId, req.op, req.args ?? {}, { timezone: req.timezone });
+  }
   if (req.op === 'proposal.dismiss') { // D-322: internal, no signature
     const { dismissProposal } = await import('./proposals');
     return dismissProposal(clientNumber, userId, req.args ?? {});

@@ -321,6 +321,14 @@ export interface DayPack {
   proposals?: import('./proposals').PackLevelProposal[];
   /** Link T41: the computer operator's control. Left out when it cannot be read; the desktop then keeps its last copy. */
   operator?: import('./suziOperator').PackOperator;
+  /** D-328 (T48): the one current picture: new to him, done, to do (ranked), advice. Absent = could not be built. */
+  situation?: import('./situation').Situation;
+  /** D-329 (T49 B1): the advisor's weekly review, at most 5 items. Absent = none this week. */
+  review?: import('./advisor').PackReview;
+  /** D-329 (T49 B3): counted results, this week so far and last week. Absent = could not be read. */
+  scorecard?: { this_week: import('./advisor').Scorecard; last_week: import('./advisor').Scorecard };
+  /** D-330 (T50): his scheduled jobs. Absent = could not be read. */
+  jobs?: import('./scheduledJobs').PackJob[];
   /** D-327 (T49): his past decisions, newest 50. Absent = could not be read. */
   decisions?: import('./decisions').PackDecision[];
   /** DEF-459: for your knowledge, newest first, at most 10. Absent = nothing to say. */
@@ -485,7 +493,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
   const kpiBlock = facts.blocks.find((b): b is Extract<BriefBlock, { type: 'kpis' }> => b.type === 'kpis');
 
   const opt = <T>(name: string, work: () => Promise<T>) => capped(times, name, work, {} as T);
-  const [phase2, drafts, meeting, recorded, profile, risks, operator, decisions] = await Promise.all([
+  const [phase2, drafts, meeting, recorded, profile, risks, operator, decisions, advisorParts, jobs] = await Promise.all([
     (opts.phase2 ?? PHASE2_IN_PACK) ? opt('phase2', () => phase2Fields(clientNumber, userId)) : Promise.resolve({}),
     // T32 (both AGREE 17 Nov): how many drafts wait (Suzi's and his own Gmail drafts); left out when Gmail is unreadable.
     opt('drafts', () => import('./suziDrafts').then(({ draftsCount }) => draftsCount(clientNumber, userId)).then((n) => (n === null ? {} : { drafts_count: n })).catch(() => ({}))),
@@ -502,6 +510,21 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     opt('operator', () => import('./suziOperator').then(({ packOperator }) => packOperator(clientNumber, userId, now)).then((o) => ({ operator: o })).catch(() => ({}))),
     // D-327: a read that fails leaves `decisions` out, so Suzi keeps her last copy.
     opt('decisions', () => import('./decisions').then(({ packDecisions }) => packDecisions(clientNumber, userId, tz)).then((d) => ({ decisions: d })).catch(() => ({}))),
+    // D-328/D-329: the advisor's stored advice, review and scorecard, and when he last looked. Each read stands alone.
+    opt('advisor', async () => {
+      const A = await import('./advisor');
+      const [advice, review, scorecard, seen] = await Promise.all([
+        A.packAdvice(clientNumber, userId).catch(() => null),
+        A.packReview(clientNumber, userId, now).catch(() => null),
+        A.packScorecard(clientNumber, userId, now).catch(() => null),
+        prisma.$queryRawUnsafe<Array<{ at: string | null }>>(
+          `SELECT result->'item'->>'at' AS at FROM suzi_act_log WHERE client_number = $1 AND user_id = $2 AND op = 'seen.update' AND status = 'ok' ORDER BY created_at DESC LIMIT 1`,
+          clientNumber, userId,
+        ).then((r) => r[0]?.at ?? null).catch(() => null),
+      ]);
+      return { advice, review, scorecard, seen };
+    }),
+    opt('jobs', () => import('./scheduledJobs').then((m) => m.packJobs(clientNumber, userId, now, tz)).then((j) => ({ jobs: j })).catch(() => ({}))),
   ]);
   const attendFor = await capped(times, 'attend', () => attendOfFor(clientNumber, userId), undefined);
   const withRulesOut = await withRules(clientNumber, userId, attention.items.map((i) => ({ email: { ...toPackEmail(i, tz), replied_at: i.reply.replied_at, reply_checked: i.reply.reply_checked }, address: (i as any).fromEmail ?? i.from, feedEventId: i.feedEventId })), now, tz);
@@ -523,6 +546,20 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
       }, { fyi: plainFyi.map((x) => x.fyi), ignored: 0, answered: 0 })
     : { fyi: [] as PackFyi[], ignored: 0, answered: 0 };
   const handled = leaveHandled(withRulesOut, threadTasks, notices.threads, now);
+  // D-328: one picture from the parts above. Anything that throws leaves `situation` out, never the pack.
+  const ap = advisorParts as { advice?: { advice: any[]; goals: Map<string, string> } | null; review?: any; scorecard?: any; seen?: string | null };
+  const jobList = ((jobs as any).jobs ?? []) as import('./scheduledJobs').PackJob[];
+  let situation: import('./situation').Situation | null = null;
+  try {
+    const { buildSituation } = await import('./situation');
+    const seenMs = Date.parse(String(ap.seen ?? ''));
+    situation = buildSituation({
+      now, asOf: toZonedIso(now, tz), today, seenAt: Number.isFinite(seenMs) ? new Date(seenMs) : null,
+      actions, emails: handled.emails, fyi: fyiOut.fyi, proposals: levelProposals, recorded: ((recorded as any).meetings_recorded ?? []) as any,
+      decisions: ((decisions as any).decisions ?? []) as any, advice: ap.advice?.advice ?? [], goals: ap.advice?.goals,
+      jobs: jobList.filter((j) => j.last?.summary && j.runs_on === 'nexeo').map((j) => ({ at: j.last!.at, job_id: j.id, what: j.last!.summary })),
+    });
+  } catch (e: any) { log.warn('situation not built', { userId, error: String(e?.message ?? e).slice(0, 200) }); }
   const total = Date.now() - t0;
   (total > PACK_SLOW_MS ? log.warn : log.info).call(log, total > PACK_SLOW_MS ? 'day pack slow' : 'day pack timed', { userId, totalMs: total, parts: times });
 
@@ -543,7 +580,10 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     kpis: toDeviceKpis(kpiBlock?.items ?? []),
     brief: { blocks: toDeviceBlocks(facts) },
     missing: facts.missing,
-    ...phase2, ...drafts, ...meeting, ...recorded, ...profile, ...risks, ...operator, ...decisions,
+    ...phase2, ...drafts, ...meeting, ...recorded, ...profile, ...risks, ...operator, ...decisions, ...jobs,
+    ...(situation ? { situation } : {}),
+    ...(ap.review ? { review: ap.review } : {}),
+    ...(ap.scorecard ? { scorecard: ap.scorecard } : {}),
   };
 }
 

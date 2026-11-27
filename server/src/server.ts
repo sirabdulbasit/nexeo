@@ -576,11 +576,30 @@ const server = app.listen(env.port, async () => {
         // D-327 (T49): his Wiki page "Past decisions", rewritten only when a decision was added.
         const d = await import('./services/suzi/decisions').then((m) => m.writeDecisionsPage(u.client_number, u.id)).catch((e: any) => { console.warn(`[decisionsPage] ${u.id} failed: ${e?.message}`); return null; });
         if (d?.wrote) console.log(`[decisionsPage] ${JSON.stringify({ userId: u.id, count: d.count })}`);
+        // D-328/D-329 (T49 Part B): advice a few times a day, the weekly review from Monday 07:00 PKT, the scorecard page.
+        const A = await import('./services/suzi/advisor');
+        const adv = await A.runAdvisorStep(u.client_number, u.id).catch((e: any) => { console.warn(`[advisor] ${u.id} advice failed: ${e?.message}`); return null; });
+        if (adv?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, advice: adv.advice })}`);
+        const rev = await A.runWeeklyReview(u.client_number, u.id).catch((e: any) => { console.warn(`[advisor] ${u.id} review failed: ${e?.message}`); return null; });
+        if (rev?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, review: rev.items, week: rev.week })}`);
+        await A.writeScorecard(u.client_number, u.id, A.weekOf(new Date())).catch((e: any) => console.warn(`[advisor] ${u.id} scorecard failed: ${e?.message}`));
       }
     });
     think();
     setInterval(think, 15 * 60 * 1000);
   }, 20 * 60 * 1000);
+
+  // D-330 (T50, both AGREE 27 Nov): scheduled jobs. Every minute; one run per due slot is guaranteed by the claim on
+  // the job's own page, not by this timer, so a restart or a second runner cannot run a slot twice.
+  setTimeout(() => {
+    const jobsTick = () => protectedJob('scheduled_jobs', 'important', async () => {
+      const { runDueJobs } = await import('./services/suzi/scheduledJobs');
+      const r = await runDueJobs();
+      if (r.ran || r.failed || r.missed || r.retried || r.mac_reported) console.log(`[scheduledJobs] ${JSON.stringify(r)}`);
+    });
+    jobsTick();
+    setInterval(jobsTick, 60 * 1000);
+  }, 2 * 60 * 1000);
 
   // Preactive engine (2026-07-14) — anticipation, not reaction: meeting
   // prep before each meeting with attendees + deadline nudges for open

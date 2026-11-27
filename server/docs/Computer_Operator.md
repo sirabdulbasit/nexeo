@@ -207,3 +207,11 @@ read is not stored by Nexeo or the gateway; what Suzi answers is kept like every
   `20261123-175641-suzi.md`.
 - Probes on the real database: a made-up customer is refused by the Wiki's guard; use a rolled-back transaction on
   his customer and check from a fresh process afterwards.
+
+## 12. Scheduled jobs after T50 (27 Nov 2026)
+
+Agreed with Suzi-Builder 27 Nov 10:35 PKT (T50). A scheduled standing instruction now says where it runs:
+`runs_on: "mac"` (this document: Suzi runs it and reports `operator.report {job: "scheduled"}`) or `runs_on: "nexeo"`
+(Nexeo's server runs it; not the operator). A schedule set before T50 stays a Mac job. Nexeo marks a Mac job `missed`
+when no scheduled report arrives within 2 hours of its time. One limit: a report carries no job id, so one report in
+the window counts for every Mac job due in it. Everything else about jobs is in `Three_Roles.md` §3.4.

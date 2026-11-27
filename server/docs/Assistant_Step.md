@@ -140,3 +140,15 @@ Two Nexeo-Builder sessions agreed this split on 25 Nov:
 
 Suzi-Builder (Mac) talks to Nexeo through `sirabdulbasit/suzi-nexeo-link` (`inbox/`, files `*-nexeo.md` and
 `*-suzi.md`). Every D-number goes there with its time.
+
+## 9. The three roles (27 Nov 2026)
+
+The founder's three roles (Operator, Assistant, Advisor), the situation picture, the advisor, the scorecard and
+scheduled jobs are in **`Three_Roles.md`**. Read it with this file. Changes to this file's sections since 26 Nov:
+
+- §7 "No real Do it or Dismiss": **verified.** On 26 Nov 09:52 PKT he pressed Do it on three suggestions and Dismiss on
+  one, and all four were applied (seen in the act log and in `decisions[]`).
+- §6 item 3 "the brief line": taken over by `situation` (D-328), which carries suggestions under `new`.
+- D-324 (27 Nov): a due-date suggestion before today is never stored, shown or done; a meeting's own date is not a
+  deadline (DEF-518).
+- §8: the other Nexeo-Builder session has ended. This session holds all of the Nexeo side.

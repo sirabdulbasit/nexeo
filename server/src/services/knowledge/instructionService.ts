@@ -143,6 +143,8 @@ export async function createInstructionFromText(
   scope: InstructionScope = 'user',
   /** Link T41 round 9: when he said when ("every Friday"); already checked by parseSchedule. */
   schedule: InstructionSchedule | null = null,
+  /** T50 (both AGREE 27 Nov): where a scheduled instruction runs and whether its message may go by itself. */
+  job: InstructionJob | null = null,
 ): Promise<{ id: string; structured: StructuredInstruction; scope: InstructionScope } | null> {
   const clean = text.trim();
   if (!clean) return null;
@@ -163,7 +165,7 @@ export async function createInstructionFromText(
     '',
     '## Original text',
     clean,
-  ].filter(Boolean).join('\n'), schedule);
+  ].filter(Boolean).join('\n'), schedule, job?.runs_on ?? 'mac');
 
   const metadata = {
     schemaVersion: BRAIN_SCHEMA_VERSION,
@@ -177,6 +179,7 @@ export async function createInstructionFromText(
     action: structured.action,
     originalText: clean,
     ...(schedule ? { schedule } : {}),
+    ...(schedule && job ? { job } : {}),
     createdAt: new Date().toISOString(),
     lastFiredAt: null as string | null,
     fireCount: 0,
@@ -227,6 +230,22 @@ export async function createInstructionFromText(
   }
 }
 
+/**
+ * T50: the job part of a scheduled instruction, kept on its Wiki page (metadata.job). `send: "auto"` only with `said`,
+ * his own words for that job (Suzi's condition 3); never inferred. Run records (`runs`, newest 20) and the run claims
+ * live beside these and are written only by scheduledJobs.ts.
+ */
+export interface InstructionJob { runs_on: 'nexeo' | 'mac'; send: 'ask' | 'auto'; said?: string }
+
+/** The one reader of a stored or arriving job part. Anything unclear is the stricter reading: mac is kept, auto is not. */
+export function parseJob(v: unknown): InstructionJob | null {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return null;
+  const j = v as Record<string, unknown>;
+  if (j.runs_on !== 'nexeo' && j.runs_on !== 'mac') return null;
+  const said = typeof j.said === 'string' ? j.said.trim().slice(0, 300) : '';
+  return j.send === 'auto' && said ? { runs_on: j.runs_on, send: 'auto', said } : { runs_on: j.runs_on, send: 'ask' };
+}
+
 export interface ActiveInstructionRow {
   id: string;
   title: string;
@@ -247,6 +266,8 @@ export interface ActiveInstructionRow {
   authoredBy?: string | null;
   /** Link T41 round 9: present only on an instruction that has one. */
   schedule?: InstructionSchedule | null;
+  /** T50: present only on a scheduled instruction that has a job part. */
+  job?: InstructionJob | null;
 }
 
 /**
@@ -291,7 +312,8 @@ export async function getActiveInstructions(
             metadata->>'createdAt' AS "createdAt",
             metadata->>'authoredBy' AS "authoredBy",
             metadata->>'status' AS status,
-            metadata->'schedule' AS schedule
+            metadata->'schedule' AS schedule,
+            metadata->'job' AS job
        FROM wiki_pages
       WHERE client_number = $1
         AND page_type = 'instruction'
@@ -308,7 +330,7 @@ export async function getActiveInstructions(
   ).catch((e: any) => { throw new RulesUnavailable(String(e?.message ?? e).slice(0, 120)); });
   if (rows.length >= RULES_READ_CEILING) log.warn('rules read hit its ceiling', { clientNumber, userId, ceiling: RULES_READ_CEILING });
   // A stored schedule is read through the same checker as an arriving one: an unreadable one is no schedule.
-  for (const r of rows) r.schedule = r.schedule == null ? null : parseSchedule(r.schedule);
+  for (const r of rows) { r.schedule = r.schedule == null ? null : parseSchedule(r.schedule); r.job = r.schedule ? parseJob(r.job) : null; }
   return rows as ActiveInstructionRow[];
 }
 
@@ -356,7 +378,7 @@ export function renderInstructionsBlock(rows: ActiveInstructionRow[]): string {
     if (r.condition) extras.push(`condition: ${r.condition}`);
     if (r.action)    extras.push(`action: ${r.action}`);
     if (r.dueAt)     extras.push(`due: ${r.dueAt}`);
-    if (r.schedule)  extras.push(`runs on his computer ${describeSchedule(r.schedule)}`);
+    if (r.schedule)  extras.push(r.job?.runs_on === 'nexeo' ? `Nexeo runs it ${describeSchedule(r.schedule, 'nexeo')}` : `runs on his computer ${describeSchedule(r.schedule)}`);
     // DEF-248 — the provenance travels WITH the rule. Date only: `authoredBy`
     // is a `user:<id>` key the model cannot pronounce, and DEF-199 proved a
     // bare key invites a borrowed name — scope (already in the section
@@ -464,7 +486,7 @@ export async function setInstructionSchedule(
       where: { id: page.id },
       data: {
         metadata: meta as any,
-        bodyMarkdown: withScheduleLine(page.bodyMarkdown ?? '', schedule),
+        bodyMarkdown: withScheduleLine(page.bodyMarkdown ?? '', schedule, parseJob(meta.job)?.runs_on ?? 'mac'),
         lastUpdatedAt: new Date(),
         lastUpdatedBy: 'instruction_service',
       },
@@ -478,6 +500,61 @@ export async function setInstructionSchedule(
     return { ok: true };
   } catch (err: any) {
     log.warn('setInstructionSchedule failed', { id, error: err.message });
+    return { ok: false, reason: err.message };
+  }
+}
+
+/**
+ * T50 (`instruction.update {id, runs_on | send}`): where a scheduled instruction runs, and whether its message may go
+ * by itself. Same gate as the schedule: the author of a personal rule, an admin for a company rule. Only on an
+ * instruction that has a schedule. `send: "auto"` needs `said`, his words; without them it is refused, never assumed.
+ * The page's other job fields (runs, claims) are left exactly as they are: one jsonb_set per field, no read-modify-write.
+ */
+export async function setInstructionJob(
+  clientNumber: string,
+  userId: number,
+  id: string,
+  change: { runs_on?: 'nexeo' | 'mac'; send?: 'ask' | 'auto'; said?: string },
+  opts: { isAdmin?: boolean } = {},
+): Promise<{ ok: boolean; reason?: string; job?: InstructionJob }> {
+  try {
+    const page = await prisma.wikiPage.findFirst({
+      where: { id, clientNumber, pageType: 'instruction', status: 'active' },
+      select: { id: true, metadata: true, userId: true, bodyMarkdown: true },
+    });
+    const meta: any = page?.metadata ?? {};
+    if (!page || meta.status === 'archived' || meta.status === 'fulfilled') return { ok: false, reason: 'not found' };
+    if (meta.scope === 'client') {
+      if (!opts.isAdmin) return { ok: false, reason: 'client-scope instructions require admin' };
+    } else if (page.userId !== userId) {
+      return { ok: false, reason: 'not your instruction' };
+    }
+    const schedule = parseSchedule(meta.schedule);
+    if (!schedule) return { ok: false, reason: 'no schedule: only a scheduled instruction is a job' };
+    const cur = parseJob(meta.job) ?? { runs_on: 'mac' as const, send: 'ask' as const };
+    const said = String(change.said ?? '').trim().slice(0, 300);
+    if (change.send === 'auto' && !said) return { ok: false, reason: 'send auto needs his words (said)' };
+    const next: InstructionJob = {
+      runs_on: change.runs_on ?? cur.runs_on,
+      ...(change.send === 'auto' ? { send: 'auto' as const, said } : change.send === 'ask' ? { send: 'ask' as const } : cur.send === 'auto' ? { send: 'auto' as const, said: cur.said } : { send: 'ask' as const }),
+    };
+    await prisma.$executeRawUnsafe(
+      `UPDATE wiki_pages SET metadata = jsonb_set(jsonb_set(jsonb_set(
+                COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('job', COALESCE(metadata->'job', '{}'::jsonb)),
+                '{job,runs_on}', to_jsonb($2::text)), '{job,send}', to_jsonb($3::text)), '{job,said}', COALESCE(to_jsonb($4::text), 'null'::jsonb)),
+              body_markdown = $5, last_updated_at = now(), last_updated_by = 'instruction_service'
+        WHERE id = $1`,
+      page.id, next.runs_on, next.send, next.said ?? null, withScheduleLine(page.bodyMarkdown ?? '', schedule, next.runs_on),
+    );
+    void (async () => {
+      try {
+        const { invalidate } = await import('../../utils/redisClient');
+        await invalidate(`instructions:${clientNumber}:*`);
+      } catch { /* best effort */ }
+    })();
+    return { ok: true, job: next };
+  } catch (err: any) {
+    log.warn('setInstructionJob failed', { id, error: err.message });
     return { ok: false, reason: err.message };
   }
 }

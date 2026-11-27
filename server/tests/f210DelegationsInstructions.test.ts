@@ -58,7 +58,7 @@ describe('standing instructions', () => {
     expect(await runDelegationOp('T', 2, 'instruction.add', { text: 'Always copy Salman on finance mails' }, false, unsigned)).toMatchObject({ error: 'needs_confirmation' });
     const r: any = await runDelegationOp('T', 2, 'instruction.add', { text: 'Always copy Salman on finance mails' }, true, unsigned);
     expect(r).toMatchObject({ ok: true, item: { id: 'ins_1', scope: 'user', rules_version: 42 } });
-    expect(create).toHaveBeenCalledWith('T', 2, 'Always copy Salman on finance mails', 'user', null);
+    expect(create).toHaveBeenCalledWith('T', 2, 'Always copy Salman on finance mails', 'user', null, null);
   });
   it('company-wide only for an admin', async () => {
     userType = 'EM';
@@ -76,7 +76,7 @@ describe('T41 round 9: when a standing instruction runs', () => {
   it('instruction.add keeps the schedule he said, and answers it', async () => {
     const r: any = await runDelegationOp('T', 2, 'instruction.add', { text: 'Clear caches every Friday', schedule: friday }, true, unsigned);
     expect(r).toMatchObject({ ok: true, item: { id: 'ins_1', schedule: friday } });
-    expect(create).toHaveBeenCalledWith('T', 2, 'Clear caches every Friday', 'user', friday);
+    expect(create).toHaveBeenCalledWith('T', 2, 'Clear caches every Friday', 'user', friday, { runs_on: 'mac', send: 'ask' });
   });
   it('instruction.add with a bad schedule writes nothing, even confirmed', async () => {
     for (const bad of [{ every: 'year' }, { every: 'week', on: 5 }, { every: 'month', on: 29 }, { every: 'day', on: 'mon' }, { every: 'day', at: '9:00' }, { every: 'day', cron: '* * *' }]) {

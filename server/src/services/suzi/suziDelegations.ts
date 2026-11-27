@@ -12,6 +12,11 @@
  *                                                               confirmed; only its author or an admin
  *   instruction.remove {id}                                    archived, never deleted; only its author or an admin
  *
+ * T50 (both AGREE 27 Nov), scheduled jobs. On instruction.add with a schedule: `runs_on?: "nexeo" | "mac"` (Nexeo
+ * decides once from the words when it is missing, and answers with the choice), `send?: "auto"` only with `said`, his
+ * own words for that job, confirmed back; `schedule: {once: "<ISO date-time>"}` is a one-off. instruction.update
+ * changes exactly one thing per call: `schedule`, `runs_on`, `paused`, or `send` (+ `said`).
+ *
  * Each answer carries the new rules_version, so Suzi refetches her rules document.
  */
 import prisma from '../../db/prisma';
@@ -66,29 +71,78 @@ export async function runDelegationOp(clientNumber: string, userId: number, op: 
     if (!body) return fail('bad_text');
     const schedule = a.schedule == null ? null : parseSchedule(a.schedule);
     if (a.schedule != null && !schedule) return fail('bad_schedule');
+    if (schedule?.once !== undefined && Date.parse(schedule.once) <= Date.now()) return fail('bad_schedule', 'that time has already passed');
+    // T50: the job part exists only with a schedule. A wrong value is refused, never read as something else.
+    if (a.runs_on !== undefined && a.runs_on !== 'nexeo' && a.runs_on !== 'mac') return fail('bad_args', 'runs_on is "nexeo" or "mac"');
+    if (a.send !== undefined && a.send !== 'ask' && a.send !== 'auto') return fail('bad_args', 'send is "ask" or "auto"');
+    if ((a.runs_on !== undefined || a.send !== undefined) && !schedule) return fail('bad_args', 'runs_on and send belong to a scheduled instruction');
+    const said = text(a.said).slice(0, 300);
+    if (a.send === 'auto' && !said) return fail('bad_args', 'send "auto" needs his own words for this job (said)');
     if (!confirmed) return fail('needs_confirmation');
     const scope = text(a.scope) === 'client' ? 'client' : 'user';
     if (scope === 'client' && !(await isAdmin(clientNumber, userId))) return fail('not_allowed', 'a company-wide instruction is set by an Admin or SuperAdmin');
     const { createInstructionFromText } = await import('../knowledge/instructionService');
-    const made = await createInstructionFromText(clientNumber, userId, body, scope, schedule);
+    const runsOn: 'nexeo' | 'mac' | null = !schedule ? null
+      : a.runs_on === 'nexeo' || a.runs_on === 'mac' ? a.runs_on
+      : await (await import('./scheduledJobs')).decideRunsOn(body, { clientNumber, userId });
+    const job = runsOn ? (a.send === 'auto' ? { runs_on: runsOn, send: 'auto' as const, said } : { runs_on: runsOn, send: 'ask' as const }) : null;
+    const made = await createInstructionFromText(clientNumber, userId, body, scope, schedule, job);
     if (!made) return fail('bad_text');
-    return { ok: true, item: { id: made.id, title: made.structured.title, scope, ...(schedule ? { schedule } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
+    return { ok: true, item: { id: made.id, title: made.structured.title, scope, ...(schedule ? { schedule } : {}), ...(job ? { runs_on: job.runs_on, send: job.send, ...(job.send === 'auto' ? { said } : {}) } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
   }
 
   if (op === 'instruction.update') {
     const id = text(a.id);
     if (!id) return fail('not_found');
-    // Only the schedule changes here; it must be sent, as a schedule or as null to clear it.
-    if (!('schedule' in a)) return fail('bad_schedule', 'schedule is required (null clears it)');
-    const extra = Object.keys(a).filter((k) => k !== 'id' && k !== 'schedule');
-    if (extra.length) return fail('bad_args', `only the schedule changes here: ${extra.slice(0, 5).join(', ')}`);
-    const schedule = a.schedule === null ? null : parseSchedule(a.schedule);
-    if (a.schedule !== null && !schedule) return fail('bad_schedule');
+    // One change per call: the schedule (null clears it), where it runs, paused, or send (+ said, his words).
+    const CHANGES = ['schedule', 'runs_on', 'paused', 'send'];
+    const sent = CHANGES.filter((k) => k in a);
+    const extra = Object.keys(a).filter((k) => k !== 'id' && k !== 'said' && !CHANGES.includes(k));
+    if (extra.length) return fail('bad_args', `only schedule, runs_on, paused or send change here: ${extra.slice(0, 5).join(', ')}`);
+    if (!sent.length) return fail('bad_schedule', 'schedule is required (null clears it)');
+    if (sent.length > 1) return fail('bad_args', 'one change per call');
+    if ('said' in a && sent[0] !== 'send') return fail('bad_args', 'said goes with send');
+    const admin = { isAdmin: await isAdmin(clientNumber, userId) };
+    const refused = (reason?: string) => fail(/not found/i.test(reason ?? '') ? 'not_found' : /no schedule/i.test(reason ?? '') ? 'bad_state' : 'not_allowed', reason);
+
+    if (sent[0] === 'schedule') {
+      const schedule = a.schedule === null ? null : parseSchedule(a.schedule);
+      if (a.schedule !== null && !schedule) return fail('bad_schedule');
+      if (schedule?.once !== undefined && Date.parse(schedule.once) <= Date.now()) return fail('bad_schedule', 'that time has already passed');
+      if (!confirmed) return fail('needs_confirmation');
+      const { setInstructionSchedule } = await import('../knowledge/instructionService');
+      const r = await setInstructionSchedule(clientNumber, userId, id, schedule, admin);
+      if (!r.ok) return refused(r.reason);
+      return { ok: true, item: { id, schedule, rules_version: await rulesVersion(clientNumber, userId) } };
+    }
+    if (sent[0] === 'paused') {
+      if (typeof a.paused !== 'boolean') return fail('bad_args', 'paused is true or false');
+      if (!confirmed) return fail('needs_confirmation');
+      const { updateInstructionStatus } = await import('../knowledge/instructionService');
+      // Only a live instruction is paused or resumed: one he removed, or a finished one-off, is not brought back here.
+      const page = await prisma.wikiPage.findFirst({ where: { id, clientNumber, pageType: 'instruction', status: 'active' } as any, select: { metadata: true } as any }) as any;
+      const st = page?.metadata?.status;
+      if (st !== 'active' && st !== 'paused') return fail('not_found');
+      const r = await updateInstructionStatus(clientNumber, userId, id, a.paused ? 'paused' : 'active', admin);
+      if (!r.ok) return refused(r.reason);
+      return { ok: true, item: { id, paused: a.paused, rules_version: await rulesVersion(clientNumber, userId) } };
+    }
+    const { setInstructionJob } = await import('../knowledge/instructionService');
+    if (sent[0] === 'runs_on') {
+      if (a.runs_on !== 'nexeo' && a.runs_on !== 'mac') return fail('bad_args', 'runs_on is "nexeo" or "mac"');
+      if (!confirmed) return fail('needs_confirmation');
+      const r = await setInstructionJob(clientNumber, userId, id, { runs_on: a.runs_on }, admin);
+      if (!r.ok) return refused(r.reason);
+      return { ok: true, item: { id, runs_on: r.job!.runs_on, send: r.job!.send, rules_version: await rulesVersion(clientNumber, userId) } };
+    }
+    // send: "auto" only on his explicit words for this job, confirmed back (Suzi's condition 3). Never inferred.
+    if (a.send !== 'ask' && a.send !== 'auto') return fail('bad_args', 'send is "ask" or "auto"');
+    const said = text(a.said).slice(0, 300);
+    if (a.send === 'auto' && !said) return fail('bad_args', 'send "auto" needs his own words for this job (said)');
     if (!confirmed) return fail('needs_confirmation');
-    const { setInstructionSchedule } = await import('../knowledge/instructionService');
-    const r = await setInstructionSchedule(clientNumber, userId, id, schedule, { isAdmin: await isAdmin(clientNumber, userId) });
-    if (!r.ok) return fail(/not found/i.test(r.reason ?? '') ? 'not_found' : 'not_allowed', r.reason);
-    return { ok: true, item: { id, schedule, rules_version: await rulesVersion(clientNumber, userId) } };
+    const r = await setInstructionJob(clientNumber, userId, id, { send: a.send, ...(a.send === 'auto' ? { said } : {}) }, admin);
+    if (!r.ok) return refused(r.reason);
+    return { ok: true, item: { id, runs_on: r.job!.runs_on, send: r.job!.send, ...(r.job!.send === 'auto' ? { said: r.job!.said } : {}), rules_version: await rulesVersion(clientNumber, userId) } };
   }
 
   if (op === 'instruction.remove') {

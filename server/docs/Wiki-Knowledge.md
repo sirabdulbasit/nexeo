@@ -1066,6 +1066,10 @@ Past Decisions, Instructions: Nexeo Wiki."
 - **The advisor's notes (T49 Part B; built, deploy recorded in `Assistant_Step.md`).** All are `learned` notes, so they
   stay in Nexeo for every kind of user: "Advisor: current advice", "Advisor: track record", "Weekly review, <Monday>"
   and "Scorecard, week of <Monday>". Code: `server/src/services/suzi/advisor.ts`.
+- **Scheduled jobs (T50, D-330).** A job's runs are kept on its own instruction page (`metadata.job.runs`, newest 20),
+  with the slot claim (`metadata.job.claimed`) that makes one run per due time. A result longer than 600 characters is a
+  `document` note written through `writeNote` (id `job_result:<job>:<due>:<attempt>`). Nothing about a job is stored
+  outside the Wiki. Code: `server/src/services/suzi/scheduledJobs.ts`.
 - **Commitment notes from integrations are Wiki notes only.** Nothing turns them into action items (no reader outside the Wiki; checked 25 Nov). Putting them in My Attention would need the action-item gate and the founder's word.
 - **For a Client Owned Data user** nothing is built (§0.6).
 
