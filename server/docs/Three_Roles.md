@@ -5,7 +5,7 @@ each side, how each is proven, and what is not built or never verified. Anything
 situation picture, the scorecard or scheduled jobs is written here in the same commit. The assistant step's own detail
 stays in `Assistant_Step.md`; the screen operator's in `Computer_Operator.md`.
 
-Last updated: 27 Nov 2026, 16:50 PKT, by the Nexeo-Builder session (the only Nexeo-side session since 27 Nov). D-334 (the chase, §3.4c) is live since 16:41:56 PKT; his standing instruction is recorded; no chase has been sent yet.
+Last updated: 27 Nov 2026, 17:30 PKT, by the Nexeo-Builder session (the only Nexeo-side session since 27 Nov). D-334 (the chase, §3.4c) is live since 16:41:56 PKT; his standing instruction is recorded; no chase has been sent yet. D-335 (advice on every card, people once, marked read, English titles; §3.4a and §3.4d) is live since 17:14:42 PKT, D-335b since 17:25:02.
 
 ## 1. The founder's rulings
 
@@ -305,6 +305,13 @@ State on 27 Nov 2026, 12:25 PKT (D-324 to D-333b all live; chart rows of the sam
 - The scheduled runs of the advisor and of the jobs runner (only the runs by hand were read). Look for `[advisor]`,
   `[decisionsPage]` and `[scheduledJobs]` lines in the server log.
 - Goals: none set, so no item carries a goal yet.
+- **D-335:** Suzi's cards with the new wording were not seen; no `email.mark read` from Suzi yet; no real handled or
+  ignored email was checked in his Gmail; `task.create` in Urdu through Suzi was not tried; one item's advice failed in
+  the first full warm-up and was not looked into; the three Salman Sohail records are still three in the Wiki.
+- **Open with the founder (D-335):** archive the old instruction "Signature for Basit emails" (page
+  cmwjesyu90012rt5s5anraqbl); it is no longer read by the advice but still shows in his rules.
+- **T54 (Suzi Mobile):** six messages from Suzi-Builder's mobile session on 27 Nov (16:58 to 17:22) are read and
+  answered only in part; see the link and `NEXEO_SUZI_AGREEMENT.md`. Nothing is agreed or built.
 - **The chase (D-334):** no real chase has been sent, no real reply read, the card not seen. The first goes on the last
   working day before a delegated task's deadline; on 27 Nov none of his delegated tasks had a deadline after today.
   Read `open_items.metadata->'chase'` and `[chase]` lines in the server log.
