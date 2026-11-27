@@ -227,7 +227,15 @@ no advice given yet. Week of 16 Nov: 43 done, 4 failed, 4 held.
 
 ## 6. Never verified
 
-State on 27 Nov 2026, 11:15 PKT (D-324 to D-330 all live; chart rows of the same names):
+State on 27 Nov 2026, 12:25 PKT (D-324 to D-333b all live; chart rows of the same names):
+
+- **On-open advice (D-332):** `item.advise` has not been called by Suzi yet; no click on a suggested button; only two
+  pieces of advice were read by a person. The kept copy is lost on a restart and rebuilt 3 minutes later.
+- **Outlook (D-333):** no prediction has been checked (none is due). Four predictions are on record, two of them from
+  the first trial run (dated 11 Dec, before the dating rule was tightened). One forecast line added its people up
+  wrongly. The scheduled run of the step has not been read.
+- Everything below, from 11:15 PKT, still stands:
+
 
 - **No scheduled job has ever run**, on Nexeo or the Mac. He has none on Nexeo yet. The claim (one run per due time)
   was proven on Postgres against a session-only copy and in tests, never with his job.
@@ -246,9 +254,10 @@ State on 27 Nov 2026, 11:15 PKT (D-324 to D-330 all live; chart rows of the same
 
 ## 7. How to continue
 
-1. Read the link (`/root/suzi-nexeo-link/inbox`) for Suzi-Builder's answers to D-328 to D-330: the frame for job
-   results, `job_id` on `operator.report`, and the time of the first scheduled instruction. Then read that run on the
-   job's page (`wiki_pages.metadata->'job'->'runs'`).
+1. Read the link (`/root/suzi-nexeo-link/inbox`) for Suzi-Builder's times: his first scheduled job, his first card
+   opened with advice, his first click on a suggested button. Read each in `suzi_act_log` (`item.advise`,
+   `advice.feedback`) and on the job's page (`wiki_pages.metadata->'job'->'runs'`). Settled with Suzi-Builder 27 Nov:
+   the notice card for job results is enough; `job_id` on reports is built (D-331).
 2. Do the D-325 check above.
 3. With the founder: his goals (Suzi's card), then a week of advice read together.
 4. §5, in order.
