@@ -360,7 +360,15 @@ export async function markReadInGmail(clientNumber: string, userId: number, thre
     `SELECT raw_payload->>'threadId' AS gthread FROM feed_events
       WHERE client_number = $1 AND user_id = $2 AND source_type = 'gmail' AND (id = $3 OR raw_payload->>'threadId' = $3 OR source_id = $3) LIMIT 1`,
     clientNumber, userId, threadId,
-  ).catch(() => []);
+  ).catch(() => [] as Array<{ gthread: string | null }>);
+  // An email Suzi found by search may be in his Wiki without being a feed event (sent mail, older mail).
+  if (!rows.length) {
+    const w = await prisma.$queryRawUnsafe<Array<{ gthread: string | null }>>(
+      `SELECT thread_key AS gthread FROM wiki_sources WHERE client_number = $1 AND user_id = $2 AND kind = 'email' AND (thread_key = $3 OR external_id = $3) LIMIT 1`,
+      clientNumber, userId, threadId,
+    ).catch(() => [] as Array<{ gthread: string | null }>);
+    rows.push(...w);
+  }
   if (!rows.length) return { found: false, ok: false };
   const { markThreadRead } = await import('../gmailService');
   const r = await markThreadRead(userId, rows[0].gthread || threadId).catch((e: any) => ({ success: false, error: String(e?.message ?? e) }));

@@ -84,6 +84,12 @@ describe('D-335 marked read in Gmail', () => {
     db.query.mockResolvedValue([]);
     expect(await runEmailOp('T', 2, 'email.mark', { thread_id: 'nope', state: 'read' }, false)).toMatchObject({ ok: false, error: 'not_found' });
     expect(gmail.markThreadRead).not.toHaveBeenCalled();
+    // An email that is in his Wiki but is not a feed event (found by search) is still his: marked read by its thread.
+    db.query.mockImplementation(async (sql: string) => (/FROM wiki_sources/.test(sql) ? [{ gthread: 'wiki-thread' }] : []));
+    gmail.markThreadRead.mockResolvedValue({ success: true });
+    expect(await runEmailOp('T', 2, 'email.mark', { thread_id: 'wiki-thread', state: 'read' }, false)).toMatchObject({ ok: true, item: { gmail: true } });
+    expect(gmail.markThreadRead).toHaveBeenCalledWith(2, 'wiki-thread');
+    db.query.mockReset(); gmail.markThreadRead.mockReset(); log.audit.mockClear();
     db.query.mockResolvedValue([{ gthread: 'g1' }]);
     gmail.markThreadRead.mockResolvedValue({ success: false, error: 'Mark-read failed: Insufficient Permission' });
     const r = await markReadInGmail('T', 2, 'g1', 'handled');
