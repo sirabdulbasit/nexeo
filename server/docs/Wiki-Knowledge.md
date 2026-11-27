@@ -1078,6 +1078,10 @@ Past Decisions, Instructions: Nexeo Wiki."
   them for Suzi's people search and the pack. Merging the records themselves is the identity step's work. Not done.
 - **Marked read (D-335).** An email read on a card, handled, ignored or delegated loses UNREAD in his Gmail. Nothing in
   the Wiki changes for a read; handled and ignored are marked on the source as before.
+- **Finding, 27 Nov (not fixed, proposal with Suzi as T55):** every `profile.*` fact in "How to work with <name>" is
+  printed in the note's text except the three raw keys, so the knowledge search and the on-open advice can read
+  anything Suzi remembers about him, personal matters included. Only his own account can; no other user. Proposed:
+  keys `personal.<id>` kept out of the text.
 - **Scheduled jobs (T50, D-330).** A job's runs are kept on its own instruction page (`metadata.job.runs`, newest 20),
   with the slot claim (`metadata.job.claimed`) that makes one run per due time. A result longer than 600 characters is a
   `document` note written through `writeNote` (id `job_result:<job>:<due>:<attempt>`). Nothing about a job is stored

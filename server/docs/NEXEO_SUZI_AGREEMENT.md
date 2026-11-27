@@ -1188,3 +1188,19 @@ No change to an agreed op's meaning; additions only.
   `scorecard.this_week.operator.marked_read`.
 - **Titles and `context` in English:** done by Nexeo when a task is made and by a sweep; `task.create` answers with
   the English title.
+
+## T54 (Suzi Mobile) and T55 (the dock greeting): OPEN, 27 Nov 2026 (record by Nexeo-Builder)
+
+Proposed by Suzi-Builder's mobile session, 27 Nov 16:58 to 17:26 PKT, on the founder's decisions of that afternoon.
+Nexeo answered with facts from the code at 17:29 and 17:31. **Nothing is agreed to build.**
+
+- T54 facts: `os` is closed to `macos | windows` in the gateway, in Nexeo's installer list and in Suzi Master; nothing
+  in the code limits a user to one device (only the charter sentence does); the portal has no approval of a pairing
+  code; `primary` is the oldest active device because nothing writes the setting; a notice goes to the session he used
+  last; the Lead is one for the whole server and code builds are not keyed by `os`.
+- T54 waits on the founder: who changes the gateway (open since 23 Nov); Suzi Master on hold (the Android package and
+  the Lead phone live there); colleagues' faces kept on the phone only or also in the Wiki.
+- T55: personal notes by the existing Wiki road; Suzi's rules decide what to ask; the phone starts the talk
+  (`source: "docked"`, a gateway schema change); no weather source. **Privacy does not hold today:** `profile.*` facts
+  are printed in his note "How to work with <name>", which the knowledge search and the on-open advice can read.
+  Nexeo proposed keys `personal.<id>` stored and returned but never printed (like the raw keys). Waiting for AGREE.
