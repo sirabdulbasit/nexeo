@@ -261,8 +261,14 @@ function helpersArg(v: unknown): Array<{ person_id: string; note?: string }> {
 
 /** F-2.1 */
 export async function taskCreate(clientNumber: string, userId: number, a: Args, confirmed: boolean, gate: SendGate, timezone?: string): Promise<Result> {
-  const title = text(a.title).slice(0, 200);
-  if (!title) return fail('bad_title');
+  const said = text(a.title).slice(0, 200);
+  if (!said) return fail('bad_title');
+  // D-335 (his rule "Urdu spoken, English shown"): the title and the description are kept in English; his own words go
+  // to the task's history.
+  const { toEnglish } = await import('./englishTitle');
+  const title = (await toEnglish(clientNumber, userId, said, 200).catch(() => null)) ?? said;
+  const contextSaid = text(a.context).slice(0, 300);
+  const contextEn = contextSaid ? ((await toEnglish(clientNumber, userId, contextSaid, 300).catch(() => null)) ?? contextSaid) : '';
   const due = text(a.due);
   if (due && (!DAY.test(due) || isNaN(Date.parse(`${due}T12:00:00Z`)))) return fail('bad_date');
   const personId = text(a.person_id);
@@ -283,9 +289,12 @@ export async function taskCreate(clientNumber: string, userId: number, a: Args, 
     ...(due ? { dueDate: new Date(`${due}T12:00:00Z`) } : {}),
     ...(note ? { description: note } : {}),
     sourceFeed: 'suzi',
-    metadata: { manualCreate: true, createdBy: 'suzi', ...(source ? { suziSource: source } : {}), ...(text(a.context) ? { context: text(a.context).slice(0, 300) } : {}) }, // task context: one line, Suzi 25 Nov 13:19
+    metadata: { manualCreate: true, createdBy: 'suzi', ...(source ? { suziSource: source } : {}), ...(contextEn ? { context: contextEn } : {}) }, // task context: one line, Suzi 25 Nov 13:19
   } as any);
   if (!item?.id) return fail('rejected', 'the task was not created');
+  if (title !== said) await import('./suziTaskTrail').then((m) => m.trailPush(item.id, { who: 'you, through Suzi', change: 'Created', note: `in your words: ${said.slice(0, 200)}` })).catch(() => undefined);
+  // D-335: an email a task was made from is handled, so it is marked read in his Gmail.
+  if (source && 'email_id' in source && source.email_id) void import('./suziEmail').then((m) => m.markReadInGmail(clientNumber, userId, String(source.email_id), 'task_made')).catch(() => undefined);
   let itemState: string | null = null;
   if (source && 'item_id' in source && source.item_id) {
     const { setActionItemState } = await import('../meetings/meetingRecordStore');

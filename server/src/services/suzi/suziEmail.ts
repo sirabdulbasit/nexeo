@@ -17,6 +17,7 @@
  * An email's text is someone else's words: the model treats it as data, never as instructions.
  */
 import prisma from '../../db/prisma';
+import { audit } from '../auditLogService';
 import { replyStateOf } from './suziReplied';
 import { threadMessages } from './suziEmailSearch';
 
@@ -339,8 +340,32 @@ const MARKS: Record<string, string> = { handled: 'approved', no_reply_needed: 'd
 
 /** Every email of the thread, because the attention list collapses a thread into one card. */
 async function mark(clientNumber: string, userId: number, a: Args): Promise<EmailOpResult> {
+  // D-335: he opened it on a card. Gmail only; the email stays in his list until it is handled.
+  if (text(a.state) === 'read') {
+    const r = await markReadInGmail(clientNumber, userId, text(a.thread_id), 'read');
+    return r.found ? { ok: true, item: { thread_id: text(a.thread_id), state: 'read', gmail: r.ok, ...(r.ok ? {} : { reason: r.error ?? 'Gmail did not take it' }) } } : fail('not_found');
+  }
   if (!MARKS[text(a.state)]) return fail('bad_state');
   return markThread(clientNumber, userId, text(a.thread_id), text(a.state) as 'handled' | 'no_reply_needed');
+}
+
+/**
+ * D-335 (founder 27 Nov 14:1x): an email he read on a card, handled or ignored is marked read in his Gmail. Only UNREAD
+ * is removed; nothing is archived, labelled or deleted. Each one is an audit row (`suzi.email.marked_read`), which the
+ * scorecard counts. A failure never fails the mark itself.
+ */
+export async function markReadInGmail(clientNumber: string, userId: number, threadId: string, why: 'read' | 'handled' | 'ignored' | 'delegated' | 'task_made'): Promise<{ found: boolean; ok: boolean; error?: string }> {
+  if (!threadId) return { found: false, ok: false };
+  const rows = await prisma.$queryRawUnsafe<Array<{ gthread: string | null }>>(
+    `SELECT raw_payload->>'threadId' AS gthread FROM feed_events
+      WHERE client_number = $1 AND user_id = $2 AND source_type = 'gmail' AND (id = $3 OR raw_payload->>'threadId' = $3 OR source_id = $3) LIMIT 1`,
+    clientNumber, userId, threadId,
+  ).catch(() => []);
+  if (!rows.length) return { found: false, ok: false };
+  const { markThreadRead } = await import('../gmailService');
+  const r = await markThreadRead(userId, rows[0].gthread || threadId).catch((e: any) => ({ success: false, error: String(e?.message ?? e) }));
+  await audit({ clientNumber, actorId: userId, actorKind: 'user', action: 'suzi.email.marked_read', subjectType: 'email', subjectId: threadId.slice(0, 120), result: r.success ? 'success' : 'failure', details: { why, ...(r.success ? {} : { error: String(r.error ?? '').slice(0, 200) }) } }).catch(() => undefined);
+  return { found: true, ok: r.success, ...(r.success ? {} : { error: String(r.error ?? '').slice(0, 200) }) };
 }
 
 /**
@@ -389,6 +414,8 @@ export async function markThread(clientNumber: string, userId: number, threadId:
       } catch { /* the answer stays as today (Suzi Master n2); a mark that cannot land is retried on the next mark */ }
     }
   }
+  // D-335: handled, ignored (by his click or by a rule) and delegated emails are marked read in his Gmail.
+  void markReadInGmail(clientNumber, userId, threadId, state === 'no_reply_needed' ? 'ignored' : state).catch(() => undefined);
   return { ok: true, item: { thread_id: threadId, state: text(a.state), emails: rows.length } };
 }
 

@@ -55,9 +55,9 @@ describe('D-332 item advice', () => {
     expect(parseItemAdvice(J({ ...good, how: [] }), g, advisePrompt(g).refs)).toBeNull();
     expect(parseItemAdvice(J({ ...good, how: ['a1', 'b2', 'c3', 'd4', 'e5', 'f6'] }), g, advisePrompt(g).refs)!.how).toHaveLength(4);
     expect(parseItemAdvice('not json', g, advisePrompt(g).refs)).toBeNull();
-    const leaky = parseItemAdvice(J({ ...good, what: 'Ask Salman as before (decision:1)', how: ['Sign it as per rule:1 and rule:2.'] }), g, advisePrompt(g).refs)!;
+    const leaky = parseItemAdvice(J({ ...good, what: 'Ask Salman as before (decision:1)', how: ['Ask as per rule:1 and rule:2.'] }), g, advisePrompt(g).refs)!;
     expect(leaky.what).toBe('Ask Salman as before');
-    expect(leaky.how).toEqual(['Sign it as per and.']);
+    expect(leaky.how).toEqual(['Ask as per and.']);
   });
   it('MISSING: said, and complete is false; the gatherer\'s own gaps are kept', () => {
     const g = G({ missing: ['No Wiki note on invoicereminders@post.xero.com'] });

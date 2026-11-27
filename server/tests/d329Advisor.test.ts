@@ -109,12 +109,13 @@ describe('D-329 scorecard and week', () => {
         { status: 'ok', held: false, reason: null, n: 12 }, { status: 'ok', held: true, reason: 'not_signed', n: 4 }, { status: 'ok', held: true, reason: null, n: 1 }, { status: 'failed', held: false, reason: 'rejected', n: 3 },
       ];
       if (sql.includes('FROM operator_runs')) return [{ status: 'done', n: 1 }, { status: 'unverified', n: 2 }, { status: 'failed', n: 1 }];
+      if (sql.includes("action = 'suzi.email.marked_read'")) return [{ n: 7 }]; // D-335
       if (sql.includes("x->>'state'")) return [{ state: 'done', n: 3 }, { state: 'dismissed', n: 1 }, { state: null, n: 2 }];
       if (sql.includes('assistantKey')) return [{ n: 4 }];
       return [];
     });
     const s = await buildScorecard('T', 2, '2026-11-23');
-    expect(s.operator).toEqual({ acts_ok: 12, acts_failed: 3, held: 5, held_by_reason: { not_signed: 4, not_said: 1 }, screen_runs: { done: 1, unverified: 2, failed: 1 } });
+    expect(s.operator).toEqual({ acts_ok: 12, acts_failed: 3, held: 5, held_by_reason: { not_signed: 4, not_said: 1 }, screen_runs: { done: 1, unverified: 2, failed: 1 }, marked_read: 7 });
     expect(s.assistant).toEqual({ suggestions_made: 6, suggestions_done: 3, suggestions_dismissed: 1, tasks_from_his_mail: 4, chases: { sent: 0, on_track: 0, off_track: 0, no_reply: 0 } });
     expect(s.from).toBe('2026-11-22T19:00:00.000Z'); // Monday 00:00 PKT
     expect(s.advisor).toEqual({ cost: { week_usd: 0.041, month_usd: 1.235, month_pkr: 346 }, advice_given: 5, useful: 0, done: 0, not_useful: 0 }); // the real figure; advice on opened items counted

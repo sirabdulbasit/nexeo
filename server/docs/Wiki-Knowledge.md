@@ -1070,6 +1070,14 @@ Past Decisions, Instructions: Nexeo Wiki."
   each chase is kept on the task it is about (`open_items.metadata.chase`: deadline asked for, when, each person's
   answer and words), beside the task's trail and proposals; every step is also a dated entry in the task's history.
   Nothing about a chase is stored anywhere else. Code: `server/src/services/suzi/chase.ts`.
+- **Kept advice (D-335).** What Nexeo advised on each open email and task is one `learned` note, "Advisor: advice on
+  open items" (id `advisor:item_advice:user:<id>`, newest 80 in `properties.items`, each with the item's state), written
+  through `writeNote` after a warm run that changed something. It is read back once after a start, so an unchanged item
+  gets the same answer. The advice step never reads its own notes as knowledge about an item.
+- **People shown once (D-335).** The Wiki still holds one person record per address; `suziPeople.onePerPerson` folds
+  them for Suzi's people search and the pack. Merging the records themselves is the identity step's work. Not done.
+- **Marked read (D-335).** An email read on a card, handled, ignored or delegated loses UNREAD in his Gmail. Nothing in
+  the Wiki changes for a read; handled and ignored are marked on the source as before.
 - **Scheduled jobs (T50, D-330).** A job's runs are kept on its own instruction page (`metadata.job.runs`, newest 20),
   with the slot claim (`metadata.job.claimed`) that makes one run per due time. A result longer than 600 characters is a
   `document` note written through `writeNote` (id `job_result:<job>:<due>:<attempt>`). Nothing about a job is stored

@@ -771,6 +771,23 @@ export async function markAsRead(userId: number, messageId: string): Promise<{ s
   }
 }
 
+/**
+ * D-335 (founder 27 Nov 14:1x, through Suzi: "the email which has read, handled should be marked read and all those
+ * which are ignored should also be marked read"): the whole thread loses UNREAD. Only that: nothing is archived,
+ * labelled or deleted.
+ */
+export async function markThreadRead(userId: number, threadId: string): Promise<{ success: boolean; error?: string }> {
+  const { client, error } = await getAuthenticatedClient(userId);
+  if (!client) return { success: false, error };
+  try {
+    const gmail = google.gmail({ version: 'v1', auth: client });
+    await gmail.users.threads.modify({ userId: 'me', id: threadId, requestBody: { removeLabelIds: ['UNREAD'] } });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: `Mark-read failed: ${err.message}` };
+  }
+}
+
 // ─── Search emails ────────────────────────────────────────────
 
 export async function searchEmails(userId: number, query: string, maxResults = 10): Promise<{ emails: EmailSummary[]; error?: string }> {

@@ -1172,3 +1172,19 @@ answer, and does not emit `reassign` yet. Nexeo's number: D-334.
 
 Also recorded: Suzi-Builder's messages of 27 Nov 12:49, 13:10, 14:21 and 16:13 were read only at 16:23 (no watcher was
 running on Nexeo's side). All four are agreed and follow as D-335.
+
+## D-335: Suzi-Builder's four messages of 27 Nov (12:49, 13:10, 14:21, 16:13). AGREED by Nexeo 16:25 (record by Nexeo-Builder)
+
+No change to an agreed op's meaning; additions only.
+
+- **`item.advise` (T51) as built now:** prepared ahead for every `emails[]`, `fyi[]` and open `actions[]`; a `fyi`
+  thread id is accepted as an email id; `what` starts with the action; a reply's first `how` step is what to say;
+  `how` may be empty for "No action" and "Ignore"; new `suggest` `email.mark {state: "no_reply_needed"}` labelled
+  Ignore; no sign-off step; no fact that is not on record; the same answer until the item changes.
+- **`GET /v1/people` and the pack's people:** one person once, with `email` when the Wiki has one. `role` and
+  `company` are not on record per person and are not returned.
+- **`email.mark {thread_id, state: "read"}`:** internal, no signature, Gmail only. Answer `{thread_id, state: "read",
+  gmail: true | false, reason?}`. Handled, ignored and delegated emails are marked read by Nexeo itself.
+  `scorecard.this_week.operator.marked_read`.
+- **Titles and `context` in English:** done by Nexeo when a task is made and by a sweep; `task.create` answers with
+  the English title.

@@ -37,6 +37,35 @@ const PICK_FACETS = `
 /** Automated senders aren't people she'd be asked about. */
 const NOT_A_PERSON = `(no-?reply|do-?not-?reply|notifications?@|mailer-daemon)`;
 
+/**
+ * D-335 (founder 27 Nov 13:05, on three "Salman Sohail" in the Delegate search: "why are names being repeated?"): one
+ * person is shown once. The Wiki holds a record per address, and a colleague often has several (the same name before
+ * the @ at tmcltd.com, tmcltd.ai and tmcloud.net). Two records are the same person here when the names match and
+ * the part before the @ matches, or when one of them has no address at all. Kept: the record whose address is at the
+ * user's own domain, else the first (the best match). Two people who really share a name keep different addresses, so
+ * both stay, each with its address.
+ */
+export function onePerPerson(people: SuziPerson[], ownDomain: string): SuziPerson[] {
+  const norm = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const local = (e?: string) => String(e ?? '').toLowerCase().split('@')[0];
+  const domain = (e?: string) => String(e ?? '').toLowerCase().split('@')[1] ?? '';
+  const out: SuziPerson[] = [];
+  for (const p of people) {
+    const i = out.findIndex((o) => norm(o.name) === norm(p.name) && (!o.email || !p.email || local(o.email) === local(p.email)));
+    if (i < 0) { out.push(p); continue; }
+    const kept = out[i];
+    const better = (!kept.email && !!p.email) || (!!p.email && !!ownDomain && domain(p.email) === ownDomain && domain(kept.email) !== ownDomain);
+    if (better) out[i] = { ...p, ...(p.phone || !kept.phone ? {} : { phone: kept.phone }) };
+    else if (!kept.phone && p.phone) out[i] = { ...kept, phone: p.phone };
+  }
+  return out;
+}
+
+async function ownDomainOf(userId: number): Promise<string> {
+  const r = await prisma.$queryRawUnsafe<Array<{ email: string | null }>>(`SELECT lower(email) AS email FROM users WHERE id = $1`, userId).catch(() => []);
+  return String(r[0]?.email ?? '').split('@')[1] ?? '';
+}
+
 export async function recentPeople(clientNumber: string, userId: number, limit = PACK_PEOPLE): Promise<SuziPerson[]> {
   const rows = await prisma.$queryRawUnsafe<Row[]>(
     `WITH recent AS (
@@ -54,9 +83,9 @@ export async function recentPeople(clientNumber: string, userId: number, limit =
       GROUP BY p.id, p.display_name, p.updated_at
       ORDER BY max(r.at) DESC NULLS LAST, p.updated_at DESC
       LIMIT $3`,
-    clientNumber, userId, limit,
+    clientNumber, userId, limit + 40,
   );
-  return rows.map(toPerson);
+  return onePerPerson(rows.map(toPerson), await ownDomainOf(userId)).slice(0, limit);
 }
 
 export async function searchPeople(clientNumber: string, userId: number, rawQuery: string): Promise<SuziPerson[]> {
@@ -75,10 +104,10 @@ export async function searchPeople(clientNumber: string, userId: number, rawQuer
              OR EXISTS (SELECT 1 FROM person_facets e WHERE e.person_id = p.id AND e.facet_type IN ('email', 'phone') AND e.facet_value ILIKE ANY($4::text[])))
       GROUP BY p.id, p.display_name
       ORDER BY GREATEST(similarity(p.display_name, $3), (SELECT max(word_similarity(t, p.display_name)) FROM unnest($5::text[]) t)) DESC NULLS LAST, p.display_name
-      LIMIT ${MAX_RESULTS}`,
+      LIMIT ${MAX_RESULTS * 4}`,
     clientNumber, userId, q, patterns, terms,
   );
-  return rows.map(toPerson);
+  return onePerPerson(rows.map(toPerson), await ownDomainOf(userId)).slice(0, MAX_RESULTS);
 }
 
 /** One of the user's own people by id (link T21, D1). Anyone else's id is not found. */

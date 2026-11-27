@@ -113,8 +113,10 @@ describe('people', () => {
     expect(r).toEqual([{ id: 'p1', name: 'Rafay', email: 'r@x' }, { id: 'p2', name: 'Rafi', phone: '+92' }]);
     const [sql, ...args] = query.mock.calls[0];
     expect(sql).toContain('p.client_number = $1 AND p.user_id = $2');
-    expect(sql).toContain(`LIMIT ${MAX_RESULTS}`);
+    expect(sql).toContain(`LIMIT ${MAX_RESULTS * 4}`); // D-335: more are read, one person is shown once, then at most 5
     expect(args).toEqual(['TMC-0001', 2, 'rafy', ['%rafy%'], ['rafy']]);
+    query.mockResolvedValue(Array.from({ length: 9 }, (_, i) => ({ id: `p${i}`, name: `Rafay ${i}`, email: `r${i}@x`, phone: null })));
+    expect(await searchPeople('TMC-0001', 2, 'rafy')).toHaveLength(MAX_RESULTS);
   });
   it('search: an empty question reads nothing', async () => {
     expect(await searchPeople('T', 2, '   ')).toEqual([]);
@@ -124,7 +126,7 @@ describe('people', () => {
     query.mockResolvedValue([{ id: 'p1', name: 'A', email: 'a@x', phone: null }]);
     expect(await recentPeople('TMC-0001', 2)).toEqual([{ id: 'p1', name: 'A', email: 'a@x' }]);
     const [sql, ...args] = query.mock.calls[0];
-    expect(args).toEqual(['TMC-0001', 2, 100]);
+    expect(args).toEqual(['TMC-0001', 2, 140]); // D-335: 40 more are read, then one person is shown once and the list cut to 100
     expect(sql).toContain('p.client_number = $1 AND p.user_id = $2');
     expect(sql).toContain('client_number = $1 AND user_id = $2 AND sender_email IS NOT NULL');
     expect(sql).toMatch(/ORDER BY max\(r\.at\) DESC NULLS LAST/);

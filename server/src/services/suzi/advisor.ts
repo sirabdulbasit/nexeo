@@ -413,7 +413,7 @@ export async function packReview(clientNumber: string, userId: number, now: Date
 
 export interface Scorecard {
   week: string; from: string; to: string;
-  operator: { acts_ok: number; acts_failed: number; held: number; held_by_reason: Record<string, number>; screen_runs: { done: number; unverified: number; failed: number } };
+  operator: { acts_ok: number; acts_failed: number; held: number; held_by_reason: Record<string, number>; screen_runs: { done: number; unverified: number; failed: number }; /** D-335: emails marked read in his Gmail (read on a card, handled, ignored). */ marked_read?: number };
   assistant: { suggestions_made: number; suggestions_done: number; suggestions_dismissed: number; tasks_from_his_mail: number; /** T53: follow-ups sent by his rule one day before a deadline, and how they were answered. */ chases?: { sent: number; on_track: number; off_track: number; no_reply: number } };
   /** `cost` (Suzi's condition, T51): what the advisor's model calls really cost, from the spend record. */
   advisor: { advice_given: number; useful: number; done: number; not_useful: number; cost?: { week_usd: number; month_usd: number; month_pkr: number } };
@@ -443,7 +443,7 @@ export async function buildScorecard(clientNumber: string, userId: number, week:
        FROM suzi_act_log WHERE client_number = $1 AND user_id = $2 AND op = ANY($3::text[]) AND created_at >= $4 AND created_at < $5 GROUP BY 1, 2, 3`,
     clientNumber, userId, DOING_OPS, from, to,
   ).catch(() => []);
-  const operator = { acts_ok: 0, acts_failed: 0, held: 0, held_by_reason: {} as Record<string, number>, screen_runs: { done: 0, unverified: 0, failed: 0 } };
+  const operator: Scorecard['operator'] = { acts_ok: 0, acts_failed: 0, held: 0, held_by_reason: {} as Record<string, number>, screen_runs: { done: 0, unverified: 0, failed: 0 } };
   for (const r of acts) {
     if (r.status !== 'ok') operator.acts_failed += r.n;
     else if (r.held) { operator.held += r.n; const k = r.reason || 'not_said'; operator.held_by_reason[k] = (operator.held_by_reason[k] ?? 0) + r.n; }
@@ -453,6 +453,11 @@ export async function buildScorecard(clientNumber: string, userId: number, week:
     `SELECT status, count(*)::int AS n FROM operator_runs WHERE client_number = $1 AND user_id = $2 AND started_at >= $3 AND started_at < $4 GROUP BY 1`,
     clientNumber, userId, from, to,
   ).catch(() => []);
+  const read = await prisma.$queryRawUnsafe<Array<{ n: number }>>(
+    `SELECT count(*)::int AS n FROM audit_logs WHERE client_number = $1 AND actor_id = $2 AND action = 'suzi.email.marked_read' AND result = 'success' AND created_at >= $3 AND created_at < $4`,
+    clientNumber, userId, from, to,
+  ).catch(() => []);
+  operator.marked_read = read[0]?.n ?? 0;
   for (const r of runs) { if (r.status === 'done') operator.screen_runs.done += r.n; else if (r.status === 'unverified') operator.screen_runs.unverified += r.n; else operator.screen_runs.failed += r.n; }
   const props = await prisma.$queryRawUnsafe<Array<{ state: string | null; n: number }>>(
     `SELECT x->>'state' AS state, count(*)::int AS n FROM open_items o, jsonb_array_elements(COALESCE(o.metadata->'proposals', '[]'::jsonb)) x
@@ -498,7 +503,8 @@ export function scorecardBody(s: Scorecard): string {
   return [
     `How Nexeo and Suzi did in the week of ${s.week}. Counted from the records; a held or unverified act is never counted as ok.`, '',
     '## Operator', `- Actions done: ${s.operator.acts_ok}`, `- Actions failed: ${s.operator.acts_failed}`, `- Actions held (nothing went out): ${s.operator.held}${held ? ` (${held})` : ''}`,
-    `- Screen runs: ${s.operator.screen_runs.done} done, ${s.operator.screen_runs.unverified} unverified, ${s.operator.screen_runs.failed} failed`, '',
+    `- Screen runs: ${s.operator.screen_runs.done} done, ${s.operator.screen_runs.unverified} unverified, ${s.operator.screen_runs.failed} failed`,
+    ...(s.operator.marked_read !== undefined ? [`- Emails marked read in his Gmail: ${s.operator.marked_read}`] : []), '',
     '## Assistant', `- Suggestions made: ${s.assistant.suggestions_made}; accepted ${s.assistant.suggestions_done}, dismissed ${s.assistant.suggestions_dismissed}`, `- Tasks made from his own mail: ${s.assistant.tasks_from_his_mail}`,
     ...(s.assistant.chases ? [`- Follow-ups sent by his rule one day before a deadline: ${s.assistant.chases.sent}; on track ${s.assistant.chases.on_track}, off track ${s.assistant.chases.off_track}, no answer ${s.assistant.chases.no_reply}`] : []), '',
     '## Advisor', `- Advice given: ${s.advisor.advice_given}; useful ${s.advisor.useful}, done ${s.advisor.done}, not useful ${s.advisor.not_useful}`,

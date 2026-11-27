@@ -165,6 +165,35 @@ how to do. before suggesting Suzi/Nexeo should have complete related knowledge (
   him first (Costing Charter).
 - Feedback: `advice.feedback` with the advice's `item:<hash>` id; counted under the advisor.
 
+**Changed by D-335 (27 Nov, founder through Suzi 12:47: "Suzi should also suggest what to do with these emails, like
+ignore, forward, reply (and what to reply etc)", "and similarly with Task"):**
+
+- Suzi asks for advice on every card by itself, so advice is prepared ahead for **every** email needing him, every
+  For-your-knowledge email and every open task (at most 60), not only the top of the to-do list.
+- `what` starts with the action: "Reply:", "Forward to <name>:", "Delegate to <name>:", "Ignore:", "Make a task:",
+  "Wait:", "No action: <why>" or exactly "No action: you're in copy"; for a task "Follow up with <name>:", "Mark
+  done:", "Move to <date>:", "Give to <name>:", "Do it:". For a reply the first step is the reply's own words.
+  "No action" and "Ignore" may have no steps. New button: Ignore (`email.mark` `no_reply_needed`).
+- The item says whether he is in To, only in copy, or in neither.
+- Never a sign-off step, and signature instructions are not read. Never a fact that is not on record: the step is to
+  confirm it, and it goes in `missing`.
+- **The same answer until the item changes:** kept in his Wiki ("Advisor: advice on open items"), reused across
+  restarts for up to 3 days while the item's state is the same. `ADVICE_VERSION` in the code retires all kept advice
+  when the instructions to the model change.
+- Cost with every card warmed: about USD 0.0014 a piece, a model call only when an item changes; about USD 1 to 2 a
+  month for him (estimate; 58 calls cost USD 0.083 on 27 Nov).
+- Tests: `d335AdviceBoard`, `d332ItemAdvice`.
+
+### 3.4d Small things of D-335: people once, marked read, English titles
+
+- **People once:** `suziPeople.onePerPerson` (founder 27 Nov: "why are names being repeated?"). See DEF-522.
+- **Marked read in Gmail** (founder 27 Nov 14:1x): `email.mark {thread_id, state: "read"}` when he opens an email on a
+  card (Gmail only, nothing else changes); handled, ignored (his click or a rule), delegated, and an email a task was
+  made from, are marked read too. Only UNREAD is removed. `scorecard.operator.marked_read` counts them. His Google
+  grant allows it (checked 27 Nov 17:00 PKT). Not built: his own reply seen in Sent, a proposal done, and the past
+  matches of a new ignore rule.
+- **English titles** (his rule "Urdu spoken, English shown"): `englishTitle.ts`. See DEF-525.
+
 ### 3.4b The outlook: Nexeo keeps thinking (D-333; T52)
 
 Founder, 27 Nov 11:45 PKT: "suzi/nexeo keep thinking as per knowledge what to do, and what is important, what is
