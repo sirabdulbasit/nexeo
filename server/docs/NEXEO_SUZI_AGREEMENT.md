@@ -1189,6 +1189,16 @@ No change to an agreed op's meaning; additions only.
 - **Titles and `context` in English:** done by Nexeo when a task is made and by a sweep; `task.create` answers with
   the English title.
 
+## T54 first step and T55 point 5: BUILT 27 Nov 2026 as D-336 (record by Nexeo-Builder)
+
+- Founder to Nexeo-Builder, about 18:05 PKT: the Android package is served "Through Suzi Master", to "Every user".
+  Suzi Master took `android` and published `Suzi-0.1.0.apk` (sha256 9876d716…2864) at 18:10:51 PKT on his yes there.
+  Nexeo: Settings → "Suzi Apps", Laptop and Mobile downloads, `android` in the installer list (18:17:49 and 18:18:47
+  PKT). Gateway: `INSTALLER_OS` takes `android` on disk (source and running file, no rebuild because the gateway's
+  source and build do not match); **its restart waits for the founder's yes.**
+- T55 point 5, both AGREE 17:32: `profile.update {key: "personal.<id>", value}` is stored and returned, never printed
+  and never a source. Live 18:17:49 PKT. His note carried no personal line when checked (18:08 PKT).
+
 ## T54 (Suzi Mobile) and T55 (the dock greeting): OPEN, 27 Nov 2026 (record by Nexeo-Builder)
 
 Proposed by Suzi-Builder's mobile session, 27 Nov 16:58 to 17:26 PKT, on the founder's decisions of that afternoon.
