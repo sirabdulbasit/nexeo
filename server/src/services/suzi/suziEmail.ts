@@ -220,7 +220,7 @@ async function updateDraft(clientNumber: string, userId: number, a: Args): Promi
 }
 
 /** T22: how a send arrived. Only Suzi's server sets `signatureVerified`; the device can't. */
-export type SendGate = { signatureVerified: boolean; voiceScore: number | null; /** F-2.4 auto-forward (founder 13 Nov): sent by this rule, set only by ruleForwardJob. */ byRule?: string; /** click_confirm (founder 23 Nov): his click on a card is his yes, set only by suziAct for CLICK_CONFIRM_OPS. */ click?: true };
+export type SendGate = { signatureVerified: boolean; voiceScore: number | null; /** F-2.4 auto-forward (founder 13 Nov): sent by this rule, set only by ruleForwardJob. */ byRule?: string; /** click_confirm (founder 23 Nov): his click on a card is his yes, set only by suziAct for CLICK_CONFIRM_OPS. */ click?: true; /** T53 (founder 27 Nov): a send his standing instruction allows, set only by chase.ts. */ standing?: 'chase' };
 const UNSIGNED: SendGate = { signatureVerified: false, voiceScore: null };
 const GOING = new Set(['held', 'sending', 'sent']);
 

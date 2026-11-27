@@ -26,6 +26,7 @@ import { personById } from './suziPeople';
 import { changedAt, statusRowsFor, HISTORY_SELECT, type StatusRow } from './taskHistory';
 import { actionSources, type ActionSource } from './actionSource';
 import { packHelpers, taskReplies, trailPush, type TrailEntry } from './suziTaskTrail';
+import { packChase, type PackChase } from './chase';
 
 const OPEN = ['NEW', 'TRIAGED', 'IN_PROGRESS', 'WAITING_INFO', 'DELEGATED'];
 const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
@@ -39,7 +40,9 @@ export interface SuziAction { proposals?: PackProposal[]; id: string; title: str
   /** Suzi 25 Nov 15:17: the newest history entry, so a card needs no task-history call. */
   last_update?: { change: string; who: string; at: string };
   /** T33 P2 (both AGREE 17 Nov): the other people responsible; the lead owner is `owner`. */
-  helpers?: Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string }> }
+  helpers?: Array<{ person_id: string; name: string; note?: string; told?: string; told_draft_id?: string }>;
+  /** T53: the follow-up Nexeo sent the task's people one day before the deadline, and how they answered. */
+  chase?: PackChase }
 
 const ITEM_SELECT = { id: true, title: true, priority: true, status: true, dueDate: true, updatedAt: true, sourceFeed: true, sourceRef: true, sourceFeedEventId: true, ...HISTORY_SELECT } as const;
 
@@ -58,6 +61,7 @@ function toSuziAction(r: any, tz: string, today: string, userId: number, status:
     ...lastUpdateOf(r.metadata, tz),
     ...(helpers.length ? { helpers } : {}),
     ...proposalsOf(r),
+    ...packChase(r.metadata),
   };
 }
 

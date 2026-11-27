@@ -414,7 +414,7 @@ export async function packReview(clientNumber: string, userId: number, now: Date
 export interface Scorecard {
   week: string; from: string; to: string;
   operator: { acts_ok: number; acts_failed: number; held: number; held_by_reason: Record<string, number>; screen_runs: { done: number; unverified: number; failed: number } };
-  assistant: { suggestions_made: number; suggestions_done: number; suggestions_dismissed: number; tasks_from_his_mail: number };
+  assistant: { suggestions_made: number; suggestions_done: number; suggestions_dismissed: number; tasks_from_his_mail: number; /** T53: follow-ups sent by his rule one day before a deadline, and how they were answered. */ chases?: { sent: number; on_track: number; off_track: number; no_reply: number } };
   /** `cost` (Suzi's condition, T51): what the advisor's model calls really cost, from the spend record. */
   advisor: { advice_given: number; useful: number; done: number; not_useful: number; cost?: { week_usd: number; month_usd: number; month_pkr: number } };
   jobs?: { done: number; failed: number; missed: number };
@@ -468,6 +468,7 @@ export async function buildScorecard(clientNumber: string, userId: number, week:
     suggestions_done: props.find((r) => r.state === 'done')?.n ?? 0,
     suggestions_dismissed: props.find((r) => r.state === 'dismissed')?.n ?? 0,
     tasks_from_his_mail: made[0]?.n ?? 0,
+    chases: await import('./chase').then((m) => m.chaseCounts(clientNumber, userId, from, to)).catch(() => ({ sent: 0, on_track: 0, off_track: 0, no_reply: 0 })),
   };
   const inWeek = (at: string) => { const t = Date.parse(at); return t >= from.getTime() && t < to.getTime(); };
   const cur = await readProps(clientNumber, userId, TITLE.advice);
@@ -498,7 +499,8 @@ export function scorecardBody(s: Scorecard): string {
     `How Nexeo and Suzi did in the week of ${s.week}. Counted from the records; a held or unverified act is never counted as ok.`, '',
     '## Operator', `- Actions done: ${s.operator.acts_ok}`, `- Actions failed: ${s.operator.acts_failed}`, `- Actions held (nothing went out): ${s.operator.held}${held ? ` (${held})` : ''}`,
     `- Screen runs: ${s.operator.screen_runs.done} done, ${s.operator.screen_runs.unverified} unverified, ${s.operator.screen_runs.failed} failed`, '',
-    '## Assistant', `- Suggestions made: ${s.assistant.suggestions_made}; accepted ${s.assistant.suggestions_done}, dismissed ${s.assistant.suggestions_dismissed}`, `- Tasks made from his own mail: ${s.assistant.tasks_from_his_mail}`, '',
+    '## Assistant', `- Suggestions made: ${s.assistant.suggestions_made}; accepted ${s.assistant.suggestions_done}, dismissed ${s.assistant.suggestions_dismissed}`, `- Tasks made from his own mail: ${s.assistant.tasks_from_his_mail}`,
+    ...(s.assistant.chases ? [`- Follow-ups sent by his rule one day before a deadline: ${s.assistant.chases.sent}; on track ${s.assistant.chases.on_track}, off track ${s.assistant.chases.off_track}, no answer ${s.assistant.chases.no_reply}`] : []), '',
     '## Advisor', `- Advice given: ${s.advisor.advice_given}; useful ${s.advisor.useful}, done ${s.advisor.done}, not useful ${s.advisor.not_useful}`,
     ...(s.advisor.cost ? [`- Cost of the advisor's thinking: about USD ${s.advisor.cost.week_usd} this week, USD ${s.advisor.cost.month_usd} this month (about PKR ${s.advisor.cost.month_pkr})`] : []),
     ...(s.predictions ? ['', '## Predictions', `- Made ${s.predictions.made}; came true ${s.predictions.came_true}, did not ${s.predictions.did_not}, prevented ${s.predictions.prevented}; ${s.predictions.open} not yet due`] : []),

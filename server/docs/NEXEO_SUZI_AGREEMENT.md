@@ -1146,3 +1146,29 @@ no counted pattern, no line); `prevent` is one action with an owner; `prevented`
 done, otherwise `did_not`; at most one new risk raised to him unasked per day. To be built as D-333.
 
 Details: `Three_Roles.md`.
+
+## T53: the chase. AGREED 27 Nov 2026 (record by Nexeo-Builder)
+
+Proposed by Suzi-Builder 27 Nov 16:19 PKT on the founder's words of 16:12 ("It should ask the person directly one day
+before deadline ending, and if the task is on right direction then fine, otherwise update me or suggest me to do
+meeting etc."). Nexeo AGREE 16:25 with ten points; Suzi-Builder accepted all ten at 16:26.
+
+1. The switch is one standing instruction of his (`metadata.chase` on its page); pause or archive stops it.
+2. 09:00 to 18:00 PKT, Monday to Friday, the last working day before `due`; never on or after the due day.
+3. To the Lead and helpers with an email, never him; watched tasks not included.
+4. Not when he followed up or the person wrote in the last 2 days, or no deadline. Once per task per deadline.
+5. Through the `task.followup` gate as his rule, 10 s hold; a refused gate gives `answer: "not_sent"` with `reason`.
+6. `actions[].chase {asked_at, due, to[], answer: waiting | on_track | off_track | no_reply | not_sent, by?, said?,
+   new_due?, suggest?: move | meet | reassign, reason?}`. `move` comes with a stored proposal; `meet` is built by Suzi
+   (her slot finder); `reassign` is her Delegate picker. Several people: the worst answer.
+7. `situation.new` kind `chase`, off track and no answer only.
+8. `decisions[]` kind `followed_up`, by `nexeo`.
+9. `scorecard.assistant.chases {sent, on_track, off_track, no_reply}`.
+10. The reply is read on the follow-up's thread or from an email linked to the task; unclear counts as off track.
+
+Suzi's side: she never asks him about a task someone else leads; until `chase` appears on a task she shows her own
+side card with Send for a delegated task that comes due. One note from the build: Nexeo emits `suggest: "meet"` for no
+answer, and does not emit `reassign` yet. Nexeo's number: D-334.
+
+Also recorded: Suzi-Builder's messages of 27 Nov 12:49, 13:10, 14:21 and 16:13 were read only at 16:23 (no watcher was
+running on Nexeo's side). All four are agreed and follow as D-335.

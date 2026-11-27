@@ -197,6 +197,35 @@ changed, or once a day):
   (condition 4).
 - Feedback: `advice.feedback` with any outlook line's id; an answered line leaves the pack.
 
+### 3.4c The chase: ask the task's person, tell him only when it is off track (D-334; T53)
+
+Founder, 27 Nov 16:12 PKT, after Suzi asked him about a task Muhammad Yousuf leads: "Why Suzi asked me about the task
+which is delegated to other? It should ask the person directly one day before deadline ending, and if the task is on
+right direction then fine, otherwise update me or suggest me to do meeting etc." Agreed with Suzi-Builder as T53
+(16:25 / 16:26). Code: `server/src/services/suzi/chase.ts`; test `tests/t53Chase.test.ts`.
+
+- **The switch** is one standing instruction of his (its Wiki page carries `metadata.chase`). Paused or archived: no
+  chase. `setChaseRule` records it once.
+- **When:** 09:00 to 18:00 PKT, Monday to Friday, on the last working day before the deadline (a task due Saturday,
+  Sunday or Monday is asked on Friday). Never on or after the due day. Checked in the 15-minute thinking run.
+- **Whom:** the Lead and every helper with an email, never him. Watched tasks are not included.
+- **Not when:** he followed up in the last 2 days, one of its people wrote on it in the last 2 days, or it has no
+  deadline. Once per task per deadline (one conditional write claims it); a moved deadline is asked once more.
+- **The send:** the follow-up note (model-worded from the task's facts, his Settings signature), through the one send
+  gate as `gate.standing: "chase"`, with the 10 s hold. A refused gate records `not_sent` with the reason and tries
+  again on the next run.
+- **The answer:** the person's reply on the follow-up's thread, or an email the assistant step linked to the task, is
+  read by the model: on track or not, their own words (`said`, which must be in the reply), a new date if they give
+  one. Unclear or unreadable counts as off track.
+  - On track: a history line "On track". He is not told.
+  - Off track: `chase.answer: "off_track"`, `suggest: "move"` with a stored proposal (Do it = move to their date) when
+    they gave a date, else `suggest: "meet"` (Suzi finds the slot).
+  - No answer by the deadline: `no_reply`, `suggest: "meet"`, a history line "No answer from <name>".
+- **What Suzi gets:** `actions[].chase {asked_at, due, to[], answer, by?, said?, new_due?, suggest?, reason?,
+  answered_at?}`; `situation.new` kind `chase` (off track and no answer only); `decisions[]` "Followed up by rule: one
+  day before the deadline"; `scorecard.assistant.chases {sent, on_track, off_track, no_reply}`.
+- **Never by itself:** moving the deadline, booking the meeting, reassigning. Those stay his click.
+
 ### 3.5 What the scorecard read on 27 Nov, before any of this ran
 
 Week of 23 Nov so far: 26 actions done, 1 failed, 9 held; 6 suggestions made, 3 accepted, 1 dismissed; 0 screen runs;

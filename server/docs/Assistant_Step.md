@@ -152,3 +152,10 @@ scheduled jobs are in **`Three_Roles.md`**. Read it with this file. Changes to t
 - D-324 (27 Nov): a due-date suggestion before today is never stored, shown or done; a meeting's own date is not a
   deadline (DEF-518).
 - §8: the other Nexeo-Builder session has ended. This session holds all of the Nexeo side.
+
+## 10. Automatic chasing decided (27 Nov 2026, T53)
+
+The "automatic chasing approval" open with the founder since 24 Nov is decided by his words of 27 Nov 16:12 PKT: ask
+the task's person directly one day before the deadline, tell him only when it is off track. Built as D-334
+(`chase.ts`); described in `Three_Roles.md` §3.4c. The assistant step's `link` entries are what lets a reply outside
+the follow-up's own thread be read as the answer.

@@ -31,7 +31,7 @@ async function ownerName(clientNumber: string, userId: number): Promise<string> 
 }
 
 /** Who is on a task, for the note (founder 18 Nov 14:35: the person is told the lead, the others and the date). */
-export type Role = 'owner' | 'helper' | 'followup';
+export type Role = 'owner' | 'helper' | 'followup' | 'chase';
 export interface TellTask { itemId: string; title: string; due: string | null; note: string; person: { name: string; email: string }; role?: Role; lead?: string | null; helpers?: string[]; origin?: string | null }
 
 /** The facts the model words the note from (never a canned sentence). Exported for the test. */
@@ -41,6 +41,7 @@ export function tellPrompt(owner: string, t: TellTask): string {
   const others = (t.helpers ?? []).filter((n) => n && n !== t.person.name);
   const ask = role === 'owner' ? `handing them this task. They are the lead owner.`
     : role === 'helper' ? `asking them to help on this task as one of the people responsible.`
+    : role === 'chase' ? `following up on this task, which they are responsible for, one day before its deadline. Ask ONE question only: is it on track for the due date, and if not, what is in the way. Ask them to reply to this email.`
     : `following up on this task, which they are responsible for. Ask where it stands.`;
   return `Write a short email from ${owner} to ${t.person.name}, ${ask}\nTask: ${t.title}\n` +
     `Lead owner: ${lead === t.person.name ? `${t.person.name} (the person this email is to)` : lead}\n` +
@@ -53,6 +54,7 @@ export function tellPrompt(owner: string, t: TellTask): string {
 }
 
 /** The note to the person: an email from his mailbox, through the send gate. */
+export const tellPerson = (...a: Parameters<typeof tell>) => tell(...a);
 async function tell(
   clientNumber: string, userId: number, gate: SendGate, t: TellTask,
 ): Promise<{ told: boolean; draft_id?: string; undo_until?: string; error?: string }> {
@@ -60,7 +62,7 @@ async function tell(
   const origin = t.origin ?? await originOf(clientNumber, userId, t.itemId).catch(() => null);
   const body = await writeWithModel(clientNumber, userId, tellPrompt(owner, { ...t, origin }));
   const role = t.role ?? 'owner';
-  const subject = role === 'followup' ? `Following up: ${t.title}` : `Task: ${t.title}`;
+  const subject = role === 'followup' || role === 'chase' ? `Following up: ${t.title}` : `Task: ${t.title}`;
   // Only the owner's note marks the delegate as told (delegation_emailed_at); a helper's or a follow-up only links
   // its thread to the task (T33 P4).
   const link = role === 'owner' ? { tellOpenItemId: t.itemId } : { tellTaskThreadOf: t.itemId, tellRole: role, tellEmail: t.person.email };
@@ -410,7 +412,8 @@ export async function afterSuziSent(draftId: number, messageId: string | null): 
     if (mine) {
       await link(mine.id).catch(() => undefined);
       if (inp.tellRole === 'followup') await setTold(mine.id, { state: 'sent', draft_id: String(draftId) });
-      await recordSent(mine.id, inp.tellRole === 'helper' ? 'Helper note sent by email' : 'Followed up by email');
+      // T53: a chase wrote its own history line when it was asked ("Followed up by rule"); no second line here.
+      if (inp.tellRole !== 'chase') await recordSent(mine.id, inp.tellRole === 'helper' ? 'Helper note sent by email' : 'Followed up by email');
     }
     return;
   }

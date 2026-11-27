@@ -218,7 +218,11 @@ export async function packDecisions(clientNumber: string, userId: number, tz: st
     const who = str(t.watch?.person) && !str(t.watch?.person).includes('@') ? str(t.watch.person) : '';
     return { at: toZonedIso(t.created_at, tz), kind: 'task_created', by: 'nexeo' as const, about: { task_id: t.id, ...(who ? { person: who } : {}) }, what: t.watch ? `Started watching what you asked${who ? ` ${who}` : ''}: ${q(t.title)}` : `Made a task from your own email: ${q(t.title)}` };
   });
-  return mergeDecisions([his, rule, mine], opts.limit ?? DECISIONS_MAX);
+  // T53: a follow-up Nexeo sent by his standing rule, one day before the deadline.
+  const chased: PackDecision[] = (await import('./chase').then((m) => m.chaseDecisions(clientNumber, userId, since)).catch(() => []))
+    .filter((c) => c.people.length && !isNaN(Date.parse(c.at)))
+    .map((c) => ({ at: toZonedIso(new Date(c.at), tz), kind: 'followed_up', by: 'nexeo' as const, about: { task_id: c.task_id, person: c.people.join(', ') }, what: `Followed up by rule: one day before the deadline, ${c.people.join(', ')} on ${q(c.title)}` }));
+  return mergeDecisions([his, rule, mine, chased], opts.limit ?? DECISIONS_MAX);
 }
 
 /** The page's text: one decision per line, newest first, grouped by day. */

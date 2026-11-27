@@ -573,6 +573,10 @@ const server = app.listen(env.port, async () => {
       for (const u of rows) {
         const r = await runAssistantStep(u.client_number, u.id).catch((e: any) => { console.warn(`[assistantStep] ${u.id} failed: ${e?.message}`); return null; });
         if (r && r.read) console.log(`[assistantStep] ${JSON.stringify({ userId: u.id, ...r })}`);
+        // D-334 (T53, founder 27 Nov): the task's own people are asked one day before the deadline; he is told only when
+        // it is off track or unanswered. Runs only for a user whose standing instruction switches it on.
+        const ch = await import('./services/suzi/chase').then((m) => m.runChaseStep(u.client_number, u.id)).catch((e: any) => { console.warn(`[chase] ${u.id} failed: ${e?.message}`); return null; });
+        if (ch && (ch.asked || ch.answered || ch.told || ch.skipped)) console.log(`[chase] ${JSON.stringify({ userId: u.id, ...ch })}`);
         // D-327 (T49): his Wiki page "Past decisions", rewritten only when a decision was added.
         const d = await import('./services/suzi/decisions').then((m) => m.writeDecisionsPage(u.client_number, u.id)).catch((e: any) => { console.warn(`[decisionsPage] ${u.id} failed: ${e?.message}`); return null; });
         if (d?.wrote) console.log(`[decisionsPage] ${JSON.stringify({ userId: u.id, count: d.count })}`);

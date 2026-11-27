@@ -1066,6 +1066,10 @@ Past Decisions, Instructions: Nexeo Wiki."
 - **The advisor's notes (T49 Part B; built, deploy recorded in `Assistant_Step.md`).** All are `learned` notes, so they
   stay in Nexeo for every kind of user: "Advisor: current advice", "Advisor: track record", "Weekly review, <Monday>"
   and "Scorecard, week of <Monday>". Code: `server/src/services/suzi/advisor.ts`.
+- **The chase (T53, D-334).** The switch is his standing instruction's own Wiki page (`metadata.chase`). The state of
+  each chase is kept on the task it is about (`open_items.metadata.chase`: deadline asked for, when, each person's
+  answer and words), beside the task's trail and proposals; every step is also a dated entry in the task's history.
+  Nothing about a chase is stored anywhere else. Code: `server/src/services/suzi/chase.ts`.
 - **Scheduled jobs (T50, D-330).** A job's runs are kept on its own instruction page (`metadata.job.runs`, newest 20),
   with the slot claim (`metadata.job.claimed`) that makes one run per due time. A result longer than 600 characters is a
   `document` note written through `writeNote` (id `job_result:<job>:<due>:<attempt>`). Nothing about a job is stored

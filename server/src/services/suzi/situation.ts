@@ -18,7 +18,7 @@ import type { RecordedMeeting } from './packMeetings';
 import type { PackDecision } from './decisions';
 
 export type Ref = { email_id?: string; thread_id?: string; task_id?: string; meeting_id?: string; event_id?: string; proposal_id?: string; job_id?: string; id?: string };
-export interface SituationNew { at: string; kind: 'email' | 'reply' | 'meeting_record' | 'task_change' | 'proposal' | 'job_result'; what: string; ref: Ref }
+export interface SituationNew { at: string; kind: 'email' | 'reply' | 'meeting_record' | 'task_change' | 'proposal' | 'job_result' | 'chase'; what: string; ref: Ref }
 export interface SituationDone { at: string; by: 'him' | 'suzi' | 'nexeo'; kind: 'sent' | 'task_update' | 'delegated' | 'ignored' | 'decided' | 'booked'; what: string; to?: string; ref: Ref }
 export interface SituationToDo { rank: number; what: string; why: string; due?: string; ref: Ref; risk?: 'slipping' | 'overdue' | 'waiting_long' | 'no_owner'; goal?: string }
 export interface SituationAdvice { id: string; what: string; why: string; rests_on: string[]; goal?: string }
@@ -74,6 +74,13 @@ export function situationNew(p: SituationParts): SituationNew[] {
     out.push({ at: f.received_at, kind: 'email', what: cut(`For your knowledge, ${f.from}: ${f.subject}`, 200), ref: { email_id: f.email_id, thread_id: f.thread_id } });
   }
   for (const a of p.actions) {
+    // T53: he is told only when a chased task is off track or got no answer; on track is never listed.
+    const c = a.chase;
+    if (c && (c.answer === 'off_track' || c.answer === 'no_reply') && after(c.answered_at)) {
+      const who = c.by || c.to.join(', ');
+      out.push({ at: c.answered_at!, kind: 'chase', what: cut(c.answer === 'off_track' ? `${who} says "${a.title}" is not on track${c.said ? `: ${c.said}` : ''}` : `No answer from ${who} on "${a.title}", due ${c.due}`, 300), ref: { task_id: a.id } });
+      continue;
+    }
     const lu = a.last_update;
     if (!lu || !after(lu.at)) continue;
     const who = String(lu.who ?? '');
