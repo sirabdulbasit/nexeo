@@ -26,7 +26,8 @@ export const OPERATOR_PROOFS = ['file', 'page', 'screen', 'none'] as const;
 export const GOAL_MAX = 200;
 export const FOLDERS_MAX = 20;
 const FOLDER_MAX_CHARS = 300;
-const REPORT_KEYS = new Set(['run_id', 'job', 'status', 'proof', 'steps', 'actions', 'started', 'ended', 'goal']);
+/** D-331 (Suzi-Builder 27 Nov 11:18, AGREE): `job_id`, optional, is the scheduled instruction's id. Still no field for content. */
+const REPORT_KEYS = new Set(['run_id', 'job', 'status', 'proof', 'steps', 'actions', 'started', 'ended', 'goal', 'job_id']);
 
 export interface OperatorPermissions { images: { allowed: boolean; folders: string[] }; system: { allowed: boolean } }
 export interface PackOperator extends OperatorPermissions {
@@ -115,6 +116,8 @@ async function report(clientNumber: string, userId: number, args: Record<string,
   if (!started || !ended || ended.getTime() < started.getTime()) return fail('bad_time');
   if (args.goal !== undefined && typeof args.goal !== 'string') return fail('bad_goal');
   const goal = String(args.goal ?? '').trim().slice(0, GOAL_MAX);
+  if (args.job_id !== undefined && (typeof args.job_id !== 'string' || !/^[a-z0-9_-]{1,64}$/i.test(args.job_id) || job !== 'scheduled')) return fail('bad_job_id');
+  const jobId = typeof args.job_id === 'string' ? args.job_id : '';
 
   const status = said === 'done' && proof === 'none' ? 'unverified' : said;
   const id = runRowId(clientNumber, userId, runId);
@@ -122,7 +125,7 @@ async function report(clientNumber: string, userId: number, args: Record<string,
   const row: any = existing ?? await prisma.operatorRun.create({
     data: {
       id, clientNumber, userId, goal, model: `local:${job}`, status, steps, actions,
-      verified: status === 'done', summary: `proof:${proof}`, startedAt: started, endedAt: ended,
+      verified: status === 'done', summary: `proof:${proof}${jobId ? ` job:${jobId}` : ''}`, startedAt: started, endedAt: ended,
     },
   }).catch(async (e: any) => {
     // Two reports of the same run at once: the second reads what the first wrote.

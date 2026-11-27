@@ -65,7 +65,7 @@ describe('T41 schedule: the one reader', () => {
   it('refuses everything else', () => {
     for (const bad of [
       null, 'every friday', [], {}, { every: 'year' }, { every: 'Week' },
-      { every: 'day', on: 'mon' }, { every: 'week', on: 'friday' }, { every: 'week', on: 5 },
+      { every: 'day', on: 'mon' }, { every: 'week', on: 'someday' }, { every: 'week', on: 5 },
       { every: 'month', on: 0 }, { every: 'month', on: 29 }, { every: 'month', on: 1.5 }, { every: 'month', on: 'fri' },
       { every: 'day', at: '24:00' }, { every: 'day', at: '9:00' }, { every: 'day', at: '09:60' }, { every: 'day', at: 900 },
       { every: 'day', cron: '0 9 * * 5' },

@@ -82,6 +82,7 @@ export function nextRun(schedule: InstructionSchedule, after: Date, tz: string):
   for (let i = 0; i < 64; i += 1, day = addDays(day, 1)) {
     if (wantDow >= 0 && (new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7 !== wantDow) continue;
     if (wantDom >= 0 && Number(day.slice(8, 10)) !== wantDom) continue;
+    if (schedule.every === 'weekday' && (new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7 > 4) continue; // D-331: Mon-Fri
     const t = zonedInstant(day, at, tz);
     if (t.getTime() > after.getTime()) return t;
   }
@@ -322,9 +323,13 @@ export interface DueResult { scanned: number; ran: number; failed: number; misse
 
 async function macReport(r: Row, due: Date, now: Date): Promise<{ id: string; status: string } | null> {
   const rows = await prisma.$queryRawUnsafe<Array<{ id: string; status: string }>>(
+    // D-331: a report that names its job (` job:<instruction id>` in the summary) counts only for that job; one that
+    // names none keeps the old rule (any scheduled report in the window). This job's own report is preferred.
     `SELECT id, status FROM operator_runs WHERE client_number = $1 AND user_id = $2 AND model = 'local:scheduled'
-        AND started_at >= $3 AND started_at <= $4 ORDER BY started_at LIMIT 1`,
-    r.client_number, r.user_id, new Date(due.getTime() - MAC_EARLY_MS), now,
+        AND started_at >= $3 AND started_at <= $4
+        AND (summary NOT LIKE '% job:%' OR summary LIKE '% job:' || $5)
+      ORDER BY (summary LIKE '% job:' || $5) DESC, started_at LIMIT 1`,
+    r.client_number, r.user_id, new Date(due.getTime() - MAC_EARLY_MS), now, r.id,
   ).catch(() => []);
   return rows[0] ?? null;
 }

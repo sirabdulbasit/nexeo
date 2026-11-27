@@ -10,7 +10,8 @@
  * Nexeo keeps it; Suzi runs it on the Mac (only while the Mac is on and he is not in a meeting) and reports the run
  * as `operator.report` with job `scheduled`. Nexeo never runs it and never invents one.
  */
-export const SCHEDULE_EVERY = ['day', 'week', 'month'] as const;
+/** `weekday` = Monday to Friday (D-331, Suzi-Builder's ask of 27 Nov 11:18, AGREE the same hour). */
+export const SCHEDULE_EVERY = ['day', 'weekday', 'week', 'month'] as const;
 export const SCHEDULE_DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const;
 
 /** A repeating schedule, or (T50, Suzi's condition 1, 27 Nov) a one-off: `{once: "<ISO date-time with offset>"}`. */
@@ -38,12 +39,14 @@ export function parseSchedule(v: unknown): InstructionSchedule | null {
   const every = s.every as (typeof SCHEDULE_EVERY)[number];
   const out: { every: (typeof SCHEDULE_EVERY)[number]; on?: (typeof SCHEDULE_DAYS)[number] | number; at?: string } = { every };
 
-  if (every === 'day') {
+  if (every === 'day' || every === 'weekday') {
     if (s.on !== undefined) return null;
   } else if (every === 'week') {
     if (s.on !== undefined) {
-      if (!(SCHEDULE_DAYS as readonly unknown[]).includes(s.on)) return null;
-      out.on = s.on as (typeof SCHEDULE_DAYS)[number];
+      // D-331: a full day name is read as its three letters ("monday" = "mon"); what is kept is always three letters.
+      const day = typeof s.on === 'string' && /^(mon|tues?|wed(nes)?|thu(rs)?|fri|sat(ur)?|sun)(day)?$/i.test(s.on) ? s.on.toLowerCase().slice(0, 3) : s.on;
+      if (!(SCHEDULE_DAYS as readonly unknown[]).includes(day)) return null;
+      out.on = day as (typeof SCHEDULE_DAYS)[number];
     }
   } else if (s.on !== undefined) {
     if (typeof s.on !== 'number' || !Number.isInteger(s.on) || s.on < 1 || s.on > 28) return null;

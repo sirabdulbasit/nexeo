@@ -215,3 +215,7 @@ Agreed with Suzi-Builder 27 Nov 10:35 PKT (T50). A scheduled standing instructio
 (Nexeo's server runs it; not the operator). A schedule set before T50 stays a Mac job. Nexeo marks a Mac job `missed`
 when no scheduled report arrives within 2 hours of its time. One limit: a report carries no job id, so one report in
 the window counts for every Mac job due in it. Everything else about jobs is in `Three_Roles.md` §3.4.
+
+**D-331 (27 Nov):** `operator.report` has a tenth, optional field, `job_id` (the scheduled instruction's id; only with
+`job: "scheduled"`; letters, digits, `_` and `-`). It is kept in the run's summary as ` job:<id>`. No field for content
+was added: any other extra field is still refused.

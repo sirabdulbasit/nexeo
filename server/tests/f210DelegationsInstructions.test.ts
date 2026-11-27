@@ -94,7 +94,7 @@ describe('T41 round 9: when a standing instruction runs', () => {
     expect(await runDelegationOp('T', 2, 'instruction.update', { id: 'ins_1', schedule: friday }, false, unsigned)).toMatchObject({ error: 'needs_confirmation' });
     expect(await runDelegationOp('T', 2, 'instruction.update', { id: 'ins_1' }, true, unsigned)).toMatchObject({ error: 'bad_schedule' });
     expect(await runDelegationOp('T', 2, 'instruction.update', { id: 'ins_1', schedule: friday, text: 'new words' }, true, unsigned)).toMatchObject({ error: 'bad_args' });
-    expect(await runDelegationOp('T', 2, 'instruction.update', { id: 'ins_1', schedule: { every: 'week', on: 'friday' } }, true, unsigned)).toMatchObject({ error: 'bad_schedule' });
+    expect(await runDelegationOp('T', 2, 'instruction.update', { id: 'ins_1', schedule: { every: 'week', on: 'someday' } }, true, unsigned)).toMatchObject({ error: 'bad_schedule' }); // D-331: a full day name is accepted now, so the refused case is a word that is no day
     expect(await runDelegationOp('T', 2, 'instruction.update', { schedule: friday }, true, unsigned)).toMatchObject({ error: 'not_found' });
     expect(setSchedule).not.toHaveBeenCalled();
   });

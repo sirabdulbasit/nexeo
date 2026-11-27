@@ -112,7 +112,9 @@ Code: `services/suzi/scheduledJobs.ts`, `knowledge/instructionSchedule.ts`, `kno
 `suziDelegations.ts`. Tests: `t50ScheduledJobs`, `t50InstructionOps`.
 
 - **A job is a standing instruction with a schedule**, on its own Wiki instruction page. `schedule` is
-  `{every: day | week | month, on?, at?}` or `{once: "<ISO date-time>"}` ("remind me at 4 to call Ali").
+  `{every: day | weekday | week | month, on?, at?}` or `{once: "<ISO date-time>"}` ("remind me at 4 to call Ali").
+  `weekday` is Monday to Friday; `on` for a week is `mon`..`sun` (a full day name is read as its three letters), for a
+  month 1..28 (D-331).
 - **Where it runs:** `runs_on: "nexeo" | "mac"`.
   - `nexeo`: anything over his data (reports, reminders to him, checks). The server runs it in his time zone whether
     or not the Mac is on.
@@ -156,7 +158,8 @@ no advice given yet. Week of 16 Nov: 43 done, 4 failed, 4 held.
    builder, images yes.
 2. `send: "auto"` for a job actually sending (needs the by-rule send path, held with F-2.4).
 3. A `job.result` frame in the gateway; "told once in the brief" for a failed or missed job.
-4. Mac reports carry no job id, so one report in the window counts for every Mac job due in it (a contract change).
+4. ~~Mac reports carry no job id.~~ **Built, D-331:** `operator.report` takes an optional `job_id`; a report that
+   names its job counts only for that job. Suzi adds the field on her side.
 5. Company-wide scheduled instructions are not run; only his own.
 6. Business numbers for the advisor: finance, pipeline and project systems are not connected (integrations work).
 7. Calendar load is not among the review's facts; tomorrow's calendar is not among a job's facts.
