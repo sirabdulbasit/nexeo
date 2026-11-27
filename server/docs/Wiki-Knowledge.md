@@ -1101,6 +1101,23 @@ Past Decisions, Instructions: Nexeo Wiki."
 
 **State:** Wiki half built 25 Nov and deployed with this commit (D-321w). Live proof waits on the Integration half and a test integration of projects (a CSV), which the Integration session creates.
 
+### 0.34 His Assistant settings and signature are set in Nexeo (founder 27 Nov 2026, T56; D-339)
+
+Founder, 27 Nov (via Suzi-Builder): "Move Email Signature, Assistant settings to Nexeo and remove from both Suzi (Mob and
+Laptop)". SLC (Suzi Laptop Client) and SMC (Suzi Mobile Client) no longer show them; Nexeo Settings -> Assistant does.
+
+- **Written to the Wiki:** wake phrase, sleep phrases and email signature are keys of his profile note "How to work with
+  <name>" (`assistant.wake_phrase`, `assistant.sleep_phrases`, `email.signature`), written through the same
+  `profile.update` path Suzi uses, each with its own private `record` source. A write from Settings is marked as his:
+  the source is titled `His Settings: <key>` and the note's writer is `user:settings` (a write from Suzi stays
+  `Suzi learned: <key>` / `suzi`). An emptied field removes the key and its source (forgotten everywhere, W-1).
+- **Not in the Wiki (unchanged records):** her name (`users.notification_preferences.brainName`) and what she calls
+  him (`notification_preferences.profile.preferredTitle`).
+- **Read by Suzi:** pack `profile.assistant {name, user_name, wake_phrase?, sleep_phrases?}`; a phrase never set is
+  left out, so Suzi keeps her own. The flat `assistant.*` keys are not repeated in `profile{}`.
+- **Verified 27 Nov 20:55 PKT:** the live read gives name "Suzi", user_name "Sir", signature "Regards / Basit - Digital
+  Twin", no phrases yet. **NOT VERIFIED:** a save from the page; SLC/SMC reading `profile.assistant`.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:

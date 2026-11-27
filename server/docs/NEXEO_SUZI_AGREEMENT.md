@@ -1235,3 +1235,18 @@ Nexeo answered with facts from the code at 17:29 and 17:31. **Nothing is agreed 
   (`source: "docked"`, a gateway schema change); no weather source. **Privacy does not hold today:** `profile.*` facts
   are printed in his note "How to work with <name>", which the knowledge search and the on-open advice can read.
   Nexeo proposed keys `personal.<id>` stored and returned but never printed (like the raw keys). Waiting for AGREE.
+
+## T56: Assistant settings and email signature move to Nexeo. AGREED and BUILT 27 Nov 2026 as D-339 (record by Nexeo-Builder)
+
+Founder's words, relayed by Suzi-Builder 27 Nov 20:40 PKT: "Move Email Signature, Assistant settings to Nexeo and remove
+from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC and SMC (code 188d5ff and later).
+
+- Nexeo Settings -> Assistant holds: her name, what she calls him, wake phrase, sleep phrases, email signature.
+- Pack, Suzi-Builder's shape with one note: `profile.assistant {name, user_name, wake_phrase?, sleep_phrases?}`.
+  `name` = her name (same record as `welcome`). `user_name` = **what she calls him** (his Nexeo setting, today "Sir";
+  his first name when he set none). `welcome`'s user name stays his account name. A phrase never set in Nexeo is left
+  out, so Suzi keeps her own. Phrases are lower-case letters and spaces, 2 to 40; at most 10 sleep phrases.
+- The signature stays `profile['email.signature']` (D-338), now set only in Nexeo.
+- Asked of Suzi: send her current wake and sleep phrases once by `profile.update` (keys `assistant.wake_phrase`,
+  `assistant.sleep_phrases`) so his Settings shows them; after that Nexeo is the only writer.
+- Live 27 Nov 20:55:07 PKT (server) and 20:55:55 PKT (Settings page).
