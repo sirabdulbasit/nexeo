@@ -7,10 +7,16 @@ import { createApiKey, disconnectDevice, errorText, installerLink, listDevices, 
 import { useAuth } from '../context/AuthContext';
 
 // Link T30: which installer fits this visitor's computer; both are always shown.
-const THIS_OS = /Mac|iPhone|iPad/i.test(navigator.platform || navigator.userAgent) ? 'macos' : /Win/i.test(navigator.platform || navigator.userAgent) ? 'windows' : null;
+// Founder 27 Nov: "Suzi Apps should show mac/windows/android/apple based on OS automatically". Phones are told apart
+// first: an Android browser says "Linux", and an iPad can say "Mac" (it has a touch screen, a Mac has none).
+const UA = navigator.userAgent || '';
+const PLAT = navigator.platform || '';
+const THIS_OS = /Android/i.test(UA) ? 'android'
+  : /iPhone|iPad|iPod/i.test(UA) || (/Mac/i.test(PLAT) && navigator.maxTouchPoints > 1) ? 'ios'
+  : /Mac/i.test(PLAT || UA) ? 'macos'
+  : /Win/i.test(PLAT || UA) ? 'windows' : null;
 const OS_NAME = { macos: 'Mac (.dmg)', windows: 'Windows (.exe)', android: 'Android (.apk)' };
 // T54 (founder 27 Nov): Settings → Suzi Apps, with Laptop (Mac or Windows) and Mobile (Android or Apple) downloads.
-const ON_PHONE = /Android|iPhone|iPad/i.test(navigator.userAgent);
 
 const VALIDITY = [7, 30, 90, 'never'];
 
@@ -191,9 +197,9 @@ function DownloadSuzi() {
       setBusy(null);
     }
   };
-  // Founder 11-11: for a laptop, show only the installer for this computer's system. Both when the system is not
-  // recognised or the page is opened on a phone, so nobody is left without a choice.
-  const laptop = THIS_OS && !ON_PHONE ? [THIS_OS] : ['macos', 'windows'];
+  // Only the download for the system this page is opened on. All four when the system is not recognised (Linux), so
+  // nobody is left without a choice.
+  const show = THIS_OS ? [THIS_OS] : ['macos', 'windows', 'android', 'ios'];
   const row = (os) => {
     const i = inst[os] ?? { available: false };
     return (
@@ -212,28 +218,25 @@ function DownloadSuzi() {
       </div>
     );
   };
-  const group = { fontSize: 12, fontWeight: 600, color: 'var(--n-666666)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 6 };
   return (
     <section className="settings-section">
       <h2>Downloads</h2>
       <p style={{ fontSize: 12, color: 'var(--n-666666)', marginTop: -4, marginBottom: 10 }}>
-        Install Suzi on your laptop or your phone. This is always the latest version: to upgrade, download it again and
-        install it over the one you have.
+        Suzi for this device. This is always the latest version: to upgrade, download it again and install it over the
+        one you have.
       </p>
       {inst === null && <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>Loading…</div>}
       {inst && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={group}>Laptop</div>
-          {laptop.map(row)}
-          <div style={group}>Mobile</div>
-          {row('android')}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ fontWeight: 600 }}>Apple (iPhone)</div>
-              <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>Coming later</div>
+          {show.map((os) => (os === 'ios' ? (
+            <div key="ios" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>Apple (iPhone)</div>
+                <div style={{ fontSize: 12, color: 'var(--n-999999)' }}>Coming later</div>
+              </div>
+              <button className="settings-btn" disabled>Download</button>
             </div>
-            <button className="settings-btn" disabled>Download</button>
-          </div>
+          ) : row(os)))}
         </div>
       )}
       {err && <div style={{ fontSize: 12, color: 'var(--s-fca5a5)', marginTop: 8 }}>{err}</div>}
