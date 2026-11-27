@@ -166,4 +166,28 @@ no advice given yet. Week of 16 Nov: 43 done, 4 failed, 4 held.
 
 ## 6. Never verified
 
-Written honestly at each deploy; see the evaluation chart rows D-324 to D-330 for what was read live and what was not.
+State on 27 Nov 2026, 11:15 PKT (D-324 to D-330 all live; chart rows of the same names):
+
+- **No scheduled job has ever run**, on Nexeo or the Mac. He has none on Nexeo yet. The claim (one run per due time)
+  was proven on Postgres against a session-only copy and in tests, never with his job.
+- `seen.update`, `advice.feedback`, `job.run_now` and `task.update describe` have not been sent by Suzi yet.
+- The push of a job result to his live Suzi.
+- **Whether the advice is right.** The first run gave 2 pieces of advice and a 5-item review. Each cites real facts,
+  but the wording is the model's: one line says he "marked the invoice as paid", which was not checked against the
+  record. Read a week of advice with him and count the wrong ones; the track record (`advice.feedback`) is the measure.
+- The scheduled runs of the advisor and of the jobs runner (only the runs by hand were read). Look for `[advisor]`,
+  `[decisionsPage]` and `[scheduledJobs]` lines in the server log.
+- Goals: none set, so no item carries a goal yet.
+- D-325: that the Vision Metrics task gets no eleventh "can't reach Sofia Rana" note (the tenth was 26 Nov 13:55 PKT;
+  read `metadata.actionLifecycle.followUpHistory` of task `cmwj33pjz001srt5difi81mgy` after 14:00 PKT on 27 Nov).
+- A knowledge search finding the "Past decisions" page.
+- Known small fault: a review fact reads "1 emails".
+
+## 7. How to continue
+
+1. Read the link (`/root/suzi-nexeo-link/inbox`) for Suzi-Builder's answers to D-328 to D-330: the frame for job
+   results, `job_id` on `operator.report`, and the time of the first scheduled instruction. Then read that run on the
+   job's page (`wiki_pages.metadata->'job'->'runs'`).
+2. Do the D-325 check above.
+3. With the founder: his goals (Suzi's card), then a week of advice read together.
+4. §5, in order.
