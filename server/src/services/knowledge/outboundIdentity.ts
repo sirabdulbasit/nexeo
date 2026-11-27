@@ -48,12 +48,22 @@ Rules:
 - If the sign-offs are inconsistent or you can't find a recurring block, return exactly: NONE`;
 
 /** The user's real email signature. Resolution order:
+ *    0. the signature configured in Settings (profile `email.signature`): always wins, never cached;
  *    1. explicit preference (brain_channel.emailSignature) — a user-
  *       approved standing preference always wins;
  *    2. LLM-extracted from their recent Sent items (cached 24h);
  *    3. fallback "Thanks,\n<first name>" so emails never end abruptly.
  *  Never throws — email sending must not depend on signature niceties. */
 export async function getUserEmailSignature(userId: number, _clientNumber: string): Promise<string> {
+  // Founder 27 Nov 2026: "signature rules will be part of Nexeo because Nexeo sends email", "whatever is configured at
+  // Nexeo", "standing rule or instructions can't be bypass configuration". The signature set in Settings (his profile's
+  // `email.signature`, the same one every email written through Suzi already ends with) wins over everything below,
+  // and is read on every call so a change in Settings is used at once.
+  try {
+    const { signatureOf } = await import('../suzi/suziEmail');
+    const configured = await signatureOf(_clientNumber, userId);
+    if (configured) return configured;
+  } catch { /* no configured signature can be read: the older order applies */ }
   return getOrCompute(`emailsig:${userId}`, 24 * 3600, async () => {
     let firstName = 'there';
     try {

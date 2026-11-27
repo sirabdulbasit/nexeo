@@ -25,6 +25,8 @@ vi.mock('../src/services/llmRouter', () => ({
   callLLM: (...a: any[]) => callLlmMock(...a),
 }));
 
+const cfg = vi.hoisted(() => ({ sig: null as string | null }));
+vi.mock('../src/services/suzi/suziEmail', () => ({ signatureOf: async () => cfg.sig }));
 import { getBrainDisplayName, getUserEmailSignature } from '../src/services/knowledge/outboundIdentity';
 
 beforeEach(() => {
@@ -113,5 +115,16 @@ describe('getUserEmailSignature — sign the way the user signs', () => {
     const [key, ttl] = getOrComputeSpy.mock.calls[0]!;
     expect(key).toBe('emailsig:2');
     expect(ttl).toBe(24 * 3600);
+  });
+});
+
+describe('the configured signature cannot be bypassed (founder 27 Nov 2026)', () => {
+  it('the signature set in Settings wins over a preference, over what his sent mail shows and over the fallback', async () => {
+    cfg.sig = 'Regards\nBasit - Digital Twin';
+    try {
+      expect(await getUserEmailSignature(2, 'TMC-0001')).toBe('Regards\nBasit - Digital Twin');
+      cfg.sig = 'Regards\nBasit';
+      expect(await getUserEmailSignature(2, 'TMC-0001')).toBe('Regards\nBasit'); // a change in Settings is used at once
+    } finally { cfg.sig = null; }
   });
 });
