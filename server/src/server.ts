@@ -582,6 +582,9 @@ const server = app.listen(env.port, async () => {
         if (adv?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, advice: adv.advice })}`);
         const rev = await A.runWeeklyReview(u.client_number, u.id).catch((e: any) => { console.warn(`[advisor] ${u.id} review failed: ${e?.message}`); return null; });
         if (rev?.ran) console.log(`[advisor] ${JSON.stringify({ userId: u.id, review: rev.items, week: rev.week })}`);
+        // D-333 (T52): the thinking step: important, pending, risks now and ahead, forecast; past predictions are checked.
+        const ol = await import('./services/suzi/outlook').then((m) => m.runOutlookStep(u.client_number, u.id)).catch((e: any) => { console.warn(`[outlook] ${u.id} failed: ${e?.message}`); return null; });
+        if (ol && (ol.ran || ol.checked)) console.log(`[outlook] ${JSON.stringify({ userId: u.id, ...ol })}`);
         // D-332 (T51, Suzi's condition 1): advice prepared ahead for what he is likely to open, so a card answers at once.
         const w = await import('./services/suzi/itemAdvice').then((m) => m.warmItemAdvice(u.client_number, u.id)).catch((e: any) => { console.warn(`[itemAdvice] ${u.id} warm failed: ${e?.message}`); return null; });
         if (w && (w.prepared || w.failed)) console.log(`[itemAdvice] ${JSON.stringify({ userId: u.id, ...w })}`);

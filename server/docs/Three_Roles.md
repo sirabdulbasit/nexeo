@@ -165,6 +165,38 @@ how to do. before suggesting Suzi/Nexeo should have complete related knowledge (
   him first (Costing Charter).
 - Feedback: `advice.feedback` with the advice's `item:<hash>` id; counted under the advisor.
 
+### 3.4b The outlook: Nexeo keeps thinking (D-333; T52)
+
+Founder, 27 Nov 11:45 PKT: "suzi/nexeo keep thinking as per knowledge what to do, and what is important, what is
+pending, what are possible risk now and in future, forecasting, predicting etc". Agreed with Suzi-Builder 11:44 PKT,
+four conditions. Code: `services/suzi/outlook.ts`. Test: `d333Outlook`. Kept as the `learned` note "Advisor: outlook".
+
+`pack.outlook`, at most 5 per list, rewritten with the advisor step (at most every 3 hours, only when what it reads
+changed, or once a day):
+
+| List | What | How |
+|---|---|---|
+| `important` | the top of his to-do ranking, with why and goal | computed (the same ranking as `situation.to_do`) |
+| `pending` | what waits, `with` whom and `since` when, oldest first | computed: tasks he gave, things he asked for by email, replies he owes |
+| `risks_now` | what is already going wrong, with `prevent` | the model, citing counted signals |
+| `risks_ahead` | **predictions**: `{what, by, likelihood: likely / possible, why, rests_on[], prevent, ref?}` | the model, citing counted signals |
+| `forecast` | the load ahead, by `period` | the model, citing counted signals |
+
+- **Counted signals** are the only thing a risk or forecast may rest on: each open task due within 14 days (who has it,
+  days to or past its date, how often its deadline moved, and how late that person's finished tasks closed on
+  average); how many tasks were finished a week over 8 weeks against what is due; things he asked for that are still
+  open after 5 days; emails waiting 2 days or more; scheduled jobs that failed or were missed twice. `rests_on`
+  carries the signal's own words.
+- **A prediction is never a fact** (condition 1): it needs a likelihood, a date after today within 45 days, and a
+  signal. Without any one of them the line is dropped. `prevent` is one action with an owner (condition 2).
+- **Checked when its date passes** (condition 3), against the record: `came_true` when the task was still open (or
+  closed after the date), or the email still unanswered; `prevented` only when it did not happen **and** he acted on
+  that item in between; otherwise `did_not`. A prediction about no single item is not checked. The scorecard carries
+  `predictions {made, came_true, did_not, prevented, open}`.
+- `risks_ahead` is ordered most likely and soonest first. Raising at most one new risk a day unasked is Suzi's part
+  (condition 4).
+- Feedback: `advice.feedback` with any outlook line's id; an answered line leaves the pack.
+
 ### 3.5 What the scorecard read on 27 Nov, before any of this ran
 
 Week of 23 Nov so far: 26 actions done, 1 failed, 9 held; 6 suggestions made, 3 accepted, 1 dismissed; 0 screen runs;

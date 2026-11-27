@@ -325,6 +325,8 @@ export interface DayPack {
   situation?: import('./situation').Situation;
   /** D-329 (T49 B1): the advisor's weekly review, at most 5 items. Absent = none this week. */
   review?: import('./advisor').PackReview;
+  /** D-333 (T52): what Nexeo thinks is ahead: important, pending, risks now, risks ahead (predictions), forecast. Absent = none yet. */
+  outlook?: import('./outlook').Outlook;
   /** D-329 (T49 B3): counted results, this week so far and last week. Absent = could not be read. */
   scorecard?: { this_week: import('./advisor').Scorecard; last_week: import('./advisor').Scorecard };
   /** D-330 (T50): his scheduled jobs. Absent = could not be read. */
@@ -513,6 +515,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     // D-328/D-329: the advisor's stored advice, review and scorecard, and when he last looked. Each read stands alone.
     opt('advisor', async () => {
       const A = await import('./advisor');
+      const outlook = await import('./outlook').then((m) => m.packOutlook(clientNumber, userId, now)).catch(() => null);
       const [advice, review, scorecard, seen] = await Promise.all([
         A.packAdvice(clientNumber, userId).catch(() => null),
         A.packReview(clientNumber, userId, now).catch(() => null),
@@ -522,7 +525,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
           clientNumber, userId,
         ).then((r) => r[0]?.at ?? null).catch(() => null),
       ]);
-      return { advice, review, scorecard, seen };
+      return { advice, review, scorecard, seen, outlook };
     }),
     opt('jobs', () => import('./scheduledJobs').then((m) => m.packJobs(clientNumber, userId, now, tz)).then((j) => ({ jobs: j })).catch(() => ({}))),
   ]);
@@ -547,7 +550,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     : { fyi: [] as PackFyi[], ignored: 0, answered: 0 };
   const handled = leaveHandled(withRulesOut, threadTasks, notices.threads, now);
   // D-328: one picture from the parts above. Anything that throws leaves `situation` out, never the pack.
-  const ap = advisorParts as { advice?: { advice: any[]; goals: Map<string, string> } | null; review?: any; scorecard?: any; seen?: string | null };
+  const ap = advisorParts as { advice?: { advice: any[]; goals: Map<string, string> } | null; review?: any; scorecard?: any; seen?: string | null; outlook?: import('./outlook').Outlook | null };
   const jobList = ((jobs as any).jobs ?? []) as import('./scheduledJobs').PackJob[];
   let situation: import('./situation').Situation | null = null;
   try {
@@ -584,6 +587,7 @@ export async function buildDayPack(clientNumber: string, userId: number, opts: {
     ...(situation ? { situation } : {}),
     ...(ap.review ? { review: ap.review } : {}),
     ...(ap.scorecard ? { scorecard: ap.scorecard } : {}),
+    ...(ap.outlook ? { outlook: ap.outlook } : {}),
   };
 }
 

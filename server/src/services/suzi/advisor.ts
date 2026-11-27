@@ -125,6 +125,9 @@ async function knownAdvice(clientNumber: string, userId: number): Promise<Map<st
   const cur = await readProps(clientNumber, userId, TITLE.advice);
   for (const x of [...(Array.isArray(cur.items) ? cur.items : []), ...(Array.isArray(cur.history) ? cur.history : [])]) if (x?.id) out.set(String(x.id), { what: String(x.what ?? ''), source: 'advice' });
   for (const r of await recentReviews(clientNumber, userId)) for (const x of r.items) out.set(x.id, { what: x.what, source: 'review' });
+  // T52: the outlook's lines (important, pending, risks, forecast) can be answered too.
+  const o = await import('./outlook').then((m) => m.outlookRecord(clientNumber, userId)).catch(() => null);
+  for (const [id, what] of o?.lines ?? []) if (!out.has(id)) out.set(id, { what, source: 'advice' });
   return out;
 }
 
@@ -415,6 +418,8 @@ export interface Scorecard {
   /** `cost` (Suzi's condition, T51): what the advisor's model calls really cost, from the spend record. */
   advisor: { advice_given: number; useful: number; done: number; not_useful: number; cost?: { week_usd: number; month_usd: number; month_pkr: number } };
   jobs?: { done: number; failed: number; missed: number };
+  /** T52: predictions made this week, and how those whose date passed this week turned out. `open` = not yet due. */
+  predictions?: { made: number; came_true: number; did_not: number; prevented: number; open: number };
 }
 
 /** The advisor's model calls, by their spend label. */
@@ -483,7 +488,8 @@ export async function buildScorecard(clientNumber: string, userId: number, week:
   ).catch(() => []);
   const cost = spend[0] ? { week_usd: Math.round((spend[0].week ?? 0) * 1000) / 1000, month_usd: Math.round((spend[0].month ?? 0) * 1000) / 1000, month_pkr: Math.round((spend[0].month ?? 0) * USD_PKR) } : undefined;
   const advisor = { ...(cost ? { cost } : {}), advice_given: given, useful: fb.filter((e) => e.verdict === 'useful').length, done: fb.filter((e) => e.verdict === 'done').length, not_useful: fb.filter((e) => e.verdict === 'not_useful').length };
-  return { week, from: from.toISOString(), to: to.toISOString(), operator, assistant, advisor };
+  const rec = await import('./outlook').then(async (m) => m.predictionCounts((await m.outlookRecord(clientNumber, userId)).predictions, from, to)).catch(() => null);
+  return { week, from: from.toISOString(), to: to.toISOString(), operator, assistant, advisor, ...(rec ? { predictions: rec } : {}) };
 }
 
 export function scorecardBody(s: Scorecard): string {
@@ -495,6 +501,7 @@ export function scorecardBody(s: Scorecard): string {
     '## Assistant', `- Suggestions made: ${s.assistant.suggestions_made}; accepted ${s.assistant.suggestions_done}, dismissed ${s.assistant.suggestions_dismissed}`, `- Tasks made from his own mail: ${s.assistant.tasks_from_his_mail}`, '',
     '## Advisor', `- Advice given: ${s.advisor.advice_given}; useful ${s.advisor.useful}, done ${s.advisor.done}, not useful ${s.advisor.not_useful}`,
     ...(s.advisor.cost ? [`- Cost of the advisor's thinking: about USD ${s.advisor.cost.week_usd} this week, USD ${s.advisor.cost.month_usd} this month (about PKR ${s.advisor.cost.month_pkr})`] : []),
+    ...(s.predictions ? ['', '## Predictions', `- Made ${s.predictions.made}; came true ${s.predictions.came_true}, did not ${s.predictions.did_not}, prevented ${s.predictions.prevented}; ${s.predictions.open} not yet due`] : []),
     ...(s.jobs ? ['', '## Scheduled jobs', `- Done ${s.jobs.done}, failed ${s.jobs.failed}, missed ${s.jobs.missed}`] : []),
   ].join('\n');
 }
