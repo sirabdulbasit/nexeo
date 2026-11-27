@@ -5,7 +5,7 @@ each side, how each is proven, and what is not built or never verified. Anything
 situation picture, the scorecard or scheduled jobs is written here in the same commit. The assistant step's own detail
 stays in `Assistant_Step.md`; the screen operator's in `Computer_Operator.md`.
 
-Last updated: 27 Nov 2026, by the Nexeo-Builder session (the only Nexeo-side session since 27 Nov).
+Last updated: 27 Nov 2026, 16:50 PKT, by the Nexeo-Builder session (the only Nexeo-side session since 27 Nov). D-334 (the chase, §3.4c) is live since 16:41:56 PKT; his standing instruction is recorded; no chase has been sent yet.
 
 ## 1. The founder's rulings
 
@@ -276,13 +276,18 @@ State on 27 Nov 2026, 12:25 PKT (D-324 to D-333b all live; chart rows of the sam
 - The scheduled runs of the advisor and of the jobs runner (only the runs by hand were read). Look for `[advisor]`,
   `[decisionsPage]` and `[scheduledJobs]` lines in the server log.
 - Goals: none set, so no item carries a goal yet.
-- D-325: that the Vision Metrics task gets no eleventh "can't reach Sofia Rana" note (the tenth was 26 Nov 13:55 PKT;
+- **The chase (D-334):** no real chase has been sent, no real reply read, the card not seen. The first goes on the last
+  working day before a delegated task's deadline; on 27 Nov none of his delegated tasks had a deadline after today.
+  Read `open_items.metadata->'chase'` and `[chase]` lines in the server log.
+- ~~D-325~~ **verified 27 Nov 16:45 PKT:** no note on 27 Nov. Was: that the Vision Metrics task gets no eleventh "can't reach Sofia Rana" note (the tenth was 26 Nov 13:55 PKT;
   read `metadata.actionLifecycle.followUpHistory` of task `cmwj33pjz001srt5difi81mgy` after 14:00 PKT on 27 Nov).
 - A knowledge search finding the "Past decisions" page.
 - Known small fault: a review fact reads "1 emails".
 
 ## 7. How to continue
 
+0. **Start the watcher on the link first** (a background loop that counts `inbox/*-suzi.md`). On 27 Nov it was not
+   running from 12:28 to 16:23 PKT and five messages went unread, one of them the founder's own instruction (T53).
 1. Read the link (`/root/suzi-nexeo-link/inbox`) for Suzi-Builder's times: his first scheduled job, his first card
    opened with advice, his first click on a suggested button. Read each in `suzi_act_log` (`item.advise`,
    `advice.feedback`) and on the job's page (`wiki_pages.metadata->'job'->'runs'`). Settled with Suzi-Builder 27 Nov:
