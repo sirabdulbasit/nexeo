@@ -41,6 +41,8 @@ describe('D-333 outlook: predictions', () => {
     expect(r.risks_ahead[0]).toMatchObject({ by: '2026-12-01', likelihood: 'likely', ref: { task_id: 't1' }, rests_on: [sig[0].text] });
     expect(OUTLOOK_SYSTEM).toMatch(/PREDICTIONS, never facts/);
     expect(OUTLOOK_SYSTEM).toMatch(/If no pattern supports a prediction, do not make one/);
+    expect(OUTLOOK_SYSTEM).toMatch(/Speak to the user as "you"/);
+    expect(OUTLOOK_SYSTEM).toMatch(/never a date weeks after the task's deadline/);
   });
   it('PREVENT: no action, no risk', () => {
     const r = parseOutlook(J({ risks_ahead: [ahead({ prevent: '' })], risks_now: [{ what: 'Tridorian reminder waits 4 days', why: 'It is due 30 Nov', signals: ['s:3'], prevent: '' }] }), sig, TODAY);
