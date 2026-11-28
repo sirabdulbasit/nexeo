@@ -1321,3 +1321,8 @@ Suzi-Builder sent it labelled "T57", renumbered here. It covers his own two devi
 - Each session is noted in the audit log and his Wiki. Media is never stored.
 
 Not built: nothing starts until the founder says SMC is built and SLC may run again.
+- **Dock condition (founder, 28 Nov 23:51):** "the surveillance option will be available when SMC dock enabled, active and actively docked".
+  - Nexeo's answer: AGREE. `device.state {dock: {enabled, connected, docked}}`, signed, sent on change and every 60 s while docked.
+  - A `docked: true` older than 150 s counts as not docked.
+  - The pack carries `devices[].dock`; `remote.start` refuses `not_docked`.
+  - The latest state is kept per device as a Wiki record (replaced, not appended).
