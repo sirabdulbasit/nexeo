@@ -98,7 +98,7 @@ export default function AdminPage() {
     { key: 'whatsapp',   label: 'WhatsApp' },
     { key: 'connectors', label: 'Connectors' },
     { key: 'integrations', label: 'Integrations' },
-    { key: 'sources',    label: 'Knowledge Sources' },
+    // 'Knowledge Sources' (the client's Drive folder) removed 28 Nov 2026: it becomes an integration (founder).
     // Link T41 (founder, 18 Nov 2026): consent, switch and limits for Suzi's computer operator.
     { key: 'operator',   label: 'Computer Operator' },
     ...(user?.isSuperAdmin ? [{ key: 'licenses', label: 'Licence' }] : []),
@@ -185,9 +185,6 @@ export default function AdminPage() {
         )}
         {activeTab === 'client' && clientSub === 'integrations' && (
           <IntegrationsTab msg={msg} setMsg={setMsg} />
-        )}
-        {activeTab === 'client' && clientSub === 'sources' && (
-          <ClientManagementTab user={user} msg={msg} setMsg={setMsg} section="connectors" />
         )}
         {activeTab === 'client' && clientSub === 'operator' && (
           <OperatorTab user={user} setMsg={setMsg} />

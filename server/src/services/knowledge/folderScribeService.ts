@@ -311,6 +311,12 @@ export async function scribeFaclForTenant(
   explicitFolderId?: string,
 ): Promise<FolderScribeSummary> {
   const t0 = Date.now();
+  // Founder 28 Nov 2026: the client-level knowledge source is removed (it becomes an integration). Any old route or
+  // leftover setting that still calls this reads nothing and writes nothing.
+  if (CLIENT_FOLDER_REMOVED) {
+    log.info('client FACL scribe refused: removed 28 Nov 2026, use Integrations', { clientNumber });
+    return { clientNumber, scribedAs: 0, folderId: explicitFolderId ?? '', scanned: 0, updated: 0, unchanged: 0, skipped: 0, errors: 0, durationMs: 0 };
+  }
   // Resolve folder ID: explicit arg wins, otherwise pull from system_config
   let folderId = explicitFolderId;
   if (!folderId) {
@@ -400,6 +406,7 @@ export async function scribeFaclFolder(
   for (const f of files) {
     if (f.mimeType === 'application/vnd.google-apps.folder') continue;
     if (!TEXT_EXTRACTABLE_MIMES.has(f.mimeType)) { summary.skipped += 1; continue; }
+    if (isObsoleteFaclFile(f.name)) { summary.skipped += 1; continue; }
     try {
       const text = await exportFileText(drive, f.id, f.mimeType);
       if (!text || text.trim().length < 20) { summary.skipped += 1; continue; }
@@ -429,7 +436,14 @@ export async function scribeFaclFolder(
       const truncated = false;
 
       let summaryMd: string | null = null;
-      try {
+      // Cost (founder 28 Nov, "optimize the cost with existing performance"): the summary is written from the first
+      // MAX_TEXT_CHARS only. When that part is unchanged apart from date-time stamps, the last summary is reused and
+      // the model is not called; the full content below is still refreshed. Two machine-made index files (rewritten
+      // every few hours with a fresh "Last updated" stamp) were costing ~100 Pro summaries a week for the same text.
+      const summaryKey = summaryKeyOf(pageTitle, text);
+      const reused = reusableSummary(prevMeta, summaryKey);
+      if (reused) summaryMd = reused;
+      else try {
         const { callLLM } = await import('../llmRouter');
         const sys = `You write concise summaries of organisational knowledge docs for an AI assistant. 3-6 bullet points, <180 words total. Lead with the DOC'S PURPOSE (one line). Then bullets: key policies, named people, named projects, dates, and anything actionable. Never invent facts. Plain markdown.`;
         const usr = `Doc title: ${pageTitle}\nModified: ${f.modifiedTime}\n\n${text.slice(0, MAX_TEXT_CHARS)}`;
@@ -471,6 +485,8 @@ export async function scribeFaclFolder(
         mimeType: f.mimeType,
         modifiedTime: f.modifiedTime,
         contentHash: hash,
+        summaryKey,
+        ...(summaryMd ? { summaryMd } : {}),
         lastScribedAt: new Date().toISOString(),
         scope: 'tenant', // readable by every user in the tenant
       };
@@ -491,6 +507,28 @@ export async function scribeFaclFolder(
   summary.durationMs = Date.now() - t0;
   log.info('FACL scribe complete', summary as any);
   return summary;
+}
+
+/** Founder 28 Nov 2026: the client's knowledge folder is removed; it becomes an integration. */
+export const CLIENT_FOLDER_REMOVED = true;
+
+/** Founder 28 Nov 2026: "ignore or remove TMC Drive index … this is obsoleted". The machine-made Drive index (a sheet
+ *  and a .md, rewritten every few hours) is never read into the Wiki; its two pages were removed the same day. */
+export const OBSOLETE_FACL_FILE = /^tmc[ _-]?drive[ _-]?index(\.md)?$/i;
+export const isObsoleteFaclFile = (name: unknown) => OBSOLETE_FACL_FILE.test(String(name ?? '').trim());
+
+/** ISO date-times (2026-11-28T14:51:58.598Z, with or without ms / zone) carry no meaning for a summary. */
+const STAMP = /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})?/g;
+
+/** What the summary depends on: the title and the part the model reads, without date-time stamps. */
+export function summaryKeyOf(title: string, text: string): string {
+  return crypto.createHash('md5').update(`${title}\u0000${text.slice(0, MAX_TEXT_CHARS).replace(STAMP, '')}`).digest('hex');
+}
+
+/** The last summary, when it was written from the same input; else null (write a new one). */
+export function reusableSummary(prevMeta: Record<string, unknown> | null | undefined, key: string): string | null {
+  const s = prevMeta?.summaryMd;
+  return prevMeta?.summaryKey === key && typeof s === 'string' && s.length > 20 ? s : null;
 }
 
 /** Extract plain text from a Drive file using the right export format. */

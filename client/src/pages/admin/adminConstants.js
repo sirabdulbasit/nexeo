@@ -31,9 +31,8 @@ export const SYSTEM_SECTIONS = [
 // Per-tenant Client Config. Google Drive OAuth keys (client_id, secret,
 // redirect_uri) used to live here but the platform now runs a single
 // OAuth client across all tenants — those keys are env-vars, not
-// tenant settings. Per-tenant Drive identity is managed via the
-// "Client Connectors" tab; only SMTP + folder pointers remain here.
+// tenant settings. The client's Drive knowledge folder ("Foundation Drive", "Client Connectors") was removed
+// 28 Nov 2026 (founder: it becomes an integration); only SMTP remains here.
 export const CLIENT_SECTIONS = [
   { title: 'Email / SMTP', icon: '✉️', keys: ['smtp_host', 'smtp_port', 'smtp_user', 'smtp_pass', 'smtp_from', 'smtp_secure'] },
-  { title: 'Foundation Drive', icon: '📁', keys: ['google_drive_folder_id', 'google_index_file_name'] },
 ];

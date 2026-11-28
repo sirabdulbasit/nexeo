@@ -730,36 +730,9 @@ const server = app.listen(env.port, async () => {
     }
   }, 5 * 60 * 1000);
 
-  // MyOS — daily FACL folder scribe. Re-walks every user's designated
-  // Gdrive folder, re-summarizes docs that changed, and refreshes the
-  // sender-aware org knowledge in wiki_pages (pageType='org_doc').
-  // Fires once every 24h at the first tick after boot, then every 24h.
-  // Uses an interval, not cron, for simplicity; idle if no user has a
-  // faclFolderId set.
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const { runDailyFaclScribe } = await import('./services/knowledge/folderScribeService');
-        const results = await runDailyFaclScribe();
-        if (results.length > 0) {
-          console.log(`[faclScribe] daily: ${results.length} users scribed, ${results.reduce((s, r) => s + r.updated, 0)} docs updated`);
-        }
-      } catch (err: any) {
-        console.warn('[faclScribe] daily error:', err.message);
-      }
-    })();
-  }, 5 * 60 * 1000); // first run 5 min after boot
-  setInterval(async () => {
-    try {
-      const { runDailyFaclScribe } = await import('./services/knowledge/folderScribeService');
-      const results = await runDailyFaclScribe();
-      if (results.length > 0) {
-        console.log(`[faclScribe] daily: ${results.length} users scribed, ${results.reduce((s, r) => s + r.updated, 0)} docs updated`);
-      }
-    } catch (err: any) {
-      console.warn('[faclScribe] daily error:', err.message);
-    }
-  }, 24 * 60 * 60 * 1000);
+  // The client's FACL folder scribe (boot + daily) was removed 28 Nov 2026, founder: "remove client specific -
+  // knowledge Source, because it will be converted to integrations". Its only live pages were the obsolete
+  // TMC Drive Index, re-summarised on Pro ~14 times a day. A user's own folder (My Connectors) is unchanged.
 
   // D2 — trust promotion daily: propose (never auto-apply) raising the
   // automation level for action types the user consistently approves.
