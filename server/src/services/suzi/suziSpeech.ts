@@ -7,7 +7,7 @@
  *        15 minutes, signed with the SPEECH-ONLY service account (SPEECH_SA_KEY_FILE), never Nexeo's main account.
  *        The device calls Google directly with `Authorization: Bearer <token>`, so her reply keeps the 2 s target.
  *   speech.used  {seconds, requests}     -> {month_seconds, quota_left_s}  counted per user and device per month.
- *   speech.hear  {audio, languages?, hint?} -> {text, language, ms}  the relay, only when no pass can be had:
+ *   speech.hear  {audio, languages?, hint?} -> {text, language, ms}  the relay, only when no pass can be had (model SPEECH_MODEL):
  *        LINEAR16 16 kHz mono, at most 15 s (500 KB raw); audio is passed to Google and dropped, never stored.
  *
  * All three need a request signed with a registered device key (T57 (c)). Errors: unsigned | not_set_up | cap |
@@ -30,6 +30,9 @@ const MAX_LANGS = 4; // Google: one main language and up to 3 others
 /** Google Speech-to-Text, standard model: about $0.016 a minute, billed per second (pricing page, 28 Nov 2026). */
 export const STT_USD_PER_SECOND = 0.016 / 60;
 export const STT_SERVICE = 'google_stt_seconds';
+/** Google refuses latest_short and latest_long when Urdu (ur-PK) is the main language. command_and_search takes every
+ *  language order and read 3 of 3 test sentences (Urdu and English) right in about 1 s (live test 28 Nov 2026). */
+export const SPEECH_MODEL = 'command_and_search';
 
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
@@ -42,6 +45,8 @@ export function speechAccount(env: NodeJS.ProcessEnv = process.env): SpeechAccou
   const path = env.SPEECH_SA_KEY_FILE || '';
   if (!path) return null;
   try {
+    // A key readable by group or others is refused (28 Nov: the first key was left in the repo root, mode 644).
+    if (fs.statSync(path).mode & 0o077) return null;
     const j = JSON.parse(fs.readFileSync(path, 'utf8'));
     if (typeof j?.client_email !== 'string' || typeof j?.private_key !== 'string') return null;
     if (path === env.GOOGLE_APPLICATION_CREDENTIALS) return null; // T57 (b): the main account is never handed out
@@ -88,11 +93,13 @@ async function recordSeconds(clientNumber: string, userId: number, seconds: numb
   void requests; // counted by the audit line; the record keeps seconds (what Google bills)
 }
 
-/** A language code like ur-PK or en-US; at most 4, the first is the main one. Defaults to his three. */
+/** A language code like ur-PK or en-US; at most 4, the first is the main one. Defaults to his three, English (India)
+ *  first: tested live 28 Nov with the speech pass, en-IN main gives his English word for word and his Urdu in Roman
+ *  letters ("Mujhe cal ki meeting ka batao"); ur-PK main writes his English in Urdu script ("اوکے تھینک یو"). */
 export function languagesOf(v: unknown): string[] {
   const list = Array.isArray(v) ? v : [];
   const clean = [...new Set(list.map((x) => String(x ?? '').trim()).filter((x) => /^[a-z]{2,3}(-[A-Za-z0-9]{2,4})?$/.test(x)))];
-  return (clean.length ? clean : ['ur-PK', 'en-IN', 'en-US']).slice(0, MAX_LANGS);
+  return (clean.length ? clean : ['en-IN', 'ur-PK', 'en-US']).slice(0, MAX_LANGS);
 }
 
 /** Phrase hints (his names, her name): a comma line or a list, at most 50 phrases of 100 characters. */
@@ -154,7 +161,7 @@ export async function runSpeechOp(clientNumber: string, userId: number, op: stri
     response = await (deps.recognize ?? googleRecognize)({
       audio: { content: raw.toString('base64') },
       config: {
-        encoding: 'LINEAR16', sampleRateHertz: 16_000, audioChannelCount: 1, model: 'latest_short',
+        encoding: 'LINEAR16', sampleRateHertz: 16_000, audioChannelCount: 1, model: SPEECH_MODEL,
         languageCode: langs[0], ...(langs.length > 1 ? { alternativeLanguageCodes: langs.slice(1) } : {}),
         ...(hints.length ? { speechContexts: [{ phrases: hints }] } : {}),
       },

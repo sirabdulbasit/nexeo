@@ -152,3 +152,6 @@ server/docs/orchestrator/state/*
 !server/docs/orchestrator/state/campaign.json
 !server/docs/orchestrator/state/capability_scorecard.json
 !server/docs/orchestrator/state/deployed-sha
+
+# Google service-account key files (default download name <project>-<12 hex>.json). Keys live in /root/secrets, never in the repo (28 Nov 2026).
+*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json

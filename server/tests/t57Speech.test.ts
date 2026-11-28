@@ -33,6 +33,7 @@ const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLen
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 't57-'));
 const keyFile = path.join(dir, 'speech.json');
 fs.writeFileSync(keyFile, JSON.stringify({ client_email: 'nexeo-speech@p.iam.gserviceaccount.com', private_key: privateKey.export({ type: 'pkcs8', format: 'pem' }), private_key_id: 'k1' }));
+fs.chmodSync(keyFile, 0o600);
 const env = { SPEECH_SA_KEY_FILE: keyFile, SPEECH_MONTHLY_CAP_MINUTES: '300' } as any;
 const signed = { signatureVerified: true, deviceId: 'dev-1', idempotencyKey: 'k-1', timezone: 'Asia/Karachi', now: new Date('2026-11-28T15:00:00Z') };
 const pcm = (seconds: number) => Buffer.alloc(Math.round(seconds * 32_000)).toString('base64');
@@ -67,6 +68,12 @@ describe('the pass (a), (b), (c)', () => {
     expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_MONTHLY_CAP_MINUTES: '300', GOOGLE_APPLICATION_CREDENTIALS: keyFile } as any }))
       .toMatchObject({ ok: false, error: 'not_set_up' });
   });
+  it('a key file that group or others can read is refused', () => {
+    const open = path.join(dir, 'open.json');
+    fs.copyFileSync(keyFile, open); fs.chmodSync(open, 0o644);
+    expect(speechAccount({ SPEECH_SA_KEY_FILE: open } as any)).toBeNull();
+    expect(speechAccount({ SPEECH_SA_KEY_FILE: keyFile } as any)).not.toBeNull();
+  });
   it('no cap set by the founder = not set up', async () => {
     expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile } as any })).toMatchObject({ ok: false, error: 'not_set_up' });
   });
@@ -98,7 +105,7 @@ describe('the relay speech.hear', () => {
     expect(r.ok).toBe(true);
     expect(r.item).toMatchObject({ text: 'OK thank you', language: 'en-in' });
     const cfg = recognize.mock.calls[0][0].config;
-    expect(cfg).toMatchObject({ encoding: 'LINEAR16', sampleRateHertz: 16000, model: 'latest_short', languageCode: 'ur-PK', alternativeLanguageCodes: ['en-IN'], speechContexts: [{ phrases: ['Basit', 'Suzi'] }] });
+    expect(cfg).toMatchObject({ encoding: 'LINEAR16', sampleRateHertz: 16000, model: 'command_and_search', languageCode: 'ur-PK', alternativeLanguageCodes: ['en-IN'], speechContexts: [{ phrases: ['Basit', 'Suzi'] }] });
     expect(recognize.mock.calls[0][1].client_email).toBe('nexeo-speech@p.iam.gserviceaccount.com');
     expect(exec.mock.calls[0][4]).toBe(2); // two seconds counted
   });
@@ -112,8 +119,8 @@ describe('the relay speech.hear', () => {
     expect(await runSpeechOp('T', 2, 'speech.hear', { audio: pcm(1) }, signed, { env, recognize: vi.fn().mockResolvedValue({ results: [] }) })).toMatchObject({ ok: false, error: 'no_speech' });
     expect(await runSpeechOp('T', 2, 'speech.hear', { audio: pcm(1) }, signed, { env, recognize: vi.fn().mockRejectedValue(new Error('down')) })).toMatchObject({ ok: false, error: 'failed' });
   });
-  it('languages default to his three, at most four; hints at most 50', () => {
-    expect(languagesOf(undefined)).toEqual(['ur-PK', 'en-IN', 'en-US']);
+  it('languages default to his three, English (India) first (ur-PK first writes his English in Urdu script), at most four; hints at most 50', () => {
+    expect(languagesOf(undefined)).toEqual(['en-IN', 'ur-PK', 'en-US']);
     expect(languagesOf(['ur-PK', 'bad code', 'en-US', 'en-IN', 'en-GB', 'fr-FR'])).toEqual(['ur-PK', 'en-US', 'en-IN', 'en-GB']);
     expect(hintsOf(Array.from({ length: 60 }, (_, i) => `n${i}`))).toHaveLength(50);
   });
