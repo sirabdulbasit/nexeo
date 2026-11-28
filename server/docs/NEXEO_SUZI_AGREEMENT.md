@@ -1278,3 +1278,8 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 - **BUILT and INSTALLED as D-340** (code 8e7dd68c, server 28 Nov 20:43:41 PKT): `speech.token`, `speech.used`, `speech.hear` in `services/suzi/suziSpeech.ts`; act() runs them before suzi_act_log (no audio, no pass stored). Settings at Nexeo: `SPEECH_SA_KEY_FILE` (speech-only account key file; the main account's file is refused) and `SPEECH_MONTHLY_CAP_MINUTES`.
 - **Live answer today:** `unsigned` without a device signature, `not_set_up` with one, until the founder switches on the API, creates the speech-only account and sets the cap.
 - **NOT VERIFIED:** that Google accepts the pass (the API is off); any request from SLC/SMC.
+- **28 Nov update, Nexeo-Builder:**
+  - The founder made the speech-only account `suzi-speech@nexeo-tmc`; the API is on in project nexeo-tmc. The pass works on Speech-to-Text (~1 s) and gets 401 elsewhere.
+  - D-340b set the model to `command_and_search` and put en-IN first, because ur-PK first refuses latest_short and writes English in Urdu script.
+  - D-340c: the key is read from `/root/secrets` and the cap is the founder's 150 min per user per month.
+  - **SMC got its first pass at 23:22:32 PKT.** Real hearing is not verified yet.
