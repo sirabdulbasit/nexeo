@@ -1118,6 +1118,18 @@ Laptop)". SLC (Suzi Laptop Client) and SMC (Suzi Mobile Client) no longer show t
 - **Verified 27 Nov 20:55 PKT:** the live read gives name "Suzi", user_name "Sir", signature "Regards / Basit - Digital
   Twin", no phrases yet. **NOT VERIFIED:** a save from the page; SLC/SMC reading `profile.assistant`.
 
+### 0.35 The client's knowledge folder is removed; the TMC Drive Index is gone (founder 28 Nov 2026; D-341)
+
+**Founder, 28 Nov 2026:** "ignore or remove TMC Drive index … this is obsoleted" and "remove client specific - knowledge Source, because it will be converted to integrations".
+
+- **Removed (portal):** Admin → Client Specific → **Knowledge Sources** (the client's Google Drive folder, "Client Connectors"), and Client Config's **Foundation Drive** fields (`google_drive_folder_id`, `google_index_file_name`).
+- **Removed (server):** the client FACL scribe (5 minutes after every start and every 24 h). `scribeFaclForTenant` now refuses: it reads nothing and writes nothing. Company knowledge comes in through Integrations from now on.
+- **Data:** its only active pages were the two machine-made **TMC Drive Index** pages (a 1.5 MB sheet and a 580 KB .md, rewritten every few hours). They were backed up to `/root/backups/wiki-drive-index-20261128.json` and deleted, embeddings included. Its 14 older pages (10 stale, 4 orphan) are untouched.
+- **A user's own Drive folder** (My Connectors) still works. It never reads a file named "TMC Drive Index", and it writes a new summary only when the part the model reads changes. Date-time stamps alone do not count.
+- **Why it cost money:** each rewrite changed the index's "Last updated" stamp, so Nexeo paid Pro to summarise the same text about 14 times a day: 100 calls and $0.83 of Nexeo's $3.44 last week.
+- **Verified:** tests pin the refusal, the skip and the reuse; the two pages are gone. **Not verified:** the portal in a browser.
+- **Prompts still mention a "Drive Index"** as an example (retrieval planner, composer H4/H12, persona). With the pages gone those lines match nothing. Removing them is owed, as part of the prompt clean-up.
+
 ## 1. Owner direction (2026-11-12)
 
 Brain has three aspects:
