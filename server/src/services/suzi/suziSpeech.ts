@@ -14,7 +14,8 @@
  * bad_audio | no_speech | failed. These ops never pass through suzi_act_log: it stores args and answers, and these
  * carry audio and a bearer pass (T57 point 5). The audit line holds counts only.
  *
- * The cap is the founder's (Costing Charter): SPEECH_MONTHLY_CAP_MINUTES per user per month. Unset = not_set_up.
+ * The cap is the founder's (Costing Charter): 150 minutes per user per month (28 Nov), SPEECH_MONTHLY_CAP_MINUTES overrides;
+ * 0 or a bad value = not_set_up. The key is read from DEFAULT_SPEECH_KEY_FILE unless SPEECH_SA_KEY_FILE says otherwise.
  */
 import crypto from 'crypto';
 import fs from 'fs';
@@ -40,9 +41,14 @@ type Gate = { signatureVerified: boolean; deviceId?: string | null; idempotencyK
 
 interface SpeechAccount { client_email: string; private_key: string; private_key_id?: string }
 
+/** Where the founder's speech-only key lives (28 Nov 2026: suzi-speech@nexeo-tmc, mode 600). SPEECH_SA_KEY_FILE overrides. */
+export const DEFAULT_SPEECH_KEY_FILE = '/root/secrets/suzi-speech-nexeo-tmc.json';
+/** The founder's cap, 28 Nov 2026 23:2x PKT: "150 minutes (~$2.40)" per user per month. SPEECH_MONTHLY_CAP_MINUTES overrides. */
+export const DEFAULT_MONTHLY_CAP_MINUTES = 150;
+
 /** The speech-only account, or null when the founder has not set it up. Never Nexeo's main account. */
 export function speechAccount(env: NodeJS.ProcessEnv = process.env): SpeechAccount | null {
-  const path = env.SPEECH_SA_KEY_FILE || '';
+  const path = env.SPEECH_SA_KEY_FILE || DEFAULT_SPEECH_KEY_FILE;
   if (!path) return null;
   try {
     // A key readable by group or others is refused (28 Nov: the first key was left in the repo root, mode 644).
@@ -56,7 +62,7 @@ export function speechAccount(env: NodeJS.ProcessEnv = process.env): SpeechAccou
 
 /** The founder's cap in seconds per user per month, or null when not set. */
 export function monthlyCapSeconds(env: NodeJS.ProcessEnv = process.env): number | null {
-  const m = Number(env.SPEECH_MONTHLY_CAP_MINUTES);
+  const m = env.SPEECH_MONTHLY_CAP_MINUTES === undefined || env.SPEECH_MONTHLY_CAP_MINUTES === '' ? DEFAULT_MONTHLY_CAP_MINUTES : Number(env.SPEECH_MONTHLY_CAP_MINUTES);
   return Number.isFinite(m) && m > 0 ? Math.round(m * 60) : null;
 }
 

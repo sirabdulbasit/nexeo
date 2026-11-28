@@ -26,7 +26,7 @@ vi.mock('../src/db/prisma', () => ({
 const auditFn = vi.fn();
 vi.mock('../src/services/auditLogService', () => ({ audit: (...a: any[]) => auditFn(...a) }));
 
-import { MAX_AUDIO_BYTES, SPEECH_AUDIENCE, STT_SERVICE, TOKEN_TTL_S, hintsOf, languagesOf, runSpeechOp, speechAccount } from '../src/services/suzi/suziSpeech';
+import { DEFAULT_SPEECH_KEY_FILE, MAX_AUDIO_BYTES, SPEECH_AUDIENCE, STT_SERVICE, TOKEN_TTL_S, hintsOf, languagesOf, runSpeechOp, speechAccount } from '../src/services/suzi/suziSpeech';
 import { act } from '../src/services/suzi/suziAct';
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -65,7 +65,7 @@ describe('the pass (a), (b), (c)', () => {
   });
   it('Nexeo\'s main account is never used: same file as GOOGLE_APPLICATION_CREDENTIALS = not set up', async () => {
     expect(speechAccount({ SPEECH_SA_KEY_FILE: keyFile, GOOGLE_APPLICATION_CREDENTIALS: keyFile } as any)).toBeNull();
-    expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_MONTHLY_CAP_MINUTES: '300', GOOGLE_APPLICATION_CREDENTIALS: keyFile } as any }))
+    expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_MONTHLY_CAP_MINUTES: '300', SPEECH_SA_KEY_FILE: keyFile, GOOGLE_APPLICATION_CREDENTIALS: keyFile } as any }))
       .toMatchObject({ ok: false, error: 'not_set_up' });
   });
   it('a key file that group or others can read is refused', () => {
@@ -74,8 +74,14 @@ describe('the pass (a), (b), (c)', () => {
     expect(speechAccount({ SPEECH_SA_KEY_FILE: open } as any)).toBeNull();
     expect(speechAccount({ SPEECH_SA_KEY_FILE: keyFile } as any)).not.toBeNull();
   });
-  it('no cap set by the founder = not set up', async () => {
-    expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile } as any })).toMatchObject({ ok: false, error: 'not_set_up' });
+  it('the founder\'s cap is 150 minutes by default; 0 or a bad value = not set up', async () => {
+    const r: any = await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile } as any });
+    expect(r.item.quota_left_s).toBe(150 * 60 - 600);
+    expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile, SPEECH_MONTHLY_CAP_MINUTES: '0' } as any })).toMatchObject({ ok: false, error: 'not_set_up' });
+  });
+  it('with no setting the key is read from its fixed place; a missing file = not set up', () => {
+    expect(DEFAULT_SPEECH_KEY_FILE).toBe('/root/secrets/suzi-speech-nexeo-tmc.json');
+    expect(speechAccount({ SPEECH_SA_KEY_FILE: path.join(dir, 'missing.json') } as any)).toBeNull();
   });
   it('at the cap there is no pass', async () => {
     query.mockResolvedValue([{ s: 300 * 60 }]);
