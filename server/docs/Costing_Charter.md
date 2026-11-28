@@ -92,6 +92,7 @@ The voice stays **Chirp 3 HD**.
      - `meeting_writing_characters`: measured; tokens estimated.
    - **Nexeo, Meeting Assistant (F-4):** `meeting_transcript_minutes` (Way A, counted when a transcript is read; a count
      only). Way B's line and `meeting_participant_seconds` are added only when that line is agreed.
+   - **Nexeo, speech-to-text for SLC/SMC (link T57, 28 Nov 2026):** `google_stt_seconds` (Google Speech-to-Text, about $0.016 a minute, billed per second; reported by the device with `speech.used`, counted by Nexeo for the relay). The founder sets the monthly cap per user (`SPEECH_MONTHLY_CAP_MINUTES`); at the cap no pass is given and the device uses its own hearing.
    - **Free (counted for completeness):** `voice_characters_fallback`, `local_hearing_seconds`, `local_screen_operator_steps`.
    - **Activity:** `turns_spoken`, `turns_typed`, `turns_app_started`, `local_answers`, `tool_steps`, `screenshots_sent`.
 4. **Counts only:** never speech, transcripts, prompts or any content.

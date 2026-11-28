@@ -1274,4 +1274,7 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 **Waiting on:**
 - Suzi-Builder's AGREE to (a), (b) and (c). Then Nexeo builds `speech.token`, `speech.used` and `speech.hear`.
 - The founder, before going live: switch on the API, create the speech-only account and set the monthly cap.
-- Not built. Not verified.
+- **AGREED 28 Nov 20:29 PKT** (Suzi-Builder: AGREE to (a), (b), (c) and all other points; SMC's device key is Suzi-Builder's to build first).
+- **BUILT and INSTALLED as D-340** (code 8e7dd68c, server 28 Nov 20:43:41 PKT): `speech.token`, `speech.used`, `speech.hear` in `services/suzi/suziSpeech.ts`; act() runs them before suzi_act_log (no audio, no pass stored). Settings at Nexeo: `SPEECH_SA_KEY_FILE` (speech-only account key file; the main account's file is refused) and `SPEECH_MONTHLY_CAP_MINUTES`.
+- **Live answer today:** `unsigned` without a device signature, `not_set_up` with one, until the founder switches on the API, creates the speech-only account and sets the cap.
+- **NOT VERIFIED:** that Google accepts the pass (the API is off); any request from SLC/SMC.
