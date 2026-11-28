@@ -32,8 +32,9 @@ import { W1_OPS, runW1Op } from './suziW1';
 import { DELEGATION_OPS, runDelegationOp } from './suziDelegations';
 import { ruleRemove, ruleSet } from './suziEmailRules';
 import { OPERATOR_OPS, runOperatorOp } from './suziOperator';
+import { SPEECH_OPS, runSpeechOp } from './suziSpeech';
 
-export const ACT_OPS = ['proposal.dismiss', 'item.advise', 'seen.update', 'advice.feedback', 'job.run_now', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS] as const;
+export const ACT_OPS = ['proposal.dismiss', 'item.advise', 'seen.update', 'advice.feedback', 'job.run_now', 'task.update', 'task.create', 'task.followup', 'email.delegate', 'rule.set', 'rule.remove', 'whatsapp.to_user', ...EMAIL_OPS, ...GAP_OPS, ...CALENDAR_OPS, ...MEETING_OPS, ...DELEGATION_OPS, ...W1_OPS, ...OPERATOR_OPS, ...SPEECH_OPS] as const;
 const STALE_RUNNING_MS = 5 * 60_000;
 
 export interface ActRequest {
@@ -60,7 +61,7 @@ const fingerprint = (op: string, args: unknown) =>
 
 function statusOf(error: string): 400 | 403 | 404 | 409 {
   if (error === 'not_found') return 404;
-  if (error === 'needs_confirmation' || error === 'not_allowed') return 403;
+  if (error === 'needs_confirmation' || error === 'not_allowed' || error === 'unsigned') return 403;
   if (error === 'rejected' || error === 'not_organizer' || error === 'rule_removed' || error === 'clash') return 409;
   return 400;
 }
@@ -177,6 +178,24 @@ export async function act(clientNumber: string, userId: number, req: ActRequest)
   if (!(ACT_OPS as readonly string[]).includes(req.op)) return { status: 400, body: { ok: false, error: 'unknown_op' } };
   const key = typeof req.idempotency_key === 'string' ? req.idempotency_key.trim() : '';
   if (!key || key.length > 200) return { status: 400, body: { ok: false, error: 'bad_idempotency_key' } };
+
+  // Link T57 (both AGREE 28 Nov): speech ops never enter suzi_act_log, which keeps args and answers: they carry audio
+  // and a bearer pass. speech.used is made safe to resend by its own record (keyed on idempotency_key). Counts only.
+  if ((SPEECH_OPS as readonly string[]).includes(req.op)) {
+    const out = await runSpeechOp(clientNumber, userId, req.op, req.args ?? {}, {
+      signatureVerified: req.signature_verified === true, deviceId: req.device_id ?? null, idempotencyKey: key, timezone: req.timezone,
+    });
+    const auditId = `speech-${crypto.randomUUID()}`;
+    await audit({
+      clientNumber, actorId: userId, actorKind: 'user', action: `suzi.act.${req.op}`, subjectType: 'speech', subjectId: null,
+      result: out.ok ? 'success' : 'failure',
+      details: { audit_id: auditId, device_id: req.device_id ?? null, signature_verified: req.signature_verified === true,
+        ...(req.op === 'speech.used' ? { seconds: Number(req.args?.seconds) || 0, requests: Number(req.args?.requests) || 0 } : {}),
+        ...(out.ok ? {} : { error: out.error }) },
+    });
+    if (out.ok) return { status: 200, body: { ok: true, audit_id: auditId, item: out.item } };
+    return { status: statusOf(out.error), body: { ok: false, audit_id: auditId, error: out.error, ...(out.detail ? { detail: out.detail } : {}) } };
+  }
 
   const fp = fingerprint(req.op, req.args);
   let logId: string;

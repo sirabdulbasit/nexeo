@@ -1,0 +1,173 @@
+/**
+ * Link T57 (founder 28 Nov 2026, both AGREE 20:28/20:29 PKT): speech-to-text for every Suzi (SLC and SMC) with ONE
+ * Google account, held at Nexeo. No device ever holds a key.
+ *
+ *   speech.token {}                      -> {access_token, expires_at, quota_left_s}
+ *        A self-signed JWT, audience https://speech.googleapis.com/ only (Google refuses it on every other API),
+ *        15 minutes, signed with the SPEECH-ONLY service account (SPEECH_SA_KEY_FILE), never Nexeo's main account.
+ *        The device calls Google directly with `Authorization: Bearer <token>`, so her reply keeps the 2 s target.
+ *   speech.used  {seconds, requests}     -> {month_seconds, quota_left_s}  counted per user and device per month.
+ *   speech.hear  {audio, languages?, hint?} -> {text, language, ms}  the relay, only when no pass can be had:
+ *        LINEAR16 16 kHz mono, at most 15 s (500 KB raw); audio is passed to Google and dropped, never stored.
+ *
+ * All three need a request signed with a registered device key (T57 (c)). Errors: unsigned | not_set_up | cap |
+ * bad_audio | no_speech | failed. These ops never pass through suzi_act_log: it stores args and answers, and these
+ * carry audio and a bearer pass (T57 point 5). The audit line holds counts only.
+ *
+ * The cap is the founder's (Costing Charter): SPEECH_MONTHLY_CAP_MINUTES per user per month. Unset = not_set_up.
+ */
+import crypto from 'crypto';
+import fs from 'fs';
+import prisma from '../../db/prisma';
+import { localDate, safeTimezone } from './dayBriefFacts';
+
+export const SPEECH_OPS = ['speech.token', 'speech.used', 'speech.hear'] as const;
+export const SPEECH_AUDIENCE = 'https://speech.googleapis.com/';
+export const TOKEN_TTL_S = 15 * 60;
+export const MAX_AUDIO_BYTES = 500 * 1024;
+const BYTES_PER_SECOND = 16_000 * 2; // LINEAR16, 16 kHz, mono
+const MAX_LANGS = 4; // Google: one main language and up to 3 others
+/** Google Speech-to-Text, standard model: about $0.016 a minute, billed per second (pricing page, 28 Nov 2026). */
+export const STT_USD_PER_SECOND = 0.016 / 60;
+export const STT_SERVICE = 'google_stt_seconds';
+
+type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
+const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
+type Gate = { signatureVerified: boolean; deviceId?: string | null; idempotencyKey?: string; timezone?: string; now?: Date };
+
+interface SpeechAccount { client_email: string; private_key: string; private_key_id?: string }
+
+/** The speech-only account, or null when the founder has not set it up. Never Nexeo's main account. */
+export function speechAccount(env: NodeJS.ProcessEnv = process.env): SpeechAccount | null {
+  const path = env.SPEECH_SA_KEY_FILE || '';
+  if (!path) return null;
+  try {
+    const j = JSON.parse(fs.readFileSync(path, 'utf8'));
+    if (typeof j?.client_email !== 'string' || typeof j?.private_key !== 'string') return null;
+    if (path === env.GOOGLE_APPLICATION_CREDENTIALS) return null; // T57 (b): the main account is never handed out
+    return { client_email: j.client_email, private_key: j.private_key, private_key_id: j.private_key_id };
+  } catch { return null; }
+}
+
+/** The founder's cap in seconds per user per month, or null when not set. */
+export function monthlyCapSeconds(env: NodeJS.ProcessEnv = process.env): number | null {
+  const m = Number(env.SPEECH_MONTHLY_CAP_MINUTES);
+  return Number.isFinite(m) && m > 0 ? Math.round(m * 60) : null;
+}
+
+const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64').replace(/=+$/, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+/** T57 (a): a self-signed JWT that Google accepts only on Speech-to-Text. */
+export function mintSpeechJwt(acct: SpeechAccount, nowS: number): { token: string; expiresAt: number } {
+  const exp = nowS + TOKEN_TTL_S;
+  const header = { alg: 'RS256', typ: 'JWT', ...(acct.private_key_id ? { kid: acct.private_key_id } : {}) };
+  const payload = { iss: acct.client_email, sub: acct.client_email, aud: SPEECH_AUDIENCE, iat: nowS, exp };
+  const signing = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(payload))}`;
+  const sig = crypto.sign('RSA-SHA256', Buffer.from(signing), acct.private_key);
+  return { token: `${signing}.${b64url(sig)}`, expiresAt: exp };
+}
+
+/** Seconds he used this calendar month (his own zone). */
+export async function monthSeconds(clientNumber: string, userId: number, today: string): Promise<number> {
+  const rows: any[] = await prisma.$queryRawUnsafe(
+    `SELECT COALESCE(SUM(units), 0)::float AS s FROM consumption_events
+      WHERE client_number = $1 AND user_id = $2 AND service = $3 AND day >= date_trunc('month', $4::date)::date AND day <= $4::date`,
+    clientNumber, userId, STT_SERVICE, today,
+  );
+  return Number(rows?.[0]?.s) || 0;
+}
+
+async function recordSeconds(clientNumber: string, userId: number, seconds: number, requests: number, today: string, deviceId: string | null, sourceKey: string): Promise<void> {
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO consumption_events (client_number, user_id, part, service, unit, units, est_usd, measured, day, device_id, source_key)
+     VALUES ($1, $2, 'device', $3, 'seconds', $4, $5, true, $6::date, $7, $8)
+     ON CONFLICT (client_number, source_key) DO NOTHING`,
+    clientNumber, userId, STT_SERVICE, seconds, seconds * STT_USD_PER_SECOND, today,
+    deviceId ? deviceId.slice(0, 60) : null, sourceKey.slice(0, 260),
+  );
+  void requests; // counted by the audit line; the record keeps seconds (what Google bills)
+}
+
+/** A language code like ur-PK or en-US; at most 4, the first is the main one. Defaults to his three. */
+export function languagesOf(v: unknown): string[] {
+  const list = Array.isArray(v) ? v : [];
+  const clean = [...new Set(list.map((x) => String(x ?? '').trim()).filter((x) => /^[a-z]{2,3}(-[A-Za-z0-9]{2,4})?$/.test(x)))];
+  return (clean.length ? clean : ['ur-PK', 'en-IN', 'en-US']).slice(0, MAX_LANGS);
+}
+
+/** Phrase hints (his names, her name): a comma line or a list, at most 50 phrases of 100 characters. */
+export function hintsOf(v: unknown): string[] {
+  const list = Array.isArray(v) ? v : typeof v === 'string' ? v.split(',') : [];
+  return [...new Set(list.map((x) => String(x ?? '').trim().slice(0, 100)).filter(Boolean))].slice(0, 50);
+}
+
+export type Recognize = (req: { audio: { content: string }; config: Record<string, unknown> }, acct: SpeechAccount) => Promise<any>;
+const googleRecognize: Recognize = async (req, acct) => {
+  const speech = await import('@google-cloud/speech');
+  const client = new speech.v1p1beta1.SpeechClient({ credentials: { client_email: acct.client_email, private_key: acct.private_key } });
+  const [response] = await client.recognize(req as any);
+  return response;
+};
+
+export async function runSpeechOp(clientNumber: string, userId: number, op: string, a: Record<string, unknown>, gate: Gate,
+  deps: { recognize?: Recognize; env?: NodeJS.ProcessEnv } = {}): Promise<Result> {
+  if (!(SPEECH_OPS as readonly string[]).includes(op)) return fail('unknown_op');
+  if (!gate.signatureVerified) return fail('unsigned', 'speech needs a request signed with a registered device key (T57 c)');
+  const env = deps.env ?? process.env;
+  const now = gate.now ?? new Date();
+  const today = localDate(now, safeTimezone(gate.timezone));
+  const deviceId = gate.deviceId ? String(gate.deviceId) : null;
+
+  if (op === 'speech.used') {
+    const seconds = Number(a.seconds);
+    const requests = Math.max(1, Math.floor(Number(a.requests) || 1));
+    if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86_400) return fail('bad_seconds', 'seconds is 0 to 86400');
+    const key = String(gate.idempotencyKey ?? '').trim();
+    if (!key) return fail('bad_idempotency_key');
+    await recordSeconds(clientNumber, userId, Math.round(seconds * 1000) / 1000, requests, today, deviceId, `stt:${userId}:${key}`);
+    const used = await monthSeconds(clientNumber, userId, today);
+    const cap = monthlyCapSeconds(env);
+    return { ok: true, item: { month_seconds: Math.round(used), quota_left_s: cap === null ? 0 : Math.max(0, Math.floor(cap - used)) } };
+  }
+
+  const acct = speechAccount(env);
+  const cap = monthlyCapSeconds(env);
+  if (!acct || cap === null) return fail('not_set_up', !acct ? 'the speech-only Google account is not set up at Nexeo' : 'the founder has not set the monthly cap');
+  const used = await monthSeconds(clientNumber, userId, today);
+  const left = Math.max(0, Math.floor(cap - used));
+  if (left <= 0) return fail('cap', 'this month\'s speech minutes are used; the device uses its own hearing');
+
+  if (op === 'speech.token') {
+    const { token, expiresAt } = mintSpeechJwt(acct, Math.floor(now.getTime() / 1000));
+    return { ok: true, item: { access_token: token, expires_at: new Date(expiresAt * 1000).toISOString(), quota_left_s: left } };
+  }
+
+  // speech.hear: the relay.
+  const raw = typeof a.audio === 'string' ? Buffer.from(a.audio, 'base64') : Buffer.alloc(0);
+  if (!raw.length || raw.length > MAX_AUDIO_BYTES || raw.length % 2) return fail('bad_audio', 'LINEAR16 16 kHz mono, at most 15 s (500 KB)');
+  const seconds = raw.length / BYTES_PER_SECOND;
+  const langs = languagesOf(a.languages);
+  const hints = hintsOf(a.hint);
+  const started = Date.now();
+  let response: any;
+  try {
+    response = await (deps.recognize ?? googleRecognize)({
+      audio: { content: raw.toString('base64') },
+      config: {
+        encoding: 'LINEAR16', sampleRateHertz: 16_000, audioChannelCount: 1, model: 'latest_short',
+        languageCode: langs[0], ...(langs.length > 1 ? { alternativeLanguageCodes: langs.slice(1) } : {}),
+        ...(hints.length ? { speechContexts: [{ phrases: hints }] } : {}),
+      },
+    }, acct);
+  } catch (e: any) {
+    return fail('failed', String(e?.message ?? e).slice(0, 200));
+  }
+  const ms = Date.now() - started;
+  // Google bills the seconds it heard, so they count even when nothing was said.
+  await recordSeconds(clientNumber, userId, Math.round(seconds * 1000) / 1000, 1, today, deviceId, `stt-relay:${userId}:${crypto.randomUUID()}`);
+  const results: any[] = Array.isArray(response?.results) ? response.results : [];
+  const text = results.map((r) => String(r?.alternatives?.[0]?.transcript ?? '').trim()).filter(Boolean).join(' ').trim();
+  if (!text) return fail('no_speech');
+  const language = String(results.find((r) => r?.languageCode)?.languageCode ?? langs[0]);
+  return { ok: true, item: { text, language, ms } };
+}
