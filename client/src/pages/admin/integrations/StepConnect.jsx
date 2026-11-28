@@ -360,8 +360,8 @@ export default function StepConnect({ integ, setInteg, setMsg, signal, setWorkin
           </div>
           <div style={vm.notes}>
             <strong>Who can read the sheet.</strong> A public sheet must be shared as <strong>“Anyone with the link”</strong> (Viewer is enough).
-            A private sheet stays private: it is read through your organisation’s designated Google account — the one chosen in Admin → Client Connectors.
-            If no account is designated, or it has no access to this sheet, the test below says so.
+            A private sheet stays private: it is read through your organisation’s designated Google account, when one is set.
+            If none is set, or it has no access to this sheet, the test below says so; share the sheet as “Anyone with the link” instead.
           </div>
         </div>
       )}

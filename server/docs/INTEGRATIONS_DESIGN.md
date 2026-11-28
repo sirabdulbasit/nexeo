@@ -417,3 +417,11 @@ inbound — done (DEF-447, §2d); outbound MCP held (owner 11-12).
 - Setting or changing the entity is part of the page hash, so every row is re-landed once. A mapping with no entity keeps its old hash (no mass rewrite).
 - After every real run, runJobs also calls `wikiIntegrationNotes.rebuildIntegrationNotesForClient` when that module exists.
 - Not verified yet: an end-to-end run with a non-people integration (a projects CSV).
+
+## 2h. The client's knowledge folder becomes an integration (founder 28 Nov 2026; D-341)
+
+**Founder:** "remove client specific - knowledge Source, because it will be converted to integrations".
+
+- **Removed:** Admin → Client Specific → Knowledge Sources (Client Connectors: the client's Google Drive folder and its scribe), and Client Config's Foundation Drive fields. The scribe no longer runs, and `scribeFaclForTenant` refuses. Wiki-Knowledge.md §0.35 has the details.
+- **One dependency carried over.** Private Google Sheets in the wizard are read through the client's designated Google account, `system_config.google_drive_org_user_id` (`gsheetReader.designatedGoogleUserId`). That account was chosen on the removed Client Connectors screen. On 28 Nov no client has it set, so every sheet is read as "Anyone with the link" and nothing live changes.
+- **Owed (not built):** a step in Integrations to choose the client's Google account, so private sheets and Drive folders can be read without the old screen. Bringing a Drive folder in as an integration source is also owed. The wizard's help text no longer points to the removed screen.

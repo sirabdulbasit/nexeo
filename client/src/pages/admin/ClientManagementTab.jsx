@@ -628,7 +628,7 @@ function ClientConfigSection({ user, tenants }) {
   return (
     <>
       <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: 6, fontSize: 12, color: 'var(--text)' }}>
-        <strong>What lives here:</strong> SMTP + Foundation Drive folder pointers per tenant.<br />
+        <strong>What lives here:</strong> the client's email (SMTP) settings.<br />
         <strong>What used to live here but doesn't anymore:</strong> AI/RAG knobs, response controls, caching TTLs, Google OAuth keys — all either Brain-managed or moved to the platform OAuth client. Less to break, less to tune.
       </div>
 
@@ -650,9 +650,6 @@ function ClientConfigSection({ user, tenants }) {
 
       <SmtpHealthCheck clientNumber={effectiveClient} />
 
-      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(var(--n-888888-rgb),0.08)', border: '1px dashed rgba(var(--n-888888-rgb),0.3)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-        Looking for FACL folder setup + scribe? That moved to the <strong>Client Connectors</strong> tab.
-      </div>
     </>
   );
 }
