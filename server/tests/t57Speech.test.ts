@@ -26,7 +26,7 @@ vi.mock('../src/db/prisma', () => ({
 const auditFn = vi.fn();
 vi.mock('../src/services/auditLogService', () => ({ audit: (...a: any[]) => auditFn(...a) }));
 
-import { DEFAULT_SPEECH_KEY_FILE, MAX_AUDIO_BYTES, SPEECH_AUDIENCE, STT_SERVICE, TOKEN_TTL_S, hintsOf, languagesOf, runSpeechOp, speechAccount } from '../src/services/suzi/suziSpeech';
+import { DEFAULT_SPEECH_KEY_FILE, GEMINI_HEAR_MODELS, HEAR_INSTRUCTION, HEAR_SERVICE, MAX_AUDIO_BYTES, peakOf, SPEECH_AUDIENCE, STT_SERVICE, TOKEN_TTL_S, hintsOf, languagesOf, runSpeechOp, speechAccount } from '../src/services/suzi/suziSpeech';
 import { act } from '../src/services/suzi/suziAct';
 
 const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
@@ -37,6 +37,8 @@ fs.chmodSync(keyFile, 0o600);
 const env = { SPEECH_SA_KEY_FILE: keyFile, SPEECH_MONTHLY_CAP_MINUTES: '300' } as any;
 const signed = { signatureVerified: true, deviceId: 'dev-1', idempotencyKey: 'k-1', timezone: 'Asia/Karachi', now: new Date('2026-11-28T15:00:00Z') };
 const pcm = (seconds: number) => Buffer.alloc(Math.round(seconds * 32_000)).toString('base64');
+/** A clip with sound in it (a 1 kHz tone at peak 3000), so it is not silence. */
+const voiced = (seconds: number) => { const b = Buffer.alloc(Math.round(seconds * 32_000)); for (let i = 0; i + 1 < b.length; i += 2) b.writeInt16LE(Math.round(3000 * Math.sin((i / 2) * 2 * Math.PI / 16)), i); return b.toString('base64'); };
 
 beforeEach(() => {
   query.mockReset(); exec.mockReset(); actLogCreate.mockReset(); auditFn.mockReset();
@@ -77,6 +79,7 @@ describe('the pass (a), (b), (c)', () => {
   it('the founder\'s cap is 150 minutes by default; 0 or a bad value = not set up', async () => {
     const r: any = await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile } as any });
     expect(r.item.quota_left_s).toBe(150 * 60 - 600);
+    expect(r.item.quota_full_s).toBe(150 * 60);
     expect(await runSpeechOp('T', 2, 'speech.token', {}, signed, { env: { SPEECH_SA_KEY_FILE: keyFile, SPEECH_MONTHLY_CAP_MINUTES: '0' } as any })).toMatchObject({ ok: false, error: 'not_set_up' });
   });
   it('with no setting the key is read from its fixed place; a missing file = not set up', () => {
@@ -92,11 +95,11 @@ describe('the pass (a), (b), (c)', () => {
 describe('usage', () => {
   it('speech.used counts seconds per user and device this month, safe to resend', async () => {
     const r: any = await runSpeechOp('T', 2, 'speech.used', { seconds: 3.2, requests: 1 }, signed, { env });
-    expect(r).toEqual({ ok: true, item: { month_seconds: 600, quota_left_s: 300 * 60 - 600 } });
+    expect(r).toEqual({ ok: true, item: { month_seconds: 600, quota_left_s: 300 * 60 - 600, quota_full_s: 300 * 60 } });
     const args = exec.mock.calls[0];
     expect(args[0]).toContain('ON CONFLICT (client_number, source_key) DO NOTHING');
     expect(args.slice(1)).toEqual(['T', 2, STT_SERVICE, 3.2, expect.any(Number), '2026-11-28', 'dev-1', 'stt:2:k-1']);
-    expect(query.mock.calls[0].slice(1)).toEqual(['T', 2, STT_SERVICE, '2026-11-28']);
+    expect(query.mock.calls[0].slice(1)).toEqual(['T', 2, STT_SERVICE, '2026-11-28', HEAR_SERVICE]);
   });
   it('bad seconds are refused and nothing is counted', async () => {
     expect(await runSpeechOp('T', 2, 'speech.used', { seconds: -1 }, signed, { env })).toMatchObject({ ok: false, error: 'bad_seconds' });
@@ -144,5 +147,54 @@ describe('through act()', () => {
   it('an unsigned speech op is answered 403', async () => {
     const r = await act('T', 2, { op: 'speech.token', args: {}, idempotency_key: 'k-10' });
     expect(r).toMatchObject({ status: 403, body: { ok: false, error: 'unsigned' } });
+  });
+});
+
+describe('T59: the relay hears through Gemini first (engine "gemini")', () => {
+  it('the first model writes his words; his instruction, the hint line and audio/wav go in; seconds count as hearing', async () => {
+    const gemini = vi.fn().mockResolvedValue({ text: 'Suzi Salman کو رپورٹ بھیج دو Monday تک', lang: 'ur' });
+    const recognize = vi.fn();
+    const r: any = await runSpeechOp('T', 2, 'speech.hear', { audio: voiced(2), engine: 'gemini', hint: 'Suzi, Salman' }, signed, { env, gemini, recognize });
+    expect(r.ok).toBe(true);
+    expect(r.item).toMatchObject({ text: 'Suzi Salman کو رپورٹ بھیج دو Monday تک', language: 'ur', engine: GEMINI_HEAR_MODELS[0] });
+    expect(r.item).toMatchObject({ quota_full_s: 300 * 60, quota_left_s: 300 * 60 - 600 - 2 }); // the 80% banner reads these
+    const [model, wavB64, instruction] = gemini.mock.calls[0];
+    expect(model).toBe('gemini-2.5-flash');
+    expect(Buffer.from(wavB64, 'base64').subarray(0, 4).toString()).toBe('RIFF');
+    expect(instruction).toBe(`${HEAR_INSTRUCTION}\nWords and names that may come up, spelled this way: Suzi, Salman.`);
+    expect(recognize).not.toHaveBeenCalled();
+    expect(exec.mock.calls[0][3]).toBe(HEAR_SERVICE);
+    expect(exec.mock.calls[0][4]).toBe(2);
+    expect(exec.mock.calls[0][5]).toBe(0); // its money is in llm_spend, never twice
+  });
+  it('silence never reaches a model', async () => {
+    const gemini = vi.fn();
+    const r: any = await runSpeechOp('T', 2, 'speech.hear', { audio: pcm(1), engine: 'gemini' }, signed, { env, gemini });
+    expect(r).toMatchObject({ ok: true, item: { text: '', engine: 'silence' } });
+    expect(gemini).not.toHaveBeenCalled();
+    expect(peakOf(Buffer.from(voiced(0.1), 'base64'))).toBeGreaterThan(2900);
+  });
+  it('a failing model moves to the next; all failing moves to Speech-to-Text', async () => {
+    const gemini = vi.fn().mockRejectedValueOnce(new Error('503 high demand')).mockResolvedValueOnce({ text: 'ok thank you', lang: 'en' });
+    const r1: any = await runSpeechOp('T', 2, 'speech.hear', { audio: voiced(1), engine: 'gemini' }, signed, { env, gemini });
+    expect(r1.item).toMatchObject({ text: 'ok thank you', engine: GEMINI_HEAR_MODELS[1] });
+    const down = vi.fn().mockRejectedValue(new Error('down'));
+    const recognize = vi.fn().mockResolvedValue({ results: [{ alternatives: [{ transcript: 'ok thank you' }], languageCode: 'en-in' }] });
+    const r2: any = await runSpeechOp('T', 2, 'speech.hear', { audio: voiced(1), engine: 'gemini' }, signed, { env, gemini: down, recognize });
+    expect(down).toHaveBeenCalledTimes(GEMINI_HEAR_MODELS.length);
+    expect(r2.item).toMatchObject({ text: 'ok thank you', engine: 'stt' });
+  });
+  it('without engine the relay is Speech-to-Text as before', async () => {
+    const gemini = vi.fn();
+    const recognize = vi.fn().mockResolvedValue({ results: [{ alternatives: [{ transcript: 'hello' }], languageCode: 'en-in' }] });
+    const r: any = await runSpeechOp('T', 2, 'speech.hear', { audio: voiced(1) }, signed, { env, gemini, recognize });
+    expect(r.item.engine).toBe('stt');
+    expect(gemini).not.toHaveBeenCalled();
+  });
+  it('one cap for both engines: the month counts Speech-to-Text and relay seconds of his devices', async () => {
+    await runSpeechOp('T', 2, 'speech.token', {}, signed, { env });
+    const [sql, ...args] = query.mock.calls[0];
+    expect(sql).toContain("part = 'device' AND service IN ($3, $5)");
+    expect(args).toEqual(['T', 2, STT_SERVICE, '2026-11-28', HEAR_SERVICE]);
   });
 });

@@ -7,7 +7,9 @@
  *        15 minutes, signed with the SPEECH-ONLY service account (SPEECH_SA_KEY_FILE), never Nexeo's main account.
  *        The device calls Google directly with `Authorization: Bearer <token>`, so her reply keeps the 2 s target.
  *   speech.used  {seconds, requests}     -> {month_seconds, quota_left_s}  counted per user and device per month.
- *   speech.hear  {audio, languages?, hint?} -> {text, language, ms}  the relay, only when no pass can be had (model SPEECH_MODEL):
+ *   speech.hear  {audio, languages?, hint?, engine?} -> {text, language, ms, engine}  the relay. engine "gemini" (link T59,
+ *        founder 28 Nov "yes SMC should hear like SLC"; both AGREE 28 Nov): Gemini writes his words down, models in
+ *        GEMINI_HEAR_MODELS order, 2.5 s each; then Speech-to-Text (SPEECH_MODEL), as without an engine:
  *        LINEAR16 16 kHz mono, at most 15 s (500 KB raw); audio is passed to Google and dropped, never stored.
  *
  * All three need a request signed with a registered device key (T57 (c)). Errors: unsigned | not_set_up | cap |
@@ -34,6 +36,17 @@ export const STT_SERVICE = 'google_stt_seconds';
 /** Google refuses latest_short and latest_long when Urdu (ur-PK) is the main language. command_and_search takes every
  *  language order and read 3 of 3 test sentences (Urdu and English) right in about 1 s (live test 28 Nov 2026). */
 export const SPEECH_MODEL = 'command_and_search';
+
+/** T59 (C1), measured 28 Nov: 2.5-flash kept a mixed Urdu/English clip right with Urdu in Urdu script (2.0 s);
+ *  3.1-flash-lite answered 503 once; 2.5-flash-lite wrote Urdu in Latin letters. Each gets HEAR_MODEL_TIMEOUT_MS. */
+export const GEMINI_HEAR_MODELS = ['gemini-2.5-flash', 'gemini-3.1-flash-lite', 'gemini-2.5-flash-lite'] as const;
+export const HEAR_MODEL_TIMEOUT_MS = 2_500;
+/** Below this peak (16-bit samples) a clip is silence: no model is called (T59 point 2). */
+export const SILENCE_PEAK = 150;
+/** The relay's seconds, whatever engine heard them (T59 C2: one cap for both of Nexeo's engines). */
+export const HEAR_SERVICE = 'hearing_seconds';
+/** SLC's companion instruction (server/google.ts HEAR), word for word (T59 point 2). */
+export const HEAR_INSTRUCTION = 'You transcribe a short recording of one person speaking. Write exactly what they said, nothing else: no reply, no commentary, no translation. English words in English; Urdu words always in Urdu (Perso-Arabic) script, never in Latin letters, even inside an English sentence. Keep names as names. "lang" is "ur" when the speech is mostly Urdu, "en" otherwise. If there are no real words (silence, noise, a cough), "text" is "".';
 
 type Result = { ok: true; item: unknown } | { ok: false; error: string; detail?: string };
 const fail = (error: string, detail?: string): Result => ({ ok: false, error, ...(detail ? { detail } : {}) });
@@ -82,18 +95,23 @@ export function mintSpeechJwt(acct: SpeechAccount, nowS: number): { token: strin
 export async function monthSeconds(clientNumber: string, userId: number, today: string): Promise<number> {
   const rows: any[] = await prisma.$queryRawUnsafe(
     `SELECT COALESCE(SUM(units), 0)::float AS s FROM consumption_events
-      WHERE client_number = $1 AND user_id = $2 AND service = $3 AND day >= date_trunc('month', $4::date)::date AND day <= $4::date`,
-    clientNumber, userId, STT_SERVICE, today,
+      WHERE client_number = $1 AND user_id = $2 AND part = 'device' AND service IN ($3, $5)
+        AND day >= date_trunc('month', $4::date)::date AND day <= $4::date`,
+    clientNumber, userId, STT_SERVICE, today, HEAR_SERVICE,
   );
   return Number(rows?.[0]?.s) || 0;
 }
 
-async function recordSeconds(clientNumber: string, userId: number, seconds: number, requests: number, today: string, deviceId: string | null, sourceKey: string): Promise<void> {
+async function recordSeconds(clientNumber: string, userId: number, seconds: number, requests: number, today: string, deviceId: string | null, sourceKey: string,
+  service: string = STT_SERVICE): Promise<void> {
+  // A Gemini hearing's money is already in llm_spend (every Gemini call is recorded there), so its row here carries
+  // the seconds for the cap and $0, never the cost twice.
+  const usd = service === STT_SERVICE ? seconds * STT_USD_PER_SECOND : 0;
   await prisma.$executeRawUnsafe(
     `INSERT INTO consumption_events (client_number, user_id, part, service, unit, units, est_usd, measured, day, device_id, source_key)
      VALUES ($1, $2, 'device', $3, 'seconds', $4, $5, true, $6::date, $7, $8)
      ON CONFLICT (client_number, source_key) DO NOTHING`,
-    clientNumber, userId, STT_SERVICE, seconds, seconds * STT_USD_PER_SECOND, today,
+    clientNumber, userId, service, seconds, usd, today,
     deviceId ? deviceId.slice(0, 60) : null, sourceKey.slice(0, 260),
   );
   void requests; // counted by the audit line; the record keeps seconds (what Google bills)
@@ -122,8 +140,49 @@ const googleRecognize: Recognize = async (req, acct) => {
   return response;
 };
 
+/** The loudest 16-bit sample of a LINEAR16 clip. */
+export function peakOf(pcm: Buffer): number {
+  let peak = 0;
+  for (let i = 0; i + 1 < pcm.length; i += 2) { const v = Math.abs(pcm.readInt16LE(i)); if (v > peak) peak = v; }
+  return peak;
+}
+
+/** A WAV container around LINEAR16 16 kHz mono, as Gemini takes audio/wav. */
+export function wavOf(pcm: Buffer): Buffer {
+  const h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVE', 8); h.write('fmt ', 12);
+  h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(16_000, 24);
+  h.writeUInt32LE(32_000, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([h, pcm]);
+}
+
+export type GeminiHear = (model: string, wavB64: string, instruction: string, ctx: { clientNumber: string; userId: number }) => Promise<{ text: string; lang: string }>;
+const geminiHear: GeminiHear = async (model, wavB64, instruction, ctx) => {
+  const { getConfiguredGenAI } = await import('../genaiClient');
+  const { runWithLlmFeature } = await import('../llmBillingLabels');
+  const ai = await getConfiguredGenAI();
+  const out: any = await runWithLlmFeature('speech_hear', ctx.clientNumber, () => ai.models.generateContent({
+    model,
+    contents: [{ role: 'user', parts: [{ text: instruction }, { inlineData: { mimeType: 'audio/wav', data: wavB64 } }] }],
+    config: {
+      temperature: 0.1, maxOutputTokens: 512, responseMimeType: 'application/json',
+      responseSchema: { type: 'object', properties: { text: { type: 'string' }, lang: { type: 'string' } }, required: ['text', 'lang'] } as any,
+      ...(model === 'gemini-2.5-flash' ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+      labels: { app: 'suzi-mobile' },
+    } as any,
+  }), { userId: ctx.userId });
+  const j = JSON.parse(String(out?.text ?? '{}'));
+  return { text: String(j?.text ?? '').trim(), lang: String(j?.lang ?? '') };
+};
+
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  let t: NodeJS.Timeout | undefined;
+  return Promise.race([p, new Promise<T>((_, rej) => { t = setTimeout(() => rej(new Error(`timeout ${ms} ms`)), ms); t.unref?.(); })])
+    .finally(() => { if (t) clearTimeout(t); });
+}
+
 export async function runSpeechOp(clientNumber: string, userId: number, op: string, a: Record<string, unknown>, gate: Gate,
-  deps: { recognize?: Recognize; env?: NodeJS.ProcessEnv } = {}): Promise<Result> {
+  deps: { recognize?: Recognize; gemini?: GeminiHear; env?: NodeJS.ProcessEnv } = {}): Promise<Result> {
   if (!(SPEECH_OPS as readonly string[]).includes(op)) return fail('unknown_op');
   if (!gate.signatureVerified) return fail('unsigned', 'speech needs a request signed with a registered device key (T57 c)');
   const env = deps.env ?? process.env;
@@ -140,7 +199,7 @@ export async function runSpeechOp(clientNumber: string, userId: number, op: stri
     await recordSeconds(clientNumber, userId, Math.round(seconds * 1000) / 1000, requests, today, deviceId, `stt:${userId}:${key}`);
     const used = await monthSeconds(clientNumber, userId, today);
     const cap = monthlyCapSeconds(env);
-    return { ok: true, item: { month_seconds: Math.round(used), quota_left_s: cap === null ? 0 : Math.max(0, Math.floor(cap - used)) } };
+    return { ok: true, item: { month_seconds: Math.round(used), quota_left_s: cap === null ? 0 : Math.max(0, Math.floor(cap - used)), quota_full_s: cap ?? 0 } };
   }
 
   const acct = speechAccount(env);
@@ -152,7 +211,7 @@ export async function runSpeechOp(clientNumber: string, userId: number, op: stri
 
   if (op === 'speech.token') {
     const { token, expiresAt } = mintSpeechJwt(acct, Math.floor(now.getTime() / 1000));
-    return { ok: true, item: { access_token: token, expires_at: new Date(expiresAt * 1000).toISOString(), quota_left_s: left } };
+    return { ok: true, item: { access_token: token, expires_at: new Date(expiresAt * 1000).toISOString(), quota_left_s: left, quota_full_s: cap } };
   }
 
   // speech.hear: the relay.
@@ -162,6 +221,21 @@ export async function runSpeechOp(clientNumber: string, userId: number, op: stri
   const langs = languagesOf(a.languages);
   const hints = hintsOf(a.hint);
   const started = Date.now();
+  // T59: every reply carries the month's allowance, so SLC/SMC can show the 80% banner (founder 28 Nov).
+  const quota = (heard: boolean) => ({ quota_left_s: Math.max(0, left - (heard ? Math.ceil(seconds) : 0)), quota_full_s: cap });
+  if (a.engine === 'gemini') {
+    // T59: silence never reaches a model.
+    if (peakOf(raw) < SILENCE_PEAK) return { ok: true, item: { text: '', language: langs[0], ms: Date.now() - started, engine: 'silence', ...quota(false) } };
+    const instruction = hints.length ? `${HEAR_INSTRUCTION}\nWords and names that may come up, spelled this way: ${hints.join(', ')}.` : HEAR_INSTRUCTION;
+    const wavB64 = wavOf(raw).toString('base64');
+    for (const model of GEMINI_HEAR_MODELS) {
+      try {
+        const r = await withTimeout((deps.gemini ?? geminiHear)(model, wavB64, instruction, { clientNumber, userId }), HEAR_MODEL_TIMEOUT_MS);
+        await recordSeconds(clientNumber, userId, Math.round(seconds * 1000) / 1000, 1, today, deviceId, `hear-relay:${userId}:${crypto.randomUUID()}`, HEAR_SERVICE);
+        return { ok: true, item: { text: r.text, language: r.lang === 'ur' ? 'ur' : r.lang === 'en' ? 'en' : (r.lang || langs[0]), ms: Date.now() - started, engine: model, ...quota(true) } };
+      } catch { /* next model, then Speech-to-Text (T59 C1) */ }
+    }
+  }
   let response: any;
   try {
     response = await (deps.recognize ?? googleRecognize)({
@@ -182,5 +256,5 @@ export async function runSpeechOp(clientNumber: string, userId: number, op: stri
   const text = results.map((r) => String(r?.alternatives?.[0]?.transcript ?? '').trim()).filter(Boolean).join(' ').trim();
   if (!text) return fail('no_speech');
   const language = String(results.find((r) => r?.languageCode)?.languageCode ?? langs[0]);
-  return { ok: true, item: { text, language, ms } };
+  return { ok: true, item: { text, language, ms, engine: 'stt', ...quota(true) } };
 }

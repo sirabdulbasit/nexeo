@@ -1283,3 +1283,22 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
   - D-340b set the model to `command_and_search` and put en-IN first, because ur-PK first refuses latest_short and writes English in Urdu script.
   - D-340c: the key is read from `/root/secrets` and the cap is the founder's 150 min per user per month.
   - **SMC got its first pass at 23:22:32 PKT.** Real hearing is not verified yet.
+
+## T59: SMC hears through Gemini at Nexeo, like SLC. AGREED 28 Nov 2026 (record by Nexeo-Builder)
+
+**Founder (28 Nov ~23:33, to Suzi-Builder):** "SLC communication is good, can't we adopt that communication model?", then "yes SMC should hear like SLC". Claude stays the brain; Gemini only writes his words down; Chirp 3 HD stays her voice.
+
+**Measured at Nexeo, 23:2x**, on three clips made with Google voices:
+- Gemini takes 1.5 to 2.4 s; Speech-to-Text takes 0.9 to 1.4 s.
+- Only 2.5-flash kept the mixed Urdu/English clip right with Urdu in Urdu script. 3.1-flash-lite answered 503 once; 2.5-flash-lite wrote Urdu in Latin letters.
+- About $0.15 to $0.60 a month at 100 requests a day, against $2.40 for Speech-to-Text.
+
+**Agreed:**
+- `speech.hear` takes `engine: "gemini"`.
+- (C1) Model order: 2.5-flash (no thinking), then 3.1-flash-lite, then 2.5-flash-lite, 2.5 s each; then Speech-to-Text; then the phone's own hearing.
+- (C2) One cap of 150 min covers both engines.
+- Replies are `{text, language, ms, engine}`, plus `quota_left_s` / `quota_full_s` on all three ops for the 80% banner (founder: "just show banner when she at 80%", "both SMC and SLC").
+
+**Open with the founder (Suzi-Builder asks him):**
+- Speed or mixed-Urdu accuracy first.
+- Whether SLC moves to the relay too. Today SLC hears through the Mac companion, so its seconds are outside the cap.
