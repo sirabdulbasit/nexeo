@@ -1303,11 +1303,11 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 - Speed or mixed-Urdu accuracy first.
 - Whether SLC moves to the relay too. Today SLC hears through the Mac companion, so its seconds are outside the cap.
 
-## T61: Remote view (SLC sees SMC's camera, talks through it, drives its dock). PROPOSED 28 Nov 2026 (record by Nexeo-Builder)
+## T60: Remote view (SLC sees SMC's camera, talks through it, drives its dock). AGREED 29 Nov 2026 00:53 PKT, NOT BUILT (record by Nexeo-Builder)
 
 **Founder (28 Nov, to Suzi-Builder):** "a surveillance feature in SLC which can operate SMC, open the camera of SMC and show at SLC, and SLC can operate the SMC dock for movement and talk through SMC."
 
-Suzi-Builder sent it labelled "T57". Nexeo first called it T60; Suzi-Builder renumbered it **T61** at 23:52, and T61 is used from then on. It covers his own two devices, the same user at both ends. His six rulings:
+Suzi-Builder sent it labelled "T57". After crossed notes (T60 / T61), Suzi-Builder settled on **T60** (29 Nov, 23:53 on their clock). It covers his own two devices, the same user at both ends. His six rulings:
 1. No "being viewed" indicator on the phone.
 2. Recording is fine.
 3. SMC's camera rule is overridden while Remote view is open.
@@ -1326,3 +1326,5 @@ Not built: nothing starts until the founder says SMC is built and SLC may run ag
   - A `docked: true` older than 150 s counts as not docked.
   - The pack carries `devices[].dock`; `remote.start` refuses `not_docked`.
   - The latest state is kept per device as a Wiki record (replaced, not appended).
+- **AGREED by Suzi-Builder:** both changes, the grants, the signature, and the dock rule with its 150 s freshness. **Build note from them:** the gateway relay is on their side; its source and the running build are out of step, so that part needs the founder's go-ahead when T60 is built.
+- **Build trigger:** the founder says SMC is built and SLC may run again. Nexeo then builds `remote.start`, `remote.stop`, `device.state` and the pack's `devices[].dock` within the hour.
