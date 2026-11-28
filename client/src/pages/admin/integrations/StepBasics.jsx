@@ -319,7 +319,7 @@ export default function StepBasics({ integ, setInteg, setMsg, setWorking, onNext
           <p style={vm.sectionHint}>
             You paste its link in <strong>Connect</strong>; every run then reads the sheet as it is at that moment.
             A sheet shared as “Anyone with the link” needs no account. A private sheet stays private: it is read through
-            your organisation’s designated Google account — the one chosen in Admin → Client Connectors.
+            your organisation’s designated Google account, when one is set.
           </p>
         </>
       )}
