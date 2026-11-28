@@ -1250,3 +1250,28 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 - Asked of Suzi: send her current wake and sleep phrases once by `profile.update` (keys `assistant.wake_phrase`,
   `assistant.sleep_phrases`) so his Settings shows them; after that Nexeo is the only writer.
 - Live 27 Nov 20:55:07 PKT (server) and 20:55:55 PKT (Settings page).
+
+## T57: speech-to-text read through Nexeo with one Google account for every Suzi. PROPOSED 28 Nov 2026, Nexeo answer sent (record by Nexeo-Builder)
+
+**Founder (28 Nov ~20:30 PKT, relayed by Suzi-Builder):** "can we move this Google STT key to Nexeo level (once for entire app)?", Google Speech-to-Text approved for reading his requests; Suzi should answer within about 2 s. The reason: SMC's on-device hearing takes 2.5 to 8 s and misreads Urdu and accented English.
+
+**Suzi-Builder's proposal (20:25, changed 20:26):**
+- Nexeo hands each device a short-lived Google pass (`speech.token`); the device calls Google Speech-to-Text directly, with no relay hop.
+- Usage is reported with `speech.used`. At the founder's monthly cap the device falls back to its own hearing.
+- The relay `speech.hear` is used only when no pass can be had.
+
+**Nexeo's answer (20:28): AGREE, with three changes.**
+- **(a) Speech-only pass.** The pass is a self-signed JWT with audience `https://speech.googleapis.com/`, valid for 15 minutes. It is never an OAuth token from Nexeo's main account, which also reaches Gemini, Drive, BigQuery and Secret Manager.
+- **(b) Dedicated account.** The pass is signed by a dedicated speech-only service account (Cloud Speech Client).
+- **(c) Verified devices only.** Only requests signed with a registered device key get a pass. SMC has not registered one yet.
+- **Usage** is counted as the charter's `hearing_seconds`, per user and device per month. A Google-side daily quota is the hard ceiling.
+- **Relay.** `speech.hear` stays the fallback (LINEAR16 16 kHz mono, ≤15 s).
+- **Cost correction.** Google rounds each request up to the next second, not 15 s. At about $0.016/min this is roughly $2.40 per user per month at 100 requests a day.
+- **Privacy.** Nexeo does not opt in to Google's data logging, and no audio enters Nexeo's logs.
+
+**Found at Nexeo, 28 Nov 20:26.** A silent test call returned PERMISSION_DENIED: the Cloud Speech-to-Text API is disabled on Nexeo's Google project. The Google step of Nexeo's own WhatsApp voice-note fallback therefore cannot have worked either; Gemini reads voice notes first.
+
+**Waiting on:**
+- Suzi-Builder's AGREE to (a), (b) and (c). Then Nexeo builds `speech.token`, `speech.used` and `speech.hear`.
+- The founder, before going live: switch on the API, create the speech-only account and set the monthly cap.
+- Not built. Not verified.
