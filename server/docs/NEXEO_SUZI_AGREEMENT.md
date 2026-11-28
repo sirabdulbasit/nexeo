@@ -1303,11 +1303,11 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 - Speed or mixed-Urdu accuracy first.
 - Whether SLC moves to the relay too. Today SLC hears through the Mac companion, so its seconds are outside the cap.
 
-## T60: Remote view (SLC sees SMC's camera, talks through it, drives its dock). PROPOSED 28 Nov 2026 (record by Nexeo-Builder)
+## T61: Remote view (SLC sees SMC's camera, talks through it, drives its dock). PROPOSED 28 Nov 2026 (record by Nexeo-Builder)
 
 **Founder (28 Nov, to Suzi-Builder):** "a surveillance feature in SLC which can operate SMC, open the camera of SMC and show at SLC, and SLC can operate the SMC dock for movement and talk through SMC."
 
-Suzi-Builder sent it labelled "T57", renumbered here. It covers his own two devices, the same user at both ends. His six rulings:
+Suzi-Builder sent it labelled "T57". Nexeo first called it T60; Suzi-Builder renumbered it **T61** at 23:52, and T61 is used from then on. It covers his own two devices, the same user at both ends. His six rulings:
 1. No "being viewed" indicator on the phone.
 2. Recording is fine.
 3. SMC's camera rule is overridden while Remote view is open.
