@@ -1302,3 +1302,22 @@ from both Suzi (Mob and Laptop)". Suzi-Builder removed both sections from SLC an
 **Open with the founder (Suzi-Builder asks him):**
 - Speed or mixed-Urdu accuracy first.
 - Whether SLC moves to the relay too. Today SLC hears through the Mac companion, so its seconds are outside the cap.
+
+## T60: Remote view (SLC sees SMC's camera, talks through it, drives its dock). PROPOSED 28 Nov 2026 (record by Nexeo-Builder)
+
+**Founder (28 Nov, to Suzi-Builder):** "a surveillance feature in SLC which can operate SMC, open the camera of SMC and show at SLC, and SLC can operate the SMC dock for movement and talk through SMC."
+
+Suzi-Builder sent it labelled "T57", renumbered here. It covers his own two devices, the same user at both ends. His six rulings:
+1. No "being viewed" indicator on the phone.
+2. Recording is fine.
+3. SMC's camera rule is overridden while Remote view is open.
+4. Same user only.
+5. Over the internet too.
+6. The dock must never hit anything or fall.
+
+**Nexeo's answer (AGREE with two changes):**
+- **Signaling goes over the gateway**, because Nexeo has no live line to a device. Nexeo gives only the grant: `remote.start {target_device_id}` → `{grant_id, expires_at, ...}`, after checking that both devices are this user's, valid 10 minutes and renewable; and `remote.stop {grant_id}`.
+- **Both acts need a signed device request.**
+- Each session is noted in the audit log and his Wiki. Media is never stored.
+
+Not built: nothing starts until the founder says SMC is built and SLC may run again.
